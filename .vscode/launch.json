@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "0. 키 확인 (check_key.py)",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/tools/check_key.py",
+      "console": "integratedTerminal", "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "1. 대화 테스트 (chat.py)",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/tools/chat.py",
+      "console": "integratedTerminal", "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "2. 전체 평가 (eval.py)",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/tools/eval.py",
+      "console": "integratedTerminal", "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "3. 위험 시나리오만",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/tools/eval.py",
+      "args": ["--category", "risk", "-v"],
+      "console": "integratedTerminal", "cwd": "${workspaceFolder}"
+    }
+  ]
+}

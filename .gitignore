@@ -1,0 +1,15 @@
+.env
+.venv/
+venv/
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/voice/
+data/faces/
+*.wav
+*.mp4
+db.sqlite
+data/memory_call.sqlite
+.DS_Store

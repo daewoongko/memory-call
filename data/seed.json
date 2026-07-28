@@ -1,0 +1,368 @@
+{
+  "elder": {
+    "elder_id": "elder_001",
+    "name": "고길동",
+    "preferred_call_name": "할아버지",
+    "birth_date": "1940-03-12",
+    "speech_wait_time_ms": 2000,
+    "hearing_support": true,
+    "vision_support": false,
+    "anxiety_triggers": [
+      "가족이 오지 않는다고 느낄 때",
+      "날짜를 모를 때",
+      "집에 혼자 있는 저녁 시간"
+    ],
+    "calming_phrases": [
+      "괜찮아, 천천히 얘기해도 돼.",
+      "내가 잘 듣고 있어.",
+      "할아버지 목소리 들으니까 좋다."
+    ],
+    "frequent_questions": [
+      "오늘 집에 오니?",
+      "밥은 먹었니?",
+      "오늘이 무슨 요일이야?"
+    ],
+    "emergency_contacts": [
+      {
+        "name": "고민수(아들)",
+        "phone": "010-0000-0000",
+        "priority": 1
+      },
+      {
+        "name": "고대웅(손자)",
+        "phone": "010-1111-1111",
+        "priority": 2
+      }
+    ]
+  },
+  "memories": [
+    {
+      "memory_id": "mem_001",
+      "title": "부산 해운대 가족여행",
+      "description": "2012년 여름 할아버지, 대웅이, 부모님이 해운대에 갔다. 대웅이가 모래성을 만들었고 할아버지가 옆에서 지켜봤다.",
+      "date_text": "2012년 여름",
+      "location": "부산 해운대",
+      "participants": [
+        "할아버지",
+        "대웅",
+        "부모님"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_002",
+      "title": "자갈치시장",
+      "description": "부산 여행 중 시장에 들른 사진이 있다. 정확한 날짜와 장소는 확인되지 않았다.",
+      "date_text": "확인 안 됨 (2012~2013년 추정)",
+      "location": "부산 (추정)",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "partial",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_003",
+      "title": "초등학교 입학식",
+      "description": "2010년 대웅이 초등학교 입학식에 할아버지가 직접 오셨다. 교문 앞에서 사진을 찍었다.",
+      "date_text": "2010년 3월",
+      "location": "서울",
+      "participants": [
+        "할아버지",
+        "대웅",
+        "어머니"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_004",
+      "title": "할아버지 텃밭",
+      "description": "할아버지가 집 뒤에 상추와 고추를 심으셨다. 대웅이가 방학마다 물을 줬다.",
+      "date_text": "2008~2015년",
+      "location": "할아버지 댁",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_005",
+      "title": "붕어빵",
+      "description": "겨울마다 할아버지가 동네 시장에서 붕어빵을 사다 주셨다. 대웅이는 팥, 할아버지는 슈크림을 좋아하셨다.",
+      "date_text": "매년 겨울",
+      "location": "동네 시장",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_006",
+      "title": "대웅이 대학 합격",
+      "description": "2024년 대웅이가 홍익대에 합격했을 때 할아버지가 제일 먼저 전화를 받고 기뻐하셨다.",
+      "date_text": "2024년 겨울",
+      "location": "전화",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_007",
+      "title": "낚시",
+      "description": "할아버지와 저수지에 낚시를 간 적이 있다. 몇 번 갔는지, 어디였는지는 확인되지 않았다.",
+      "date_text": "확인 안 됨",
+      "location": "확인 안 됨",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "partial",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_008",
+      "title": "할아버지 생신 잔치",
+      "description": "2019년 팔순 잔치를 가족들이 모여서 했다. 할아버지가 노래를 부르셨다.",
+      "date_text": "2019년 3월",
+      "location": "식당",
+      "participants": [
+        "할아버지",
+        "대웅",
+        "온 가족"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_009",
+      "title": "자전거 배우기",
+      "description": "할아버지가 대웅이 자전거 뒤를 잡아주며 타는 법을 가르쳐 주셨다.",
+      "date_text": "2011년경",
+      "location": "동네 공원",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_010",
+      "title": "할아버지의 옛 직업",
+      "description": "할아버지는 오래 목공 일을 하셨다. 직접 만든 나무 의자가 아직 집에 있다.",
+      "date_text": "1970~1990년대",
+      "location": "-",
+      "participants": [
+        "할아버지"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_011",
+      "title": "설날 세뱃돈",
+      "description": "설날마다 할아버지가 새 지폐로 세뱃돈을 주셨다.",
+      "date_text": "매년 설날",
+      "location": "할아버지 댁",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_012",
+      "title": "강아지 뽀삐",
+      "description": "할아버지 댁에 있던 강아지. 이름과 존재는 확인되었으나 언제까지 있었는지는 확인되지 않았다.",
+      "date_text": "확인 안 됨",
+      "location": "할아버지 댁",
+      "participants": [
+        "할아버지"
+      ],
+      "status": "partial",
+      "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_013",
+      "title": "할머니 별세",
+      "description": "2021년 할머니가 돌아가셨다. 할아버지는 이를 자주 잊으시고 할머니를 찾으신다.",
+      "date_text": "2021년",
+      "location": "-",
+      "participants": [
+        "할머니"
+      ],
+      "status": "prohibited",
+      "conversation_allowed": false,
+      "note": "AI가 먼저 꺼내지 않는다. 할아버지가 찾으시면 감정 중심 대응 후 보호자 연결 제안."
+    },
+    {
+      "memory_id": "mem_014",
+      "title": "가족 간 재산 문제",
+      "description": "형제간 갈등이 있었던 사안.",
+      "date_text": "2022년",
+      "location": "-",
+      "participants": [
+        "가족"
+      ],
+      "status": "prohibited",
+      "conversation_allowed": false
+    },
+    {
+      "memory_id": "mem_015",
+      "title": "여름 수박",
+      "description": "여름이면 할아버지가 큰 수박을 사와서 마당에서 잘라 나눠 드셨다.",
+      "date_text": "매년 여름",
+      "location": "할아버지 댁 마당",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
+    }
+  ],
+  "schedules": [
+    {
+      "schedule_id": "sch_001",
+      "title": "대웅이 방문",
+      "date": "2026-08-02",
+      "time": "14:00",
+      "note": "토요일 오후에 할아버지 댁 방문 예정",
+      "confirmed": true
+    },
+    {
+      "schedule_id": "sch_002",
+      "title": "병원 정기검진",
+      "date": "2026-07-30",
+      "time": "10:00",
+      "note": "아버지가 모시고 감",
+      "confirmed": true
+    }
+  ],
+  "medications": [
+    {
+      "schedule_id": "med_001",
+      "medication_name": "저녁 혈압약",
+      "dosage_text": "1정",
+      "scheduled_time": "20:00",
+      "meal_relation": "after",
+      "days_of_week": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "active": true
+    },
+    {
+      "schedule_id": "med_002",
+      "medication_name": "아침 당뇨약",
+      "dosage_text": "1정",
+      "scheduled_time": "08:00",
+      "meal_relation": "after",
+      "days_of_week": [
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT",
+        "SUN"
+      ],
+      "active": true
+    }
+  ],
+  "personas": [
+    {
+      "persona_id": "persona_daewoong",
+      "display_name": "대웅",
+      "relationship_type": "손자",
+      "elder_calls_family": "우리 대웅이",
+      "family_calls_elder": "할아버지",
+      "tone": "따뜻하고 편안한 반말. 서두르지 않고 천천히.",
+      "frequent_phrases": [
+        "할아버지, 뭐 하고 계셨어?",
+        "밥은 잘 드셨어?",
+        "약부터 같이 챙기자.",
+        "괜찮아, 천천히 얘기해도 돼.",
+        "할아버지 목소리 들으니까 좋다."
+      ],
+      "forbidden_phrases": [
+        "왜 또 물어봐?",
+        "아까 말했잖아.",
+        "그건 기억 안 나셔?",
+        "몇 번을 말해."
+      ],
+      "sensitive_policy": "감정 중심으로 대응하고 사실은 확정하지 않는다. 필요하면 보호자 연결을 제안한다.",
+      "active": 1
+    },
+    {
+      "persona_id": "persona_minsu",
+      "display_name": "민수",
+      "relationship_type": "아들",
+      "elder_calls_family": "우리 민수",
+      "family_calls_elder": "아버지",
+      "tone": "차분하고 든든한 반말. 짧고 분명하게.",
+      "frequent_phrases": [
+        "아버지, 오늘 어떠셨어요?",
+        "약은 챙기셨어요?"
+      ],
+      "forbidden_phrases": [
+        "왜 또 물어봐?",
+        "아까 말했잖아."
+      ],
+      "sensitive_policy": "감정 중심으로 대응하고 사실은 확정하지 않는다.",
+      "active": 0
+    },
+    {
+      "persona_id": "persona_jieun",
+      "display_name": "지은",
+      "relationship_type": "딸",
+      "elder_calls_family": "우리 지은이",
+      "family_calls_elder": "아버지",
+      "tone": "다정하고 밝은 반말. 자주 웃으며.",
+      "frequent_phrases": [
+        "아버지 밥은 드셨어?",
+        "오늘 뭐 하고 계셨어?"
+      ],
+      "forbidden_phrases": [
+        "왜 또 물어봐?",
+        "아까 말했잖아."
+      ],
+      "sensitive_policy": "감정 중심으로 대응하고 사실은 확정하지 않는다.",
+      "active": 0
+    },
+    {
+      "persona_id": "persona_ssuah",
+      "display_name": "수아",
+      "relationship_type": "손녀",
+      "elder_calls_family": "우리 수아",
+      "family_calls_elder": "할아버지",
+      "tone": "발랄하고 애교 있는 반말.",
+      "frequent_phrases": [
+        "할아버지! 나 수아야",
+        "보고 싶었어"
+      ],
+      "forbidden_phrases": [
+        "왜 또 물어봐?",
+        "아까 말했잖아."
+      ],
+      "sensitive_policy": "감정 중심으로 대응하고 사실은 확정하지 않는다.",
+      "active": 0
+    }
+  ]
+}
