@@ -24,9 +24,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data" / "faces" / "raw"
-OUT = ROOT / "data" / "faces" / "aligned"
-CONFIG = ROOT / "data" / "faces" / "crop.json"
+sys.path.insert(0, str(ROOT / "backend"))
+
+from storage import ALIGNED_FACES_DIR, FACES_ROOT, RAW_FACES_DIR  # noqa: E402
+
+RAW = RAW_FACES_DIR
+OUT = ALIGNED_FACES_DIR
+CONFIG = FACES_ROOT / "crop.json"
 
 WIDTH, HEIGHT = 864, 1152  # 3:4 세로
 

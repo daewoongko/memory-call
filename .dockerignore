@@ -1,0 +1,16 @@
+.git
+.github
+.env
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.DS_Store
+frontend/node_modules
+frontend/dist
+data/faces
+data/voice
+data/memory_call.sqlite
+*.wav
+*.mp4

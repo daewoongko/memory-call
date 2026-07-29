@@ -71,6 +71,47 @@ docs/
   voice_script.md             음성 클론 녹음 대본
 ```
 
+## 웹 배포
+
+현재 MVP는 React와 FastAPI를 하나의 Docker 이미지로 배포한다. 브라우저와
+API가 같은 출처를 사용하므로 개발용 Vite 프록시를 배포 환경에 따로 만들
+필요가 없다.
+
+### Docker로 확인
+
+```bash
+docker build -t memory-call .
+docker run --rm -p 8000:8000 \
+  -e LLM_API_KEY="발급받은 키" \
+  -e DEMO_USERNAME="demo" \
+  -e DEMO_PASSWORD="긴 데모 비밀번호" \
+  memory-call
+```
+
+`http://localhost:8000`에서 화면을, `/api/health`에서 서버 상태를 확인한다.
+처음 실행할 때 SQLite가 없으면 `data/seed.json`으로 자동 생성된다.
+
+### Render 무료 미리보기
+
+저장소 루트의 `render.yaml`을 Blueprint로 연결하면 다음 값만 입력해
+배포할 수 있다.
+
+- `LLM_API_KEY`: Gemini API 키
+- `DEMO_PASSWORD`: 공개 데모 로그인 비밀번호
+
+무료 인스턴스는 재시작하거나 유휴 상태에서 내려가면 SQLite와 업로드 파일이
+초기화된다. 가상 시드 데이터로 기능을 확인하는 용도로만 사용한다.
+
+### 발표용 영구 저장
+
+Render Web Service를 유료 인스턴스로 바꾼 뒤 Persistent Disk를
+`/app/storage`에 연결한다. 그러면 SQLite, 업로드한 얼굴 사진, 생성 영상이
+재배포 후에도 유지된다. 정식 인증이 아직 없으므로 실제 개인정보·가족 사진·
+음성·건강 데이터는 올리지 않는다.
+
+GitHub의 `main`에 푸시하면 CI가 Docker 이미지를 검증하고, 성공한 커밋만
+Render가 자동 배포한다.
+
 ## 설계 메모
 
 **왜 JSON 출력인가**

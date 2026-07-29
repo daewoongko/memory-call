@@ -28,12 +28,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "backend"))
+
+from storage import ALIGNED_FACES_DIR, FACES_ROOT, MORPH_PATH  # noqa: E402
+
 load_dotenv(ROOT / ".env")
 
-FACES = ROOT / "data" / "faces" / "aligned"
-OUT = ROOT / "data" / "faces" / "morph.mp4"
-MANIFEST = ROOT / "data" / "faces" / "morph.json"
-CLIPS = ROOT / "data" / "faces" / "clips"
+FACES = ALIGNED_FACES_DIR
+OUT = MORPH_PATH
+MANIFEST = FACES_ROOT / "morph.json"
+CLIPS = FACES_ROOT / "clips"
 
 GREEN, RED, YELLOW, DIM, RESET = (
     "\033[92m", "\033[91m", "\033[93m", "\033[2m", "\033[0m"

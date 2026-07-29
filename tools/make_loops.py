@@ -26,10 +26,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "backend"))
+
+from storage import ALIGNED_FACES_DIR, LOOPS_DIR  # noqa: E402
+
 load_dotenv(ROOT / ".env")
 
-FACES = ROOT / "data" / "faces" / "aligned"
-OUT = ROOT / "data" / "faces" / "loops"
+FACES = ALIGNED_FACES_DIR
+OUT = LOOPS_DIR
 
 GREEN, RED, YELLOW, DIM, RESET = (
     "\033[92m", "\033[91m", "\033[93m", "\033[2m", "\033[0m"

@@ -7,10 +7,9 @@ load_context()의 반환 형태는 seed.json과 동일해서 persona.py는 그�
 
 import json
 import sqlite3
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "data" / "memory_call.sqlite"
+from storage import DB_PATH, ROOT, ensure_directories
+
 SCHEMA_PATH = ROOT / "backend" / "schema.sql"
 
 JSON_COLUMNS = {
@@ -23,6 +22,7 @@ JSON_COLUMNS = {
 
 
 def connect() -> sqlite3.Connection:
+    ensure_directories()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")

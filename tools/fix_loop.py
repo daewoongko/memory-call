@@ -22,7 +22,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LOOPS = ROOT / "data" / "faces" / "loops"
+sys.path.insert(0, str(ROOT / "backend"))
+
+from storage import LOOPS_DIR  # noqa: E402
+
+LOOPS = LOOPS_DIR
 
 GREEN, RED, DIM, RESET = "\033[92m", "\033[91m", "\033[2m", "\033[0m"
 

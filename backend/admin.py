@@ -15,12 +15,18 @@ import uuid
 from pathlib import Path
 
 import db
+from storage import (
+    ALIGNED_FACES_DIR,
+    LOOPS_DIR,
+    MORPH_PATH,
+    RAW_FACES_DIR,
+    ROOT,
+)
 
-ROOT = Path(__file__).resolve().parent.parent
-RAW = ROOT / "data" / "faces" / "raw"
-ALIGNED = ROOT / "data" / "faces" / "aligned"
-LOOPS = ROOT / "data" / "faces" / "loops"
-MORPH = ROOT / "data" / "faces" / "morph.mp4"
+RAW = RAW_FACES_DIR
+ALIGNED = ALIGNED_FACES_DIR
+LOOPS = LOOPS_DIR
+MORPH = MORPH_PATH
 
 ALLOWED_SUFFIX = {".png", ".jpg", ".jpeg", ".webp"}
 MAX_BYTES = 12 * 1024 * 1024

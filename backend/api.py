@@ -8,11 +8,14 @@ React 화면(D5-B)이 이 API만 보고 동작하도록 응답 형태를 고정�
     http://localhost:8000/docs  ← 브라우저에서 바로 테스트 가능
 """
 
+import base64
+import hmac
+import os
 import uuid
-from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -25,29 +28,76 @@ import memories as mem_mod
 import report as report_mod
 import schedules as sched_mod
 from conversation import Session
+from storage import (
+    ALIGNED_FACES_DIR,
+    FACES_ROOT,
+    FRONTEND_DIST,
+    LOOPS_DIR,
+    MORPH_PATH,
+    ensure_directories,
+)
 
-ROOT = Path(__file__).resolve().parent.parent
-FACES_DIR = ROOT / "data" / "faces" / "aligned"
-MEDIA_DIR = ROOT / "data" / "faces"
-MORPH = MEDIA_DIR / "morph.mp4"
-LOOPS_DIR = MEDIA_DIR / "loops"
+FACES_DIR = ALIGNED_FACES_DIR
+MEDIA_DIR = FACES_ROOT
+MORPH = MORPH_PATH
 
 app = FastAPI(title="기억이음 Call API", version="0.1.0")
 
-# Vite 개발 서버가 다른 포트에서 뜨므로 허용해준다. 배포 시에는 좁혀야 한다.
+# 개발 중 Vite 서버만 다른 출처다. 배포에서는 React와 API가 같은 출처다.
+cors_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+cors_origins.extend(
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-if FACES_DIR.exists():
-    app.mount("/faces", StaticFiles(directory=FACES_DIR), name="faces")
-if MEDIA_DIR.exists():
-    # 모핑 영상(morph.mp4)을 내보낸다. 브라우저가 구간 요청을 하므로
-    # StaticFiles 가 Range 헤더를 처리해 준다.
-    app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+ensure_directories()
+app.mount("/faces", StaticFiles(directory=FACES_DIR), name="faces")
+# 모핑 영상(morph.mp4)을 내보낸다. 브라우저가 구간 요청을 하므로
+# StaticFiles 가 Range 헤더를 처리해 준다.
+app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+
+
+@app.middleware("http")
+async def protect_demo(request: Request, call_next):
+    """정식 인증 전 공개 데모를 HTTP Basic 비밀번호로 보호한다."""
+    password = os.getenv("DEMO_PASSWORD", "")
+    if password and request.url.path != "/api/health":
+        username = os.getenv("DEMO_USERNAME", "demo")
+        authorized = False
+        header = request.headers.get("Authorization", "")
+        if header.startswith("Basic "):
+            try:
+                decoded = base64.b64decode(header[6:], validate=True).decode("utf-8")
+                supplied_user, supplied_password = decoded.split(":", 1)
+                authorized = (
+                    hmac.compare_digest(supplied_user, username)
+                    and hmac.compare_digest(supplied_password, password)
+                )
+            except (ValueError, UnicodeDecodeError):
+                authorized = False
+        if not authorized:
+            return PlainTextResponse(
+                "데모 계정으로 로그인해 주세요.",
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="Memory Call Demo"'},
+            )
+
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Permissions-Policy"] = "microphone=(self), camera=(self)"
+    return response
 
 # 진행 중인 통화. MVP는 단일 프로세스라 메모리에 둔다.
 SESSIONS: dict[str, Session] = {}
@@ -566,3 +616,8 @@ def end_call(call_id: str, req: EndCallRequest):
     summary = session.end(req.reason)
     SESSIONS.pop(call_id, None)
     return summary
+
+
+# API와 미디어 라우트 뒤에 마운트해야 /api 요청을 React가 가로채지 않는다.
+if FRONTEND_DIST.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
