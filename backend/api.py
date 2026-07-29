@@ -8,18 +8,11 @@ React 화면(D5-B)이 이 API만 보고 동작하도록 응답 형태를 고정�
     http://localhost:8000/docs  ← 브라우저에서 바로 테스트 가능
 """
 
-import base64
-import binascii
-import hashlib
-import hmac
-import html
 import os
 import uuid
-from urllib.parse import quote
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -71,162 +64,8 @@ app.mount("/faces", StaticFiles(directory=FACES_DIR), name="faces")
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
 
-DEMO_COOKIE = "memory_call_demo_session"
-
-
-def _demo_token(username: str, password: str) -> str:
-    """환경 변수 비밀번호를 노출하지 않는 고정 길이 세션 토큰을 만든다."""
-    return hmac.new(
-        password.encode("utf-8"),
-        username.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
-
-def _safe_next_path(value: str | None) -> str:
-    if value and value.startswith("/") and not value.startswith("//"):
-        return value
-    return "/"
-
-
-def _login_page(next_path: str = "/", error: str = "") -> HTMLResponse:
-    safe_next = html.escape(_safe_next_path(next_path), quote=True)
-    error_html = (
-        f'<p class="error" role="alert">{html.escape(error)}</p>' if error else ""
-    )
-    return HTMLResponse(
-        f"""<!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>기억이음 데모 로그인</title>
-  <style>
-    * {{ box-sizing: border-box; }}
-    body {{
-      margin: 0; min-height: 100vh; display: grid; place-items: center;
-      padding: 24px; background: #f5f0e8; color: #24211d;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }}
-    main {{
-      width: min(100%, 420px); padding: 36px; border-radius: 24px;
-      background: white; box-shadow: 0 18px 50px rgba(55, 43, 28, .12);
-    }}
-    .eyebrow {{ margin: 0 0 10px; color: #b85c38; font-weight: 700; }}
-    h1 {{ margin: 0 0 10px; font-size: 30px; }}
-    .description {{ margin: 0 0 28px; color: #696158; line-height: 1.55; }}
-    label {{ display: block; margin: 18px 0 8px; font-weight: 700; }}
-    input {{
-      width: 100%; padding: 14px 15px; border: 1px solid #d8d0c6;
-      border-radius: 12px; font: inherit;
-    }}
-    input:focus {{ outline: 3px solid #f1c7aa; border-color: #b85c38; }}
-    button {{
-      width: 100%; margin-top: 24px; padding: 14px; border: 0;
-      border-radius: 12px; background: #b85c38; color: white;
-      font: inherit; font-weight: 800; cursor: pointer;
-    }}
-    .error {{
-      margin: 0 0 16px; padding: 12px; border-radius: 10px;
-      background: #fff0ef; color: #9b2c26;
-    }}
-  </style>
-</head>
-<body>
-  <main>
-    <p class="eyebrow">MEMORY CALL</p>
-    <h1>기억이음 데모</h1>
-    <p class="description">공개 데모 보호를 위해 설정한 계정으로 로그인해 주세요.</p>
-    {error_html}
-    <form method="post" action="/demo-login">
-      <input type="hidden" name="next" value="{safe_next}">
-      <label for="username">아이디</label>
-      <input id="username" name="username" value="demo" autocomplete="username" required>
-      <label for="password">비밀번호</label>
-      <input id="password" name="password" type="password"
-             autocomplete="current-password" required autofocus>
-      <button type="submit">데모 시작하기</button>
-    </form>
-  </main>
-</body>
-</html>"""
-    )
-
-
-@app.get("/demo-login", response_class=HTMLResponse)
-async def demo_login_page(next: str = "/"):
-    return _login_page(next)
-
-
-@app.post("/demo-login")
-async def demo_login(request: Request):
-    form = await request.form()
-    username = str(form.get("username", ""))
-    supplied_password = str(form.get("password", ""))
-    next_path = _safe_next_path(str(form.get("next", "/")))
-    expected_username = os.getenv("DEMO_USERNAME", "demo")
-    expected_password = os.getenv("DEMO_PASSWORD", "")
-
-    valid = bool(expected_password) and hmac.compare_digest(
-        username, expected_username
-    ) and hmac.compare_digest(supplied_password, expected_password)
-    if not valid:
-        response = _login_page(next_path, "아이디 또는 비밀번호가 맞지 않습니다.")
-        response.status_code = 401
-        return response
-
-    response = RedirectResponse(next_path, status_code=303)
-    response.set_cookie(
-        DEMO_COOKIE,
-        _demo_token(expected_username, expected_password),
-        max_age=60 * 60 * 8,
-        httponly=True,
-        secure=request.url.scheme == "https",
-        samesite="lax",
-    )
-    return response
-
-
-@app.get("/demo-logout")
-async def demo_logout():
-    response = RedirectResponse("/demo-login", status_code=303)
-    response.delete_cookie(DEMO_COOKIE)
-    return response
-
-
 @app.middleware("http")
-async def protect_demo(request: Request, call_next):
-    """정식 인증 전 공개 데모를 로그인 쿠키로 보호한다."""
-    password = os.getenv("DEMO_PASSWORD", "")
-    public_paths = {"/api/health", "/demo-login"}
-    if password and request.url.path not in public_paths:
-        username = os.getenv("DEMO_USERNAME", "demo")
-        expected_token = _demo_token(username, password)
-        authorized = hmac.compare_digest(
-            request.cookies.get(DEMO_COOKIE, ""),
-            expected_token,
-        )
-
-        # 자동화 점검과 기존 클라이언트를 위해 Basic 헤더도 계속 허용한다.
-        header = request.headers.get("Authorization", "")
-        if not authorized and header.startswith("Basic "):
-            try:
-                decoded = base64.b64decode(header[6:], validate=True).decode("utf-8")
-                supplied_user, supplied_password = decoded.split(":", 1)
-                authorized = (
-                    hmac.compare_digest(supplied_user, username)
-                    and hmac.compare_digest(supplied_password, password)
-                )
-            except (ValueError, UnicodeDecodeError, binascii.Error):
-                authorized = False
-        if not authorized:
-            next_path = quote(
-                request.url.path
-                + (f"?{request.url.query}" if request.url.query else ""),
-                safe="",
-            )
-            return RedirectResponse(f"/demo-login?next={next_path}", status_code=303)
-
+async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"

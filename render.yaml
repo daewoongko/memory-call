@@ -17,7 +17,3 @@ services:
         value: gemini-3.5-flash
       - key: LLM_API_KEY
         sync: false
-      - key: DEMO_USERNAME
-        value: demo
-      - key: DEMO_PASSWORD
-        sync: false

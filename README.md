@@ -83,8 +83,6 @@ API가 같은 출처를 사용하므로 개발용 Vite 프록시를 배포 환�
 docker build -t memory-call .
 docker run --rm -p 8000:8000 \
   -e LLM_API_KEY="발급받은 키" \
-  -e DEMO_USERNAME="demo" \
-  -e DEMO_PASSWORD="긴 데모 비밀번호" \
   memory-call
 ```
 
@@ -97,10 +95,11 @@ docker run --rm -p 8000:8000 \
 배포할 수 있다.
 
 - `LLM_API_KEY`: Gemini API 키
-- `DEMO_PASSWORD`: 공개 데모 로그인 비밀번호
 
 무료 인스턴스는 재시작하거나 유휴 상태에서 내려가면 SQLite와 업로드 파일이
 초기화된다. 가상 시드 데이터로 기능을 확인하는 용도로만 사용한다.
+현재 배포는 로그인 없이 공개되므로 실제 개인정보·가족 사진·음성·건강
+데이터는 입력하지 않는다.
 
 ### 발표용 영구 저장
 
