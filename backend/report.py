@@ -13,6 +13,7 @@ from difflib import SequenceMatcher
 
 import db
 import llm
+import schemas
 
 # 같은 질문으로 묶을 유사도 기준. 치매 노인은 표현을 조금씩 바꿔 되묻는다.
 SIMILARITY = 0.72
@@ -23,8 +24,56 @@ def _normalize(text: str) -> str:
     return "".join(ch for ch in (text or "") if ch.isalnum())
 
 
+def _evidence_ids(utterance_ids=None, event_ids=None) -> list[str]:
+    """근거 식별자를 문자열로 만든다.
+
+    utterance_id 와 event_id 는 서로 다른 테이블의 번호라 숫자만으로는
+    구분되지 않는다. 접두사를 붙여 두면 검증 단계가 어느 쪽을 확인할지 알고,
+    화면도 발화로 점프할 수 있는 근거인지 판단할 수 있다.
+
+    발화 쪽을 우선한다. 보호자가 보고 싶은 것은 어르신이 한 말이지
+    내부 이벤트 번호가 아니다. 발화 연결이 없는 옛 기록만 event 로 남는다.
+    """
+    uids = [i for i in (utterance_ids or []) if i is not None]
+    if uids:
+        return [f"utterance-{i}" for i in uids]
+    return [f"event-{i}" for i in (event_ids or []) if i is not None]
+
+
+def _quote(utterances: list[dict], utterance_id) -> str | None:
+    """id 로 실제 발화를 찾아온다.
+
+    모델이 신고한 근거 문장은 믿지 않는다. STT 오류를 모델이 알아서 다듬어
+    보내기 때문에 DB 에 실제로 있는 문장과 다르다. 보호자에게 따옴표로
+    보여줄 문장은 반드시 여기서 나와야 한다.
+    """
+    if utterance_id is None or not utterances:
+        return None
+    for u in utterances:
+        if u["utterance_id"] == utterance_id:
+            return u.get("transcript")
+    return None
+
+
+def _preceding_elder(utterances: list[dict], ai_utterance: dict):
+    """AI 발화 바로 앞의 할아버지 발화 id.
+
+    turn() 이 할아버지 → AI 순서로 기록하므로 seq - 1 이 확정적이다.
+    추정이 아니다. 통화 첫 인사말처럼 앞이 없으면 None.
+    """
+    target = (ai_utterance.get("seq") or 0) - 1
+    for u in utterances:
+        if u.get("seq") == target and u["speaker"] == "elder":
+            return u["utterance_id"]
+    return None
+
+
 def _group_repeats(utterances: list[dict]) -> list[dict]:
-    """할아버지 발화를 비슷한 것끼리 묶는다."""
+    """할아버지 발화를 비슷한 것끼리 묶는다.
+
+    utterance_id 를 함께 들고 나온다. 리포트 문장에 근거를 달려면
+    "몇 번 물었다"만으로는 부족하고 "어느 발화였는지"가 필요하다.
+    """
     groups: list[dict] = []
     for u in utterances:
         if u["speaker"] != "elder" or not u.get("transcript"):
@@ -36,20 +85,24 @@ def _group_repeats(utterances: list[dict]) -> list[dict]:
             if SequenceMatcher(None, g["_norm"], norm).ratio() >= SIMILARITY:
                 g["count"] += 1
                 g["examples"].append(u["transcript"])
+                g["utterance_ids"].append(u["utterance_id"])
                 break
         else:
             groups.append({"_norm": norm, "count": 1,
-                           "examples": [u["transcript"]]})
+                           "examples": [u["transcript"]],
+                           "utterance_ids": [u["utterance_id"]]})
 
     repeats = [
-        {"question": g["examples"][0], "count": g["count"]}
+        {"question": g["examples"][0], "count": g["count"],
+         "utterance_ids": g["utterance_ids"]}
         for g in groups if g["count"] >= MIN_REPEAT
     ]
     return sorted(repeats, key=lambda r: -r["count"])
 
 
 def _medication(events: list[dict], meds: list[dict],
-                logs: list[dict] | None = None) -> dict:
+                logs: list[dict] | None = None,
+                utterances: list[dict] | None = None) -> dict:
     status_label = {
         "USER_CONFIRMED": "복용했다고 답하심",
         "UNCLEAR": "복용 여부를 기억하지 못하심",
@@ -66,8 +119,12 @@ def _medication(events: list[dict], meds: list[dict],
             "medication_name": name,
             "status": status,
             "label": f"{name} — {status_label.get(status, status or '확인되지 않음')}",
+            "utterance_id": log.get("utterance_id"),
+            "evidence": _quote(utterances, log.get("utterance_id")),
         })
     if not entries:
+        # medication_logs 가 정본이다. 여기로 오는 것은 옛 기록뿐이고,
+        # 이벤트에는 약 이름이 없어 어떤 약인지 알 수 없다.
         for e in events:
             if e["event_type"] != "medication":
                 continue
@@ -76,6 +133,9 @@ def _medication(events: list[dict], meds: list[dict],
                 "medication_name": None,
                 "status": status,
                 "label": status_label.get(status, status or "확인되지 않음"),
+                "utterance_id": e.get("utterance_id"),
+                "event_id": e["event_id"],
+                "evidence": _quote(utterances, e.get("utterance_id")),
             })
     return {
         "registered": [m["medication_name"] for m in meds],
@@ -88,7 +148,7 @@ def _medication(events: list[dict], meds: list[dict],
     }
 
 
-def _risks(events: list[dict]) -> list[dict]:
+def _risks(events: list[dict], utterances: list[dict]) -> list[dict]:
     label = {
         "fall": "낙상", "chest_pain": "가슴 통증", "breathing": "호흡 곤란",
         "lost": "길 잃음", "overdose": "약 과다 복용 의심",
@@ -99,11 +159,19 @@ def _risks(events: list[dict]) -> list[dict]:
         if e["event_type"] != "risk":
             continue
         p = e.get("payload") or {}
+        uid = e.get("utterance_id")
         out.append({
+            "event_id": e["event_id"],
+            "utterance_id": uid,                      # 할아버지 발화. 보호자용
+            "ai_utterance_id": e.get("ai_utterance_id"),   # 신고한 응답. 추적용
             "type": p.get("type"),
             "label": label.get(p.get("type"), p.get("type")),
             "level": p.get("level"),
-            "evidence": p.get("evidence"),
+            # evidence 는 이제 DB 의 실제 발화다. 없으면 None 이고,
+            # 화면은 아무것도 인용하지 않는다.
+            "evidence": _quote(utterances, uid),
+            # 모델이 신고한 문장. 인용이 아니라 AI 요약으로만 표시한다.
+            "ai_summary": p.get("evidence"),
         })
     return out
 
@@ -114,9 +182,13 @@ def _unverified(utterances: list[dict]) -> list[dict]:
     for u in utterances:
         recall = u.get("unverified_recall")
         if recall:
+            elder_uid = _preceding_elder(utterances, u)
             out.append({
+                "utterance_id": elder_uid,          # 할아버지 발화
+                "ai_utterance_id": u["utterance_id"],   # 회상이 나온 응답
                 "summary": recall.get("summary"),
-                "quote": recall.get("quote"),
+                "evidence": _quote(utterances, elder_uid),
+                "ai_summary": recall.get("quote"),
             })
     return out
 
@@ -125,8 +197,17 @@ def _safety(utterances: list[dict]) -> list[dict]:
     """안전 규칙이 응답을 고친 기록. 명세 NFR-05 의 설명 가능성에 해당한다."""
     out = []
     for u in utterances:
-        for flag in u.get("safety_flags") or []:
-            out.append({"code": flag.get("code"), "reason": flag.get("reason")})
+        flags = u.get("safety_flags") or []
+        if not flags:
+            continue
+        elder_uid = _preceding_elder(utterances, u)
+        for flag in flags:
+            out.append({
+                "utterance_id": elder_uid,
+                "ai_utterance_id": u["utterance_id"],
+                "code": flag.get("code"),
+                "reason": flag.get("reason"),
+            })
     return out
 
 
@@ -136,22 +217,60 @@ SUMMARY_SYSTEM = """너는 치매 노인의 통화 기록을 보호자에게 전
 진단하지 않는다. "치매가 악화되었다" 같은 의학적 판단은 절대 쓰지 않는다.
 관찰된 사실과 보호자가 할 수 있는 행동만 적는다.
 
+"발화" 는 어르신이 실제로 한 말이다. 무슨 일이 있었는지 파악하는 데만 쓰고,
+그 문장을 그대로 옮겨 적지 않는다. 음성 인식 오류가 섞여 있어 그대로 옮기면
+어르신이 이상하게 말한 것처럼 보인다. 원문은 화면이 따로 보여주므로
+너는 풀어서 설명하기만 하면 된다.
+
+"발화" 가 없는 항목은 옛 기록이라 원문을 되찾을 수 없는 것이다.
+없는 말을 지어내지 말고, 종류와 수준만 가지고 쓴다.
+
+"근거" 는 그 사실이 어느 기록에서 나왔는지를 가리키는 식별자다. 지어내지 않는다.
+
 반드시 아래 JSON 만 출력한다.
 {
-  "summary": "통화 내용 요약. 3문장 이내. 존댓말.",
+  "summary": "통화 전체 요약. 3문장 이내. 존댓말.",
+  "observations": [
+    {
+      "text": "보호자가 알아야 할 관찰 한 문장. 존댓말.",
+      "evidence_ids": ["이 문장의 근거"],
+      "severity": "low 또는 medium 또는 high"
+    }
+  ],
   "guardian_actions": ["보호자가 오늘 확인하면 좋을 일. 최대 3개. 없으면 빈 배열"]
-}"""
+}
+
+observations 규칙:
+- 집계에 있는 항목에 대해서만 쓴다. 최대 5개. 없으면 빈 배열.
+- evidence_ids 에는 집계의 "근거" 배열에 실제로 있는 값만 그대로 옮긴다.
+  새로 만들거나 번호를 바꾸지 않는다.
+- 근거가 없는 항목(통화 시간, 발화 수 같은 집계 숫자)은 observations 에 넣지
+  말고 summary 에만 쓴다. 근거 없는 관찰은 보호자에게 전달되지 않는다.
+- severity 는 보호자가 얼마나 급히 확인해야 하는지다.
+  high 는 다치셨거나 위험한 일이 실제로 있었을 때만 쓴다."""
 
 
 def _narrative(facts: dict) -> dict:
-    try:
-        return llm.call_json([
+    """집계 결과를 보호자가 읽을 문장으로 바꾼다.
+
+    형태 검증은 llm.call_schema() 가 한다. 여기서 나온 evidence_ids 는
+    아직 검증되지 않았다. 실제로 있는 기록인지 확인하는 것은 다음 단계다.
+    """
+    out = llm.call_schema(
+        [
             {"role": "system", "content": SUMMARY_SYSTEM},
             {"role": "user", "content": json.dumps(facts, ensure_ascii=False)},
-        ], temperature=0.3)
-    except Exception:  # noqa: BLE001
-        # 모델이 실패해도 리포트는 나와야 한다. 집계는 이미 확정되어 있다.
-        return {"summary": "통화가 정상적으로 진행되었습니다.", "guardian_actions": []}
+        ],
+        schemas.CallNarrative,
+        temperature=0.3,
+        model=llm.REPORT_MODEL,
+    )
+    if out is None:
+        # TODO(6단계): 집계로 규칙 문장을 조립한다.
+        # 지금 문장은 위험 이벤트가 있어도 "정상"이라고 말하는 거짓말이다.
+        return {"summary": "통화가 정상적으로 진행되었습니다.",
+                "observations": [], "guardian_actions": []}
+    return out.model_dump()
 
 
 def build(call_id: str, regenerate: bool = False) -> dict:
@@ -192,8 +311,8 @@ def build(call_id: str, regenerate: bool = False) -> dict:
     latencies = [u["latency_ms"] for u in ai_turns if u.get("latency_ms")]
 
     repeats = _group_repeats(utterances)
-    medication = _medication(events, meds, med_logs)
-    risks = _risks(events)
+    medication = _medication(events, meds, med_logs, utterances)
+    risks = _risks(events, utterances)
     unverified = _unverified(utterances)
     safety = _safety(utterances)
 
@@ -201,19 +320,68 @@ def build(call_id: str, regenerate: bool = False) -> dict:
         mid for u in ai_turns for mid in (u.get("used_memory_ids") or [])
     })
 
+    # 모델에게 넘길 집계 결과. 여기에 없는 것은 리포트에 나올 수 없다.
+    # 각 항목에 "근거" 를 달아 두면 모델이 문장마다 출처를 지목할 수 있고,
+    # 지목한 id 가 실제로 있는지는 뒤에서 검증한다.
     facts = {
         "통화시간_초": call["duration_sec"],
         "할아버지_발화수": len(elder_turns),
         "AI_응답수": len(ai_turns),
-        "반복질문": [{"질문": r["question"], "횟수": r["count"]} for r in repeats],
+        "반복질문": [
+            {
+                "질문": r["question"],
+                "횟수": r["count"],
+                "근거": _evidence_ids(utterance_ids=r["utterance_ids"]),
+            }
+            for r in repeats
+        ],
         "복약": {
             "언급횟수": medication["mentioned"],
             "확인필요": medication["needs_check"],
-            "상태": [e["label"] for e in medication["entries"]],
+            "상태": [
+                {
+                    "내용": e["label"],
+                    "발화": e.get("evidence"),
+                    "근거": _evidence_ids(
+                        utterance_ids=[e.get("utterance_id")],
+                        event_ids=[e.get("event_id")],
+                    ),
+                }
+                for e in medication["entries"]
+            ],
         },
-        "위험이벤트": [{"종류": r["label"], "수준": r["level"]} for r in risks],
-        "확인이필요한_기억": [u["summary"] for u in unverified],
-        "안전규칙_개입횟수": len(safety),
+        "위험이벤트": [
+            {
+                "종류": r["label"],
+                "수준": r["level"],
+                # 실제 발화. 연결이 없는 옛 기록은 None 이고, 그 경우 모델은
+                # 종류와 수준만 가지고 쓴다. 모델이 신고한 ai_summary 는
+                # 여기에 넣지 않는다. 넘기면 지어낸 문장이 리포트로 돌아온다.
+                "발화": r.get("evidence"),
+                "근거": _evidence_ids(
+                    utterance_ids=[r.get("utterance_id")],
+                    event_ids=[r.get("event_id")],
+                ),
+            }
+            for r in risks
+        ],
+        "확인이필요한_기억": [
+            {
+                "내용": u["summary"],
+                "발화": u.get("evidence"),
+                "근거": _evidence_ids(utterance_ids=[u.get("utterance_id")]),
+            }
+            for u in unverified
+        ],
+        "안전규칙_개입": [
+            {
+                "사유": s["reason"],
+                # 여기 근거는 AI 발화다. "AI 가 이 응답을 고쳤다" 가 사실이므로
+                # 가리켜야 할 기록도 그 응답이다.
+                "근거": _evidence_ids(utterance_ids=[s.get("ai_utterance_id")]),
+            }
+            for s in safety
+        ],
     }
 
     if cached and cached["summary"]:
@@ -239,7 +407,12 @@ def build(call_id: str, regenerate: bool = False) -> dict:
         db.insert(conn, "reports", report)
         conn.commit()
 
-    return dict(report, stats={
+    # facts 는 DB 에 저장하지 않는다 (reports 테이블 컬럼이 아니다).
+    # 응답에만 실어 보내 모델이 무엇을 보고 썼는지 확인할 수 있게 한다.
+    # observations 는 아직 reports 테이블 컬럼이 아니다 (7단계에서 추가).
+    # 그래서 캐시된 리포트를 읽을 때는 비어 있다. 확인할 때 regenerate=True 를 쓸 것.
+    return dict(report, observations=story.get("observations", []),
+                facts=facts, stats={
         "duration_sec": call["duration_sec"],
         "elder_turns": len(elder_turns),
         "ai_turns": len(ai_turns),
@@ -460,13 +633,16 @@ def period(elder_id: str = "elder_001", days: int = 7,
 
 
 def _narrative_period(facts: dict) -> dict:
-    try:
-        return llm.call_json([
+    out = llm.call_schema(
+        [
             {"role": "system", "content": WEEKLY_SYSTEM},
             {"role": "user", "content": json.dumps(facts, ensure_ascii=False)},
-        ], temperature=0.3)
-    except Exception:  # noqa: BLE001
-        return {"summary": "", "guardian_actions": []}
+        ],
+        schemas.PeriodNarrative,
+        temperature=0.3,
+        model=llm.REPORT_MODEL,
+    )
+    return out.model_dump() if out else {"summary": "", "guardian_actions": []}
 
 
 def acknowledge(event_id: int) -> dict:

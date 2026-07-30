@@ -53,13 +53,19 @@ def _dump(value):
     return json.dumps(value, ensure_ascii=False) if isinstance(value, (list, dict)) else value
 
 
-def insert(conn: sqlite3.Connection, table: str, data: dict) -> None:
+def insert(conn: sqlite3.Connection, table: str, data: dict) -> int:
+    """새로 넣은 행의 rowid 를 돌려준다.
+
+    이벤트를 어느 발화 때문에 만들었는지 잇기 위해 필요하다.
+    반환값이 필요 없는 호출부는 그냥 무시하면 된다.
+    """
     cols = ", ".join(data)
     marks = ", ".join("?" * len(data))
-    conn.execute(
+    cur = conn.execute(
         f"INSERT OR REPLACE INTO {table} ({cols}) VALUES ({marks})",
         [_dump(v) for v in data.values()],
     )
+    return cur.lastrowid
 
 
 # ------------------------------------------------------------------ 조회

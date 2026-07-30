@@ -18,6 +18,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from pydantic import BaseModel, ValidationError
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -25,6 +26,9 @@ load_dotenv(ROOT / ".env")
 BASE_URL = os.getenv("LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
 API_KEY = os.getenv("LLM_API_KEY", "")
 MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash")
+# 리포트·페르소나는 통화당 한 번만 돌고 지연이 상관없다. 중첩 배열과 id 인용을
+# 시켜야 하므로 대화용 경량 모델보다 큰 모델을 쓴다. 비워 두면 LLM_MODEL 을 쓴다.
+REPORT_MODEL = os.getenv("LLM_REPORT_MODEL", "") or MODEL
 MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "low")
 
@@ -130,6 +134,45 @@ def call_json(messages: list[dict], temperature: float = 0.7,
             raise
 
     raise RuntimeError(f"{MAX_RETRIES}회 재시도 실패: {last_err}")
+
+
+def call_schema(messages: list[dict], model_cls: type[BaseModel],
+                retries: int = 1, **kwargs):
+    """Pydantic 모델로 형태를 검증해서 돌려준다. 실패하면 None.
+
+    Azure OpenAI 의 Structured Outputs 대신 쓴다. 스키마를 강제하는 대신
+    받은 뒤에 검사하고, 틀리면 무엇이 틀렸는지 붙여 한 번 더 묻는다.
+
+    끝내 실패해도 예외를 올리지 않는다. 모델이 형태를 못 맞췄다고 해서
+    리포트가 아예 안 나오면 안 되기 때문이다. 호출한 쪽이 None 을 보고
+    규칙 기반 폴백으로 간다.
+    """
+    msgs = list(messages)
+    reason = None
+
+    for attempt in range(retries + 1):
+        try:
+            raw = call_json(msgs, **kwargs)
+        except Exception as e:  # noqa: BLE001
+            reason = f"호출 실패: {e}"
+            break
+
+        try:
+            return model_cls.model_validate(raw)
+        except ValidationError as e:
+            reason = f"형식 불일치: {e.error_count()}건"
+            if attempt == retries:
+                break
+            msgs = msgs + [
+                {"role": "assistant",
+                 "content": json.dumps(raw, ensure_ascii=False)},
+                {"role": "user",
+                 "content": "출력 형식이 맞지 않습니다. 아래 오류를 고쳐서 "
+                            f"JSON 만 다시 출력하세요.\n{e}"},
+            ]
+
+    print(f"    …{model_cls.__name__} 생성 실패 ({reason})", file=sys.stderr)
+    return None
 
 
 def list_models() -> list[str]:

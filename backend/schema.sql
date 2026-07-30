@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS medication_logs (
     elder_id      TEXT NOT NULL REFERENCES elder_profiles(elder_id),
     schedule_id   TEXT NOT NULL REFERENCES medications(schedule_id),
     call_id       TEXT,
+    utterance_id  INTEGER REFERENCES utterances(utterance_id),
     taken_date    TEXT NOT NULL,   -- YYYY-MM-DD
     status        TEXT NOT NULL CHECK (status IN
                      ('USER_CONFIRMED','UNCLEAR','REFUSED','DUPLICATE_SUSPECTED')),
@@ -121,9 +122,14 @@ CREATE INDEX IF NOT EXISTS idx_utt_call ON utterances(call_id, seq);
 
 -- 위험 · 복약 · 모핑 등 통화 중 이벤트
 CREATE TABLE IF NOT EXISTS call_events (
-    event_id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    call_id      TEXT NOT NULL REFERENCES calls(call_id),
-    event_type   TEXT NOT NULL CHECK (event_type IN
+    event_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id         TEXT NOT NULL REFERENCES calls(call_id),
+    -- 이벤트를 만든 할아버지 발화. 보호자 화면의 인용은 여기서 나온다.
+    utterance_id    INTEGER REFERENCES utterances(utterance_id),
+    -- 모델이 신고한 응답. 추적·디버깅용.
+    ai_utterance_id INTEGER REFERENCES utterances(utterance_id),
+    -- safety_block 은 더 이상 쓰지 않는다. 옛 행 때문에 값은 남겨 둔다.
+    event_type      TEXT NOT NULL CHECK (event_type IN
                     ('risk','medication','morph','handoff','safety_block')),
     payload      TEXT,   -- JSON 객체
     acknowledged INTEGER DEFAULT 0,

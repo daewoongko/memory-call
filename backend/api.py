@@ -543,7 +543,7 @@ def turn(call_id: str, req: TurnRequest):
 def call_log(call_id: str):
     with db.connect() as conn:
         rows = conn.execute(
-            "SELECT seq, speaker, transcript, intent, certainty, "
+            "SELECT utterance_id, seq, speaker, transcript, intent, certainty, "
             "safety_flags, was_rewritten, latency_ms "
             "FROM utterances WHERE call_id = ? ORDER BY seq",
             (call_id,),

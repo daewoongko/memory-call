@@ -82,7 +82,7 @@ class Session:
     def turn(self, user_text: str) -> dict:
         """할아버지 발화 하나를 받아 AI 응답 dict를 돌려준다."""
         self.seq += 1
-        self._record({
+        elder_uid = self._record({
             "seq": self.seq,
             "speaker": "elder",
             "transcript": user_text,
@@ -100,7 +100,7 @@ class Session:
         reply = result.get("reply", "")
 
         self.seq += 1
-        self._record({
+        ai_uid = self._record({
             "seq": self.seq,
             "speaker": "ai",
             "transcript": reply,
@@ -115,8 +115,8 @@ class Session:
             "latency_ms": latency_ms,
         })
 
-        self._record_events(result)
-        self._record_medication(result, user_text)
+        self._record_events(result, elder_uid, ai_uid)
+        self._record_medication(result, user_text, elder_uid)
 
         self.history += [
             {"role": "user", "content": user_text},
@@ -131,12 +131,14 @@ class Session:
 
     # -------------------------------------------------------------- 기록
 
-    def _record(self, row: dict) -> None:
+    def _record(self, row: dict) -> int:
         with db.connect() as conn:
-            db.insert(conn, "utterances", dict(row, call_id=self.call_id))
+            uid = db.insert(conn, "utterances", dict(row, call_id=self.call_id))
             conn.commit()
+        return uid
 
-    def _record_medication(self, result: dict, user_text: str) -> None:
+    def _record_medication(self, result: dict, user_text: str,
+                           elder_uid: int | None = None) -> None:
         """통화에서 확인된 복약 상태를 기록한다.
 
         어떤 약인지는 지금 챙길 대상에서 고른다. 모델이 약을 지목하게 두지 않는다.
@@ -150,18 +152,29 @@ class Session:
             status=status,
             call_id=self.call_id,
             evidence=user_text[:200],
+            utterance_id=elder_uid,
         )
         if status == "USER_CONFIRMED":
             self.due_meds = self.due_meds[1:]
 
-    def _record_events(self, result: dict) -> None:
+    def _record_events(self, result: dict, elder_uid: int | None = None,
+                       ai_uid: int | None = None) -> None:
+        """이벤트를 "무엇 때문에 생겼는지"와 함께 남긴다.
+
+        utterance_id 는 할아버지 발화다. 보호자가 리포트에서 위험을 눌렀을 때
+        보고 싶은 것은 AI 가 뭐라고 답했는지가 아니라 어르신이 무슨 말을
+        했는지이기 때문이다. ai_utterance_id 는 모델이 어느 응답에서 신고했는지
+        추적하는 용도로만 쓴다.
+
+        safety_block 은 더 이상 기록하지 않는다. 같은 내용이 이미
+        utterances.safety_flags 에 발화와 함께 저장되고, 리포트의 _safety() 도
+        그쪽만 읽는다. 이벤트 쪽은 아무도 읽지 않는 중복이었다.
+        """
         events = []
         if result.get("risk"):
             events.append(("risk", result["risk"]))
         if result.get("medication_status"):
             events.append(("medication", result["medication_status"]))
-        if result.get("_safety_flags"):
-            events.append(("safety_block", {"flags": result["_safety_flags"]}))
 
         if not events:
             return
@@ -169,6 +182,8 @@ class Session:
             for event_type, payload in events:
                 db.insert(conn, "call_events", {
                     "call_id": self.call_id,
+                    "utterance_id": elder_uid,
+                    "ai_utterance_id": ai_uid,
                     "event_type": event_type,
                     "payload": payload,
                 })

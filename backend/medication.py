@@ -87,12 +87,20 @@ def opening_line(persona_name: str, call_name: str, meds: list[dict]) -> str:
 
 
 def record(elder_id: str, schedule_id: str, status: str,
-           call_id: str | None = None, evidence: str | None = None) -> None:
+           call_id: str | None = None, evidence: str | None = None,
+           utterance_id: int | None = None) -> None:
+    """복약 상태를 기록한다.
+
+    evidence_text 는 할아버지 발화를 그대로 자른 것이라 모델이 지어낸 값은
+    아니지만, 200자에서 잘리고 어느 발화였는지 알 수 없다.
+    utterance_id 로 원문을 되찾을 수 있게 한다.
+    """
     with db.connect() as conn:
         db.insert(conn, "medication_logs", {
             "elder_id": elder_id,
             "schedule_id": schedule_id,
             "call_id": call_id,
+            "utterance_id": utterance_id,
             "taken_date": date.today().isoformat(),
             "status": status,
             "evidence_text": evidence,
