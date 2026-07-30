@@ -43,10 +43,21 @@ export const startCall = (personaId) =>
     body: JSON.stringify(personaId ? { persona_id: personaId } : {}),
   });
 
+// AI 임을 알리는 안내를 읽어 준 뒤에 부른다.
+// 이걸 부르기 전에는 sendTurn 이 409 를 낸다 — 고지를 건너뛴 통화를 막기 위함.
+export const markDisclosed = (callId) =>
+  request(`/api/calls/${callId}/disclosed`, { method: "POST" });
+
 export const sendTurn = (callId, text) =>
   request(`/api/calls/${callId}/turn`, {
     method: "POST",
     body: JSON.stringify({ text }),
+  });
+
+export const confirmMedication = (scheduleId, note, elderId = "elder_001") =>
+  request(`/api/medications/${scheduleId}/guardian-confirm`, {
+    method: "POST",
+    body: JSON.stringify({ elder_id: elderId, note }),
   });
 
 export const getPersona = (elderId = "elder_001") =>

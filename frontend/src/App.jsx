@@ -105,7 +105,19 @@ export default function App() {
     try {
       const res = await api.startCall(target?.persona_id);
       setCall(res);
-      timers.current.push(setTimeout(() => setPhase("incall"), ANNOUNCE_MS));
+      // 안내를 읽어 줄 시간을 기다린 뒤 서버에 고지 완료를 알린다.
+      // 이 단계를 지나야 서버가 대화 턴을 받아준다 (절대 규칙 7번).
+      timers.current.push(
+        setTimeout(async () => {
+          try {
+            await api.markDisclosed(res.call_id);
+            setPhase("incall");
+          } catch (e) {
+            setError(`통화를 열지 못했어요. (${e.message})`);
+            setPhase("idle");
+          }
+        }, ANNOUNCE_MS),
+      );
     } catch (e) {
       setError(`통화를 열지 못했어요. (${e.message})`);
       setPhase("idle");

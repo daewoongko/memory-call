@@ -122,15 +122,18 @@ def review(utterance_id: int, decision: str, elder_id: str = "elder_001",
     if decision not in ("approved", "rejected"):
         raise ValueError("decision 은 approved 또는 rejected 여야 합니다.")
 
+    # 존재 확인은 승인·거절 양쪽 앞에 있어야 한다.
+    # 거절 경로에만 없으면 recall_reviews 의 외래키가 터져 500 이 난다.
+    with db.connect() as conn:
+        row = conn.execute(
+            "SELECT call_id, unverified_recall FROM utterances "
+            "WHERE utterance_id = ?", (utterance_id,)
+        ).fetchone()
+    if row is None:
+        raise ValueError(f"발화 {utterance_id} 없음")
+
     created = None
     if decision == "approved":
-        with db.connect() as conn:
-            row = conn.execute(
-                "SELECT call_id, unverified_recall FROM utterances "
-                "WHERE utterance_id = ?", (utterance_id,)
-            ).fetchone()
-        if row is None:
-            raise ValueError(f"발화 {utterance_id} 없음")
         source = db._row(row)
         recall = source.get("unverified_recall") or {}
 

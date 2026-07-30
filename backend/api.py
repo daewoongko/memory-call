@@ -24,7 +24,7 @@ import medication as med_mod
 import memories as mem_mod
 import report as report_mod
 import schedules as sched_mod
-from conversation import Session
+from conversation import CallClosed, DisclosureRequired, Session
 from storage import (
     ALIGNED_FACES_DIR,
     FACES_ROOT,
@@ -174,6 +174,11 @@ class SchedulePatch(BaseModel):
     time: str | None = Field(default=None, pattern=r"^(\d{2}:\d{2})?$")
     note: str | None = Field(default=None, max_length=200)
     confirmed: bool | None = None
+
+
+class GuardianConfirm(BaseModel):
+    elder_id: str = "elder_001"
+    note: str | None = Field(default=None, max_length=200)
 
 
 class MedicationRequest(BaseModel):
@@ -474,6 +479,19 @@ def remove_medication(schedule_id: str):
     return {"ok": True}
 
 
+@app.post("/api/medications/{schedule_id}/guardian-confirm")
+def confirm_medication(schedule_id: str, req: GuardianConfirm):
+    """보호자가 복용을 직접 확인했다.
+
+    본인 응답과 다른 상태로 남긴다. 확인된 약은 AI 가 다시 전화해서 묻지 않는다.
+    """
+    try:
+        result = med_mod.guardian_confirm(req.elder_id, schedule_id, req.note)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return dict(result, today=med_mod.today_status(req.elder_id))
+
+
 @app.get("/api/elders/{elder_id}/pending-call")
 def pending_call(elder_id: str = "elder_001"):
     """AI 가 먼저 전화를 걸어야 하는 상황인지 알려준다.
@@ -506,10 +524,28 @@ def start_call(req: StartCallRequest):
         "opening": session.opening(),
         # 명세 13.1 — 연결 전 1회만 고지한다. 통화 중에는 반복하지 않는다.
         "announcement": f"{persona_name}이가 준비한 AI 기억통화가 연결됩니다.",
+        # 통화는 고지 단계로 시작한다. /disclosed 를 부르기 전에는 turn 이 409 다.
+        "status": session.status,
         "faces": _face_urls(),
         "morph_url": _morph_url(),
         "loops": _loop_urls(),
     }
+
+
+@app.post("/api/calls/{call_id}/disclosed")
+def mark_disclosed(call_id: str):
+    """안내 문장을 읽어 줬음을 알린다. 이때부터 대화가 열린다.
+
+    고지를 상태로 두는 이유는 절대 규칙 7번(정체성)을 프롬프트가 아니라
+    상태 전이로 강제하기 위해서다. docs/02-safety-policy.md 3절.
+    """
+    return _get(call_id).disclose()
+
+
+@app.post("/api/calls/{call_id}/handoff")
+def handoff_call(call_id: str):
+    """실제 가족이 통화에 참여했다. AI 가 대화 주체에서 빠진다."""
+    return _get(call_id).handoff()
 
 
 @app.post("/api/calls/{call_id}/turn")
@@ -518,6 +554,11 @@ def turn(call_id: str, req: TurnRequest):
     session = _get(call_id)
     try:
         result = session.turn(req.text.strip())
+    except DisclosureRequired as e:
+        # 409 — 고지를 건너뛴 통화는 성립하지 않는다. 절대 규칙 7번.
+        raise HTTPException(409, str(e)) from e
+    except CallClosed as e:
+        raise HTTPException(409, str(e)) from e
     except llm.QuotaExceeded as e:
         raise HTTPException(429, str(e)) from e
     except Exception as e:  # noqa: BLE001

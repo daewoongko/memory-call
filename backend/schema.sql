@@ -78,8 +78,11 @@ CREATE TABLE IF NOT EXISTS medication_logs (
     schedule_id   TEXT NOT NULL REFERENCES medications(schedule_id),
     call_id       TEXT,
     taken_date    TEXT NOT NULL,   -- YYYY-MM-DD
+    -- GUARDIAN_CONFIRMED 는 보호자가 별도로 확인한 것이다.
+    -- 본인 응답과 구분해야 리포트에서 '본인 응답'과 '보호자 확인'을 나눌 수 있다.
     status        TEXT NOT NULL CHECK (status IN
-                     ('USER_CONFIRMED','UNCLEAR','REFUSED','DUPLICATE_SUSPECTED')),
+                     ('USER_CONFIRMED','UNCLEAR','REFUSED','DUPLICATE_SUSPECTED',
+                      'GUARDIAN_CONFIRMED')),
     evidence_text TEXT,
     created_at    TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -95,8 +98,14 @@ CREATE TABLE IF NOT EXISTS calls (
     ended_at     TEXT,
     duration_sec INTEGER,
     end_reason   TEXT,
-    status       TEXT DEFAULT 'active'
-                 CHECK (status IN ('requested','active','ended','failed'))
+    -- 상태 전이는 docs/04-data-model.md 3절 참고.
+    --   requested → ai_disclosure → active → ended
+    --                                  └──→ human_handoff → ended
+    -- ai_disclosure 는 AI 임을 고지하는 단계다. 건너뛸 수 없다.
+    -- 절대 규칙 7번(정체성)을 프롬프트가 아니라 상태 전이로 강제한다.
+    status       TEXT DEFAULT 'ai_disclosure'
+                 CHECK (status IN ('requested','ai_disclosure','active',
+                                   'human_handoff','ended','failed'))
 );
 
 -- 통화 중 발화 한 줄. Gemini가 신고한 JSON 필드를 그대로 보관한다.
@@ -131,8 +140,6 @@ CREATE TABLE IF NOT EXISTS call_events (
 );
 CREATE INDEX IF NOT EXISTS idx_evt_call ON call_events(call_id, event_type);
 
--- 통화 중 나온 미확인 회상에 대한 보호자의 판단.
--- 한 번 처리한 것은 다시 묻지 않기 위해 결정을 남긴다 (명세 FR-05).
 -- 보호자 기기와 어르신 기기를 잇는 일회용 코드.
 -- 계정과 비밀번호 대신 짧은 숫자를 쓴다. 어르신이 입력하기 쉬워야 한다.
 CREATE TABLE IF NOT EXISTS link_codes (
@@ -143,6 +150,9 @@ CREATE TABLE IF NOT EXISTS link_codes (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 통화 중 나온 미확인 회상에 대한 보호자의 판단.
+-- 한 번 처리한 것은 다시 묻지 않기 위해 결정을 남긴다 (명세 FR-05).
+-- 이 테이블이 "AI 는 스스로 기억을 늘리지 못한다" 원칙의 구현이다.
 CREATE TABLE IF NOT EXISTS recall_reviews (
     utterance_id INTEGER PRIMARY KEY REFERENCES utterances(utterance_id),
     decision     TEXT NOT NULL CHECK (decision IN ('approved', 'rejected')),

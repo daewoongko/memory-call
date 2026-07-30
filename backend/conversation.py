@@ -19,6 +19,23 @@ from persona import build_system_prompt, load_context
 
 MAX_HISTORY_TURNS = 12  # 최근 12턴만 모델에 보냄. 반복 질문이 많아 길어지기 쉽다.
 
+# 통화 상태. schema.sql 의 calls.status CHECK 제약과 같은 값이어야 한다.
+DISCLOSURE, ACTIVE, HANDOFF, ENDED = (
+    "ai_disclosure", "active", "human_handoff", "ended",
+)
+
+
+class DisclosureRequired(RuntimeError):
+    """AI 임을 고지하기 전에 대화 턴을 시도한 경우.
+
+    절대 규칙 7번(정체성)을 프롬프트가 아니라 상태 전이로 강제한다.
+    프롬프트는 부탁이고 이건 강제다.
+    """
+
+
+class CallClosed(RuntimeError):
+    """이미 끝난 통화 또는 사람에게 인계된 통화에 턴을 시도한 경우."""
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
@@ -38,6 +55,9 @@ class Session:
         # 지금 챙겨야 하는 약. 통화를 열 때 대웅이가 먼저 꺼낸다 (명세 FR-08).
         self.due_meds = medication.due(elder_id)
 
+        # 통화는 고지 단계로 시작한다. disclose() 를 지나야 대화할 수 있다.
+        self.status = DISCLOSURE
+
         with db.connect() as conn:
             db.insert(conn, "calls", {
                 "call_id": self.call_id,
@@ -45,9 +65,46 @@ class Session:
                 "persona_id": self.persona_id,
                 "call_type": call_type,
                 "started_at": _now(),
-                "status": "active",
+                "status": self.status,
             })
             conn.commit()
+
+    # -------------------------------------------------------------- 상태
+
+    def _set_status(self, status: str) -> None:
+        self.status = status
+        with db.connect() as conn:
+            conn.execute(
+                "UPDATE calls SET status = ? WHERE call_id = ?",
+                (status, self.call_id),
+            )
+            conn.commit()
+
+    def disclose(self) -> dict:
+        """AI 임을 고지했음을 확인하고 대화를 열어 준다.
+
+        화면이 안내 문장을 읽어 준 뒤에 부른다. 이 단계를 지나지 않으면
+        turn() 이 거부된다 — 고지를 건너뛴 통화가 성립하지 않게 하기 위함이다.
+        """
+        if self.status == DISCLOSURE:
+            self._set_status(ACTIVE)
+        return {"call_id": self.call_id, "status": self.status}
+
+    def handoff(self) -> dict:
+        """실제 가족이 참여했다. AI 가 대화 주체에서 빠진다."""
+        self._set_status(HANDOFF)
+        with db.connect() as conn:
+            db.insert(conn, "call_events", {
+                "call_id": self.call_id,
+                "event_type": "handoff",
+                "payload": {"at": _now()},
+            })
+            conn.execute(
+                "UPDATE calls SET call_type = 'ai_to_direct' WHERE call_id = ?",
+                (self.call_id,),
+            )
+            conn.commit()
+        return {"call_id": self.call_id, "status": self.status}
 
     # -------------------------------------------------------------- 시작
 
@@ -80,7 +137,18 @@ class Session:
     # -------------------------------------------------------------- 발화
 
     def turn(self, user_text: str) -> dict:
-        """할아버지 발화 하나를 받아 AI 응답 dict를 돌려준다."""
+        """할아버지 발화 하나를 받아 AI 응답 dict를 돌려준다.
+
+        고지를 지나지 않았으면 거부한다. 이 검사가 절대 규칙 7번의 강제 지점이다.
+        """
+        if self.status == DISCLOSURE:
+            raise DisclosureRequired(
+                "AI 고지 전에는 대화할 수 없습니다. "
+                "POST /api/calls/{call_id}/disclosed 를 먼저 부르세요."
+            )
+        if self.status != ACTIVE:
+            raise CallClosed(f"통화 상태가 {self.status} 라서 대화할 수 없습니다.")
+
         self.seq += 1
         self._record({
             "seq": self.seq,
@@ -160,8 +228,13 @@ class Session:
             events.append(("risk", result["risk"]))
         if result.get("medication_status"):
             events.append(("medication", result["medication_status"]))
-        if result.get("_safety_flags"):
-            events.append(("safety_block", {"flags": result["_safety_flags"]}))
+        # safety_block 은 응답을 실제로 막은 경우만이다.
+        # FLAG 로 기록만 남긴 규칙까지 차단 이벤트로 세면 위반 건수가 부풀려진다.
+        # 전체 플래그는 utterances.safety_flags 에 그대로 남아 있다.
+        blocked = [f for f in (result.get("_safety_flags") or [])
+                   if f.get("action") == safety.BLOCK]
+        if blocked:
+            events.append(("safety_block", {"flags": blocked}))
 
         if not events:
             return
@@ -178,6 +251,7 @@ class Session:
 
     def end(self, reason: str = "user_ended") -> dict:
         duration = int(time.time() - self._started)
+        self.status = ENDED
         with db.connect() as conn:
             conn.execute(
                 "UPDATE calls SET ended_at = ?, duration_sec = ?, "
@@ -198,6 +272,7 @@ class Session:
 
         return {
             "call_id": self.call_id,
+            "status": self.status,
             "duration_sec": duration,
             "ai_turns": stats["turns"] or 0,
             "avg_latency_ms": int(stats["avg_ms"]) if stats["avg_ms"] else 0,

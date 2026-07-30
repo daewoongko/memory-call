@@ -40,10 +40,13 @@ def due(elder_id: str = "elder_001", now: datetime | None = None) -> list[dict]:
             "SELECT * FROM medications WHERE elder_id = ? AND active = 1",
             (elder_id,),
         ).fetchall()]
+        # 본인이 답했거나 보호자가 확인한 약은 다시 챙기지 않는다.
+        # 보호자 확인을 빼면 이미 확인된 약으로 AI 가 계속 전화를 건다.
         logged = {
             r["schedule_id"] for r in conn.execute(
                 "SELECT schedule_id FROM medication_logs "
-                "WHERE elder_id = ? AND taken_date = ? AND status = 'USER_CONFIRMED'",
+                "WHERE elder_id = ? AND taken_date = ? "
+                "AND status IN ('USER_CONFIRMED', 'GUARDIAN_CONFIRMED')",
                 (elder_id, today),
             ).fetchall()
         }
@@ -86,6 +89,13 @@ def opening_line(persona_name: str, call_name: str, meds: list[dict]) -> str:
     return f"{call_name}, {what} 드실 시간이야. 혹시 벌써 드셨어?"
 
 
+# 통화 중 말로 확인되는 상태. 보호자 확인과 구분한다.
+CALL_STATUSES = ("USER_CONFIRMED", "UNCLEAR", "REFUSED", "DUPLICATE_SUSPECTED")
+
+# 보호자가 별도로 확인한 상태. 본인 응답이 아니다.
+GUARDIAN_CONFIRMED = "GUARDIAN_CONFIRMED"
+
+
 def record(elder_id: str, schedule_id: str, status: str,
            call_id: str | None = None, evidence: str | None = None) -> None:
     with db.connect() as conn:
@@ -98,6 +108,33 @@ def record(elder_id: str, schedule_id: str, status: str,
             "evidence_text": evidence,
         })
         conn.commit()
+
+
+def guardian_confirm(elder_id: str, schedule_id: str,
+                     note: str | None = None) -> dict:
+    """보호자가 복용을 직접 확인했다.
+
+    본인 응답(USER_CONFIRMED)과 별도 상태로 남긴다. 리포트에서 '본인 응답'과
+    '보호자 확인'을 분리해야 하기 때문이다 (docs/02-safety-policy.md 11절).
+
+    이 기록은 통화 중 확인을 덮어쓰지 않는다. 로그는 계속 쌓이고, 마지막 상태만
+    화면에 쓴다. 누가 언제 확인했는지 추적할 수 있어야 한다.
+    """
+    with db.connect() as conn:
+        exists = conn.execute(
+            "SELECT 1 FROM medications WHERE schedule_id = ? AND elder_id = ?",
+            (schedule_id, elder_id),
+        ).fetchone()
+    if not exists:
+        raise ValueError(f"등록되지 않은 복약 일정입니다: {schedule_id}")
+
+    record(
+        elder_id=elder_id,
+        schedule_id=schedule_id,
+        status=GUARDIAN_CONFIRMED,
+        evidence=(note or "보호자가 직접 확인")[:200],
+    )
+    return {"schedule_id": schedule_id, "status": GUARDIAN_CONFIRMED}
 
 
 def today_status(elder_id: str = "elder_001") -> list[dict]:
@@ -125,14 +162,19 @@ def today_status(elder_id: str = "elder_001") -> list[dict]:
         if weekday not in (m.get("days_of_week") or WEEKDAY):
             continue
         entries = by_schedule.get(m["schedule_id"], [])
-        confirmed = any(e["status"] == "USER_CONFIRMED" for e in entries)
+        # 본인이 답한 것과 보호자가 확인한 것을 구분해서 내려준다.
+        # 화면에서 "어르신 확인"과 "보호자 확인"을 다르게 보여줘야 한다.
+        by_user = any(e["status"] == "USER_CONFIRMED" for e in entries)
+        by_guardian = any(e["status"] == GUARDIAN_CONFIRMED for e in entries)
         out.append({
             "schedule_id": m["schedule_id"],
             "medication_name": m["medication_name"],
             "dosage_text": m.get("dosage_text"),
             "scheduled_time": m.get("scheduled_time"),
             "meal_relation": m.get("meal_relation"),
-            "confirmed": confirmed,
+            "confirmed": by_user or by_guardian,
+            "confirmed_by_user": by_user,
+            "confirmed_by_guardian": by_guardian,
             "last_status": entries[-1]["status"] if entries else None,
         })
     return out

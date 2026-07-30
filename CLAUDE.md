@@ -69,17 +69,31 @@ data/
   faces/aligned/              8~32살 사진 6장 (3:4)
   faces/morph.mp4             모핑 영상 25초
   faces/loops/                표정 루프 (talking, concerned)
+tests/                        ★ API 계약 테스트 80건. LLM 호출 안 함
+  conftest.py                 임시 DB + llm 대역
+  test_calls.py               통화 상태 머신 (고지 강제)
+  test_safety.py              규칙 검사 계층
+  test_medications.py         복약, 보호자 확인
+  test_memories.py            기억 승인 (AI 는 기억을 못 늘린다)
 tools/
   eval.py + scenarios.json    ★ 안전 레이어 자동 평가 22개
   chat.py                     터미널 대화 테스트
   serve.py                    API 서버 실행
   init_db.py                  DB 생성·시드
+  migrate.py                  DB 를 지우지 않고 스키마 변경 적용
   prep_faces.py               사진 크롭·정렬
   make_morph.py               모핑 영상 생성 (Replicate)
   make_loops.py               표정 루프 생성 (Replicate)
   fix_loop.py                 루프를 이음매 없이 다듬기
   demo_reset.py               시연 준비 (기록 초기화 + 일정 재설정)
 docs/
+  00-mvp-scope.md             범위·게이트·비기능 요구사항
+  01-decisions.md             ★ 결정 기록. 되돌리자는 제안 방지
+  02-safety-policy.md         ★ 안전 정책 ↔ safety.py 대응표
+  03-architecture.md          구조·턴 흐름·부딪혀서 알아낸 것
+  04-data-model.md            12테이블과 상태값의 의미
+  05-api-and-events.md        엔드포인트와 호출 순서
+  06-backlog.md               우선순위별 남은 일
   demo_script.md              시연 대본 5막 3분
   voice_script.md             음성 녹음 대본 (미사용)
 ```
@@ -174,11 +188,23 @@ source .venv/bin/activate
 python tools/serve.py                    # 터미널 1: API 서버
 cd frontend && npm run dev               # 터미널 2: 화면
 
-python tools/eval.py --sleep 5           # 안전 평가 22개
+python -m pytest tests/ -q               # API 계약 테스트 (LLM 호출 없음, 즉시)
+python tools/eval.py --sleep 5           # 안전 평가 22개 (LLM 호출, 느림)
 python tools/eval.py --raw --sleep 5     # safety 없이 (비교용)
 python tools/chat.py                     # 터미널 대화 테스트
 python tools/demo_reset.py --med-in 6    # 시연 준비
+python tools/migrate.py --check          # 스키마 변경 적용 필요한지 확인
+python tools/migrate.py                  # DB 를 지우지 않고 적용
 ```
+
+`tests/` 와 `eval.py` 는 역할이 다르다. **계약 테스트는 커밋마다, eval 은
+`safety.py` 나 `persona_system.md` 를 고칠 때** 돌린다.
+
+| | `tests/` | `tools/eval.py` |
+|---|---|---|
+| 검사 대상 | API 계약·상태 전이 | 안전 정책 (실제 문장) |
+| LLM | 호출 안 함 | 호출함 |
+| 속도 | 즉시 | 시나리오당 수 초 |
 
 화면 주소
 
@@ -192,6 +218,9 @@ python tools/demo_reset.py --med-in 6    # 시연 준비
 ## 주의
 
 - `.env`는 절대 커밋하지 않는다 (`.gitignore`에 등록됨)
+- **`schema.sql` 의 `CHECK` 제약을 고쳤으면 `tools/migrate.py` 에 마이그레이션을
+  추가한다.** SQLite 는 `CHECK` 를 `ALTER` 로 못 바꿔서 테이블 재구축이 필요하다.
+  `init_db.py --reset` 은 시연 데이터를 날린다
 - Gemini 무료 티어는 요청 내용이 모델 개선에 사용될 수 있다.
   **실제 가족 사진·음성·대화가 들어가는 시점부터는 유료 티어로 옮겨야 한다.**
   현재 seed 데이터는 전부 가상 인물이라 무방하다
