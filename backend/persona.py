@@ -5,7 +5,7 @@ persona_system.md 템플릿의 {{PLACEHOLDER}}를 seed.json 데이터로 채운�
 D1에서는 seed.json을 직접 읽고, D2부터는 SQLite에서 읽도록 load_context()만 교체하면 된다.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from db import load_context  # noqa: F401  (chat.py / eval.py 가 여기서 가져다 씀)
@@ -38,14 +38,60 @@ def _memory_block(memories: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _schedule_block(schedules: list[dict]) -> str:
-    if not schedules:
-        return "(등록된 일정 없음. 일정에 관한 어떤 약속도 하지 말 것.)"
-    return "\n".join(
-        f"- id: {s['schedule_id']} | {s['date']} {s['time']} | {s['title']} | {s['note']}"
-        for s in schedules
-        if s.get("confirmed")
-    )
+_WEEKDAY_KO = ("월", "화", "수", "목", "금", "토", "일")
+
+NO_SCHEDULE = "(등록된 일정 없음. 일정에 관한 어떤 약속도 하지 말 것.)"
+
+
+def _weekday_ko(d: date) -> str:
+    """요일은 서버가 정한다.
+
+    strftime("%A") 는 로케일에 따라 "Thursday" 가 나가고, 그러면 모델이
+    한국어로 옮기는 단계가 하나 늘어난다. 요일은 날짜에서 규칙으로 나오는
+    값이라 모델에게 계산시킬 이유가 없다.
+    """
+    return _WEEKDAY_KO[d.weekday()] + "요일"
+
+
+def _relative_day(target: date, today: date) -> str:
+    """며칠 뒤인지 말로 바꾼다. 모델이 날짜를 세지 않게 한다."""
+    diff = (target - today).days
+    fixed = {0: "오늘", 1: "내일", 2: "모레", -1: "어제", -2: "그저께"}
+    if diff in fixed:
+        return fixed[diff]
+    return f"{diff}일 뒤" if diff > 0 else f"{-diff}일 전"
+
+
+def _schedule_block(schedules: list[dict], today: date | None = None) -> str:
+    """일정을 프롬프트 줄로 만든다.
+
+    요일과 "모레" 같은 상대 표현을 서버가 붙여서 넘긴다. 이게 없으면 모델이
+    note 의 자유 문장에 적힌 요일을 그대로 읽는데, 그 문장이 날짜와 어긋나
+    있으면 어긋난 요일이 그대로 약속이 된다. 할아버지가 엉뚱한 날 기다리는
+    것은 없는 약속을 만드는 것과 같은 사고다.
+    """
+    today = today or date.today()
+    lines = []
+    for s in schedules or []:
+        if not s.get("confirmed"):
+            continue
+        try:
+            d = date.fromisoformat(s["date"])
+        except (KeyError, TypeError, ValueError):
+            # 날짜를 못 읽으면 요일을 지어내지 않는다. 있는 값만 넘긴다.
+            lines.append(
+                f"- id: {s['schedule_id']} | {s.get('date')} {s['time']} | "
+                f"{s['title']} | {s['note']}"
+            )
+            continue
+        lines.append(
+            f"- id: {s['schedule_id']} | {s['date']} "
+            f"{_weekday_ko(d)} ({_relative_day(d, today)}) {s['time']} | "
+            f"{s['title']} | {s['note']}"
+        )
+    # confirmed 가 하나도 없으면 빈 문자열이 아니라 경고를 넣는다. 빈칸은
+    # 모델에게 아무 지시도 하지 않는 것이라 약속을 지어낼 여지를 남긴다.
+    return "\n".join(lines) or NO_SCHEDULE
 
 
 def _medication_block(meds: list[dict]) -> str:
@@ -94,10 +140,11 @@ def build_system_prompt(ctx: dict, now: datetime | None = None) -> str:
         "SENSITIVE_POLICY": p["sensitive_policy"],
         "PERSONA_BLOCK": _persona_block(p),
         "MEMORY_BLOCK": _memory_block(ctx["memories"]),
-        "SCHEDULE_BLOCK": _schedule_block(ctx["schedules"]),
+        "SCHEDULE_BLOCK": _schedule_block(ctx["schedules"], now.date()),
         "MEDICATION_BLOCK": _medication_block(ctx["medications"]),
         "ELDER_BLOCK": _elder_block(e),
-        "NOW": now.strftime("%Y년 %m월 %d일 %A %H:%M"),
+        "NOW": (f"{now.strftime('%Y년 %m월 %d일')} "
+                f"{_weekday_ko(now.date())} {now.strftime('%H:%M')}"),
     }
 
     text = TEMPLATE_PATH.read_text(encoding="utf-8")
