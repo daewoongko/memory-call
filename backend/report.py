@@ -211,6 +211,74 @@ def _safety(utterances: list[dict]) -> list[dict]:
     return out
 
 
+def _offered_ids(facts: dict) -> set[str]:
+    """집계에서 모델에게 실제로 건넨 근거 id 를 모은다.
+
+    facts 를 훑어 "근거" 배열을 전부 거둔다. 집계 항목이 늘어도 여기를
+    고칠 필요가 없게 하려고 구조를 따라 내려간다.
+    """
+    found: set[str] = set()
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "근거" and isinstance(value, list):
+                    found.update(i for i in value if isinstance(i, str))
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(facts)
+    return found
+
+
+def _existing_ids(utterances: list[dict], events: list[dict]) -> set[str]:
+    """DB 에 실제로 있는 기록의 근거 id."""
+    ids = {
+        f"utterance-{u['utterance_id']}"
+        for u in utterances if u.get("utterance_id") is not None
+    }
+    ids |= {
+        f"event-{e['event_id']}"
+        for e in events if e.get("event_id") is not None
+    }
+    return ids
+
+
+def _verify_evidence(observations: list[dict], facts: dict,
+                     utterances: list[dict],
+                     events: list[dict]) -> tuple[list[dict], list[dict]]:
+    """모델이 지목한 근거가 실재하는지 확인한다.
+
+    두 가지를 본다.
+
+    1. 그 id 가 DB 에 실제로 있는가
+    2. 그 id 를 이 통화의 집계에서 모델에게 건넨 적이 있는가
+
+    2번이 따로 필요하다. DB 에 있는 번호라도 집계에 없던 것을 끌어오면
+    근거를 지어낸 것과 같기 때문이다. 번호는 연속적이라 모델이 옆 번호를
+    적어도 1번만으로는 걸리지 않는다.
+
+    근거가 하나도 남지 않은 관찰은 버린다. 근거 없는 관찰을 보호자에게
+    보여주는 것은 확인되지 않은 것을 사실로 만드는 일이다.
+
+    관찰을 버려도 위험·복약·반복질문은 리포트에 그대로 남는다. 그쪽은
+    DB 집계라 모델을 거치지 않기 때문이다. 여기서 사라지는 것은 문장뿐이다.
+    """
+    allowed = _offered_ids(facts) & _existing_ids(utterances, events)
+    kept: list[dict] = []
+    dropped: list[dict] = []
+    for obs in observations or []:
+        ids = [i for i in (obs.get("evidence_ids") or []) if i in allowed]
+        if not ids:
+            dropped.append(dict(obs, reason="근거를 확인할 수 없음"))
+            continue
+        kept.append(dict(obs, evidence_ids=ids))
+    return kept, dropped
+
+
 SUMMARY_SYSTEM = """너는 치매 노인의 통화 기록을 보호자에게 전하는 역할이다.
 
 아래 집계 결과만 사용한다. 여기에 없는 사실을 추론하거나 덧붙이지 않는다.
@@ -254,7 +322,7 @@ def _narrative(facts: dict) -> dict:
     """집계 결과를 보호자가 읽을 문장으로 바꾼다.
 
     형태 검증은 llm.call_schema() 가 한다. 여기서 나온 evidence_ids 는
-    아직 검증되지 않았다. 실제로 있는 기록인지 확인하는 것은 다음 단계다.
+    아직 검증되지 않았다. 실제로 있는 기록인지는 _verify_evidence() 가 본다.
     """
     out = llm.call_schema(
         [
@@ -392,6 +460,11 @@ def build(call_id: str, regenerate: bool = False) -> dict:
     else:
         story = _narrative(facts)
 
+    # 모델이 지목한 근거를 검증한다. 여기를 통과하지 못한 관찰은 버린다.
+    observations, dropped = _verify_evidence(
+        story.get("observations", []), facts, utterances, events
+    )
+
     report = {
         "call_id": call_id,
         "summary": story.get("summary", ""),
@@ -411,7 +484,10 @@ def build(call_id: str, regenerate: bool = False) -> dict:
     # 응답에만 실어 보내 모델이 무엇을 보고 썼는지 확인할 수 있게 한다.
     # observations 는 아직 reports 테이블 컬럼이 아니다 (7단계에서 추가).
     # 그래서 캐시된 리포트를 읽을 때는 비어 있다. 확인할 때 regenerate=True 를 쓸 것.
-    return dict(report, observations=story.get("observations", []),
+    # observations_dropped 는 근거 검증에서 걸러낸 관찰이다. 숨기지 않고
+    # 실어 보낸다. 무엇이 왜 빠졌는지 볼 수 없으면 검증이 조용한 손실이 된다.
+    return dict(report, observations=observations,
+                observations_dropped=dropped,
                 facts=facts, stats={
         "duration_sec": call["duration_sec"],
         "elder_turns": len(elder_turns),
