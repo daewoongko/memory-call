@@ -13,3 +13,4 @@ data/faces/
 db.sqlite
 data/memory_call.sqlite
 .DS_Store
+.claude/settings.local.json
