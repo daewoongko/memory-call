@@ -1,0 +1,10 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+torch==2.6.0+cu124
+torchaudio==2.6.0+cu124
+numpy==1.26.4
+numba==0.61.0
+llvmlite==0.44.0
+scikit-learn==1.6.1
+setuptools==80.9.0
+chatterbox-tts @ git+https://github.com/resemble-ai/chatterbox.git@5de7a54aa4e5e2baadb0182dde554908b48b85c2

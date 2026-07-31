@@ -185,7 +185,7 @@ export default function CallScreen({
   async function hangup() {
     liveRef.current = false;
     speech.stop();
-    window.speechSynthesis?.cancel();
+    speech.cancel();
     try {
       onEnded(await api.endCall(callId));
     } catch {

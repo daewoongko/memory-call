@@ -1,16 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * 브라우저 내장 음성 인식·합성.
+ * 브라우저 음성 인식(STT)과 로컬 Chatterbox 음성 합성(TTS).
  *
- * 외부 API 를 쓰지 않으므로 비용이 없고 지연이 거의 없다.
- * 대화 응답이 이미 수 초 걸리기 때문에 음성 단계에서 시간을 더 쓸 여유가 없다.
- *
- * 브라우저 음성 합성에는 오래된 버그가 몇 가지 있어 그대로 쓰면 소리가 끊긴다.
- * 아래 세 가지를 방어한다.
- *   1. 목소리 목록이 늦게 로드되면 엉뚱한 기본 음성이 나간다 → 로드를 기다린다
- *   2. cancel() 직후 speak() 하면 무음이 된다 → 짧게 쉬었다 말한다
- *   3. onend 가 유실되면 다음 동작이 영원히 오지 않는다 → 예상 시간 뒤 강제 종료
+ * 합성은 먼저 /api/tts 의 복제 음성을 시도한다. 로컬 GPU 서버가 꺼져 있거나
+ * 합성에 실패하면 통화가 멈추지 않도록 브라우저 내장 음성으로 대체한다.
  */
 
 // 손자 페르소나에 맞는 한국어 남성 음성을 앞에서부터 찾는다.
@@ -72,6 +66,10 @@ export function useSpeech({
   const recRef = useRef(null);
   const finalRef = useRef("");
   const silenceRef = useRef(null);
+  const audioRef = useRef(null);
+  const audioUrlRef = useRef(null);
+  const ttsRequestRef = useRef(null);
+  const speechRunRef = useRef(0);
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
 
@@ -91,6 +89,24 @@ export function useSpeech({
     } catch {
       // 이미 멈춰 있으면 무시
     }
+  }, []);
+
+  const cancelSpeech = useCallback(() => {
+    speechRunRef.current += 1;
+    ttsRequestRef.current?.abort();
+    ttsRequestRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.removeAttribute("src");
+      audioRef.current.load();
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
   }, []);
 
   const start = useCallback(() => {
@@ -155,26 +171,21 @@ export function useSpeech({
     }
   }, [lang, silenceMs, stop, supported]);
 
-  /** 가족 목소리로 문장을 읽어준다. 읽는 동안에는 마이크를 닫아 되울림을 막는다. */
-  const speak = useCallback(
-    async (text) => {
+  const speakInBrowser = useCallback(
+    async (text, runId) => {
       const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
-      if (!text || !synth) return;
+      if (!synth || runId !== speechRunRef.current) return;
 
-      stop();
-      synth.cancel();
       await voicesReady();
-      // cancel 직후 곧바로 speak 하면 소리가 나지 않는 브라우저가 있다
       await wait(80);
+      if (runId !== speechRunRef.current) return;
 
       const { voice, male } = pickVoice();
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = lang;
-      utter.rate = rate; // 노인이 알아듣기 쉽도록 조금 느리게
+      utter.rate = rate;
       utter.pitch = male ? 1.0 : fallbackPitch;
       if (voice) utter.voice = voice;
-
-      setSpeaking(true);
 
       await new Promise((resolve) => {
         let settled = false;
@@ -183,27 +194,73 @@ export function useSpeech({
           settled = true;
           clearInterval(keepalive);
           clearTimeout(guard);
-          setSpeaking(false);
           resolve();
         };
-
-        // 긴 문장에서 브라우저가 스스로 멈추는 것을 막는다
         const keepalive = setInterval(() => {
           if (synth.speaking) {
             synth.pause();
             synth.resume();
           }
         }, KEEPALIVE_MS);
-
-        // onend 가 오지 않아도 대화가 멈추지 않도록 예상 시간 뒤에 넘어간다
         const guard = setTimeout(finish, 4000 + text.length * 160);
-
         utter.onend = finish;
         utter.onerror = finish;
         synth.speak(utter);
       });
     },
-    [fallbackPitch, lang, rate, stop]
+    [fallbackPitch, lang, rate]
+  );
+
+  /** 복제한 가족 목소리로 읽고, 실패할 때만 브라우저 기본 음성을 쓴다. */
+  const speak = useCallback(
+    async (text) => {
+      if (!text) return;
+
+      stop();
+      cancelSpeech();
+      const runId = speechRunRef.current;
+      setSpeaking(true);
+
+      try {
+        const controller = new AbortController();
+        ttsRequestRef.current = controller;
+        const response = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, rate }),
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`TTS ${response.status}`);
+
+        const blob = await response.blob();
+        if (runId !== speechRunRef.current) return;
+
+        const url = URL.createObjectURL(blob);
+        audioUrlRef.current = url;
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        await new Promise((resolve, reject) => {
+          audio.onended = resolve;
+          audio.onerror = () => reject(new Error("복제 음성 재생 실패"));
+          audio.play().catch(reject);
+        });
+      } catch (err) {
+        if (err.name === "AbortError" || runId !== speechRunRef.current) return;
+        console.warn("[TTS] Chatterbox 실패, 브라우저 음성으로 전환:", err);
+        await speakInBrowser(text, runId);
+      } finally {
+        if (runId === speechRunRef.current) {
+          ttsRequestRef.current = null;
+          audioRef.current = null;
+          if (audioUrlRef.current) {
+            URL.revokeObjectURL(audioUrlRef.current);
+            audioUrlRef.current = null;
+          }
+          setSpeaking(false);
+        }
+      }
+    },
+    [cancelSpeech, rate, speakInBrowser, stop]
   );
 
   // 목소리 목록을 미리 받아두고, 어떤 음성이 선택되는지 한 번 알려준다
@@ -225,10 +282,20 @@ export function useSpeech({
       } catch {
         // 무시
       }
-      window.speechSynthesis?.cancel();
+      cancelSpeech();
     },
-    []
+    [cancelSpeech]
   );
 
-  return { supported, listening, speaking, interim, error, start, stop, speak };
+  return {
+    supported,
+    listening,
+    speaking,
+    interim,
+    error,
+    start,
+    stop,
+    speak,
+    cancel: cancelSpeech,
+  };
 }
