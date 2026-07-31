@@ -13,6 +13,7 @@ import uuid
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -24,6 +25,7 @@ import medication as med_mod
 import memories as mem_mod
 import report as report_mod
 import schedules as sched_mod
+import tts_proxy
 from conversation import Session
 from storage import (
     ALIGNED_FACES_DIR,
@@ -87,6 +89,11 @@ class StartCallRequest(BaseModel):
 
 class TurnRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
+
+
+class TTSRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+    rate: float = Field(default=0.92, ge=0.75, le=1.15)
 
 
 class EndCallRequest(BaseModel):
@@ -228,6 +235,29 @@ def _face_urls() -> list[dict]:
 @app.get("/api/health")
 def health():
     return {"ok": True, "model": llm.MODEL, "active_calls": len(SESSIONS)}
+
+
+@app.get("/api/tts/health")
+def tts_health():
+    """별도 Python 3.11 프로세스에서 실행 중인 로컬 음성 모델 상태."""
+    try:
+        return tts_proxy.health()
+    except tts_proxy.TTSUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+@app.post("/api/tts")
+def synthesize_speech(req: TTSRequest):
+    """Chatterbox가 만든 WAV를 브라우저에 그대로 전달한다."""
+    try:
+        audio = tts_proxy.synthesize(req.text.strip(), req.rate)
+    except tts_proxy.TTSUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return Response(
+        content=audio,
+        media_type="audio/wav",
+        headers={"Cache-Control": "no-store", "X-TTS-Engine": "chatterbox-v3"},
+    )
 
 
 @app.get("/api/personas")
