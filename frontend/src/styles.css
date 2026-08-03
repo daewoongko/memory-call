@@ -629,6 +629,48 @@ button:focus-visible {
 
 .med-form button:disabled { opacity: 0.4; cursor: default; }
 
+.quality-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.quality-card {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e6ded2;
+  border-radius: 14px;
+}
+
+.quality-thumb {
+  display: block;
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  background: #efe7da;
+}
+
+.quality-body { padding: 14px; }
+.quality-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.quality-status {
+  display: inline-flex;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.quality-status.good { background: #dcefe2; color: #24603b; }
+.quality-status.warning { background: #fff0d4; color: #825b0e; }
+.quality-status.rejected { background: #f8dcd9; color: #9b3028; }
+.quality-issues { margin: 10px 0 12px 18px; color: #6b6055; font-size: 14px; }
+.quality-issues li + li { margin-top: 4px; }
+.quality-good { margin: 10px 0 12px; color: #2f7d4f; font-size: 14px; }
+.quality-body button { color: #6b6055; font-size: 14px; }
+.legacy-faces { border-top: 1px solid #e6ded2; padding-top: 20px; }
+
 
 /* ── 보호자: 기억 관리 ───────────────────────────────── */
 

@@ -4,6 +4,8 @@ fastapi>=0.115.0
 pydantic>=2.0          # backend/schemas.py 가 직접 쓴다. fastapi 전이 의존에 얹지 않는다
 uvicorn[standard]>=0.32.0
 pillow>=10.0.0
+numpy>=2.0,<3.0
+opencv-python-headless==4.11.0.86
 replicate>=1.0.0
 imageio-ffmpeg>=0.5.1
 python-multipart>=0.0.9

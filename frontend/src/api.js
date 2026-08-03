@@ -72,6 +72,19 @@ export const uploadFaces = async (fileList) => {
   return res.json();
 };
 
+export const uploadIdentityPhotos = async (fileList) => {
+  const form = new FormData();
+  [...fileList].forEach((file) => form.append("files", file));
+  const res = await fetch("/api/identity-photos", { method: "POST", body: form });
+  if (!res.ok) throw new Error(`사진 검사 실패 (${res.status})`);
+  return res.json();
+};
+
+export const deleteIdentityPhoto = (name) =>
+  request(`/api/identity-photos/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+
 export const deleteFace = (name) =>
   request(`/api/faces/${encodeURIComponent(name)}`, { method: "DELETE" });
 
