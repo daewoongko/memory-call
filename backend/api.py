@@ -33,6 +33,7 @@ from storage import (
     FRONTEND_DIST,
     LOOPS_DIR,
     MORPH_PATH,
+    SOURCE_FACES_DIR,
     ensure_directories,
 )
 
@@ -61,6 +62,11 @@ app.add_middleware(
 
 ensure_directories()
 app.mount("/faces", StaticFiles(directory=FACES_DIR), name="faces")
+app.mount(
+    "/identity-faces",
+    StaticFiles(directory=SOURCE_FACES_DIR),
+    name="identity-faces",
+)
 # 모핑 영상(morph.mp4)을 내보낸다. 브라우저가 구간 요청을 하므로
 # StaticFiles 가 Range 헤더를 처리해 준다.
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
@@ -344,7 +350,11 @@ def verify_link_code(req: LinkVerify):
 def get_persona(elder_id: str = "elder_001"):
     """페르소나 등록 화면에 필요한 전체 정보."""
     try:
-        return dict(admin_mod.profile(elder_id), faces=admin_mod.faces())
+        return dict(
+            admin_mod.profile(elder_id),
+            faces=admin_mod.faces(),
+            identity_photos=admin_mod.identity_photos(),
+        )
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
 
@@ -368,6 +378,35 @@ def patch_elder(elder_id: str, req: ElderPatch):
 @app.get("/api/faces")
 def list_faces():
     return admin_mod.faces()
+
+
+@app.get("/api/identity-photos")
+def list_identity_photos():
+    return admin_mod.identity_photos()
+
+
+@app.post("/api/identity-photos")
+async def upload_identity_photos(files: list[UploadFile] = File(...)):
+    """나이 변환의 신원 기준이 될 현재 얼굴 사진을 최대 6장 받는다."""
+    saved, errors = [], []
+    for file in files:
+        try:
+            saved.append(
+                admin_mod.save_identity_photo(file.filename or "photo", await file.read())
+            )
+        except ValueError as exc:
+            errors.append({"file": file.filename, "error": str(exc)})
+    return {
+        "saved": saved,
+        "errors": errors,
+        "identity_photos": admin_mod.identity_photos(),
+    }
+
+
+@app.delete("/api/identity-photos/{name}")
+def delete_identity_photo(name: str):
+    admin_mod.delete_identity_photo(name)
+    return {"ok": True, "identity_photos": admin_mod.identity_photos()}
 
 
 @app.post("/api/faces")

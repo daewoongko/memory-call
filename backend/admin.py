@@ -8,6 +8,7 @@
 사진은 파일로 다루므로 여기서만 디스크를 만진다.
 """
 
+import re
 import shutil
 import subprocess
 import sys
@@ -15,21 +16,26 @@ import uuid
 from pathlib import Path
 
 import db
+import face_quality
 from storage import (
     ALIGNED_FACES_DIR,
     LOOPS_DIR,
     MORPH_PATH,
     RAW_FACES_DIR,
     ROOT,
+    SOURCE_FACES_DIR,
 )
 
 RAW = RAW_FACES_DIR
 ALIGNED = ALIGNED_FACES_DIR
 LOOPS = LOOPS_DIR
 MORPH = MORPH_PATH
+SOURCE = SOURCE_FACES_DIR
 
 ALLOWED_SUFFIX = {".png", ".jpg", ".jpeg", ".webp"}
 MAX_BYTES = 12 * 1024 * 1024
+MIN_SOURCE_PHOTOS = 3
+MAX_SOURCE_PHOTOS = 6
 
 # 화면에서 고칠 수 있는 항목만 허용한다. 나머지는 코드가 관리한다.
 PERSONA_FIELDS = {"display_name", "relationship_type", "elder_calls_family",
@@ -136,6 +142,85 @@ def update_elder(elder_id: str, fields: dict) -> dict:
 
 
 # ------------------------------------------------------------------ 사진
+
+def identity_photos() -> dict:
+    """현재 얼굴 참조 사진과 로컬 품질검사 결과."""
+    SOURCE.mkdir(parents=True, exist_ok=True)
+    photos = []
+    for path in sorted(SOURCE.iterdir()):
+        if path.suffix.lower() not in ALLOWED_SUFFIX:
+            continue
+        try:
+            quality = face_quality.analyze_file(path)
+        except (ValueError, RuntimeError) as exc:
+            quality = {
+                "status": "rejected",
+                "usable": False,
+                "score": 0,
+                "issues": [{"code": "analysis", "level": "error", "message": str(exc)}],
+            }
+        photos.append({
+            "name": path.name,
+            "size_kb": path.stat().st_size // 1024,
+            "url": f"/identity-faces/{path.name}",
+            "quality": quality,
+            "recommended": False,
+        })
+
+    usable = [photo for photo in photos if photo["quality"].get("usable")]
+    recommended = max(
+        usable,
+        key=lambda photo: (
+            photo["quality"].get("status") == "good",
+            photo["quality"].get("score", 0),
+        ),
+        default=None,
+    )
+    if recommended:
+        recommended["recommended"] = True
+
+    return {
+        "photos": photos,
+        "count": len(photos),
+        "usable_count": len(usable),
+        "minimum": MIN_SOURCE_PHOTOS,
+        "maximum": MAX_SOURCE_PHOTOS,
+        "ready": len(usable) >= MIN_SOURCE_PHOTOS,
+        "recommended": recommended["name"] if recommended else None,
+    }
+
+
+def save_identity_photo(filename: str, data: bytes) -> dict:
+    suffix = Path(filename).suffix.lower()
+    if suffix not in ALLOWED_SUFFIX:
+        raise ValueError(f"{suffix} 형식은 올릴 수 없습니다. png, jpg, webp만 됩니다.")
+    if len(data) > MAX_BYTES:
+        raise ValueError("파일이 너무 큽니다. 12MB 이하로 올려주세요.")
+
+    SOURCE.mkdir(parents=True, exist_ok=True)
+    current = [path for path in SOURCE.iterdir() if path.suffix.lower() in ALLOWED_SUFFIX]
+    if len(current) >= MAX_SOURCE_PHOTOS:
+        raise ValueError(f"사진은 최대 {MAX_SOURCE_PHOTOS}장까지 올릴 수 있습니다.")
+
+    quality = face_quality.analyze_bytes(data)
+    original = Path(filename).stem
+    clean = re.sub(r"[^0-9A-Za-z가-힣._ -]+", "_", original).strip(" ._")[:50]
+    clean = clean or "photo"
+    safe = f"{uuid.uuid4().hex[:8]}_{clean}{suffix}"
+    destination = SOURCE / safe
+    destination.write_bytes(data)
+    return {
+        "name": safe,
+        "size_kb": len(data) // 1024,
+        "url": f"/identity-faces/{safe}",
+        "quality": quality,
+    }
+
+
+def delete_identity_photo(name: str) -> None:
+    target = SOURCE / Path(name).name
+    if target.exists() and target.suffix.lower() in ALLOWED_SUFFIX:
+        target.unlink()
 
 def faces() -> dict:
     """등록된 사진과 생성물 상태.

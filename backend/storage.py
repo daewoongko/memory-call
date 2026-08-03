@@ -12,6 +12,7 @@ STORAGE_DIR = Path(
 
 DB_PATH = STORAGE_DIR / "memory_call.sqlite"
 FACES_ROOT = STORAGE_DIR / "faces"
+SOURCE_FACES_DIR = FACES_ROOT / "source"
 RAW_FACES_DIR = FACES_ROOT / "raw"
 ALIGNED_FACES_DIR = FACES_ROOT / "aligned"
 LOOPS_DIR = FACES_ROOT / "loops"
@@ -24,6 +25,7 @@ FRONTEND_DIST = ROOT / "frontend" / "dist"
 def ensure_directories() -> None:
     """StaticFiles 마운트와 업로드 전에 필요한 폴더를 만든다."""
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    SOURCE_FACES_DIR.mkdir(parents=True, exist_ok=True)
     RAW_FACES_DIR.mkdir(parents=True, exist_ok=True)
     ALIGNED_FACES_DIR.mkdir(parents=True, exist_ok=True)
     LOOPS_DIR.mkdir(parents=True, exist_ok=True)

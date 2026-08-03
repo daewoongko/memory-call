@@ -86,6 +86,26 @@ export default function PersonaPanel() {
     files?.length &&
     guard(() => api.uploadFaces(files), `사진 ${files.length}장을 올렸어요.`);
 
+  const uploadIdentity = (files) => {
+    if (!files?.length) return;
+    const remaining = (data.identity_photos?.maximum ?? 6) -
+      (data.identity_photos?.count ?? 0);
+    if (files.length > remaining) {
+      setError(`지금은 ${remaining}장만 더 올릴 수 있어요.`);
+      return;
+    }
+    guard(async () => {
+      const result = await api.uploadIdentityPhotos(files);
+      if (result.errors?.length) {
+        await load();
+        throw new Error(
+          result.errors.map((item) => `${item.file}: ${item.error}`).join(" / ")
+        );
+      }
+      if (fileRef.current) fileRef.current.value = "";
+    }, `얼굴 사진 ${files.length}장을 검사했어요.`);
+  };
+
   const prepare = () =>
     guard(async () => {
       const r = await api.prepareFaces();
@@ -95,6 +115,19 @@ export default function PersonaPanel() {
   if (!data) return <p className="hint">불러오는 중…</p>;
 
   const faces = data.faces;
+  const identity = data.identity_photos ?? {
+    photos: [],
+    count: 0,
+    usable_count: 0,
+    minimum: 3,
+    maximum: 6,
+    ready: false,
+  };
+  const statusLabel = {
+    good: "좋음",
+    warning: "확인 필요",
+    rejected: "다시 선택",
+  };
 
   return (
     <>
@@ -182,7 +215,79 @@ export default function PersonaPanel() {
       </section>
 
       <section className="meds">
-        <h2>얼굴 사진</h2>
+        <h2>현재 얼굴 사진 준비</h2>
+        <p className="hint">
+          같은 사람의 현재 사진을 3~6장 올려주세요. 정면 사진을 중심으로
+          살짝 좌우를 본 사진과 미소 사진을 함께 올리면 얼굴을 더 안정적으로
+          유지할 수 있어요. 사진은 외부 서비스로 전송되지 않습니다.
+        </p>
+
+        <div className="build-status">
+          <span className={identity.ready ? "tag ok" : "tag warn"}>
+            사용 가능 {identity.usable_count}/{identity.minimum}장
+          </span>
+          <span className="tag">최대 {identity.maximum}장</span>
+          {identity.ready && <span className="tag ok">나이 변환 준비 완료</span>}
+        </div>
+
+        {identity.photos.length > 0 && (
+          <div className="quality-grid">
+            {identity.photos.map((photo) => (
+              <article className="quality-card" key={photo.name}>
+                <img className="quality-thumb" src={photo.url} alt="업로드한 얼굴" />
+                <div className="quality-body">
+                  <div className="quality-head">
+                    <span className={`quality-status ${photo.quality.status}`}>
+                      {statusLabel[photo.quality.status] ?? photo.quality.status}
+                    </span>
+                    <b>{photo.quality.score}점</b>
+                    {photo.recommended && <span className="tag ok">대표 추천</span>}
+                  </div>
+                  <p className="row-meta">
+                    {photo.quality.width}×{photo.quality.height} · 얼굴 {photo.quality.face_count}명
+                  </p>
+                  {photo.quality.issues?.length ? (
+                    <ul className="quality-issues">
+                      {photo.quality.issues.map((issue) => (
+                        <li key={issue.code}>{issue.message}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="quality-good">선명도와 얼굴 위치가 적절해요.</p>
+                  )}
+                  <button
+                    disabled={busy}
+                    onClick={() => guard(
+                      () => api.deleteIdentityPhoto(photo.name),
+                      "사진을 지웠어요."
+                    )}
+                  >
+                    이 사진 지우기
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <div className="med-form">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+            multiple
+            disabled={busy || identity.count >= identity.maximum}
+            onChange={(event) => uploadIdentity(event.target.files)}
+          />
+        </div>
+        <p className="hint">
+          한 사람만 나오고, 얼굴이 크고 선명하며, 밝은 곳에서 찍은 사진이 좋아요.
+          AI가 만든 사진이 아니라 실제 본인 사진을 올려주세요.
+        </p>
+      </section>
+
+      <section className="meds legacy-faces">
+        <h2>기존 나이 변화 자료</h2>
         <p className="hint">
           어릴 때부터 지금까지 순서대로 올려주세요. 파일 이름 앞에 번호를
           붙이면 그 순서로 이어집니다 (예: 01_여덟살.png).
@@ -221,7 +326,6 @@ export default function PersonaPanel() {
 
         <div className="med-form">
           <input
-            ref={fileRef}
             type="file"
             accept="image/*"
             multiple
