@@ -4,12 +4,14 @@
 
 .venv/
 .venv-tts/
+.venv-tts-recovered*/
 .venv-age/
 .venv-flux2/
 .venv-flux2-train/
 .venv-mivolo/
 venv/
 node_modules/
+.tools/
 dist/
 __pycache__/
 *.pyc

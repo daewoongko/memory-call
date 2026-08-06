@@ -3,9 +3,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /**
  * 브라우저 음성 인식(STT)과 로컬 Chatterbox 음성 합성(TTS).
  *
- * 합성은 먼저 /api/tts 의 복제 음성을 시도한다. 로컬 GPU 서버가 꺼져 있거나
- * 합성에 실패하면 통화가 멈추지 않도록 브라우저 내장 음성으로 대체한다.
+ * 합성은 먼저 /api/tts 의 복제 음성을 시도한다. 브라우저 내장 음성 대체는
+ * VITE_TTS_BROWSER_FALLBACK=true 로 명시한 개발 환경에서만 허용한다.
  */
+
+const BROWSER_TTS_FALLBACK_ENABLED =
+  import.meta.env.VITE_TTS_BROWSER_FALLBACK === "true";
+
+const TTS_UNAVAILABLE_MESSAGE =
+  "복제 음성에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 // 손자 페르소나에 맞는 한국어 남성 음성을 앞에서부터 찾는다.
 // 다른 목소리로 바꾸려면 이 배열의 순서만 바꾸면 된다.
@@ -211,7 +217,7 @@ export function useSpeech({
     [fallbackPitch, lang, rate]
   );
 
-  /** 복제한 가족 목소리로 읽고, 실패할 때만 브라우저 기본 음성을 쓴다. */
+  /** 복제한 가족 목소리로 읽는다. 브라우저 음성은 명시적으로 허용할 때만 쓴다. */
   const speak = useCallback(
     async (text) => {
       if (!text) return;
@@ -219,6 +225,7 @@ export function useSpeech({
       stop();
       cancelSpeech();
       const runId = speechRunRef.current;
+      setError("");
       setSpeaking(true);
 
       try {
@@ -246,8 +253,16 @@ export function useSpeech({
         });
       } catch (err) {
         if (err.name === "AbortError" || runId !== speechRunRef.current) return;
-        console.warn("[TTS] Chatterbox 실패, 브라우저 음성으로 전환:", err);
-        await speakInBrowser(text, runId);
+        if (BROWSER_TTS_FALLBACK_ENABLED) {
+          console.warn(
+            "[TTS] Chatterbox 실패, 명시적으로 허용된 브라우저 음성으로 전환:",
+            err
+          );
+          await speakInBrowser(text, runId);
+        } else {
+          console.error("[TTS] Chatterbox 음성을 재생하지 못했습니다:", err);
+          setError(TTS_UNAVAILABLE_MESSAGE);
+        }
       } finally {
         if (runId === speechRunRef.current) {
           ttsRequestRef.current = null;
@@ -263,8 +278,10 @@ export function useSpeech({
     [cancelSpeech, rate, speakInBrowser, stop]
   );
 
-  // 목소리 목록을 미리 받아두고, 어떤 음성이 선택되는지 한 번 알려준다
+  // 명시적인 폴백 환경에서만 브라우저 목소리를 미리 불러온다.
   useEffect(() => {
+    if (!BROWSER_TTS_FALLBACK_ENABLED) return undefined;
+
     voicesReady().then(() => {
       const { voice, male } = pickVoice();
       console.info(
@@ -272,6 +289,8 @@ export function useSpeech({
         koreanVoices().map((v) => v.name)
       );
     });
+
+    return undefined;
   }, []);
 
   useEffect(

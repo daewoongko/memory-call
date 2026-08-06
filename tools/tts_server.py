@@ -1,4 +1,4 @@
-"""GPU에 Chatterbox Multilingual V3를 계속 올려두는 로컬 TTS 서버.
+r"""GPU에 Chatterbox Multilingual V3를 계속 올려두는 로컬 TTS 서버.
 
 실행:
     .\.venv-tts\Scripts\python.exe tools\tts_server.py
@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 import io
+import os
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -22,13 +24,67 @@ import soundfile as sf
 import torch
 import uvicorn
 from chatterbox.mtl_tts import ChatterboxMultilingualTTS
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional convenience for direct runs
+    load_dotenv = None
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REFERENCE = ROOT / "data" / "voice" / "reference.wav"
+TOKEN_ENV = "TTS_BRIDGE_TOKEN"
+TOKEN_PLACEHOLDER = "replace-with-a-long-random-token"
+
+
+def load_local_env() -> None:
+    """Load the repository .env without overwriting an explicit environment."""
+    if load_dotenv is not None:
+        load_dotenv(ROOT / ".env", override=False)
+
+
+def require_bridge_token(value: str | None = None) -> str:
+    token = (value if value is not None else os.getenv(TOKEN_ENV, "")).strip()
+    if (
+        len(token) >= 32
+        and not any(character.isspace() for character in token)
+        and token != TOKEN_PLACEHOLDER
+    ):
+        return token
+    raise RuntimeError(
+        "TTS_BRIDGE_TOKEN must be a non-placeholder secret of at least 32 "
+        "characters with no whitespace. Set the same secret locally and in "
+        "Render. PowerShell generation example (the value is assigned without "
+        "being printed):\n"
+        "$env:TTS_BRIDGE_TOKEN = (& python -c \"import secrets; "
+        "print(secrets.token_urlsafe(48))\")"
+    )
+
+
+def make_bearer_guard(expected_token: str):
+    """Return a FastAPI dependency that checks a Bearer token in constant time."""
+
+    def require_bearer(
+        authorization: str | None = Header(default=None),
+    ) -> None:
+        scheme, separator, supplied_token = (authorization or "").partition(" ")
+        valid = (
+            bool(separator)
+            and scheme.lower() == "bearer"
+            and bool(supplied_token)
+            and hmac.compare_digest(supplied_token, expected_token)
+        )
+        if not valid:
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorized",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    return require_bearer
 
 
 class SynthesisRequest(BaseModel):
@@ -94,7 +150,9 @@ class VoiceEngine:
             return buffer.getvalue(), duration, elapsed
 
 
-def create_app(engine: VoiceEngine) -> FastAPI:
+def create_app(engine: VoiceEngine, bridge_token: str | None = None) -> FastAPI:
+    require_bearer = make_bearer_guard(require_bridge_token(bridge_token))
+
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         engine.load()
@@ -106,7 +164,7 @@ def create_app(engine: VoiceEngine) -> FastAPI:
         lifespan=lifespan,
     )
 
-    @app.get("/health")
+    @app.get("/health", dependencies=[Depends(require_bearer)])
     def health():
         return {
             "ok": engine.model is not None,
@@ -116,7 +174,7 @@ def create_app(engine: VoiceEngine) -> FastAPI:
             "load_seconds": round(engine.loaded_seconds, 2),
         }
 
-    @app.post("/synthesize")
+    @app.post("/synthesize", dependencies=[Depends(require_bearer)])
     def synthesize(req: SynthesisRequest):
         try:
             audio, duration, elapsed = engine.synthesize(req.text, req.rate)
@@ -137,6 +195,7 @@ def create_app(engine: VoiceEngine) -> FastAPI:
 
 
 def main() -> None:
+    load_local_env()
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8001)
