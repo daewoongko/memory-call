@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
  * 영상은 3:4 세로라 폰 화면을 거의 채우지만, 기기 비율이 다를 수 있어
  * 같은 영상을 흐리게 깔아 남는 자리를 메운다.
  */
-export default function MorphStage({ src, speaking, onEnded }) {
+export default function MorphStage({ src, speaking, onEnded, onFail }) {
   const mainRef = useRef(null);
   const blurRef = useRef(null);
   const [failed, setFailed] = useState(false);
@@ -45,7 +45,7 @@ export default function MorphStage({ src, speaking, onEnded }) {
         onEnded={onEnded}
         onError={() => {
           setFailed(true);
-          onEnded?.();
+          onFail?.();
         }}
       />
       <div className="scrim" />

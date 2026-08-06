@@ -1,0 +1,8 @@
+{
+  "face": "age_path_final/13_age32.png",
+  "loops": {
+    "idle": "idle.mp4",
+    "talking": "talking.mp4",
+    "concerned": "concerned.mp4"
+  }
+}

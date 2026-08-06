@@ -15,10 +15,41 @@ const toLines = (arr) => (Array.isArray(arr) ? arr.join("\n") : arr || "");
 const fromLines = (text) =>
   text.split("\n").map((s) => s.trim()).filter(Boolean);
 
+const ageOnDate = (birthValue, photoValue) => {
+  if (!birthValue || !photoValue) return null;
+  const birth = new Date(`${birthValue}T00:00:00Z`);
+  const photo = new Date(`${photoValue}T00:00:00Z`);
+  if (Number.isNaN(birth.valueOf()) || Number.isNaN(photo.valueOf()) || photo < birth) {
+    return null;
+  }
+  let age = photo.getUTCFullYear() - birth.getUTCFullYear();
+  if (
+    photo.getUTCMonth() < birth.getUTCMonth()
+    || (photo.getUTCMonth() === birth.getUTCMonth() && photo.getUTCDate() < birth.getUTCDate())
+  ) age -= 1;
+  return age;
+};
+
+const validationStatusLabel = (status) => ({
+  strong_pass: "강한 통과",
+  borderline: "경계 통과",
+  human_review: "사람 검토 필요",
+  fail: "실패",
+}[status] ?? "검증 전");
+
 export default function PersonaPanel() {
   const [data, setData] = useState(null);
   const [persona, setPersona] = useState({});
   const [elder, setElder] = useState({});
+  const [agePlan, setAgePlan] = useState({
+    current_age: "",
+    current_photo: null,
+    birth_date: "",
+    current_photo_date: "",
+    biological_sex: "unspecified",
+    population_group: "unspecified",
+    stages: [],
+  });
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
@@ -31,6 +62,7 @@ export default function PersonaPanel() {
         setData(r);
         setPersona(r.persona ?? {});
         setElder(r.elder ?? {});
+        setAgePlan(r.age_plan ?? { current_age: "", current_photo: null, stages: [] });
       })
       .catch((e) => setError(e.message));
 
@@ -111,6 +143,50 @@ export default function PersonaPanel() {
       const r = await api.prepareFaces();
       if (!r.ok) throw new Error("정렬에 실패했어요. 사진 형식을 확인해 주세요.");
     }, "사진을 정렬했어요.");
+
+  const saveAgePlan = () => {
+    const hasBirthDate = Boolean(agePlan.birth_date);
+    const hasPhotoDate = Boolean(agePlan.current_photo_date);
+    if (hasBirthDate !== hasPhotoDate) {
+      setError("생년월일과 현재 사진 촬영일은 함께 입력해 주세요.");
+      return;
+    }
+    const datedAge = ageOnDate(agePlan.birth_date, agePlan.current_photo_date);
+    const currentAge = datedAge ?? Number(agePlan.current_age);
+    if (!Number.isInteger(currentAge) || currentAge < 18 || currentAge > 100) {
+      setError("촬영일 기준 나이를 계산하거나 현재 나이를 18~100세로 입력해 주세요.");
+      return;
+    }
+    if (!agePlan.current_photo) {
+      setError("현재 모습을 대표할 정면 사진을 먼저 선택해 주세요.");
+      return;
+    }
+    guard(
+      () => api.saveAgePlan({
+        current_age: currentAge,
+        current_photo: agePlan.current_photo,
+        birth_date: agePlan.birth_date || null,
+        current_photo_date: agePlan.current_photo_date || null,
+        biological_sex: agePlan.biological_sex || "unspecified",
+        population_group: agePlan.population_group || "unspecified",
+      }),
+      "현재 나이와 과거 얼굴 생성 순서를 저장했어요."
+    );
+  };
+
+  const choosePastCandidate = (stage, candidate) => {
+    if (
+      candidate.validation
+      && !candidate.validation.full_pass
+      && !window.confirm(
+        "이 후보는 자동 검증을 모두 통과하지 않았습니다. 검증 근거를 확인했고 보호자가 직접 승인합니까?"
+      )
+    ) return;
+    guard(
+      () => api.selectAgeCandidate(stage.age, candidate.name),
+      `${stage.age}세 후보를 선택했어요.`
+    );
+  };
 
   if (!data) return <p className="hint">불러오는 중…</p>;
 
@@ -264,6 +340,13 @@ export default function PersonaPanel() {
                   >
                     이 사진 지우기
                   </button>
+                  <button
+                    className={agePlan.current_photo === photo.name ? "master selected" : "master"}
+                    disabled={busy || !photo.quality.usable}
+                    onClick={() => setAgePlan({ ...agePlan, current_photo: photo.name })}
+                  >
+                    {agePlan.current_photo === photo.name ? "현재 기준으로 선택됨" : "현재 기준 사진으로 선택"}
+                  </button>
                 </div>
               </article>
             ))}
@@ -283,6 +366,158 @@ export default function PersonaPanel() {
         <p className="hint">
           한 사람만 나오고, 얼굴이 크고 선명하며, 밝은 곳에서 찍은 사진이 좋아요.
           AI가 만든 사진이 아니라 실제 본인 사진을 올려주세요.
+        </p>
+
+        <div className="age-plan-box">
+          <label>
+            생년월일
+            <input
+              type="date"
+              value={agePlan.birth_date ?? ""}
+              onChange={(event) => setAgePlan({ ...agePlan, birth_date: event.target.value })}
+            />
+          </label>
+          <label>
+            현재 사진 촬영일
+            <input
+              type="date"
+              value={agePlan.current_photo_date ?? ""}
+              onChange={(event) => setAgePlan({ ...agePlan, current_photo_date: event.target.value })}
+            />
+          </label>
+          <label>
+            현재 나이 {ageOnDate(agePlan.birth_date, agePlan.current_photo_date) !== null ? "(자동 계산)" : ""}
+            <input
+              type="number"
+              min="18"
+              max="100"
+              value={ageOnDate(agePlan.birth_date, agePlan.current_photo_date) ?? agePlan.current_age ?? ""}
+              onChange={(event) => setAgePlan({ ...agePlan, current_age: event.target.value })}
+              placeholder="예: 32"
+              disabled={ageOnDate(agePlan.birth_date, agePlan.current_photo_date) !== null}
+            />
+          </label>
+          <label>
+            성장 통계 성별
+            <select
+              value={agePlan.biological_sex ?? "unspecified"}
+              onChange={(event) => setAgePlan({ ...agePlan, biological_sex: event.target.value })}
+            >
+              <option value="unspecified">지정 안 함</option>
+              <option value="male">남성 성장 기준</option>
+              <option value="female">여성 성장 기준</option>
+            </select>
+          </label>
+          <label>
+            인구집단 기준
+            <select
+              value={agePlan.population_group ?? "unspecified"}
+              onChange={(event) => setAgePlan({ ...agePlan, population_group: event.target.value })}
+            >
+              <option value="unspecified">지정 안 함</option>
+              <option value="korean">한국인</option>
+              <option value="east_asian">동아시아인</option>
+              <option value="other">기타</option>
+            </select>
+          </label>
+          <button className="save" onClick={saveAgePlan} disabled={busy || !identity.ready}>
+            과거 얼굴 순서 저장
+          </button>
+        </div>
+
+        <p className="hint">
+          생년월일과 촬영일이 있으면 실제 촬영 당시 나이를 계산합니다. 입력한 현재 나이부터
+          8세까지 성인은 넓게, 성장 변화가 큰 아동·청소년은
+          촘촘하게 기준 사진을 배치합니다. 한 구간이 기준을 통과하지 못하면 합격선을
+          낮추지 않고 그 구간에 중간 나이를 추가합니다.
+        </p>
+
+        {agePlan.stages?.length > 0 && (
+          <>
+            <p className="hint">
+              생성 사진 {Math.max(0, agePlan.stages.length - 1)}장 + 현재 원본 1장
+            </p>
+            <div className="age-timeline" aria-label="과거에서 현재까지의 얼굴 순서">
+              {agePlan.stages.map((stage) => (
+                <span className={stage.kind === "current" ? "age-stage current" : "age-stage"} key={`${stage.kind}-${stage.age}`}>
+                  <b>{stage.age}세</b>
+                  {stage.kind === "current" ? <small>현재 원본</small> : <small>생성 앵커</small>}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+        {agePlan.stages?.some((stage) => stage.candidates?.length) && (
+          <div className="candidate-groups">
+            {agePlan.stages
+              .filter((stage) => stage.kind === "generated" && stage.candidates?.length)
+              .map((stage) => (
+                <section className="candidate-group" key={`candidates-${stage.age}`}>
+                  <h3>{stage.age}세 후보 — 과거의 나와 가장 닮은 사진을 선택하세요</h3>
+                  <div className="candidate-grid">
+                    {stage.candidates.map((candidate) => (
+                      <button
+                        className={stage.selected === candidate.name ? "candidate selected" : "candidate"}
+                        disabled={busy}
+                        key={candidate.name}
+                        onClick={() => choosePastCandidate(stage, candidate)}
+                      >
+                        <img src={candidate.url} alt={`${stage.age}세 얼굴 후보`} />
+                        <span>{stage.selected === candidate.name ? "선택됨" : "이 사진 선택"}</span>
+                        {candidate.validation && (
+                          <small className={`candidate-metrics ${candidate.validation.review_status ?? "legacy"}`}>
+                            외관 나이 {candidate.validation.estimated_age}세 · 신원 {candidate.validation.identity_pass ? "통과" : "실패"}
+                            {candidate.validation.age_estimation && (
+                              <>
+                                <br />
+                                InsightFace 목표 범위 {Math.round(candidate.validation.age_estimation.target_range_vote_share * 100)}%
+                              </>
+                            )}
+                            {candidate.validation.mivolo_raw_age_estimation?.status === "available" && (
+                              <>
+                                <br />
+                                MiVOLO 원시 중앙값 {candidate.validation.mivolo_raw_age_estimation.median.toFixed(1)}세
+                                · 목표 범위 {Math.round(candidate.validation.mivolo_raw_age_estimation.target_range_vote_share * 100)}%
+                                · 자동 판정 사용
+                              </>
+                            )}
+                            {candidate.validation.mivolo_corrected_age_estimation?.status === "advisory_only" && (
+                              <>
+                                <br />
+                                MiVOLO 현재 나이 보정 참고값 {candidate.validation.mivolo_corrected_age_estimation.median.toFixed(1)}세
+                                · 자동 판정 미사용
+                              </>
+                            )}
+                            {candidate.validation.age_consensus && (
+                              <>
+                                <br />
+                                두 모델 합의 · {validationStatusLabel(candidate.validation.review_status)}
+                              </>
+                            )}
+                            {candidate.validation.structure_3d_assessment?.status === "advisory_only" && (
+                              <>
+                                <br />
+                                3D 개인 구조 {candidate.validation.structure_3d_assessment.personal_structure_stable ? "보존" : "확인 필요"}
+                                · 성장 방향 {Math.round(candidate.validation.structure_3d_assessment.growth_direction_score * 100)}%
+                                · 보조 지표
+                              </>
+                            )}
+                            {candidate.validation.structure_assessment && (
+                              <>
+                                <br />2D 구조 변화 방향 {Math.round(candidate.validation.structure_assessment.score * 100)}% · 보조 지표
+                              </>
+                            )}
+                          </small>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+          </div>
+        )}
+        <p className="hint">
+          현재보다 어린 얼굴 후보만 만듭니다. 마지막 현재 얼굴은 AI로 생성하지 않고 선택한 원본을 그대로 사용해요.
         </p>
       </section>
 
