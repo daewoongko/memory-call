@@ -17,3 +17,5 @@ services:
         value: gemini-3.5-flash
       - key: LLM_API_KEY
         sync: false
+      - key: TTS_BRIDGE_TOKEN
+        sync: false

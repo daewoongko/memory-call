@@ -44,6 +44,31 @@
       }
     },
     {
+      "label": "memory-call: TTS bridge (Render)",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "args": [
+        "tools/tts_bridge.py",
+        "--render-url",
+        "https://memory-call.onrender.com"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "memory-call-servers",
+        "focus": false,
+        "clear": true,
+        "showReuseMessage": false
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    },
+    {
       "label": "memory-call: start backend + frontend",
       "dependsOn": [
         "memory-call: backend (8000)",

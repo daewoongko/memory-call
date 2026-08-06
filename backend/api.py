@@ -8,7 +8,11 @@ React 화면(D5-B)이 이 API만 보고 동작하도록 응답 형태를 고정�
     http://localhost:8000/docs  ← 브라우저에서 바로 테스트 가능
 """
 
+from collections import defaultdict, deque
+import math
 import os
+import threading
+import time
 import uuid
 from typing import Literal
 
@@ -94,6 +98,29 @@ async def add_security_headers(request: Request, call_next):
 SESSIONS: dict[str, Session] = {}
 
 
+def _positive_int_env(name: str, default: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+TTS_RATE_LIMIT_PER_MINUTE = _positive_int_env(
+    "TTS_RATE_LIMIT_PER_MINUTE", 6
+)
+TTS_GLOBAL_RATE_LIMIT_PER_MINUTE = _positive_int_env(
+    "TTS_GLOBAL_RATE_LIMIT_PER_MINUTE", 12
+)
+TTS_MAX_CONCURRENT = _positive_int_env("TTS_MAX_CONCURRENT", 1)
+_TTS_RATE_WINDOW_SECONDS = 60.0
+_tts_rate_lock = threading.Lock()
+_tts_rate_events: dict[str, deque[float]] = defaultdict(deque)
+_tts_global_rate_events: deque[float] = deque()
+_tts_rate_last_cleanup = 0.0
+_tts_capacity = threading.BoundedSemaphore(TTS_MAX_CONCURRENT)
+
+
 # ------------------------------------------------------------------ 스키마
 
 class StartCallRequest(BaseModel):
@@ -109,6 +136,10 @@ class TurnRequest(BaseModel):
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
     rate: float = Field(default=0.92, ge=0.75, le=1.15)
+
+
+class TTSBridgeRegistration(BaseModel):
+    service_url: str = Field(min_length=1, max_length=2048)
 
 
 class EndCallRequest(BaseModel):
@@ -237,6 +268,64 @@ def _get(call_id: str) -> Session:
     return session
 
 
+def _enforce_tts_rate_limit(request: Request, now: float | None = None) -> None:
+    """Apply a process-local sliding-window limit using Request.client.host."""
+    current = time.monotonic() if now is None else now
+    client = request.client.host if request.client is not None else "unknown"
+    cutoff = current - _TTS_RATE_WINDOW_SECONDS
+
+    global _tts_rate_last_cleanup
+    with _tts_rate_lock:
+        if current - _tts_rate_last_cleanup >= _TTS_RATE_WINDOW_SECONDS:
+            for key, events in list(_tts_rate_events.items()):
+                while events and events[0] <= cutoff:
+                    events.popleft()
+                if not events:
+                    _tts_rate_events.pop(key, None)
+            _tts_rate_last_cleanup = current
+
+        while _tts_global_rate_events and _tts_global_rate_events[0] <= cutoff:
+            _tts_global_rate_events.popleft()
+        if len(_tts_global_rate_events) >= TTS_GLOBAL_RATE_LIMIT_PER_MINUTE:
+            retry_after = max(
+                1,
+                math.ceil(
+                    _TTS_RATE_WINDOW_SECONDS
+                    - (current - _tts_global_rate_events[0])
+                ),
+            )
+            raise HTTPException(
+                status_code=429,
+                detail="Global TTS request rate limit exceeded",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        events = _tts_rate_events[client]
+        while events and events[0] <= cutoff:
+            events.popleft()
+        if len(events) >= TTS_RATE_LIMIT_PER_MINUTE:
+            retry_after = max(
+                1,
+                math.ceil(_TTS_RATE_WINDOW_SECONDS - (current - events[0])),
+            )
+            raise HTTPException(
+                status_code=429,
+                detail="TTS request rate limit exceeded",
+                headers={"Retry-After": str(retry_after)},
+            )
+        events.append(current)
+        _tts_global_rate_events.append(current)
+
+
+def _acquire_tts_capacity() -> None:
+    if not _tts_capacity.acquire(blocking=False):
+        raise HTTPException(
+            status_code=429,
+            detail="TTS synthesizer is busy",
+            headers={"Retry-After": "3"},
+        )
+
+
 def _morph_url() -> str | None:
     """페르소나 등록 시 미리 만들어 둔 모핑 영상. 없으면 이미지 전환으로 대체된다."""
     if not MORPH.exists():
@@ -296,13 +385,37 @@ def tts_health():
         raise HTTPException(503, str(exc)) from exc
 
 
-@app.post("/api/tts")
-def synthesize_speech(req: TTSRequest):
-    """Chatterbox가 만든 WAV를 브라우저에 그대로 전달한다."""
+@app.post("/api/tts/bridge/register")
+def register_tts_bridge(req: TTSBridgeRegistration, request: Request):
+    """Register or heartbeat an authenticated HTTPS tunnel to the TTS service."""
     try:
-        audio = tts_proxy.synthesize(req.text.strip(), req.rate)
-    except tts_proxy.TTSUnavailable as exc:
+        tts_proxy.verify_bridge_bearer(request.headers.get("Authorization"))
+        status = tts_proxy.register_bridge(req.service_url)
+    except tts_proxy.TTSBridgeNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
+    except tts_proxy.TTSBridgeUnauthorized as exc:
+        raise HTTPException(
+            401,
+            str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    except tts_proxy.TTSBridgeError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"ok": True, **status}
+
+
+@app.post("/api/tts")
+def synthesize_speech(req: TTSRequest, request: Request):
+    """Chatterbox가 만든 WAV를 브라우저에 그대로 전달한다."""
+    _enforce_tts_rate_limit(request)
+    _acquire_tts_capacity()
+    try:
+        try:
+            audio = tts_proxy.synthesize(req.text.strip(), req.rate)
+        except tts_proxy.TTSUnavailable as exc:
+            raise HTTPException(503, str(exc)) from exc
+    finally:
+        _tts_capacity.release()
     return Response(
         content=audio,
         media_type="audio/wav",
