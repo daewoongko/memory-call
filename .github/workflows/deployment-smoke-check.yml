@@ -1,0 +1,102 @@
+name: Deployment smoke check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify deployed app, API, keyframe, and morph range
+        env:
+          BASE_URL: https://memory-call.onrender.com
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["BASE_URL"].rstrip("/")
+
+          def fetch(path, headers=None, timeout=45):
+              request = urllib.request.Request(base + path, headers=headers or {})
+              try:
+                  with urllib.request.urlopen(request, timeout=timeout) as response:
+                      return response.status, response.headers, response.read()
+              except urllib.error.HTTPError as exc:
+                  return exc.code, exc.headers, exc.read()
+
+          health = None
+          last_status = None
+          last_body = b""
+          for attempt in range(1, 25):
+              try:
+                  status, _, body = fetch("/api/health")
+                  last_status, last_body = status, body
+                  payload = json.loads(body) if status == 200 else None
+                  if status == 200 and payload and payload.get("ok") is True:
+                      health = payload
+                      print(f"Health ready on attempt {attempt}: {payload}")
+                      break
+              except Exception as exc:
+                  print(f"Health attempt {attempt}/24: {type(exc).__name__}: {exc}")
+              else:
+                  print(f"Health attempt {attempt}/24: HTTP {status}: {body[:200]!r}")
+              time.sleep(15)
+
+          if health is None:
+              raise SystemExit(
+                  f"Deployment did not become healthy: HTTP {last_status}, body={last_body[:500]!r}"
+              )
+
+          status, headers, root = fetch("/")
+          assert status == 200, f"root returned HTTP {status}"
+          assert b'id="root"' in root or b"id='root'" in root, "React root element missing"
+
+          status, headers, body = fetch("/api/faces")
+          assert status == 200, f"/api/faces returned HTTP {status}"
+          faces = json.loads(body)
+          aligned = faces.get("aligned", [])
+          assert len(aligned) == 13, f"expected 13 final keyframes, got {len(aligned)}"
+          assert all(item.get("url", "").startswith("/faces/age_path_final/") for item in aligned)
+          morph = faces.get("morph", {})
+          assert morph.get("exists") is True, f"morph missing: {morph}"
+          assert morph.get("url") == "/media/morph.mp4", f"unexpected morph URL: {morph}"
+
+          first_keyframe = aligned[0]["url"]
+          status, headers, png = fetch(first_keyframe)
+          assert status == 200, f"first keyframe returned HTTP {status}"
+          assert png.startswith(b"\x89PNG\r\n\x1a\n"), "first keyframe is not a PNG"
+
+          status, headers, chunk = fetch(
+              "/media/morph.mp4",
+              headers={"Range": "bytes=0-1023", "Accept-Encoding": "identity"},
+          )
+          assert status == 206, f"morph range returned HTTP {status}"
+          assert len(chunk) == 1024, f"expected 1024 morph bytes, got {len(chunk)}"
+          content_range = headers.get("Content-Range", "")
+          assert content_range.startswith("bytes 0-1023/"), f"bad Content-Range: {content_range}"
+
+          print(
+              json.dumps(
+                  {
+                      "base_url": base,
+                      "health": health,
+                      "root_http": 200,
+                      "final_keyframes": len(aligned),
+                      "first_keyframe": first_keyframe,
+                      "morph_range_http": status,
+                      "morph_content_range": content_range,
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+              )
+          )
+          PY
