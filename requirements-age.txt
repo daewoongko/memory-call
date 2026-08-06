@@ -1,0 +1,17 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# Age/identity validation environment (.venv-age, Python 3.11).
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+numpy==1.26.4
+opencv-python-headless==4.11.0.86
+onnxruntime-gpu==1.20.0
+insightface==1.0.1
+scipy==1.17.1
+scikit-image==0.26.0
+Pillow==12.2.0
+PyYAML==6.0.3
+protobuf==7.35.1
+
+# MiVOLO and 3DDFA-V2 are optional advisory validators installed from their
+# upstream repositories. The core pipeline continues without either model.

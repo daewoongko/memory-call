@@ -19,6 +19,7 @@ import db
 import face_quality
 from storage import (
     ALIGNED_FACES_DIR,
+    FINAL_AGE_PATH_DIR,
     LOOPS_DIR,
     MORPH_PATH,
     RAW_FACES_DIR,
@@ -28,6 +29,7 @@ from storage import (
 
 RAW = RAW_FACES_DIR
 ALIGNED = ALIGNED_FACES_DIR
+FINAL_AGE_PATH = FINAL_AGE_PATH_DIR
 LOOPS = LOOPS_DIR
 MORPH = MORPH_PATH
 SOURCE = SOURCE_FACES_DIR
@@ -237,11 +239,24 @@ def faces() -> dict:
             if p.suffix.lower() in ALLOWED_SUFFIX and not p.name.startswith("_")
         ]
 
+    final_aligned = [
+        item
+        for item in listing(FINAL_AGE_PATH)
+        if Path(item["name"]).suffix.lower() == ".png"
+        and Path(item["name"]).stem.split("_", 1)[0].isdigit()
+        and "_age" in Path(item["name"]).stem.lower()
+    ]
+    if final_aligned:
+        aligned = [
+            dict(item, url=f"/faces/age_path_final/{item['name']}")
+            for item in final_aligned
+        ]
+    else:
+        aligned = [dict(item, url=f"/faces/{item['name']}") for item in listing(ALIGNED)]
+
     return {
         "raw": listing(RAW),
-        "aligned": [
-            dict(f, url=f"/faces/{f['name']}") for f in listing(ALIGNED)
-        ],
+        "aligned": aligned,
         "morph": {
             "exists": MORPH.exists(),
             "url": "/media/morph.mp4" if MORPH.exists() else None,

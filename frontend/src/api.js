@@ -85,6 +85,24 @@ export const deleteIdentityPhoto = (name) =>
     method: "DELETE",
   });
 
+export const saveAgePlan = (body) =>
+  request("/api/age-plan", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+
+export const selectAgeCandidate = (age, filename) =>
+  request("/api/age-plan/selection", {
+    method: "PUT",
+    body: JSON.stringify({ age, filename }),
+  });
+
+export const refineAgePlan = (olderAge, youngerAge) =>
+  request("/api/age-plan/refine", {
+    method: "POST",
+    body: JSON.stringify({ older_age: olderAge, younger_age: youngerAge }),
+  });
+
 export const deleteFace = (name) =>
   request(`/api/faces/${encodeURIComponent(name)}`, { method: "DELETE" });
 

@@ -1,0 +1,27 @@
+{
+  "current_age": 32,
+  "source": "2bb12cb5_ChatGPT Image 2026년 8월 3일 오전 09_14_28 _1.png",
+  "face_box": [
+    278,
+    333,
+    483,
+    607
+  ],
+  "method": "yunet-grabcut-head-skin-neck",
+  "head_center": [
+    519,
+    478
+  ],
+  "head_axes": [
+    362,
+    546
+  ],
+  "neck_bottom": 1152,
+  "skin_chroma_ycrcb": [
+    158.0,
+    107.0
+  ],
+  "skin_chroma_tolerance": 24.0,
+  "feather_kernel": 11,
+  "coverage_percent": 34.11
+}

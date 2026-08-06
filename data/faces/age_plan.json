@@ -1,0 +1,24 @@
+{
+  "version": 4,
+  "current_age": 32,
+  "current_photo": "2bb12cb5_ChatGPT Image 2026년 8월 3일 오전 09_14_28 _1.png",
+  "selections": {
+    "31": "age31_flux2_seed20264001_cond31_refs5_lora0p80_maskstr0p28.png",
+    "29": "age29_flux2_seed20263801_cond29_refs5_lora0p80_maskstr0p34.png",
+    "26": "age26_flux2_seed20263505_ctrl22_refs3_lora0p72_maskstr0p48.png",
+    "23": "age23_flux2_seed20263203_ctrl23_refs1_lora0p70_maskstr0p40_guidebase_age23_guidefran_src26_t21_r1p00.png",
+    "20": "age20_flux2_seed20262902_ctrl20_refs1_lora0p70_maskstr0p40_guidebase_age20_guidefran_src23_t18_r1p00.png",
+    "17": "age17_flux2_seed20262607_ctrl17_refs5_lora0p80_maskstr0p40_guidebase_age17_guidefran_src20_t14_r1p00.png",
+    "15": "age15_imagegen_visualpassage_v1.png",
+    "13": "age13_imagegen_visualpassage_v1.png",
+    "11": "age11_imagegen_visualpassage_v1.png",
+    "9": "age09_imagegen_visualpassage_v1.png",
+    "8": "age08_imagegen_visualpassage_v1.png",
+    "16": "age16_imagegen_bridge_v2.png"
+  },
+  "updated_at": "2026-08-06T00:07:56.769026+00:00",
+  "extra_ages": [
+    31,
+    16
+  ]
+}

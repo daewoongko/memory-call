@@ -1,0 +1,1609 @@
+{
+    "version":  1,
+    "created_at":  "2026-08-06T00:12:34.698697+00:00",
+    "purpose":  "RIFE-ready selected age keyframes",
+    "order":  "youngest_to_current",
+    "canvas":  {
+                   "width":  768,
+                   "height":  1024
+               },
+    "alignment":  {
+                      "type":  "eye-center global scale and translation",
+                      "target_eye_center":  [
+                                                378.92862,
+                                                358.1299
+                                            ],
+                      "target_eye_span":  157.58919,
+                      "target_eye_angle_degrees":  -3.45861,
+                      "rotation_alignment_enabled":  false,
+                      "nonrigid_face_warp":  false,
+                      "photometric_normalization":  false,
+                      "child_torso_stabilization":  {
+                                                        "enabled":  true,
+                                                        "endpoint_ages":  [
+                                                                              8,
+                                                                              17
+                                                                          ],
+                                                        "scope":  "monotonic same-image remap below y=620/1024",
+                                                        "face_pixels_changed":  false
+                                                    }
+                  },
+    "rows":  [
+                 {
+                     "index":  1,
+                     "age":  8,
+                     "source_path":  "data/faces/age_candidates/age08_imagegen_visualpassage_v1.png",
+                     "output_path":  "data/faces/aligned/age_path_final/01_age08.png",
+                     "output_name":  "01_age08.png",
+                     "detection_score_before":  0.93542,
+                     "detection_score_after":  0.917463,
+                     "source_landmarks":  [
+                                              [
+                                                  318.18613,
+                                                  408.82532
+                                              ],
+                                              [
+                                                  448.13538,
+                                                  400.8634
+                                              ],
+                                              [
+                                                  390.57742,
+                                                  481.0643
+                                              ],
+                                              [
+                                                  338.82257,
+                                                  548.04138
+                                              ],
+                                              [
+                                                  445.396,
+                                                  541.71405
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   294.98978,
+                                                   362.05267
+                                               ],
+                                               [
+                                                   454.03833,
+                                                   346.57504
+                                               ],
+                                               [
+                                                   385.75568,
+                                                   446.31998
+                                               ],
+                                               [
+                                                   324.77365,
+                                                   521.89441
+                                               ],
+                                               [
+                                                   460.51581,
+                                                   509.1391
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        383.16075,
+                                        404.84436,
+                                        130.19293,
+                                        -3.5061,
+                                        243.85521,
+                                        250.24203,
+                                        282.00729,
+                                        394.38452
+                                    ],
+                     "aligned_eye":  [
+                                         374.51405,
+                                         354.31386,
+                                         159.79987,
+                                         -5.55817,
+                                         206.83037,
+                                         170.40237,
+                                         334.66751,
+                                         464.67383
+                                     ],
+                     "transform":  [
+                                       [
+                                           1.21043,
+                                           0.0,
+                                           -84.85994
+                                       ],
+                                       [
+                                           0.0,
+                                           1.21043,
+                                           -131.90511
+                                       ]
+                                   ],
+                     "scale":  1.210428,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  false,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  389.1654175558174,
+                                                  "collar_apex":  752.0807772305066,
+                                                  "shoulder_left":  738.0,
+                                                  "shoulder_right":  713.0,
+                                                  "shoulder_mean":  725.5,
+                                                  "shoulder_delta":  25.0,
+                                                  "collar_nose_offset":  3.4097412862861347
+                                              },
+                     "torso_metrics_target":  {
+                                                  "collar_apex":  752.0807772305066,
+                                                  "shoulder_mean":  725.5,
+                                                  "shoulder_delta":  25.0,
+                                                  "collar_nose_offset":  3.4097412862861347
+                                              },
+                     "torso_metrics_after":  {
+                                                 "collar_x":  389.1654175558174,
+                                                 "collar_apex":  752.0807772305066,
+                                                 "shoulder_left":  738.0,
+                                                 "shoulder_right":  713.0,
+                                                 "shoulder_mean":  725.5,
+                                                 "shoulder_delta":  25.0,
+                                                 "collar_nose_offset":  3.4097412862861347
+                                             },
+                     "torso_remap_passes":  [
+
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  2,
+                     "age":  9,
+                     "source_path":  "data/faces/age_candidates/age09_imagegen_visualpassage_v1.png",
+                     "output_path":  "data/faces/aligned/age_path_final/02_age09.png",
+                     "output_name":  "02_age09.png",
+                     "detection_score_before":  0.935137,
+                     "detection_score_after":  0.909579,
+                     "source_landmarks":  [
+                                              [
+                                                  319.11694,
+                                                  408.21844
+                                              ],
+                                              [
+                                                  442.88022,
+                                                  410.05136
+                                              ],
+                                              [
+                                                  379.08411,
+                                                  487.44275
+                                              ],
+                                              [
+                                                  326.54681,
+                                                  544.90497
+                                              ],
+                                              [
+                                                  425.00854,
+                                                  545.6601
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   289.76566,
+                                                   361.09576
+                                               ],
+                                               [
+                                                   453.569,
+                                                   349.55499
+                                               ],
+                                               [
+                                                   380.07404,
+                                                   453.091
+                                               ],
+                                               [
+                                                   315.44037,
+                                                   532.72351
+                                               ],
+                                               [
+                                                   453.15689,
+                                                   523.01251
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        380.99858,
+                                        409.1349,
+                                        123.77685,
+                                        0.84848,
+                                        242.69168,
+                                        259.14676,
+                                        276.92664,
+                                        371.065
+                                    ],
+                     "aligned_eye":  [
+                                         371.66733,
+                                         355.32538,
+                                         164.20939,
+                                         -4.03012,
+                                         195.14864,
+                                         163.28963,
+                                         350.51035,
+                                         486.12405
+                                     ],
+                     "transform":  [
+                                       [
+                                           1.27317,
+                                           0.0,
+                                           -106.14802
+                                       ],
+                                       [
+                                           0.0,
+                                           1.27317,
+                                           -162.76912
+                                       ]
+                                   ],
+                     "scale":  1.273172,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  true,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  388.01393888714597,
+                                                  "collar_apex":  766.9530871616262,
+                                                  "shoulder_left":  735.0,
+                                                  "shoulder_right":  719.0,
+                                                  "shoulder_mean":  727.0,
+                                                  "shoulder_delta":  16.0,
+                                                  "collar_nose_offset":  7.939903242614719
+                                              },
+                     "torso_metrics_target":  {
+                                                  "collar_apex":  756.1827110301953,
+                                                  "shoulder_mean":  724.5,
+                                                  "shoulder_delta":  24.11111111111111,
+                                                  "collar_nose_offset":  3.269803504351071
+                                              },
+                     "torso_metrics_after":  {
+                                                 "collar_x":  382.9320761451511,
+                                                 "collar_apex":  756.8154671076637,
+                                                 "shoulder_left":  736.0,
+                                                 "shoulder_right":  711.0,
+                                                 "shoulder_mean":  723.5,
+                                                 "shoulder_delta":  25.0,
+                                                 "collar_nose_offset":  2.858040500619836
+                                             },
+                     "torso_remap_passes":  [
+                                                {
+                                                    "dx_body":  -4.6701,
+                                                    "dy_body":  -2.5,
+                                                    "collar_residual":  -8.27038,
+                                                    "shoulder_delta_change":  8.11111,
+                                                    "unchanged_through_y":  620
+                                                },
+                                                {
+                                                    "dx_body":  2.17818,
+                                                    "dy_body":  0.9,
+                                                    "collar_residual":  -0.54517,
+                                                    "shoulder_delta_change":  -2.33333,
+                                                    "unchanged_through_y":  620
+                                                }
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  3,
+                     "age":  11,
+                     "source_path":  "data/faces/age_candidates/age11_imagegen_visualpassage_v1.png",
+                     "output_path":  "data/faces/aligned/age_path_final/03_age11.png",
+                     "output_name":  "03_age11.png",
+                     "detection_score_before":  0.926791,
+                     "detection_score_after":  0.899877,
+                     "source_landmarks":  [
+                                              [
+                                                  311.35571,
+                                                  380.58276
+                                              ],
+                                              [
+                                                  444.58972,
+                                                  370.0675
+                                              ],
+                                              [
+                                                  386.09103,
+                                                  457.59036
+                                              ],
+                                              [
+                                                  332.14172,
+                                                  525.60156
+                                              ],
+                                              [
+                                                  440.4906,
+                                                  518.35413
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   295.69043,
+                                                   362.23956
+                                               ],
+                                               [
+                                                   467.2627,
+                                                   354.50433
+                                               ],
+                                               [
+                                                   383.80588,
+                                                   462.8642
+                                               ],
+                                               [
+                                                   316.47842,
+                                                   549.08331
+                                               ],
+                                               [
+                                                   459.21332,
+                                                   543.03613
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        377.97272,
+                                        375.32513,
+                                        133.64831,
+                                        -4.51261,
+                                        230.28975,
+                                        208.93956,
+                                        305.47525,
+                                        418.30289
+                                    ],
+                     "aligned_eye":  [
+                                         381.47656,
+                                         358.37195,
+                                         171.74655,
+                                         -2.5814,
+                                         196.9324,
+                                         149.7515,
+                                         379.62628,
+                                         525.80011
+                                     ],
+                     "transform":  [
+                                       [
+                                           1.17913,
+                                           0.0,
+                                           -66.75163
+                                       ],
+                                       [
+                                           0.0,
+                                           1.17913,
+                                           -84.4285
+                                       ]
+                                   ],
+                     "scale":  1.179133,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  true,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  399.2622673773916,
+                                                  "collar_apex":  817.8010274203809,
+                                                  "shoulder_left":  764.0,
+                                                  "shoulder_right":  740.0,
+                                                  "shoulder_mean":  752.0,
+                                                  "shoulder_delta":  24.0,
+                                                  "collar_nose_offset":  15.45638969184472
+                                              },
+                     "torso_metrics_target":  {
+                                                  "collar_apex":  764.3865786295726,
+                                                  "shoulder_mean":  722.5,
+                                                  "shoulder_delta":  22.333333333333332,
+                                                  "collar_nose_offset":  2.989927940480944
+                                              },
+                     "torso_metrics_after":  {
+                                                 "collar_x":  387.14474261021996,
+                                                 "collar_apex":  765.8589267769244,
+                                                 "shoulder_left":  732.0,
+                                                 "shoulder_right":  710.0,
+                                                 "shoulder_mean":  721.0,
+                                                 "shoulder_delta":  22.0,
+                                                 "collar_nose_offset":  3.3388649246730893
+                                             },
+                     "torso_remap_passes":  [
+                                                {
+                                                    "dx_body":  -12.0,
+                                                    "dy_body":  -29.5,
+                                                    "collar_residual":  -23.91445,
+                                                    "shoulder_delta_change":  -1.66667,
+                                                    "unchanged_through_y":  620
+                                                },
+                                                {
+                                                    "dx_body":  0.479,
+                                                    "dy_body":  3.3,
+                                                    "collar_residual":  -2.72546,
+                                                    "shoulder_delta_change":  -1.0,
+                                                    "unchanged_through_y":  620
+                                                },
+                                                {
+                                                    "dx_body":  0.12667,
+                                                    "dy_body":  1.8,
+                                                    "collar_residual":  -2.1907,
+                                                    "shoulder_delta_change":  -0.4,
+                                                    "unchanged_through_y":  620
+                                                }
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  4,
+                     "age":  13,
+                     "source_path":  "data/faces/age_candidates/age13_imagegen_visualpassage_v1.png",
+                     "output_path":  "data/faces/aligned/age_path_final/04_age13.png",
+                     "output_name":  "04_age13.png",
+                     "detection_score_before":  0.924813,
+                     "detection_score_after":  0.918241,
+                     "source_landmarks":  [
+                                              [
+                                                  303.74176,
+                                                  366.18115
+                                              ],
+                                              [
+                                                  454.11548,
+                                                  349.49292
+                                              ],
+                                              [
+                                                  387.2738,
+                                                  448.28012
+                                              ],
+                                              [
+                                                  332.03979,
+                                                  526.55322
+                                              ],
+                                              [
+                                                  459.05804,
+                                                  513.52661
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   303.5498,
+                                                   364.18829
+                                               ],
+                                               [
+                                                   458.84113,
+                                                   351.99155
+                                               ],
+                                               [
+                                                   388.04126,
+                                                   453.17871
+                                               ],
+                                               [
+                                                   326.8707,
+                                                   531.93445
+                                               ],
+                                               [
+                                                   457.75818,
+                                                   522.42017
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        378.92862,
+                                        357.83704,
+                                        151.2969,
+                                        -6.33268,
+                                        225.29366,
+                                        174.80969,
+                                        321.89755,
+                                        469.20917
+                                    ],
+                     "aligned_eye":  [
+                                         381.19547,
+                                         358.08992,
+                                         155.76956,
+                                         -4.49085,
+                                         218.61186,
+                                         164.98531,
+                                         335.7822,
+                                         491.39908
+                                     ],
+                     "transform":  [
+                                       [
+                                           1.04159,
+                                           0.0,
+                                           -15.75927
+                                       ],
+                                       [
+                                           0.0,
+                                           1.04159,
+                                           -14.58923
+                                       ]
+                                   ],
+                     "scale":  1.041589,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  true,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  396.2372037285811,
+                                                  "collar_apex":  771.464975314037,
+                                                  "shoulder_left":  734.0,
+                                                  "shoulder_right":  718.0,
+                                                  "shoulder_mean":  726.0,
+                                                  "shoulder_delta":  16.0,
+                                                  "collar_nose_offset":  8.195943962956107
+                                              },
+                     "torso_metrics_target":  {
+                                                  "collar_apex":  772.5904462289499,
+                                                  "shoulder_mean":  720.5,
+                                                  "shoulder_delta":  20.555555555555557,
+                                                  "collar_nose_offset":  2.7100523766108164
+                                              },
+                     "torso_metrics_after":  {
+                                                 "collar_x":  390.29477431149746,
+                                                 "collar_apex":  772.1403894015293,
+                                                 "shoulder_left":  732.0,
+                                                 "shoulder_right":  711.0,
+                                                 "shoulder_mean":  721.5,
+                                                 "shoulder_delta":  21.0,
+                                                 "collar_nose_offset":  2.253514545872463
+                                             },
+                     "torso_remap_passes":  [
+                                                {
+                                                    "dx_body":  -5.48589,
+                                                    "dy_body":  -5.5,
+                                                    "collar_residual":  6.62547,
+                                                    "shoulder_delta_change":  4.55556,
+                                                    "unchanged_through_y":  620
+                                                },
+                                                {
+                                                    "dx_body":  0.70052,
+                                                    "dy_body":  -1.2,
+                                                    "collar_residual":  0.5144,
+                                                    "shoulder_delta_change":  -0.26667,
+                                                    "unchanged_through_y":  620
+                                                }
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  5,
+                     "age":  15,
+                     "source_path":  "data/faces/age_candidates/age15_imagegen_visualpassage_v1.png",
+                     "output_path":  "data/faces/aligned/age_path_final/05_age15.png",
+                     "output_name":  "05_age15.png",
+                     "detection_score_before":  0.922039,
+                     "detection_score_after":  0.917068,
+                     "source_landmarks":  [
+                                              [
+                                                  303.21872,
+                                                  363.23459
+                                              ],
+                                              [
+                                                  456.52469,
+                                                  348.82147
+                                              ],
+                                              [
+                                                  388.91864,
+                                                  449.55121
+                                              ],
+                                              [
+                                                  328.48682,
+                                                  529.22131
+                                              ],
+                                              [
+                                                  458.4245,
+                                                  518.16052
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   301.01511,
+                                                   364.4866
+                                               ],
+                                               [
+                                                   458.31744,
+                                                   351.4967
+                                               ],
+                                               [
+                                                   386.87982,
+                                                   453.9671
+                                               ],
+                                               [
+                                                   324.78287,
+                                                   532.95496
+                                               ],
+                                               [
+                                                   458.25204,
+                                                   522.68347
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        379.8717,
+                                        356.02803,
+                                        153.98201,
+                                        -5.3709,
+                                        219.50488,
+                                        167.73775,
+                                        329.23083,
+                                        485.517
+                                    ],
+                     "aligned_eye":  [
+                                         379.66628,
+                                         357.99165,
+                                         157.83777,
+                                         -4.72073,
+                                         215.01663,
+                                         165.47298,
+                                         340.04718,
+                                         490.47543
+                                     ],
+                     "transform":  [
+                                       [
+                                           1.02343,
+                                           0.0,
+                                           -9.84196
+                                       ],
+                                       [
+                                           0.0,
+                                           1.02343,
+                                           -6.23845
+                                       ]
+                                   ],
+                     "scale":  1.023426,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  true,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  393.33166254956507,
+                                                  "collar_apex":  798.0130207261888,
+                                                  "shoulder_left":  748.0,
+                                                  "shoulder_right":  724.0,
+                                                  "shoulder_mean":  736.0,
+                                                  "shoulder_delta":  24.0,
+                                                  "collar_nose_offset":  6.451840772221317
+                                              },
+                     "torso_metrics_target":  {
+                                                  "collar_apex":  780.7943138283273,
+                                                  "shoulder_mean":  718.5,
+                                                  "shoulder_delta":  18.77777777777778,
+                                                  "collar_nose_offset":  2.4301768127406893
+                                              },
+                     "torso_metrics_after":  {
+                                                 "collar_x":  389.48128390937745,
+                                                 "collar_apex":  780.8346643621896,
+                                                 "shoulder_left":  728.0,
+                                                 "shoulder_right":  709.0,
+                                                 "shoulder_mean":  718.5,
+                                                 "shoulder_delta":  19.0,
+                                                 "collar_nose_offset":  2.601462132033703
+                                             },
+                     "torso_remap_passes":  [
+                                                {
+                                                    "dx_body":  -4.02166,
+                                                    "dy_body":  -17.5,
+                                                    "collar_residual":  0.28129,
+                                                    "shoulder_delta_change":  -5.22222,
+                                                    "unchanged_through_y":  620
+                                                },
+                                                {
+                                                    "dx_body":  -1.02719,
+                                                    "dy_body":  0.3,
+                                                    "collar_residual":  -0.16921,
+                                                    "shoulder_delta_change":  1.66667,
+                                                    "unchanged_through_y":  620
+                                                }
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  6,
+                     "age":  16,
+                     "source_path":  "data/faces/age_candidates/age16_imagegen_bridge_v2.png",
+                     "output_path":  "data/faces/aligned/age_path_final/06_age16.png",
+                     "output_name":  "06_age16.png",
+                     "detection_score_before":  0.920853,
+                     "detection_score_after":  0.916488,
+                     "source_landmarks":  [
+                                              [
+                                                  302.08652,
+                                                  363.75092
+                                              ],
+                                              [
+                                                  456.73654,
+                                                  349.98761
+                                              ],
+                                              [
+                                                  387.37708,
+                                                  452.02908
+                                              ],
+                                              [
+                                                  327.10266,
+                                                  532.61115
+                                              ],
+                                              [
+                                                  456.93103,
+                                                  521.99432
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   302.11768,
+                                                   363.70621
+                                               ],
+                                               [
+                                                   458.75342,
+                                                   352.01285
+                                               ],
+                                               [
+                                                   387.89694,
+                                                   454.84503
+                                               ],
+                                               [
+                                                   324.47772,
+                                                   533.31653
+                                               ],
+                                               [
+                                                   456.37692,
+                                                   524.43201
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        379.41153,
+                                        356.86926,
+                                        155.26126,
+                                        -5.08572,
+                                        218.09692,
+                                        165.81741,
+                                        332.83582,
+                                        489.1004
+                                    ],
+                     "aligned_eye":  [
+                                         380.43555,
+                                         357.85953,
+                                         157.07161,
+                                         -4.26939,
+                                         216.29337,
+                                         164.19586,
+                                         336.62988,
+                                         489.31128
+                                     ],
+                     "transform":  [
+                                       [
+                                           1.01499,
+                                           0.0,
+                                           -6.17167
+                                       ],
+                                       [
+                                           0.0,
+                                           1.01499,
+                                           -4.09013
+                                       ]
+                                   ],
+                     "scale":  1.014994,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  true,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  392.51335861359905,
+                                                  "collar_apex":  799.9040138071721,
+                                                  "shoulder_left":  752.0,
+                                                  "shoulder_right":  727.0,
+                                                  "shoulder_mean":  739.5,
+                                                  "shoulder_delta":  25.0,
+                                                  "collar_nose_offset":  4.616416474927178
+                                              },
+                     "torso_metrics_target":  {
+                                                  "collar_apex":  784.8962476280159,
+                                                  "shoulder_mean":  717.5,
+                                                  "shoulder_delta":  17.88888888888889,
+                                                  "collar_nose_offset":  2.290239030805626
+                                              },
+                     "torso_metrics_after":  {
+                                                 "collar_x":  391.180506559919,
+                                                 "collar_apex":  784.3856806002427,
+                                                 "shoulder_left":  727.0,
+                                                 "shoulder_right":  710.0,
+                                                 "shoulder_mean":  718.5,
+                                                 "shoulder_delta":  17.0,
+                                                 "collar_nose_offset":  3.2835644212471493
+                                             },
+                     "torso_remap_passes":  [
+                                                {
+                                                    "dx_body":  -2.32618,
+                                                    "dy_body":  -22.0,
+                                                    "collar_residual":  6.99223,
+                                                    "shoulder_delta_change":  -7.11111,
+                                                    "unchanged_through_y":  620
+                                                },
+                                                {
+                                                    "dx_body":  -1.37771,
+                                                    "dy_body":  -0.9,
+                                                    "collar_residual":  0.53475,
+                                                    "shoulder_delta_change":  1.13333,
+                                                    "unchanged_through_y":  620
+                                                }
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  7,
+                     "age":  17,
+                     "source_path":  "data/faces/age_candidates/age17_flux2_seed20262607_ctrl17_refs5_lora0p80_maskstr0p40_guidebase_age17_guidefran_src20_t14_r1p00.png",
+                     "output_path":  "data/faces/aligned/age_path_final/07_age17.png",
+                     "output_name":  "07_age17.png",
+                     "detection_score_before":  0.913122,
+                     "detection_score_after":  0.922126,
+                     "source_landmarks":  [
+                                              [
+                                                  298.59784,
+                                                  360.70749
+                                              ],
+                                              [
+                                                  463.23608,
+                                                  356.43179
+                                              ],
+                                              [
+                                                  383.00812,
+                                                  458.96411
+                                              ],
+                                              [
+                                                  316.87634,
+                                                  532.61188
+                                              ],
+                                              [
+                                                  453.78247,
+                                                  529.42761
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   299.02539,
+                                                   361.76437
+                                               ],
+                                               [
+                                                   454.67911,
+                                                   349.83221
+                                               ],
+                                               [
+                                                   381.92703,
+                                                   449.6105
+                                               ],
+                                               [
+                                                   321.26465,
+                                                   527.79926
+                                               ],
+                                               [
+                                                   454.35504,
+                                                   518.45947
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        380.91696,
+                                        358.56964,
+                                        164.69376,
+                                        -1.48765,
+                                        209.24747,
+                                        160.87643,
+                                        339.41693,
+                                        496.98553
+                                    ],
+                     "aligned_eye":  [
+                                         376.85225,
+                                         355.79829,
+                                         156.1104,
+                                         -4.38363,
+                                         216.83131,
+                                         168.21075,
+                                         336.45615,
+                                         484.4071
+                                     ],
+                     "transform":  [
+                                       [
+                                           0.95686,
+                                           0.0,
+                                           14.44367
+                                       ],
+                                       [
+                                           0.0,
+                                           0.95686,
+                                           15.02825
+                                       ]
+                                   ],
+                     "scale":  0.956862,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  false,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  384.0773337195737,
+                                                  "collar_apex":  788.9981814277046,
+                                                  "shoulder_left":  725.0,
+                                                  "shoulder_right":  708.0,
+                                                  "shoulder_mean":  716.5,
+                                                  "shoulder_delta":  17.0,
+                                                  "collar_nose_offset":  2.150301248870562
+                                              },
+                     "torso_metrics_target":  {
+                                                  "collar_apex":  788.9981814277046,
+                                                  "shoulder_mean":  716.5,
+                                                  "shoulder_delta":  17.0,
+                                                  "collar_nose_offset":  2.150301248870562
+                                              },
+                     "torso_metrics_after":  {
+                                                 "collar_x":  384.0773337195737,
+                                                 "collar_apex":  788.9981814277046,
+                                                 "shoulder_left":  725.0,
+                                                 "shoulder_right":  708.0,
+                                                 "shoulder_mean":  716.5,
+                                                 "shoulder_delta":  17.0,
+                                                 "collar_nose_offset":  2.150301248870562
+                                             },
+                     "torso_remap_passes":  [
+
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  8,
+                     "age":  20,
+                     "source_path":  "data/faces/age_candidates/age20_flux2_seed20262902_ctrl20_refs1_lora0p70_maskstr0p40_guidebase_age20_guidefran_src23_t18_r1p00.png",
+                     "output_path":  "data/faces/aligned/age_path_final/08_age20.png",
+                     "output_name":  "08_age20.png",
+                     "detection_score_before":  0.913423,
+                     "detection_score_after":  0.916881,
+                     "source_landmarks":  [
+                                              [
+                                                  297.19629,
+                                                  362.93823
+                                              ],
+                                              [
+                                                  456.31372,
+                                                  353.32156
+                                              ],
+                                              [
+                                                  378.43851,
+                                                  454.401
+                                              ],
+                                              [
+                                                  317.02191,
+                                                  531.40674
+                                              ],
+                                              [
+                                                  454.56891,
+                                                  523.59088
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   301.00076,
+                                                   363.86148
+                                               ],
+                                               [
+                                                   457.68988,
+                                                   352.46014
+                                               ],
+                                               [
+                                                   382.33344,
+                                                   452.89679
+                                               ],
+                                               [
+                                                   322.30328,
+                                                   530.78436
+                                               ],
+                                               [
+                                                   456.60394,
+                                                   521.91345
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        376.755,
+                                        358.1299,
+                                        159.40777,
+                                        -3.45861,
+                                        217.6454,
+                                        164.24083,
+                                        336.8685,
+                                        493.94565
+                                    ],
+                     "aligned_eye":  [
+                                         379.34532,
+                                         358.16081,
+                                         157.10337,
+                                         -4.16174,
+                                         220.32845,
+                                         166.59467,
+                                         337.0867,
+                                         489.29205
+                                     ],
+                     "transform":  [
+                                       [
+                                           0.98859,
+                                           0.0,
+                                           6.47177
+                                       ],
+                                       [
+                                           0.0,
+                                           0.98859,
+                                           4.08568
+                                       ]
+                                   ],
+                     "scale":  0.988592,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  false,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  387.9990828228832,
+                                                  "collar_apex":  804.0312103437141,
+                                                  "shoulder_left":  734.0,
+                                                  "shoulder_right":  716.0,
+                                                  "shoulder_mean":  725.0,
+                                                  "shoulder_delta":  18.0,
+                                                  "collar_nose_offset":  5.665647764289474
+                                              },
+                     "torso_metrics_target":  null,
+                     "torso_metrics_after":  {
+                                                 "collar_x":  387.9990828228832,
+                                                 "collar_apex":  804.0312103437141,
+                                                 "shoulder_left":  734.0,
+                                                 "shoulder_right":  716.0,
+                                                 "shoulder_mean":  725.0,
+                                                 "shoulder_delta":  18.0,
+                                                 "collar_nose_offset":  5.665647764289474
+                                             },
+                     "torso_remap_passes":  [
+
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  9,
+                     "age":  23,
+                     "source_path":  "data/faces/age_candidates/age23_flux2_seed20263203_ctrl23_refs1_lora0p70_maskstr0p40_guidebase_age23_guidefran_src26_t21_r1p00.png",
+                     "output_path":  "data/faces/aligned/age_path_final/09_age23.png",
+                     "output_name":  "09_age23.png",
+                     "detection_score_before":  0.91418,
+                     "detection_score_after":  0.917734,
+                     "source_landmarks":  [
+                                              [
+                                                  297.32281,
+                                                  363.23636
+                                              ],
+                                              [
+                                                  455.62344,
+                                                  353.50201
+                                              ],
+                                              [
+                                                  378.54037,
+                                                  453.84924
+                                              ],
+                                              [
+                                                  317.09332,
+                                                  531.46069
+                                              ],
+                                              [
+                                                  453.63486,
+                                                  523.5976
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   302.24402,
+                                                   362.74509
+                                               ],
+                                               [
+                                                   459.50955,
+                                                   352.48636
+                                               ],
+                                               [
+                                                   383.80994,
+                                                   453.07379
+                                               ],
+                                               [
+                                                   321.94196,
+                                                   531.51306
+                                               ],
+                                               [
+                                                   456.64374,
+                                                   523.73315
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        376.47313,
+                                        358.36919,
+                                        158.59964,
+                                        -3.51885,
+                                        216.85677,
+                                        165.20628,
+                                        338.11618,
+                                        493.09482
+                                    ],
+                     "aligned_eye":  [
+                                         380.87679,
+                                         357.61572,
+                                         157.59978,
+                                         -3.73222,
+                                         218.25316,
+                                         166.39517,
+                                         341.46005,
+                                         491.73834
+                                     ],
+                     "transform":  [
+                                       [
+                                           0.99363,
+                                           0.0,
+                                           4.85404
+                                       ],
+                                       [
+                                           0.0,
+                                           0.99363,
+                                           2.04391
+                                       ]
+                                   ],
+                     "scale":  0.993629,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  false,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  388.1781543839533,
+                                                  "collar_apex":  806.0111527064182,
+                                                  "shoulder_left":  734.0,
+                                                  "shoulder_right":  717.0,
+                                                  "shoulder_mean":  725.5,
+                                                  "shoulder_delta":  17.0,
+                                                  "collar_nose_offset":  4.368217860515813
+                                              },
+                     "torso_metrics_target":  null,
+                     "torso_metrics_after":  {
+                                                 "collar_x":  388.1781543839533,
+                                                 "collar_apex":  806.0111527064182,
+                                                 "shoulder_left":  734.0,
+                                                 "shoulder_right":  717.0,
+                                                 "shoulder_mean":  725.5,
+                                                 "shoulder_delta":  17.0,
+                                                 "collar_nose_offset":  4.368217860515813
+                                             },
+                     "torso_remap_passes":  [
+
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  10,
+                     "age":  26,
+                     "source_path":  "data/faces/age_candidates/age26_flux2_seed20263505_ctrl22_refs3_lora0p72_maskstr0p48.png",
+                     "output_path":  "data/faces/aligned/age_path_final/10_age26.png",
+                     "output_name":  "10_age26.png",
+                     "detection_score_before":  0.915306,
+                     "detection_score_after":  0.916226,
+                     "source_landmarks":  [
+                                              [
+                                                  298.07669,
+                                                  362.7186
+                                              ],
+                                              [
+                                                  455.8046,
+                                                  353.74759
+                                              ],
+                                              [
+                                                  379.26276,
+                                                  453.75189
+                                              ],
+                                              [
+                                                  316.92719,
+                                                  531.74109
+                                              ],
+                                              [
+                                                  452.29797,
+                                                  524.60425
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   301.4837,
+                                                   362.23746
+                                               ],
+                                               [
+                                                   460.55005,
+                                                   353.38312
+                                               ],
+                                               [
+                                                   383.6329,
+                                                   454.75665
+                                               ],
+                                               [
+                                                   319.75104,
+                                                   532.29114
+                                               ],
+                                               [
+                                                   456.35654,
+                                                   525.58911
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        376.94064,
+                                        358.23309,
+                                        157.98282,
+                                        -3.25528,
+                                        215.35786,
+                                        165.06557,
+                                        340.02481,
+                                        493.84189
+                                    ],
+                     "aligned_eye":  [
+                                         381.01688,
+                                         357.81029,
+                                         159.31259,
+                                         -3.18605,
+                                         215.93137,
+                                         163.78862,
+                                         343.85193,
+                                         496.03922
+                                     ],
+                     "transform":  [
+                                       [
+                                           0.99751,
+                                           0.0,
+                                           2.92716
+                                       ],
+                                       [
+                                           0.0,
+                                           0.99751,
+                                           0.78938
+                                       ]
+                                   ],
+                     "scale":  0.997508,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  false,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  388.1351754184825,
+                                                  "collar_apex":  807.8574865465545,
+                                                  "shoulder_left":  735.0,
+                                                  "shoulder_right":  718.0,
+                                                  "shoulder_mean":  726.5,
+                                                  "shoulder_delta":  17.0,
+                                                  "collar_nose_offset":  4.502271365748129
+                                              },
+                     "torso_metrics_target":  null,
+                     "torso_metrics_after":  {
+                                                 "collar_x":  388.1351754184825,
+                                                 "collar_apex":  807.8574865465545,
+                                                 "shoulder_left":  735.0,
+                                                 "shoulder_right":  718.0,
+                                                 "shoulder_mean":  726.5,
+                                                 "shoulder_delta":  17.0,
+                                                 "collar_nose_offset":  4.502271365748129
+                                             },
+                     "torso_remap_passes":  [
+
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  11,
+                     "age":  29,
+                     "source_path":  "data/faces/age_candidates/age29_flux2_seed20263801_cond29_refs5_lora0p80_maskstr0p34.png",
+                     "output_path":  "data/faces/aligned/age_path_final/11_age29.png",
+                     "output_name":  "11_age29.png",
+                     "detection_score_before":  0.914828,
+                     "detection_score_after":  0.92038,
+                     "source_landmarks":  [
+                                              [
+                                                  300.36636,
+                                                  360.11133
+                                              ],
+                                              [
+                                                  461.64868,
+                                                  355.4733
+                                              ],
+                                              [
+                                                  385.41068,
+                                                  456.46558
+                                              ],
+                                              [
+                                                  318.58838,
+                                                  532.49097
+                                              ],
+                                              [
+                                                  452.60614,
+                                                  528.80316
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   294.62656,
+                                                   363.97144
+                                               ],
+                                               [
+                                                   455.23267,
+                                                   352.00583
+                                               ],
+                                               [
+                                                   379.50031,
+                                                   450.83514
+                                               ],
+                                               [
+                                                   320.24786,
+                                                   529.50549
+                                               ],
+                                               [
+                                                   456.81119,
+                                                   519.63696
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        381.00752,
+                                        357.79231,
+                                        161.34899,
+                                        -1.64721,
+                                        205.24576,
+                                        165.21518,
+                                        343.40649,
+                                        489.25085
+                                    ],
+                     "aligned_eye":  [
+                                         374.92961,
+                                         357.98863,
+                                         161.05123,
+                                         -4.26082,
+                                         209.63148,
+                                         175.50914,
+                                         338.93515,
+                                         473.6572
+                                     ],
+                     "transform":  [
+                                       [
+                                           0.9767,
+                                           0.0,
+                                           6.79945
+                                       ],
+                                       [
+                                           0.0,
+                                           0.9767,
+                                           8.67497
+                                       ]
+                                   ],
+                     "scale":  0.976698,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  false,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  384.0256611559968,
+                                                  "collar_apex":  798.8684137210864,
+                                                  "shoulder_left":  730.0,
+                                                  "shoulder_right":  713.0,
+                                                  "shoulder_mean":  721.5,
+                                                  "shoulder_delta":  17.0,
+                                                  "collar_nose_offset":  4.525355980215522
+                                              },
+                     "torso_metrics_target":  null,
+                     "torso_metrics_after":  {
+                                                 "collar_x":  384.0256611559968,
+                                                 "collar_apex":  798.8684137210864,
+                                                 "shoulder_left":  730.0,
+                                                 "shoulder_right":  713.0,
+                                                 "shoulder_mean":  721.5,
+                                                 "shoulder_delta":  17.0,
+                                                 "collar_nose_offset":  4.525355980215522
+                                             },
+                     "torso_remap_passes":  [
+
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  12,
+                     "age":  31,
+                     "source_path":  "data/faces/age_candidates/age31_flux2_seed20264001_cond31_refs5_lora0p80_maskstr0p28.png",
+                     "output_path":  "data/faces/aligned/age_path_final/12_age31.png",
+                     "output_name":  "12_age31.png",
+                     "detection_score_before":  0.914993,
+                     "detection_score_after":  0.915666,
+                     "source_landmarks":  [
+                                              [
+                                                  298.90924,
+                                                  361.72528
+                                              ],
+                                              [
+                                                  456.32935,
+                                                  354.42712
+                                              ],
+                                              [
+                                                  380.13403,
+                                                  453.28119
+                                              ],
+                                              [
+                                                  315.76813,
+                                                  531.32727
+                                              ],
+                                              [
+                                                  450.41562,
+                                                  525.72174
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   299.62988,
+                                                   362.77347
+                                               ],
+                                               [
+                                                   457.71051,
+                                                   354.47086
+                                               ],
+                                               [
+                                                   381.96539,
+                                                   454.43332
+                                               ],
+                                               [
+                                                   317.3894,
+                                                   532.58673
+                                               ],
+                                               [
+                                                   452.7688,
+                                                   526.16187
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        377.61929,
+                                        358.0762,
+                                        157.58919,
+                                        -2.65439,
+                                        213.06975,
+                                        166.84662,
+                                        342.8157,
+                                        491.67035
+                                    ],
+                     "aligned_eye":  [
+                                         378.6702,
+                                         358.62216,
+                                         158.29851,
+                                         -3.00649,
+                                         213.52629,
+                                         165.53958,
+                                         343.41263,
+                                         495.48322
+                                     ],
+                     "transform":  [
+                                       [
+                                           1.0,
+                                           0.0,
+                                           1.30933
+                                       ],
+                                       [
+                                           0.0,
+                                           1.0,
+                                           0.0537
+                                       ]
+                                   ],
+                     "scale":  1.0,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  false,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  387.4473906764911,
+                                                  "collar_apex":  809.1182459466146,
+                                                  "shoulder_left":  736.0,
+                                                  "shoulder_right":  718.0,
+                                                  "shoulder_mean":  727.0,
+                                                  "shoulder_delta":  18.0,
+                                                  "collar_nose_offset":  5.481997610084875
+                                              },
+                     "torso_metrics_target":  null,
+                     "torso_metrics_after":  {
+                                                 "collar_x":  387.4473906764911,
+                                                 "collar_apex":  809.1182459466146,
+                                                 "shoulder_left":  736.0,
+                                                 "shoulder_right":  718.0,
+                                                 "shoulder_mean":  727.0,
+                                                 "shoulder_delta":  18.0,
+                                                 "collar_nose_offset":  5.481997610084875
+                                             },
+                     "torso_remap_passes":  [
+
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 },
+                 {
+                     "index":  13,
+                     "age":  32,
+                     "source_path":  "data/faces/source/2bb12cb5_ChatGPT Image 2026??8??3???ㅼ쟾 09_14_28 _1.png",
+                     "output_path":  "data/faces/aligned/age_path_final/13_age32.png",
+                     "output_name":  "13_age32.png",
+                     "detection_score_before":  0.914416,
+                     "detection_score_after":  0.916295,
+                     "source_landmarks":  [
+                                              [
+                                                  299.17422,
+                                                  361.04538
+                                              ],
+                                              [
+                                                  456.59061,
+                                                  353.42905
+                                              ],
+                                              [
+                                                  380.50751,
+                                                  452.84534
+                                              ],
+                                              [
+                                                  316.38574,
+                                                  533.034
+                                              ],
+                                              [
+                                                  450.91742,
+                                                  527.32251
+                                              ]
+                                          ],
+                     "aligned_landmarks":  [
+                                               [
+                                                   302.92691,
+                                                   362.54794
+                                               ],
+                                               [
+                                                   455.98969,
+                                                   355.81903
+                                               ],
+                                               [
+                                                   382.86606,
+                                                   453.75797
+                                               ],
+                                               [
+                                                   318.32822,
+                                                   528.15112
+                                               ],
+                                               [
+                                                   449.99612,
+                                                   523.72992
+                                               ]
+                                           ],
+                     "source_eye":  [
+                                        377.88242,
+                                        357.23721,
+                                        157.60053,
+                                        -2.77,
+                                        213.54811,
+                                        165.22913,
+                                        341.93967,
+                                        498.41742
+                                    ],
+                     "aligned_eye":  [
+                                         379.4583,
+                                         359.18349,
+                                         153.21061,
+                                         -2.5172,
+                                         216.99532,
+                                         190.46581,
+                                         333.6561,
+                                         468.15677
+                                     ],
+                     "transform":  [
+                                       [
+                                           0.99993,
+                                           0.0,
+                                           1.07339
+                                       ],
+                                       [
+                                           0.0,
+                                           0.99993,
+                                           0.91838
+                                       ]
+                                   ],
+                     "scale":  0.999928,
+                     "rotation_degrees":  0.0,
+                     "torso_stabilized":  false,
+                     "torso_metrics_before":  {
+                                                  "collar_x":  387.53430100879757,
+                                                  "collar_apex":  810.1329399253126,
+                                                  "shoulder_left":  736.0,
+                                                  "shoulder_right":  720.0,
+                                                  "shoulder_mean":  728.0,
+                                                  "shoulder_delta":  16.0,
+                                                  "collar_nose_offset":  4.668242659188195
+                                              },
+                     "torso_metrics_target":  null,
+                     "torso_metrics_after":  {
+                                                 "collar_x":  387.53430100879757,
+                                                 "collar_apex":  810.1329399253126,
+                                                 "shoulder_left":  736.0,
+                                                 "shoulder_right":  720.0,
+                                                 "shoulder_mean":  728.0,
+                                                 "shoulder_delta":  16.0,
+                                                 "collar_nose_offset":  4.668242659188195
+                                             },
+                     "torso_remap_passes":  [
+
+                                            ],
+                     "warnings":  [
+
+                                  ]
+                 }
+             ]
+}

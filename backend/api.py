@@ -10,6 +10,7 @@ React 화면(D5-B)이 이 API만 보고 동작하도록 응답 형태를 고정�
 
 import os
 import uuid
+from typing import Literal
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import admin as admin_mod
+import age_timeline
 import db
 import linking as link_mod
 import llm
@@ -29,7 +31,9 @@ import tts_proxy
 from conversation import Session
 from storage import (
     ALIGNED_FACES_DIR,
+    AGE_CANDIDATES_DIR,
     FACES_ROOT,
+    FINAL_AGE_PATH_DIR,
     FRONTEND_DIST,
     LOOPS_DIR,
     MORPH_PATH,
@@ -66,6 +70,11 @@ app.mount(
     "/identity-faces",
     StaticFiles(directory=SOURCE_FACES_DIR),
     name="identity-faces",
+)
+app.mount(
+    "/age-candidates",
+    StaticFiles(directory=AGE_CANDIDATES_DIR),
+    name="age-candidates",
 )
 # 모핑 영상(morph.mp4)을 내보낸다. 브라우저가 구간 요청을 하므로
 # StaticFiles 가 Range 헤더를 처리해 준다.
@@ -139,6 +148,27 @@ class ElderPatch(BaseModel):
     frequent_questions: list[str] | None = None
 
 
+class AgePlanRequest(BaseModel):
+    current_age: int | None = Field(default=None, ge=18, le=100)
+    current_photo: str = Field(min_length=1, max_length=180)
+    birth_date: str | None = Field(default=None, max_length=10)
+    current_photo_date: str | None = Field(default=None, max_length=10)
+    biological_sex: Literal["unspecified", "female", "male"] = "unspecified"
+    population_group: Literal[
+        "unspecified", "korean", "east_asian", "other"
+    ] = "unspecified"
+
+
+class AgeCandidateSelection(BaseModel):
+    age: int = Field(ge=1, le=100)
+    filename: str = Field(min_length=1, max_length=180)
+
+
+class AgePathRefinementRequest(BaseModel):
+    older_age: int = Field(ge=2, le=100)
+    younger_age: int = Field(ge=1, le=99)
+
+
 class MemoryRequest(BaseModel):
     title: str = Field(min_length=1, max_length=80)
     description: str = Field(default="", max_length=1000)
@@ -209,7 +239,9 @@ def _get(call_id: str) -> Session:
 
 def _morph_url() -> str | None:
     """페르소나 등록 시 미리 만들어 둔 모핑 영상. 없으면 이미지 전환으로 대체된다."""
-    return f"/media/{MORPH.name}" if MORPH.exists() else None
+    if not MORPH.exists():
+        return None
+    return f"/media/{MORPH.name}?v={MORPH.stat().st_mtime_ns}"
 
 
 def _loop_urls() -> dict[str, str]:
@@ -227,12 +259,24 @@ def _face_urls() -> list[dict]:
     """모핑에 쓸 얼굴 단계 목록. 파일명 앞 숫자가 순서다."""
     if not FACES_DIR.exists():
         return []
+    final_paths = []
+    if FINAL_AGE_PATH_DIR.exists():
+        final_paths = [
+            path
+            for path in sorted(FINAL_AGE_PATH_DIR.glob("*.png"))
+            if not path.name.startswith("_")
+            and path.stem.split("_", 1)[0].isdigit()
+            and "_age" in path.stem.lower()
+        ]
+    paths = final_paths or [
+        path for path in sorted(FACES_DIR.glob("*.png"))
+        if not path.name.startswith("_")
+    ]
+    url_prefix = "/faces/age_path_final" if final_paths else "/faces"
     stages = []
-    for path in sorted(FACES_DIR.glob("*.png")):
-        if path.name.startswith("_"):
-            continue
+    for path in paths:
         stage = path.stem.split("_", 1)[-1]
-        stages.append({"stage": stage, "url": f"/faces/{path.name}"})
+        stages.append({"stage": stage, "url": f"{url_prefix}/{path.name}"})
     return stages
 
 
@@ -354,6 +398,7 @@ def get_persona(elder_id: str = "elder_001"):
             admin_mod.profile(elder_id),
             faces=admin_mod.faces(),
             identity_photos=admin_mod.identity_photos(),
+            age_plan=age_timeline.get_plan(),
         )
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
@@ -407,6 +452,44 @@ async def upload_identity_photos(files: list[UploadFile] = File(...)):
 def delete_identity_photo(name: str):
     admin_mod.delete_identity_photo(name)
     return {"ok": True, "identity_photos": admin_mod.identity_photos()}
+
+
+@app.get("/api/age-plan")
+def get_age_plan():
+    """현재 나이를 마지막 지점으로 삼는 과거 얼굴 생성 계획."""
+    return age_timeline.get_plan()
+
+
+@app.put("/api/age-plan")
+def put_age_plan(req: AgePlanRequest):
+    try:
+        return age_timeline.save_plan(
+            req.current_age,
+            req.current_photo,
+            birth_date=req.birth_date,
+            current_photo_date=req.current_photo_date,
+            biological_sex=req.biological_sex,
+            population_group=req.population_group,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.put("/api/age-plan/selection")
+def put_age_candidate_selection(req: AgeCandidateSelection):
+    try:
+        return age_timeline.select_candidate(req.age, req.filename)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/age-plan/refine")
+def post_age_path_refinement(req: AgePathRefinementRequest):
+    """Split a failed adjacent age segment without weakening quality gates."""
+    try:
+        return age_timeline.refine_failed_segment(req.older_age, req.younger_age)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @app.post("/api/faces")
