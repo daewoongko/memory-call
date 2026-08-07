@@ -20,6 +20,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
+# 한국어 콘솔(cp949)에서는 이 스크립트가 첫 줄부터 UnicodeEncodeError 로 죽는다.
+# 프롬프트를 고칠 때마다 돌려야 하는 도구가 터미널 종류에 따라 안 돌면 안 된다.
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8", errors="replace")
+
 import llm  # noqa: E402
 import safety  # noqa: E402
 from persona import build_system_prompt, load_context  # noqa: E402

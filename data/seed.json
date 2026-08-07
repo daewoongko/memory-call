@@ -4,6 +4,17 @@
     "name": "고길동",
     "preferred_call_name": "할아버지",
     "birth_date": "1940-03-12",
+    "residence_type": "자택 (아들 부부와 함께)",
+    "household_members": [
+      {
+        "name": "고민수",
+        "relation": "아들"
+      },
+      {
+        "name": "박은영",
+        "relation": "며느리"
+      }
+    ],
     "speech_wait_time_ms": 2000,
     "hearing_support": true,
     "vision_support": false,
