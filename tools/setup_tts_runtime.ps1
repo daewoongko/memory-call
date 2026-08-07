@@ -58,6 +58,13 @@ function Find-Python311 {
     if (Test-Python311 $known) {
         return [IO.Path]::GetFullPath($known)
     }
+
+    # A workspace-local portable CPython keeps the large CUDA environment
+    # restartable even when a per-user Python installation is removed.
+    $portable = Join-Path $repoRoot '.tools\python311\bin\python.exe'
+    if (Test-Python311 $portable) {
+        return [IO.Path]::GetFullPath($portable)
+    }
     return $null
 }
 

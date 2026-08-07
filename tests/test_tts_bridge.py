@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from urllib import error
 from unittest.mock import patch
@@ -105,6 +106,24 @@ class TtsBridgeDiscoveryTests(unittest.TestCase):
                     probe=lambda _value: False,
                 )
 
+    def test_musetalk_runtime_prefers_prepared_portable_python(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            relative = (
+                Path(".tools/python310/bin/python.exe")
+                if os.name == "nt"
+                else Path(".tools/python310/bin/python")
+            )
+            python = root / relative
+            python.parent.mkdir(parents=True)
+            python.touch()
+            result = tts_bridge.find_musetalk_python(
+                root,
+                {},
+                probe=lambda value: value == python.resolve(),
+            )
+        self.assertEqual(result, python.resolve())
+
 
 class TtsBridgeLifecycleTests(unittest.TestCase):
     @staticmethod
@@ -126,6 +145,33 @@ class TtsBridgeLifecycleTests(unittest.TestCase):
                 tts_bridge.start_tts(self.config())
             with self.assertRaises(tts_bridge.BridgeError):
                 tts_bridge.start_tunnel(self.config())
+
+    def test_musetalk_starts_offline_on_its_fixed_loopback_port(self):
+        config = replace(
+            self.config(),
+            musetalk_enabled=True,
+            musetalk_python=Path("musetalk-python.exe"),
+            musetalk_dir=Path("MuseTalk"),
+            musetalk_source_video=Path("idle.mp4"),
+            musetalk_port=8002,
+        )
+        process = object()
+        with patch.object(
+            tts_bridge.subprocess,
+            "Popen",
+            return_value=process,
+        ) as popen:
+            returned = tts_bridge.start_musetalk(config)
+
+        self.assertIs(returned, process)
+        command = popen.call_args.args[0]
+        environment = popen.call_args.kwargs["env"]
+        self.assertIn("--port", command)
+        self.assertEqual(command[command.index("--port") + 1], "8002")
+        self.assertIn("musetalk_server.py", command[2])
+        self.assertEqual(environment["HF_HUB_OFFLINE"], "1")
+        self.assertEqual(environment["TRANSFORMERS_OFFLINE"], "1")
+        self.assertEqual(environment["TTS_BRIDGE_TOKEN"], VALID_TOKEN)
 
     def test_loopback_health_opener_has_no_proxy(self):
         proxy_handlers = [

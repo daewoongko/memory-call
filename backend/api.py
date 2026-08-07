@@ -409,17 +409,61 @@ def synthesize_speech(req: TTSRequest, request: Request):
     """Chatterbox가 만든 WAV를 브라우저에 그대로 전달한다."""
     _enforce_tts_rate_limit(request)
     _acquire_tts_capacity()
+    request_id = uuid.uuid4().hex
     try:
         try:
-            audio = tts_proxy.synthesize(req.text.strip(), req.rate)
+            result = tts_proxy.synthesize_with_metadata(
+                req.text.strip(),
+                req.rate,
+                request_id=request_id,
+            )
         except tts_proxy.TTSUnavailable as exc:
             raise HTTPException(503, str(exc)) from exc
     finally:
         _tts_capacity.release()
+    response_headers = {
+        "Cache-Control": "no-store",
+        "X-TTS-Engine": "chatterbox-v3",
+        **result.public_headers(request_id=request_id),
+    }
     return Response(
-        content=audio,
+        content=result.body,
         media_type="audio/wav",
-        headers={"Cache-Control": "no-store", "X-TTS-Engine": "chatterbox-v3"},
+        headers=response_headers,
+    )
+
+
+@app.post("/api/tts/video")
+def synthesize_lipsync_video(req: TTSRequest, request: Request):
+    """Return a MuseTalk MP4, or an explicit Chatterbox WAV fallback."""
+    _enforce_tts_rate_limit(request)
+    _acquire_tts_capacity()
+    request_id = uuid.uuid4().hex
+    try:
+        try:
+            result = tts_proxy.synthesize_video_with_metadata(
+                req.text.strip(),
+                req.rate,
+                request_id=request_id,
+            )
+        except tts_proxy.TTSUnavailable as exc:
+            raise HTTPException(503, str(exc)) from exc
+    finally:
+        _tts_capacity.release()
+
+    # The proxy already validates this allowlist. Keep the public boundary
+    # closed as well in case a future/custom proxy implementation regresses.
+    if result.media_type not in {"audio/wav", "video/mp4"}:
+        raise HTTPException(503, "TTS service returned an unsupported media type")
+    response_headers = {
+        "Cache-Control": "no-store",
+        "X-TTS-Engine": "chatterbox-v3",
+        **result.public_headers(request_id=request_id),
+    }
+    return Response(
+        content=result.body,
+        media_type=result.media_type,
+        headers=response_headers,
     )
 
 

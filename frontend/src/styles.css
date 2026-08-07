@@ -224,6 +224,19 @@ button:focus-visible {
   background: #0a0908;
 }
 
+.lipsync-stage {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, visibility 0s linear 0.18s;
+}
+
+.lipsync-stage.active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.18s ease;
+}
+
 /* 정사각형 사진을 세로 화면에 넣으면 잘려나가므로,
    같은 사진을 흐리게 깔아 배경을 채우고 원본은 잘리지 않게 얹는다. */
 .stage video.blur,

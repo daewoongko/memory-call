@@ -82,6 +82,20 @@ VS Code에서는 `Terminal → Run Task → memory-call: TTS bridge (Render)`를
 
 Heartbeat는 브리지가 켜져 있는 동안 Render 무료 인스턴스를 활성 상태로 유지합니다. 따라서 PC에서 브리지를 오래 켜 둘수록 Render의 월 무료 실행 시간이 함께 사용됩니다.
 
+## MuseTalk 립싱크
+
+브리지는 Chatterbox와 함께 MuseTalk 1.5 워커를 `127.0.0.1:8002`에 띄웁니다. 합성한 음성을 그대로 입 모양에 맞춘 MP4로 만들어 `/api/tts/video`로 돌려주며, 같은 Bearer 비밀키를 요구하고 터널은 기존 하나만 씁니다. 아바타·모델 경로·출력 위치는 프로세스 시작 시 고정되므로 호출자가 로컬 파일을 지정할 수 없습니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup_musetalk_runtime.ps1
+```
+
+모델을 기본 위치가 아닌 곳에 두었다면 `.env`에 `MEMORY_CALL_MUSETALK_DIR`를 지정합니다. 아바타 캐시가 없거나 불완전하면 브리지가 시작 시점에 실패하므로, MuseTalk이 통화 중에 대화형 프롬프트로 멈추는 일은 없습니다.
+
+**립싱크는 선택 경로입니다.** 워커가 없거나(404) 바쁘거나(409) 실패하면(503) 프론트가 같은 Chatterbox 음성 WAV로 조용히 전환하고 통화는 그대로 이어집니다. 데모 중 GPU가 흔들려도 대화가 끊기지 않게 하기 위한 것이며, 얼굴이 정지 화면으로 돌아갈 뿐입니다.
+
+두 모델이 16GB GPU 하나를 나눠 쓰므로 MuseTalk은 렌더가 끝날 때마다 추론 피크 메모리를 반환합니다. 이 반환을 빼면 PyTorch 캐싱 할당자가 약 8GB를 계속 붙잡아 Chatterbox가 호스트 메모리로 밀려나고, 음성 합성이 2.6초에서 13.6초로 느려집니다.
+
 ## 프로덕션 빌드
 
 Docker 이미지는 React 프로덕션 빌드, FastAPI, 최종 얼굴 자산과 모핑 영상을 하나로 묶습니다.

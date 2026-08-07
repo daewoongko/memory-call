@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import FaceStage from "../components/FaceStage.jsx";
+import LipSyncStage from "../components/LipSyncStage.jsx";
 import LoopStage from "../components/LoopStage.jsx";
 import MorphStage from "../components/MorphStage.jsx";
 import SelfView from "../components/SelfView.jsx";
 import { useSpeech } from "../useSpeech.js";
+import { emitSpeechTiming, speechNow } from "../speechPipeline.js";
 
 // 사진이 늘어나면 구간당 시간이 짧아져 깜빡임처럼 보이므로 장당 시간을 보장한다.
 const MORPH_MIN_MS = 9000;
@@ -56,6 +58,7 @@ export default function CallScreen({
   const [muted, setMuted] = useState(false);
   const inputRef = useRef(null);
   const speechRef = useRef(null);
+  const turnRunRef = useRef(0);
   const mutedRef = useRef(false);
   const liveRef = useRef(true);
   mutedRef.current = muted;
@@ -69,13 +72,29 @@ export default function CallScreen({
       setSpoken("");
       setPending(true);
       setError("");
+      const turnId = ++turnRunRef.current;
+      const startedAt = speechNow();
+      emitSpeechTiming("turn.request", {
+        turnId,
+        textLength: message.length,
+      });
 
       try {
         const res = await api.sendTurn(callId, message);
+        emitSpeechTiming("turn.response", {
+          turnId,
+          durationMs: Math.round(speechNow() - startedAt),
+          serverLlmMs: Number(res.latency_ms) || 0,
+          replyLength: String(res.reply ?? "").length,
+        });
         setSpoken(res.reply);
         setAlert(res.risk ? RISK_LABEL[res.risk.type] ?? "가족에게 알렸어요" : null);
         return res.reply;
       } catch (e) {
+        emitSpeechTiming("turn.error", {
+          turnId,
+          durationMs: Math.round(speechNow() - startedAt),
+        });
         setError(`연결이 잠시 끊겼어요. ${e.message}`);
       } finally {
         setPending(false);
@@ -89,6 +108,8 @@ export default function CallScreen({
   // AI 가 말하는 동안에는 마이크를 닫아 스피커 소리가 되돌아오는 것을 막는다.
   const speech = useSpeech({
     silenceMs: waitMs ?? 2000,
+    // 오프닝의 나이 모핑을 끝낸 뒤에만 현재 얼굴 립싱크로 전환한다.
+    preferLipSync: useVideo ? morphDone : progress >= 1,
     onFinal: async (text) => {
       const reply = await send(text);
       if (reply) await speechRef.current?.speak(reply);
@@ -197,13 +218,15 @@ export default function CallScreen({
   // 화면만 보고 알 수 있어야 한다 (명세 NFR-02).
   const status = muted
     ? "마이크 꺼짐"
-    : speech.speaking
+    : speech.playing
       ? "대웅이가 말하는 중"
-      : pending
-        ? "잠시만요"
-        : speech.listening
-          ? "듣고 있어요"
-          : "연결됨";
+      : speech.speaking
+        ? "목소리를 준비하는 중"
+        : pending
+          ? "잠시만요"
+          : speech.listening
+            ? "듣고 있어요"
+            : "연결됨";
   const subtitle = speech.listening && speech.interim
     ? speech.interim
     : spoken || "편하게 말씀하세요";
@@ -213,12 +236,12 @@ export default function CallScreen({
       {useVideo ? (
         <MorphStage
           src={morphUrl}
-          speaking={speech.speaking}
+          speaking={speech.playing}
           onEnded={() => setMorphDone(true)}
           onFail={() => setVideoFailed(true)}
         />
       ) : (
-        <FaceStage faces={faces} progress={progress} speaking={speech.speaking} />
+        <FaceStage faces={faces} progress={progress} speaking={speech.playing} />
       )}
 
       {/* 모핑이 끝나면 그 위에 표정 루프를 덮는다.
@@ -227,12 +250,18 @@ export default function CallScreen({
         <LoopStage
           loops={loops}
           want={
-            speech.speaking
+            speech.playing
               ? ["talking", "idle", "concerned"]
               : ["idle", "concerned", "talking"]
           }
         />
       )}
+
+      <LipSyncStage
+        src={speech.lipSyncSrc}
+        active={speech.lipSyncActive}
+        videoRef={speech.lipSyncVideoRef}
+      />
 
       {alert && <div className="alert-bar">{alert}</div>}
 
