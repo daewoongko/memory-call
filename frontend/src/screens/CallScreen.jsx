@@ -258,9 +258,9 @@ export default function CallScreen({
       )}
 
       <LipSyncStage
-        src={speech.lipSyncSrc}
         active={speech.lipSyncActive}
         videoRef={speech.lipSyncVideoRef}
+        blurRef={speech.lipSyncBlurRef}
       />
 
       {alert && <div className="alert-bar">{alert}</div>}

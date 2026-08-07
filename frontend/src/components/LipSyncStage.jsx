@@ -1,12 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 /**
  * MuseTalk가 만든 한 문장 영상을 기존 통화 무대 위에 잠시 덮는다.
  * 원본 영상 하나만 소리를 내고, 흐린 배경 복제본은 항상 음소거한다.
+ *
+ * 두 영상의 src 는 useSpeech 가 직접 넣고 뺀다. React 상태로 넣으면 커밋이
+ * blob 해제보다 늦어, 이미 해제된 blob 을 가리키는 영상이 남는다.
  */
-export default function LipSyncStage({ src, active, videoRef }) {
-  const blurRef = useRef(null);
-
+export default function LipSyncStage({ active, videoRef, blurRef }) {
   useEffect(() => {
     const main = videoRef.current;
     const blur = blurRef.current;
@@ -34,28 +35,15 @@ export default function LipSyncStage({ src, active, videoRef }) {
       main.removeEventListener("ended", pauseBlur);
       blur.pause();
     };
-  }, [src, videoRef]);
+  }, [videoRef, blurRef]);
 
   return (
     <div
       className={`stage lipsync-stage${active ? " active" : ""}`}
       aria-hidden={!active}
     >
-      <video
-        ref={blurRef}
-        className="blur"
-        src={src ?? undefined}
-        muted
-        playsInline
-        preload="auto"
-      />
-      <video
-        ref={videoRef}
-        className="face"
-        src={src ?? undefined}
-        playsInline
-        preload="auto"
-      />
+      <video ref={blurRef} className="blur" muted playsInline preload="auto" />
+      <video ref={videoRef} className="face" playsInline preload="auto" />
       <div className="scrim" />
     </div>
   );

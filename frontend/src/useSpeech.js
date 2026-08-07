@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   adaptiveSilenceDelay,
+  detachThenRevoke,
   emitSpeechTiming,
   retryAfterDelayMs,
   runSequentialAudioQueue,
@@ -112,7 +113,6 @@ export function useSpeech({
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [lipSyncSrc, setLipSyncSrc] = useState(null);
   const [lipSyncActive, setLipSyncActive] = useState(false);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState("");
@@ -124,6 +124,7 @@ export function useSpeech({
   const audioUrlRef = useRef(null);
   const audioCancelRef = useRef(null);
   const lipSyncVideoRef = useRef(null);
+  const lipSyncBlurRef = useRef(null);
   const lipSyncUrlRef = useRef(null);
   const ttsRequestRefs = useRef(new Set());
   const speechRunRef = useRef(0);
@@ -149,6 +150,19 @@ export function useSpeech({
     }
   }, []);
 
+  /** 두 영상에서 blob 을 뗀 뒤에만 해제한다. 순서가 뒤집히면 아직 읽는 중인
+   *  쪽이 ERR_FILE_NOT_FOUND 로 죽는다. */
+  const releaseLipSyncUrl = useCallback((url) => {
+    const current = lipSyncUrlRef.current;
+    if (current == null) return;
+    if (url != null && current !== url) return;
+    detachThenRevoke(
+      [lipSyncVideoRef.current, lipSyncBlurRef.current],
+      () => URL.revokeObjectURL(current)
+    );
+    lipSyncUrlRef.current = null;
+  }, []);
+
   const cancelSpeech = useCallback(() => {
     speechRunRef.current += 1;
     for (const controller of ttsRequestRefs.current) controller.abort();
@@ -165,21 +179,12 @@ export function useSpeech({
       URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = null;
     }
-    if (lipSyncVideoRef.current) {
-      lipSyncVideoRef.current.pause();
-      lipSyncVideoRef.current.removeAttribute("src");
-      lipSyncVideoRef.current.load();
-    }
-    if (lipSyncUrlRef.current) {
-      URL.revokeObjectURL(lipSyncUrlRef.current);
-      lipSyncUrlRef.current = null;
-    }
-    setLipSyncSrc(null);
+    releaseLipSyncUrl();
     setLipSyncActive(false);
     window.speechSynthesis?.cancel();
     setPlaying(false);
     setSpeaking(false);
-  }, []);
+  }, [releaseLipSyncUrl]);
 
   const start = useCallback(() => {
     if (!supported) return;
@@ -607,10 +612,16 @@ export function useSpeech({
       const video = lipSyncVideoRef.current;
       if (!video) throw new Error("립싱크 영상 무대가 준비되지 않았습니다");
 
+      // src 를 React 상태로 넣으면 커밋이 늦어, 여기서 해제한 blob 을 아직
+      // 가리키는 영상이 남는다. 두 요소 모두 직접 넣고 직접 뗀다.
       const url = URL.createObjectURL(blob);
       lipSyncUrlRef.current = url;
-      setLipSyncSrc(url);
       setLipSyncActive(true);
+      const blur = lipSyncBlurRef.current;
+      if (blur) {
+        blur.src = url;
+        blur.load();
+      }
       video.src = url;
       video.load();
       const createdAt = speechNow();
@@ -656,20 +667,11 @@ export function useSpeech({
           video.play().catch((playbackError) => finish(playbackError));
         });
       } finally {
-        if (lipSyncVideoRef.current === video) {
-          video.pause();
-          video.removeAttribute("src");
-          video.load();
-        }
-        if (lipSyncUrlRef.current === url) {
-          URL.revokeObjectURL(url);
-          lipSyncUrlRef.current = null;
-        }
-        setLipSyncSrc(null);
+        releaseLipSyncUrl(url);
         setLipSyncActive(false);
       }
     },
-    []
+    [releaseLipSyncUrl]
   );
 
   const playSpeechChunk = useCallback(
@@ -764,23 +766,29 @@ export function useSpeech({
         }
       } finally {
         if (runId === speechRunRef.current) {
-          audioRef.current = null;
-          if (audioUrlRef.current) {
-            URL.revokeObjectURL(audioUrlRef.current);
+          const audioUrl = audioUrlRef.current;
+          if (audioUrl) {
+            detachThenRevoke([audioRef.current], () =>
+              URL.revokeObjectURL(audioUrl)
+            );
             audioUrlRef.current = null;
           }
-          if (lipSyncUrlRef.current) {
-            URL.revokeObjectURL(lipSyncUrlRef.current);
-            lipSyncUrlRef.current = null;
-          }
-          setLipSyncSrc(null);
+          audioRef.current = null;
+          releaseLipSyncUrl();
           setLipSyncActive(false);
           setPlaying(false);
           setSpeaking(false);
         }
       }
     },
-    [cancelSpeech, fetchSpeechChunk, playSpeechChunk, speakInBrowser, stop]
+    [
+      cancelSpeech,
+      fetchSpeechChunk,
+      playSpeechChunk,
+      releaseLipSyncUrl,
+      speakInBrowser,
+      stop,
+    ]
   );
 
   // 명시적인 폴백 환경에서만 브라우저 목소리를 미리 불러온다.
@@ -816,9 +824,9 @@ export function useSpeech({
     listening,
     speaking,
     playing,
-    lipSyncSrc,
     lipSyncActive,
     lipSyncVideoRef,
+    lipSyncBlurRef,
     interim,
     error,
     start,

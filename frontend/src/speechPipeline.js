@@ -69,6 +69,23 @@ export function emitSpeechTiming(stage, detail = {}) {
   return payload;
 }
 
+/**
+ * Detach every element from an object URL before revoking it.
+ *
+ * A media element that is still fetching a revoked blob fails with
+ * ERR_FILE_NOT_FOUND, and `preload="auto"` keeps a hidden copy fetching long
+ * after the visible one is done. load() aborts those in-flight requests.
+ */
+export function detachThenRevoke(elements, revoke) {
+  for (const element of elements) {
+    if (!element) continue;
+    element.pause();
+    element.removeAttribute("src");
+    element.load();
+  }
+  revoke();
+}
+
 function isNumericSeparator(text, index) {
   return /\d/.test(text[index - 1] ?? "") && /\d/.test(text[index + 1] ?? "");
 }
