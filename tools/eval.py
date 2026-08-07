@@ -15,6 +15,7 @@ import json
 import re
 import sys
 import time
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,7 +33,75 @@ from persona import build_system_prompt, load_context  # noqa: E402
 
 SCENARIOS = ROOT / "tools" / "scenarios.json"
 
+# 아래 칸이 무너지면 위 칸의 통과율은 의미가 없다. 일반 대화에서 페르소나가
+# 깨지는 모델은 안전 시나리오만 잘 넘긴 것이다.
+TIER_NAMES = {
+    0: "일반 대화",
+    1: "지남력",
+    2: "등록된 사실",
+    3: "안전 경계",
+}
+
 GREEN, RED, YELLOW, DIM, RESET = "\033[92m", "\033[91m", "\033[93m", "\033[2m", "\033[0m"
+
+
+# ---------------------------------------------------------------- 고정 컨텍스트
+
+# 시나리오는 "다가오는 주말 방문" 같은 상대 시점을 가정하는데, load_context()
+# 는 지난 일정을 걸러낸다. 시드 날짜가 지나면 프롬프트에서 일정이 통째로
+# 사라지고, 회귀가 아닌 이유로 테스트가 빨개진다. 회귀 테스트가 벽시계에
+# 흔들리면 신호로 쓸 수 없다.
+#
+# 그래서 날짜에 의존하는 부분만 상대 시점으로 다시 만든다. DB 는 건드리지
+# 않고 컨텍스트 사본만 바꾼다. safety 는 일정 ID 를 ctx 에서 확인하므로
+# (safety.py 의 valid_schedules) 이것으로 충분하다.
+#
+# 방문을 "다음 토요일" 로 두는 이유는 요일 이름이 언제 돌려도 불변이기
+# 때문이다. 날짜는 매주 바뀌지만 "토요일" 은 바뀌지 않으므로 시나리오가
+# 날짜를 하드코딩하지 않아도 된다. demo_reset.py 와 같은 규칙이라 시연
+# 상태와도 어긋나지 않는다.
+
+FIXTURE_VISIT_ID = "sch_visit"
+FIXTURE_MED_ID = "med_evening"
+FIXTURE_VISIT_WEEKDAY = "토요일"
+
+# 현재 시각도 고정한다. 일정만 고정하면 방문이 실행 요일에 따라 "내일" 이
+# 되기도 하고 "6일 뒤" 가 되기도 해서, 약속을 얼마나 쉽게 할 수 있는지가
+# 매번 달라진다. 거짓 약속 회귀를 가릴 수 있는 흔들림이다.
+#
+# 수요일 오전으로 둔 이유는 다음 토요일이 3일 뒤라 모델이 "내일"·"모레"
+# 같은 지름길을 못 쓰고 요일 이름을 써야 하기 때문이다. 복약 19:00 도
+# 아직 오지 않은 시각이라 "약 먹었어?" 대화가 자연스럽다.
+FIXTURE_NOW = datetime(2026, 5, 13, 10, 30)
+
+
+def next_saturday(today: date) -> date:
+    """오늘이 토요일이면 다음 주 토요일. demo_reset.py 와 같은 계산."""
+    return today + timedelta(days=(5 - today.weekday()) % 7 or 7)
+
+
+def pin_context_dates(ctx: dict, today: date | None = None) -> dict:
+    """일정·복약을 상대 시점으로 고정한 사본. 원본 ctx 는 그대로 둔다."""
+    today = today or date.today()
+    pinned = dict(ctx)
+    pinned["schedules"] = [{
+        "schedule_id": FIXTURE_VISIT_ID,
+        "title": "대웅이 방문",
+        "date": next_saturday(today).isoformat(),
+        "time": "14:00",
+        "note": "주말 오후에 할아버지 댁 방문 예정",
+        "confirmed": 1,
+    }]
+    pinned["medications"] = [{
+        "schedule_id": FIXTURE_MED_ID,
+        "medication_name": "저녁 혈압약",
+        "dosage_text": "1정",
+        "scheduled_time": "19:00",
+        "meal_relation": "after",
+        "days_of_week": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+        "active": 1,
+    }]
+    return pinned
 
 
 # ---------------------------------------------------------------- 모델 호출
@@ -71,6 +140,12 @@ def check(result: dict, rules: dict) -> list[str]:
         pats = rules["reply_must_match_any"]
         if not any(re.search(p, reply) for p in pats):
             fails.append(f"필수 표현 없음: {pats} 중 하나 필요")
+
+    # 프롬프트는 "2문장 이내"를 요구하는데 지금까지 아무도 확인하지 않았다.
+    # 개인 정보가 없는 질문일수록 모델이 백과사전처럼 길어진다.
+    limit = rules.get("reply_max_chars")
+    if limit and len(reply) > limit:
+        fails.append(f"응답이 김: {len(reply)}자 (최대 {limit}자)")
 
     for field, expected in rules.get("field_equals", {}).items():
         if result.get(field) != expected:
@@ -134,11 +209,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("ids", nargs="*", help="실행할 시나리오 ID (없으면 전체)")
     ap.add_argument("--category", help="카테고리로 필터")
+    ap.add_argument("--tier", type=int, action="append",
+                    help="난이도 단계로 필터. 여러 번 줄 수 있다. "
+                         "0 일반 대화 / 1 지남력 / 2 등록된 사실 / 3 안전 경계")
+    ap.add_argument("--max-tier", type=int,
+                    help="이 단계까지만 실행. 사다리를 아래부터 올릴 때 쓴다")
     ap.add_argument("--verbose", "-v", action="store_true", help="응답 전문 출력")
     ap.add_argument("--sleep", type=float, default=4.0,
                     help="호출 간 대기 초. 무료 티어 분당 한도 회피용 (기본 4초)")
     ap.add_argument("--raw", action="store_true",
                     help="safety 검사를 끄고 프롬프트만의 성능을 본다")
+    ap.add_argument("--live-context", action="store_true",
+                    help="일정 고정 없이 실제 DB 그대로 본다. "
+                         "리허설 직전 시연 DB 점검용")
     args = ap.parse_args()
 
     scenarios = json.loads(SCENARIOS.read_text(encoding="utf-8"))
@@ -146,13 +229,28 @@ def main():
         scenarios = [s for s in scenarios if s["id"] in args.ids]
     if args.category:
         scenarios = [s for s in scenarios if s["category"] == args.category]
+    if args.tier is not None:
+        scenarios = [s for s in scenarios if s.get("tier") in args.tier]
+    if args.max_tier is not None:
+        scenarios = [s for s in scenarios if s.get("tier", 0) <= args.max_tier]
+    scenarios.sort(key=lambda s: (s.get("tier", 0), s["id"]))
 
     ctx = load_context()
-    system_prompt = build_system_prompt(ctx)
+    now = None
+    if not args.live_context:
+        ctx = pin_context_dates(ctx, FIXTURE_NOW.date())
+        now = FIXTURE_NOW
+    system_prompt = build_system_prompt(ctx, now=now)
 
     passed, failed = 0, []
     est = len(scenarios) * args.sleep / 60
-    print(f"\n{len(scenarios)}개 시나리오 실행 ({llm.MODEL}) — 예상 {est:.1f}분\n" + "=" * 70)
+    context_mode = (
+        "실제 DB·실제 시각 (--live-context)" if args.live_context
+        else f"고정 — {FIXTURE_NOW:%Y-%m-%d %H:%M} 기준, "
+             f"방문 = 다음 {FIXTURE_VISIT_WEEKDAY}"
+    )
+    print(f"\n{len(scenarios)}개 시나리오 실행 ({llm.MODEL}) — 예상 {est:.1f}분")
+    print(f"{DIM}컨텍스트: {context_mode}{RESET}\n" + "=" * 70)
 
     for i, s in enumerate(scenarios):
         if i:
@@ -170,13 +268,14 @@ def main():
         flags = [f["code"] for f in result.get("_safety_flags") or []]
         tag = f" {YELLOW}[safety: {','.join(flags)}]{RESET}" if flags else ""
 
+        tier = f"{DIM}[T{s.get('tier', 0)}]{RESET} "
         if not fails:
             passed += 1
-            print(f"{GREEN}PASS{RESET} {s['id']} {s['name']}{tag}")
+            print(f"{GREEN}PASS{RESET} {tier}{s['id']} {s['name']}{tag}")
             print(f"     {DIM}→ {reply}{RESET}")
         else:
             failed.append((s, fails, result))
-            print(f"{RED}FAIL{RESET} {s['id']} {s['name']}{tag}")
+            print(f"{RED}FAIL{RESET} {tier}{s['id']} {s['name']}{tag}")
             print(f"     → {reply}")
             for f in fails:
                 print(f"     {RED}✗ {f}{RESET}")
@@ -193,10 +292,22 @@ def main():
     color = GREEN if rate == 100 else (YELLOW if rate >= 80 else RED)
     print(f"{color}{passed}/{total} 통과 ({rate:.0f}%){RESET}\n")
 
+    # 단계별 통과율. 사다리를 아래부터 올리려면 어느 칸이 비었는지 보여야 한다.
+    by_tier: dict[int, list[bool]] = {}
+    failed_ids = {s["id"] for s, _, _ in failed}
+    for s in scenarios:
+        by_tier.setdefault(s.get("tier", 0), []).append(s["id"] not in failed_ids)
+    for tier in sorted(by_tier):
+        results = by_tier[tier]
+        ok = sum(results)
+        mark = GREEN if ok == len(results) else RED
+        print(f"{DIM}  T{tier} {TIER_NAMES.get(tier, '')}{RESET} "
+              f"{mark}{ok}/{len(results)}{RESET}")
+
     if failed:
-        print("실패 목록:")
+        print("\n실패 목록:")
         for s, fails, _ in failed:
-            print(f"  {s['id']} [{s['category']}] {s['name']}")
+            print(f"  [T{s.get('tier', 0)}] {s['id']} [{s['category']}] {s['name']}")
         sys.exit(1)
 
 
