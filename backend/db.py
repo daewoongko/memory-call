@@ -14,10 +14,20 @@ SCHEMA_PATH = ROOT / "backend" / "schema.sql"
 
 JSON_COLUMNS = {
     "anxiety_triggers", "calming_phrases", "frequent_questions",
-    "emergency_contacts", "frequent_phrases", "forbidden_phrases",
+    "emergency_contacts", "household_members", "frequent_phrases",
+    "forbidden_phrases",
     "participants", "days_of_week", "used_memory_ids", "used_schedule_ids",
     "unverified_recall", "safety_flags", "payload", "repeated_questions",
     "medication_summary", "new_recalls", "risk_summary", "guardian_actions",
+}
+
+# CREATE TABLE IF NOT EXISTS 는 이미 있는 테이블에 새 컬럼을 붙이지 않는다.
+# 시연 DB 를 지우지 않고도 스키마를 따라가게 하려고 여기서 직접 채운다.
+ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    "elder_profiles": {
+        "residence_type": "TEXT",
+        "household_members": "TEXT",
+    },
 }
 
 
@@ -29,9 +39,27 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
-def init_schema(conn: sqlite3.Connection) -> None:
+def _add_missing_columns(conn: sqlite3.Connection) -> list[str]:
+    """새로 생긴 컬럼만 붙인다. 이미 있으면 아무것도 하지 않는다."""
+    added = []
+    for table, columns in ADDED_COLUMNS.items():
+        present = {
+            row["name"] for row in conn.execute(f"PRAGMA table_info({table})")
+        }
+        if not present:
+            continue  # 테이블 자체가 방금 만들어졌으면 스키마에 이미 들어 있다
+        for name, decl in columns.items():
+            if name not in present:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+                added.append(f"{table}.{name}")
+    return added
+
+
+def init_schema(conn: sqlite3.Connection) -> list[str]:
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    added = _add_missing_columns(conn)
     conn.commit()
+    return added
 
 
 def _row(row: sqlite3.Row) -> dict:

@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS elder_profiles (
     name                TEXT NOT NULL,
     preferred_call_name TEXT,
     birth_date          TEXT,
+    -- 지남력 사실. 둘 다 "평소" 정보이며 통화 시점의 현재 위치가 아니다.
+    -- 비어 있으면 프롬프트에 "미등록"으로 나가고 AI 는 거주지를 말하지 않는다.
+    residence_type      TEXT,
+    household_members   TEXT,   -- JSON 배열 [{"name": ..., "relation": ...}]
     speech_wait_time_ms INTEGER DEFAULT 2000,
     hearing_support     INTEGER DEFAULT 0,
     vision_support      INTEGER DEFAULT 0,

@@ -106,10 +106,32 @@ def _medication_block(meds: list[dict]) -> str:
     )
 
 
+def _residence_line(e: dict) -> str:
+    """평소 거주 사실만 넣는다.
+
+    통화 시점에 어디 있는지는 시스템이 알 수 없다. "평소 지내는 곳"이라는
+    이름 자체로 현재 위치와 구분해 두어야 모델이 지금 거기 있다고 단정하지
+    않는다. 등록이 없으면 비워 두지 않고 "미등록"이라고 적는다. 빼 버리면
+    모델이 지어낸다.
+    """
+    kind = str(e.get("residence_type") or "").strip()
+    members = e.get("household_members") or []
+    names = [
+        f"{m.get('name')}({m.get('relation')})"
+        for m in members
+        if isinstance(m, dict) and m.get("name")
+    ]
+    return (
+        f"평소 지내는 곳: {kind or '미등록'}\n"
+        f"평소 함께 사는 사람: {', '.join(names) if names else '미등록'}"
+    )
+
+
 def _elder_block(e: dict) -> str:
     return (
         f"이름: {e['name']}\n"
         f"부르는 호칭: {e['preferred_call_name']}\n"
+        f"{_residence_line(e)}\n"
         f"불안을 느끼는 상황: {', '.join(e['anxiety_triggers'])}\n"
         f"안정에 도움이 되는 표현: {' / '.join(e['calming_phrases'])}\n"
         f"자주 반복하는 질문: {' / '.join(e['frequent_questions'])}\n"
