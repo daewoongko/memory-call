@@ -9,6 +9,7 @@
 .venv-flux2/
 .venv-flux2-train/
 .venv-mivolo/
+.venv-musetalk/
 venv/
 node_modules/
 .tools/

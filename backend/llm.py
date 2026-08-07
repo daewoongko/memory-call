@@ -31,6 +31,10 @@ MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash")
 REPORT_MODEL = os.getenv("LLM_REPORT_MODEL", "") or MODEL
 MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "low")
+LLM_REQUEST_TIMEOUT_SECONDS = max(
+    5.0, float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "30"))
+)
+MAX_RETRIES = max(1, int(os.getenv("LLM_MAX_RETRIES", "3")))
 
 if not API_KEY:
     sys.exit(
@@ -40,9 +44,15 @@ if not API_KEY:
         "     https://aistudio.google.com/apikey"
     )
 
-client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
-
-MAX_RETRIES = 5
+# 대화 요청은 이 함수 아래의 지수 백오프가 직접 재시도한다. SDK의 기본
+# 재시도까지 켜 두면 한 번의 사용자 발화가 중첩 재시도되어 수십 초 동안
+# 멈출 수 있으므로 SDK 계층은 한 번만 호출한다.
+client = OpenAI(
+    api_key=API_KEY,
+    base_url=BASE_URL,
+    max_retries=0,
+    timeout=LLM_REQUEST_TIMEOUT_SECONDS,
+)
 
 class QuotaExceeded(RuntimeError):
     """무료 사용량 소진."""
