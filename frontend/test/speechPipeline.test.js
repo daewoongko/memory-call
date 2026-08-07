@@ -3,10 +3,46 @@ import test from "node:test";
 
 import {
   adaptiveSilenceDelay,
+  detachThenRevoke,
   retryAfterDelayMs,
   runSequentialAudioQueue,
   splitKoreanSpeech,
 } from "../src/speechPipeline.js";
+
+function fakeMediaElement(name, log) {
+  return {
+    pause: () => log.push(`${name}.pause`),
+    removeAttribute: (attribute) => log.push(`${name}.remove:${attribute}`),
+    load: () => log.push(`${name}.load`),
+  };
+}
+
+test("every element is detached before the object URL is revoked", () => {
+  const log = [];
+  detachThenRevoke(
+    [fakeMediaElement("face", log), null, fakeMediaElement("blur", log)],
+    () => log.push("revoke")
+  );
+
+  // Revoking first is what produced ERR_FILE_NOT_FOUND on a still-loading
+  // preload="auto" copy, so the revoke must come last.
+  assert.equal(log.at(-1), "revoke");
+  assert.deepEqual(log, [
+    "face.pause",
+    "face.remove:src",
+    "face.load",
+    "blur.pause",
+    "blur.remove:src",
+    "blur.load",
+    "revoke",
+  ]);
+});
+
+test("a missing element never blocks the revoke", () => {
+  const log = [];
+  detachThenRevoke([null, undefined], () => log.push("revoke"));
+  assert.deepEqual(log, ["revoke"]);
+});
 
 test("short replies and text without a safe boundary stay in one chunk", () => {
   assert.deepEqual(splitKoreanSpeech("응, 알겠어."), ["응, 알겠어."]);
