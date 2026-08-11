@@ -23,6 +23,7 @@ COPY backend/ ./backend/
 COPY tools/ ./tools/
 COPY data/seed.json ./data/seed.json
 COPY data/faces/ ./storage/faces/
+COPY data/personas/ ./storage/personas/
 COPY data/voice/reference.wav ./data/voice/reference.wav
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 

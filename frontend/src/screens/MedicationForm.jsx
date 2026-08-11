@@ -10,7 +10,7 @@ import * as api from "../api.js";
 
 const MEAL = { before: "식전", after: "식후", none: "" };
 
-export default function MedicationForm() {
+export default function MedicationForm({ elderId = "elder_001", onChanged }) {
   const [today, setToday] = useState([]);
   const [form, setForm] = useState({
     medication_name: "",
@@ -22,7 +22,7 @@ export default function MedicationForm() {
   const [error, setError] = useState("");
 
   const load = () =>
-    api.getMedications().then((r) => setToday(r.today)).catch((e) => setError(e.message));
+    api.getMedications(elderId).then((r) => setToday(r.today)).catch((e) => setError(e.message));
 
   useEffect(() => {
     load();
@@ -33,9 +33,10 @@ export default function MedicationForm() {
     setBusy(true);
     setError("");
     try {
-      const r = await api.addMedication(form);
+      const r = await api.addMedication(form, elderId);
       setToday(r.today);
       setForm({ ...form, medication_name: "" });
+      onChanged?.();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -45,7 +46,8 @@ export default function MedicationForm() {
 
   async function remove(scheduleId) {
     await api.removeMedication(scheduleId);
-    load();
+    await load();
+    onChanged?.();
   }
 
   return (

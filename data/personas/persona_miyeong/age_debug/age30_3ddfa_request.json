@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\source\\miyeong_01.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\source\\miyeong_01.png",
+      "bbox": [
+        366.658,
+        249.228,
+        767.806,
+        813.208
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\source\\miyeong_03.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\source\\miyeong_03.png",
+      "bbox": [
+        366.77,
+        234.105,
+        780.191,
+        813.193
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\source\\miyeong_05.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\source\\miyeong_05.png",
+      "bbox": [
+        362.744,
+        225.587,
+        766.102,
+        789.525
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\age_candidates\\age36_imagegen_candidate01.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\age_candidates\\age36_imagegen_candidate01.png",
+      "bbox": [
+        363.337,
+        234.704,
+        757.4,
+        794.536
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\age_candidates\\age30_imagegen_candidate01.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\age_candidates\\age30_imagegen_candidate01.png",
+      "bbox": [
+        364.273,
+        243.086,
+        766.746,
+        798.229
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\age_candidates\\age30_imagegen_candidate02.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\age_candidates\\age30_imagegen_candidate02.png",
+      "bbox": [
+        363.8,
+        239.901,
+        767.236,
+        798.006
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\age_candidates\\age30_imagegen_candidate03.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_miyeong\\age_candidates\\age30_imagegen_candidate03.png",
+      "bbox": [
+        365.669,
+        242.102,
+        751.498,
+        794.949
+      ]
+    }
+  ]
+}

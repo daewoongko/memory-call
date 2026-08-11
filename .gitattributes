@@ -6,5 +6,15 @@ data/faces/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
 data/faces/**/*.webp filter=lfs diff=lfs merge=lfs -text
 data/faces/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
 data/faces/**/*.safetensors filter=lfs diff=lfs merge=lfs -text
+data/personas/**/*.png filter=lfs diff=lfs merge=lfs -text
+data/personas/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+data/personas/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+data/personas/**/*.webp filter=lfs diff=lfs merge=lfs -text
+data/personas/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
+frontend/public/**/*.png filter=lfs diff=lfs merge=lfs -text
+frontend/public/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+frontend/public/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+frontend/public/**/*.webp filter=lfs diff=lfs merge=lfs -text
+frontend/public/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
 data/voice/reference.wav filter=lfs diff=lfs merge=lfs -text
 backend/models/rife/*.onnx filter=lfs diff=lfs merge=lfs -text

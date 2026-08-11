@@ -27,6 +27,7 @@ for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
         stream.reconfigure(encoding="utf-8", errors="replace")
 
+import care  # noqa: E402
 import llm  # noqa: E402
 import safety  # noqa: E402
 from persona import build_system_prompt, load_context  # noqa: E402
@@ -73,6 +74,21 @@ FIXTURE_VISIT_WEEKDAY = "토요일"
 # 같은 지름길을 못 쓰고 요일 이름을 써야 하기 때문이다. 복약 19:00 도
 # 아직 오지 않은 시각이라 "약 먹었어?" 대화가 자연스럽다.
 FIXTURE_NOW = datetime(2026, 5, 13, 10, 30)
+FIXTURE_PERSONA = {
+    "persona_id": "persona_daewoong", "display_name": "대웅",
+    "relationship_type": "손자", "elder_calls_family": "우리 대웅이",
+    "family_calls_elder": "할아버지",
+    "tone": "따뜻하고 편안한 반말. 서두르지 않고 천천히.",
+    "frequent_phrases": ["할아버지, 천천히 말씀해줘."],
+    "forbidden_phrases": ["왜 또 물어봐?", "아까 말했잖아."],
+    "sensitive_policy": "감정을 먼저 인정하되 확인되지 않은 사실은 단정하지 않는다.",
+}
+CARE_PERSONA_FIXTURES = {
+    "S30": ("미영", "딸"), "S31": ("정훈", "아들"),
+    "S32": ("미영", "딸"), "S33": ("정훈", "아들"),
+    "S34": ("미영", "딸"), "S35": ("정훈", "아들"),
+    "S36": ("정훈", "아들"), "S37": ("정훈", "아들"),
+}
 
 
 def next_saturday(today: date) -> date:
@@ -84,6 +100,8 @@ def pin_context_dates(ctx: dict, today: date | None = None) -> dict:
     """일정·복약을 상대 시점으로 고정한 사본. 원본 ctx 는 그대로 둔다."""
     today = today or date.today()
     pinned = dict(ctx)
+    # DB의 현재 활성 가족이 누구인지와 무관하게 일반 회귀 시나리오는 대웅으로 고정한다.
+    pinned["persona"] = dict(FIXTURE_PERSONA)
     pinned["schedules"] = [{
         "schedule_id": FIXTURE_VISIT_ID,
         "title": "대웅이 방문",
@@ -104,6 +122,24 @@ def pin_context_dates(ctx: dict, today: date | None = None) -> dict:
     return pinned
 
 
+def scenario_context(ctx: dict, scenario_id: str) -> dict:
+    """케어 시나리오는 제공된 가족 이름·관계로 평가한다."""
+    fixture = CARE_PERSONA_FIXTURES.get(scenario_id)
+    if not fixture:
+        return ctx
+    name, relation = fixture
+    out = dict(ctx)
+    out["persona"] = dict(
+        ctx["persona"],
+        persona_id=f"persona_{name}",
+        display_name=name,
+        relationship_type=relation,
+        elder_calls_family=f"우리 {name}이",
+        family_calls_elder="아버지",
+    )
+    return out
+
+
 # ---------------------------------------------------------------- 모델 호출
 
 def call_model(system_prompt: str, history: list[dict], user_input: str,
@@ -122,7 +158,17 @@ def call_model(system_prompt: str, history: list[dict], user_input: str,
         return {"_quota": str(e)}
     except Exception as e:  # noqa: BLE001
         return {"_error": str(e)}
-    return result if raw_only else safety.apply(result, ctx, user_input)
+    if raw_only:
+        return result
+    result = safety.apply(result, ctx, user_input)
+    result["care"] = care.normalize(
+        result.get("care"),
+        user_text=user_input,
+        ctx=ctx,
+        due_medications=[],
+        response_rewritten=bool(result.get("_rewritten")),
+    )
+    return result
 
 
 # ---------------------------------------------------------------- 검사기
@@ -200,6 +246,33 @@ def check(result: dict, rules: dict) -> list[str]:
                 f"(허용: {rules['medication_status_in']})"
             )
 
+    care_data = result.get("care") or {}
+    care_signals = {
+        item.get("signal")
+        for item in (care_data.get("observations") or [])
+        if item.get("signal")
+    }
+    for signal in rules.get("care_signals_must_include", []):
+        if signal not in care_signals:
+            fails.append(
+                f"care 신호 {signal!r} 없음 (관찰: {sorted(care_signals)})"
+            )
+    for signal in rules.get("care_signals_must_not_include", []):
+        if signal in care_signals:
+            fails.append(f"금지 care 신호 {signal!r} 포함")
+
+    meaning_categories = {
+        item.get("category")
+        for item in (care_data.get("meaningful_moments") or [])
+        if item.get("category")
+    }
+    for category in rules.get("meaning_categories_must_include", []):
+        if category not in meaning_categories:
+            fails.append(
+                f"마음 기록 {category!r} 없음 "
+                f"(기록: {sorted(meaning_categories)})"
+            )
+
     return fails
 
 
@@ -240,8 +313,6 @@ def main():
     if not args.live_context:
         ctx = pin_context_dates(ctx, FIXTURE_NOW.date())
         now = FIXTURE_NOW
-    system_prompt = build_system_prompt(ctx, now=now)
-
     passed, failed = 0, []
     est = len(scenarios) * args.sleep / 60
     context_mode = (
@@ -255,8 +326,10 @@ def main():
     for i, s in enumerate(scenarios):
         if i:
             time.sleep(args.sleep)
+        active_ctx = scenario_context(ctx, s["id"])
+        system_prompt = build_system_prompt(active_ctx, now=now)
         result = call_model(system_prompt, s.get("history", []), s["input"],
-                            ctx, raw_only=args.raw)
+                            active_ctx, raw_only=args.raw)
 
         if "_error" in result:
             failed.append((s, [result["_error"][:120]], result))

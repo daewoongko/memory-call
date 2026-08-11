@@ -37,17 +37,36 @@ from age_secondary import (  # noqa: E402
     summarize_mivolo_row,
     summarize_person_offset_advisory,
 )
+from storage import (  # noqa: E402
+    AGE_CANDIDATES_DIR,
+    AGE_DEBUG_DIR,
+    AGE_PLAN_PATH,
+    SOURCE_FACES_DIR,
+)
 
-SOURCE_DIR = ROOT / "data" / "faces" / "source"
-CANDIDATE_DIR = ROOT / "data" / "faces" / "age_candidates"
-DEBUG_DIR = ROOT / "data" / "faces" / "age_debug"
-PLAN_PATH = ROOT / "data" / "faces" / "age_plan.json"
+SOURCE_DIR = SOURCE_FACES_DIR
+CANDIDATE_DIR = AGE_CANDIDATES_DIR
+DEBUG_DIR = AGE_DEBUG_DIR
+PLAN_PATH = AGE_PLAN_PATH
 INSIGHTFACE_ROOT = Path.home() / ".insightface"
 SUPPORTED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--age", type=int, default=16)
+    parser.add_argument(
+        "--candidate",
+        help="검증할 후보 파일 하나. 생략하면 해당 나이 후보를 모두 검사한다.",
+    )
+    parser.add_argument(
+        "--parent-age",
+        type=int,
+        help="Sparse-keyframe mode: age of the explicitly approved parent anchor.",
+    )
+    parser.add_argument(
+        "--parent-file",
+        help="Sparse-keyframe mode: approved parent filename in age_candidates.",
+    )
     return parser.parse_args()
 
 
@@ -106,7 +125,27 @@ def identity_pass(metrics: dict, thresholds: dict) -> bool:
     )
 
 
-def resolve_parent(plan: dict, target_age: int, primary_path: Path) -> tuple[int, Path]:
+def resolve_parent(
+    plan: dict,
+    target_age: int,
+    primary_path: Path,
+    *,
+    explicit_parent_age: int | None = None,
+    explicit_parent_file: str | None = None,
+) -> tuple[int, Path]:
+    if (explicit_parent_age is None) != (explicit_parent_file is None):
+        raise ValueError("--parent-age and --parent-file must be provided together.")
+    if explicit_parent_age is not None and explicit_parent_file is not None:
+        if explicit_parent_age <= target_age:
+            raise ValueError("The parent anchor must be older than the target age.")
+        safe_name = Path(explicit_parent_file).name
+        if safe_name != explicit_parent_file:
+            raise ValueError("Invalid explicit parent filename")
+        parent_path = CANDIDATE_DIR / safe_name
+        if not parent_path.is_file():
+            raise FileNotFoundError(f"Explicit parent anchor not found: {parent_path}")
+        return explicit_parent_age, parent_path
+
     current_age = int(plan.get("current_age", 0))
     generation_path = path_with_refinements(
         current_age,
@@ -139,12 +178,33 @@ def resolve_parent(plan: dict, target_age: int, primary_path: Path) -> tuple[int
 def main() -> None:
     args = parse_args()
     plan = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
+    profile_path = PLAN_PATH.parent / "profile.json"
+    profile = (
+        json.loads(profile_path.read_text(encoding="utf-8"))
+        if profile_path.is_file() else {}
+    )
+    approved_names = {
+        Path(str(value)).name
+        for value in profile.get("identity_reference_photos", [])
+    }
     source_paths = sorted(
         path
         for path in SOURCE_DIR.iterdir()
         if path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES
+        and (not approved_names or path.name in approved_names)
     )
-    candidate_paths = sorted(CANDIDATE_DIR.glob(f"age{args.age:02d}_*.png"))
+    if args.candidate:
+        safe_name = Path(args.candidate).name
+        candidate = CANDIDATE_DIR / safe_name
+        if (
+            safe_name != args.candidate
+            or not safe_name.startswith(f"age{args.age:02d}_")
+            or not candidate.is_file()
+        ):
+            raise ValueError("해당 나이의 안전한 후보 파일을 찾을 수 없습니다.")
+        candidate_paths = [candidate]
+    else:
+        candidate_paths = sorted(CANDIDATE_DIR.glob(f"age{args.age:02d}_*.png"))
     if not source_paths:
         raise FileNotFoundError(f"No current photos: {SOURCE_DIR}")
     if not candidate_paths:
@@ -156,7 +216,13 @@ def main() -> None:
         raise FileNotFoundError(f"Current representative not found: {current_name}")
 
     current_age = int(plan.get("current_age", 0))
-    parent_age, parent_path = resolve_parent(plan, args.age, primary_path)
+    parent_age, parent_path = resolve_parent(
+        plan,
+        args.age,
+        primary_path,
+        explicit_parent_age=args.parent_age,
+        explicit_parent_file=args.parent_file,
+    )
     policy = stage_policy(current_age, args.age, parent_age)
     age_limits = policy["allowed_apparent_age"]
     identity_limits = policy["identity"]

@@ -33,6 +33,11 @@ class Rule:
 
 
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+LOCATION_SAFE_REPLY = (
+    "지금 있는 곳은 내가 확인할 수 없어. "
+    "낯설게 느껴져 놀랐겠지만 주변에 뭐가 보이는지 하나만 말해줄래?"
+)
+DIRECT_RECALL_PATTERN = re.compile(r"옛날|고향|어릴 때|젊었을 때|그때가")
 
 
 def _sentences(text: str) -> list[str]:
@@ -41,11 +46,47 @@ def _sentences(text: str) -> list[str]:
 
 RULES: list[Rule] = [
     Rule(
+        code="EMERGENCY_ACTION_PROMISE",
+        action=BLOCK,
+        patterns=[
+            r"(119|구급차|구급대|응급실)[^.!?]{0,16}(부를게|불렀|연락할게|가고 있|갈게)",
+            r"(지금|바로)[^.!?]{0,12}(구급차|구급대)[^.!?]{0,12}(갈게|가고 있)",
+        ],
+        reason="실제로 수행하지 않은 긴급 신고·출동을 약속함",
+        replacement="지금 움직이기 힘든지 한 가지만 말해줘. 가족에게 바로 확인이 필요하다고 남길게.",
+    ),
+    Rule(
+        code="PRESENT_LOCATION_CLAIM",
+        action=BLOCK,
+        patterns=[
+            r"(지금|여기|거기)[^.!?]{0,12}(집|댁|안방|거실)(이야|맞아|맞지|에 있|에 계)",
+            r"(여기|거기)(?:는)?[^.!?]{0,40}(집|댁|안방|거실)[^.!?]{0,12}(이야|맞아|맞지|에 있|에 계)",
+            r"지금(?:은)?[^.!?]{0,40}(집|댁|안방|거실)[^.!?]{0,20}(계신|계시면|있는|있어|이야|맞아)",
+            r"평소처럼[^.!?]{0,30}(집|댁|안방|거실)[^.!?]{0,20}(계신|계시면|있는|있어|이야|맞아)",
+            r"(집|댁)[^.!?]{0,6}(맞아|맞아요|맞습니다)",
+        ],
+        reason="센서나 보호자 확인 없이 현재 위치를 단언함",
+        replacement=LOCATION_SAFE_REPLY,
+    ),
+    Rule(
+        code="UNVERIFIED_DAILY_STATE",
+        action=BLOCK,
+        patterns=[
+            r"(아침|점심|저녁|밥|물|약)[^.!?]{0,12}(먹었|드셨|마셨)(지|죠|잖)",
+            r"(아까|방금)[^.!?]{0,12}(먹었|드셨|마셨)(지|죠|잖)",
+            r"아직[^.!?]{0,12}(점심|식사|밥)[^.!?]{0,8}(전|안 (먹|드))",
+            r"(점심|식사|밥)[^.!?]{0,10}아직[^.!?]{0,6}(전|안 (먹|드))",
+            r"(지금[^.!?]{0,12})?(점심|식사|밥)[^.!?]{0,6}전이야",
+        ],
+        reason="확인되지 않은 식사·수분·복약 상태를 이미 한 일로 단언함",
+        replacement="그건 내가 확인할 수 없어. 혹시 기억나는지 하나씩 같이 확인해볼까?",
+    ),
+    Rule(
         code="PROMISE_WITHOUT_SCHEDULE",
         action=BLOCK,
         exempt_if_schedule=True,
         patterns=[
-            r"(오늘|내일|이따|지금|곧|금방|잠시 후|저녁에|아침에)\s*[^.!?]{0,12}"
+            r"(오늘|내일|이번 주|다음 주|이따|지금|곧|금방|잠시 후|저녁에|아침에)\s*[^.!?]{0,12}"
             r"(갈게|갈래|가께|들를게|올게|방문할게|찾아갈게|보러 갈)",
             r"(전화|연락)\s*(할게|드릴게|줄게)",
         ],
@@ -65,6 +106,16 @@ RULES: list[Rule] = [
         ],
         reason="복용량 변경·추가·중단을 지시함",
         replacement="지금은 약을 더 드시지 말고 잠깐만 기다려줘. 내가 확인해볼게.",
+    ),
+    Rule(
+        code="UNVERIFIED_FINANCIAL_STATUS",
+        action=BLOCK,
+        patterns=[
+            r"(통장|계좌|돈|재산)[^.!?]{0,14}(안전|잘 보관|그대로 있|문제없)",
+            r"(아무도|내가|가족이)[^.!?]{0,12}(안 가져|훔치지 않|빼돌리지 않)",
+        ],
+        reason="확인하지 않은 재산 상태나 도난 여부를 단언함",
+        replacement="돈이 없어질까 봐 많이 걱정됐구나. 지금 통장 상태는 확인할 수 없으니 가족이 직접 확인할 수 있게 남길게.",
     ),
     Rule(
         code="FINANCIAL",
@@ -173,7 +224,6 @@ CONTEXT_RULES: list[ContextRule] = [
         code="LONELINESS_UNACKNOWLEDGED",
         user_patterns=[
             r"아무도\s*(안|않)",
-            r"(잊어|잊혀|잊은 것)",
             r"(외롭|쓸쓸|허전|적적)",
             r"(혼자|홀로)\s*[^.!?]{0,6}(있|지내|살)",
         ],
@@ -199,6 +249,93 @@ HEDGE_WORDS = [
 ]
 
 HEDGE_PREFIX = "정확히는 나도 잘 기억이 안 나는데, "
+
+
+DIRECT_RISK_PATTERNS = [
+    ("fall", "high", [
+        r"넘어(?:졌|져서)[^.!?]{0,24}(일어나|움직이)[^.!?]{0,8}(힘들|못)",
+        r"넘어(?:졌|져서)[^.!?]{0,20}(아프|통증)",
+    ]),
+    ("breathing", "high", [r"숨(?:이)?[^.!?]{0,8}(차|안 쉬|막혀|못 쉬)"]),
+    ("chest_pain", "high", [r"가슴[^.!?]{0,8}(아프|통증|조여)"]),
+    ("overdose", "high", [
+        r"약[^.!?]{0,12}(두 번|세 번|여러 번|많이)[^.!?]{0,8}(먹|복용|드셨)",
+    ]),
+    ("self_harm", "high", [r"죽고 싶", r"살기 싫", r"없어지고 싶"]),
+    ("fire", "high", [r"불이 났", r"연기[^.!?]{0,8}(나|보여)"]),
+    ("gas_leak", "high", [r"가스[^.!?]{0,8}(냄새|새는|샌)"]),
+    ("intrusion", "high", [
+        r"(모르는 사람|낯선 사람)[^.!?]{0,14}(집|문)[^.!?]{0,8}(들어|열)",
+    ]),
+    ("lost", "medium", [r"길을 못 찾", r"어디인지 모르[^.!?]{0,10}(길|밖)"]),
+]
+
+
+def _direct_risk(user_text: str) -> dict | None:
+    """진단 없이 원문에 명시된 즉시 위험만 복원한다."""
+    for risk_type, level, patterns in DIRECT_RISK_PATTERNS:
+        for pattern in patterns:
+            match = re.search(pattern, user_text)
+            if match:
+                return {
+                    "type": risk_type,
+                    "level": level,
+                    "evidence": match.group(0)[:200],
+                }
+    return None
+
+
+def _ensure_registered_schedule_answer(
+    result: dict, ctx: dict, user_text: str, flags: list[dict]
+) -> None:
+    """방문 시각을 물었는데 모델이 놓친 경우 등록 일정 한 건만 보충한다."""
+    asks_visit = re.search(r"(언제|몇 시)[^.!?]{0,12}(오|가|찾아|방문)", user_text)
+    if not asks_visit:
+        return
+
+    valid = {
+        str(row.get("schedule_id")): row
+        for row in ctx.get("schedules", [])
+        if row.get("schedule_id") and row.get("confirmed")
+    }
+    used = [
+        sid for sid in (result.get("used_schedule_ids") or [])
+        if sid in valid
+    ]
+    result["used_schedule_ids"] = used
+    if not valid:
+        return
+
+    row = valid[used[0]] if used else next(iter(valid.values()))
+    raw_date = str(row.get("date") or "").strip()
+    try:
+        year, month, day = (int(part) for part in raw_date.split("-"))
+        date_text = f"{month}월 {day}일"
+    except (TypeError, ValueError):
+        date_text = raw_date
+    time_text = str(row.get("time") or "").strip()
+    title = str(row.get("title") or "방문 일정").strip()
+    reply = str(result.get("reply") or "")
+    if used and any(token and token in reply for token in (raw_date, time_text, title)):
+        return
+    schedule_text = " ".join(part for part in (date_text, time_text) if part)
+    addition = f"등록된 일정에는 {schedule_text}에 {title} 예정이야."
+    result["reply"] = (reply.rstrip() + " " + addition).strip()
+    result["used_schedule_ids"] = [str(row["schedule_id"])]
+    result["certainty"] = "verified"
+    care_data = result.get("care")
+    if isinstance(care_data, dict):
+        supports = care_data.setdefault("context_support", [])
+        if isinstance(supports, list):
+            supports.append({
+                "kind": "schedule",
+                "source_id": str(row["schedule_id"]),
+            })
+    flags.append({
+        "code": "REGISTERED_SCHEDULE_RESTORED",
+        "reason": "방문 질문에 모델이 누락한 등록 일정을 보충함",
+        "action": "corrected",
+    })
 
 
 @dataclass
@@ -251,6 +388,34 @@ def check(result: dict, ctx: dict, user_text: str = "") -> SafetyResult:
         })
         certainty = "unverified"
 
+    # 처음 듣는 회상을 AI 자신의 공동 기억처럼 바꾸면 가족의 실제 기억과
+    # 모델이 만든 이야기가 섞인다. 새 회상은 더 듣는 질문으로만 이어간다.
+    shared_recall_claim = re.search(
+        r"((나도|나한테도|우리)[^.!?]{0,28}(기억|생각|추억)|"
+        r"(같이|함께) 보낸[^.!?]{0,20}(기억|시간|추억))",
+        reply,
+    )
+    if result.get("unverified_recall") and not cited:
+        flags.append({
+            "code": (
+                "UNVERIFIED_SHARED_RECALL"
+                if shared_recall_claim
+                else "UNVERIFIED_RECALL_QUESTION_ONLY"
+            ),
+            "reason": "처음 듣는 회상은 세부 내용을 만들지 않고 추가 질문으로 제한함",
+            "action": BLOCK,
+        })
+        return SafetyResult(
+            reply=(
+                "그 이야기가 떠오르셨구나. "
+                "소중한 이야기 들려줘서 고마워, 기억나는 모습을 하나만 더 들려줄래?"
+            ),
+            flags=flags,
+            rewritten=True,
+            certainty="unverified",
+            used_memory_ids=[],
+        )
+
     # --- 2. 인용 없이 verified 를 주장하는지 ----------------------------
     if certainty == "verified" and not cited and not schedules:
         flags.append({
@@ -259,6 +424,136 @@ def check(result: dict, ctx: dict, user_text: str = "") -> SafetyResult:
             "action": "corrected",
         })
         certainty = "unverified"
+
+    # 복약 여부를 기억하지 못하는 상황에서는 일반적인 "약 드셔"조차 위험하다.
+    # 약통의 열린 칸만 보고 실제 복용 여부를 확정할 수도 없다.
+    medication_unclear = re.search(
+        r"약[^.!?]{0,18}(먹었나|먹었는지|안 먹었|모르|기억이 안|헷갈)",
+        user_text,
+    )
+    medication_instruction = re.search(
+        r"(약[^.!?]{0,10})?(지금|바로)?[^.!?]{0,6}"
+        r"(드셔|드시|먹어|복용해)(?!지\s*(말|마|않))",
+        reply,
+    )
+    if medication_unclear and medication_instruction:
+        flags.append({
+            "code": "UNCERTAIN_MEDICATION_INSTRUCTION",
+            "reason": "복약 여부가 불확실한데 복용을 지시함",
+            "action": BLOCK,
+        })
+        return SafetyResult(
+            reply="지금은 약을 더 드시지 말고 잠깐 기다려줘. 내가 확인해볼게.",
+            flags=flags,
+            rewritten=True,
+            certainty="none",
+            used_memory_ids=[],
+        )
+
+    # 장소를 알아보지 못하거나 길을 잃었다는 원문이 있는데 응답이 '거기가 집'
+    # 같은 형태로 위치를 가리키면, 어미가 무엇이든 센서 없는 현재 위치 단정이다.
+    place_unclear = re.search(
+        r"여기가 어디|집에 가야|길을 못 찾|집이 아닌 것 같|집 안[^.!?]{0,16}낯설",
+        user_text,
+    )
+    points_to_home = re.search(
+        r"(여기|거기)(?:는|가)?[^.!?]{0,50}(집|댁|안방|거실)",
+        reply,
+    )
+    if place_unclear and points_to_home:
+        flags.append({
+            "code": "PRESENT_LOCATION_CLAIM",
+            "reason": "장소 혼동 상황에서 센서 확인 없이 현재 위치를 집으로 가리킴",
+            "action": BLOCK,
+        })
+        return SafetyResult(
+            reply=LOCATION_SAFE_REPLY,
+            flags=flags,
+            rewritten=True,
+            certainty="none",
+            used_memory_ids=[],
+        )
+
+    financial_accusation = re.search(
+        r"(통장|계좌|돈|재산)[^.!?]{0,30}(가져|훔|빼돌|속이|몰래)|"
+        r"(가져|훔|빼돌|속이|몰래)[^.!?]{0,30}(통장|계좌|돈|재산)",
+        user_text,
+    )
+    financial_boundary = any(
+        phrase in reply
+        for phrase in ("확인할 수 없", "직접 확인", "확인해볼", "남길게")
+    )
+    if financial_accusation and not financial_boundary:
+        unsafe_financial_status = re.search(
+            r"(통장|계좌|돈|재산)[^.!?]{0,14}(안전|잘 보관|그대로 있|문제없)|"
+            r"(아무도|내가|가족이)[^.!?]{0,12}(안 가져|훔치지 않|빼돌리지 않)",
+            reply,
+        )
+        flags.append({
+            "code": (
+                "UNVERIFIED_FINANCIAL_STATUS"
+                if unsafe_financial_status
+                else "FINANCIAL_UNCERTAINTY_RESTORED"
+            ),
+            "reason": "재산 의심에 사실 여부를 단정하지 않는 확인 경계가 빠짐",
+            "action": BLOCK,
+        })
+        return SafetyResult(
+            reply=(
+                "돈이 없어질까 봐 많이 걱정됐구나. "
+                "지금 통장 상태는 확인할 수 없으니 가족이 직접 확인할 수 있게 남길게."
+            ),
+            flags=flags,
+            rewritten=True,
+            certainty="none",
+            used_memory_ids=[],
+        )
+
+    family_feeling_claim = re.search(
+        r"[가-힣]{2,4}(?:이도|도|이가|는)[^.!?]{0,18}"
+        r"(많이 생각하고 있을|보고 싶어할|걱정하고 있을)",
+        reply,
+    )
+    if family_feeling_claim:
+        flags.append({
+            "code": "UNVERIFIED_FAMILY_FEELING",
+            "reason": "확인되지 않은 다른 가족의 감정을 대신 단정함",
+            "action": BLOCK,
+        })
+        return SafetyResult(
+            reply=(
+                "그 이름이 자꾸 생각나셨구나. "
+                "그 말씀은 가족에게 그대로 전할 수 있게 남길게."
+            ),
+            flags=flags,
+            rewritten=True,
+            certainty="none",
+            used_memory_ids=[],
+        )
+
+    # 위험 기록과 실제 전화 실행은 다르다. 현재 서버에는 외부 연락 실행기가 없다.
+    direct_risk = _direct_risk(user_text)
+    guardian_contact_promise = re.search(
+        r"(지금|바로)[^.!?]{0,12}(아빠|엄마|가족|보호자)[^.!?]{0,12}"
+        r"(전화|연락)(해서|할게|해둘|드릴)",
+        reply,
+    )
+    if direct_risk and guardian_contact_promise:
+        flags.append({
+            "code": "UNPERFORMED_GUARDIAN_CONTACT",
+            "reason": "실행되지 않은 보호자 전화·연락을 수행한다고 말함",
+            "action": BLOCK,
+        })
+        return SafetyResult(
+            reply=(
+                "가족에게 바로 확인이 필요하다고 남길게. "
+                "지금은 무리해서 움직이지 말고 상태를 한 가지만 더 말해줘."
+            ),
+            flags=flags,
+            rewritten=True,
+            certainty="none",
+            used_memory_ids=[],
+        )
 
     # --- 3. 문장 패턴 규칙 ----------------------------------------------
     for rule in RULES:
@@ -332,10 +627,40 @@ def check(result: dict, ctx: dict, user_text: str = "") -> SafetyResult:
 
 def apply(result: dict, ctx: dict, user_text: str = "") -> dict:
     """conversation.Session 이 부르는 진입점. result를 제자리에서 보정한다."""
+    known_memory_ids = {
+        str(row.get("memory_id"))
+        for row in ctx.get("memories", [])
+        if row.get("memory_id")
+    }
+    has_known_memory = any(
+        str(mid) in known_memory_ids for mid in (result.get("used_memory_ids") or [])
+    )
+    if (
+        DIRECT_RECALL_PATTERN.search(user_text)
+        and not has_known_memory
+        and not result.get("unverified_recall")
+    ):
+        result["unverified_recall"] = {
+            "summary": user_text[:160],
+            "quote": user_text[:200],
+        }
     checked = check(result, ctx, user_text)
     result["reply"] = checked.reply
     result["certainty"] = checked.certainty
     result["used_memory_ids"] = checked.used_memory_ids
     result["_safety_flags"] = checked.flags
     result["_rewritten"] = checked.rewritten
+    _ensure_registered_schedule_answer(
+        result, ctx, user_text, result["_safety_flags"]
+    )
+    observed_risk = _direct_risk(user_text)
+    if observed_risk:
+        reported = result.get("risk") or {}
+        if reported.get("type") != observed_risk["type"]:
+            result["risk"] = observed_risk
+            result["_safety_flags"].append({
+                "code": "DIRECT_RISK_RESTORED",
+                "reason": "환자 원문에 직접 드러난 위험 신호를 모델이 누락하거나 다르게 분류함",
+                "action": "corrected",
+            })
     return result

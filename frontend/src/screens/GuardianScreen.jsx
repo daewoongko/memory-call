@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import * as api from "../api.js";
 import BrandMark from "../components/BrandMark.jsx";
-import MedicationForm from "./MedicationForm.jsx";
 import MemoryPanel from "./MemoryPanel.jsx";
 import PersonaPanel from "./PersonaPanel.jsx";
 import ReportTabs from "./ReportTabs.jsx";
-import ScheduleForm from "./ScheduleForm.jsx";
 
 /**
  * 보호자 화면.
@@ -15,11 +13,33 @@ import ScheduleForm from "./ScheduleForm.jsx";
  */
 
 const MAIN_TABS = [
-  { id: "report", label: "리포트" },
-  { id: "memories", label: "기억" },
-  { id: "plan", label: "일정·복약" },
-  { id: "setup", label: "설정" },
+  { id: "report", label: "케어 리포트", icon: "▦" },
+  { id: "memories", label: "가족 기억", icon: "◇" },
+  { id: "setup", label: "AI 가족 설정", icon: "⚙" },
 ];
+
+function localDateKey(date = new Date()) {
+  return [
+    date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function selectedRange(period) {
+  if (period.mode === "day") {
+    return { days: 1, start: period.value, end: period.value };
+  }
+  const [year, month] = period.value.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  const monthEnd = `${period.value}-${String(lastDay).padStart(2, "0")}`;
+  const today = localDateKey();
+  const end = period.value === today.slice(0, 7) ? today : monthEnd;
+  return {
+    days: Math.max(1, Math.round((new Date(end) - new Date(`${period.value}-01`)) / 86400000) + 1),
+    start: `${period.value}-01`,
+    end,
+  };
+}
 
 export default function GuardianScreen() {
   const [elders, setElders] = useState(null);
@@ -32,13 +52,20 @@ export default function GuardianScreen() {
     relationship: "손자",
   });
   const [tab, setTab] = useState("report");
-  const [days, setDays] = useState(7);
+  const [period, setPeriod] = useState(() => ({
+    mode: "month", value: localDateKey().slice(0, 7),
+  }));
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
 
   const loadSummary = useCallback(
-    () => api.getPeriodSummary(days).then(setSummary).catch((e) => setError(e.message)),
-    [days]
+    () => {
+      if (!picked) return null;
+      const range = selectedRange(period);
+      return api.getPeriodSummary(range.days, picked.elder_id, range)
+        .then(setSummary).catch((e) => setError(e.message));
+    },
+    [period, picked]
   );
 
   const loadElders = useCallback(
@@ -139,56 +166,70 @@ export default function GuardianScreen() {
 
         {error && <p className="error">{error}</p>}
 
-        <a className="text-link" href="#">
+        <a className="text-link" href="#elder">
           어르신 화면으로
         </a>
       </div>
     );
   }
 
+  const current = MAIN_TABS.find((item) => item.id === tab);
+
   return (
-    <div className="guardian">
-      <header className="g-head">
-        <button className="back" onClick={() => setPicked(null)} aria-label="뒤로">
-          ‹
-        </button>
-        <div className="elder-chip">
-          <span className="elder-face sm">{picked.name?.slice(0, 1)}</span>
-          <b>{picked.name}</b>
-        </div>
-        <a className="text-link" href="#">
-          어르신 화면
-        </a>
-      </header>
+    <div className="guardian guardian-dashboard">
+      <div className="guardian-shell">
+        <aside className="guardian-sidebar">
+          <div className="sidebar-brand">
+            <BrandMark size={32} />
+            <div><b>다소니</b><span>가족 케어 센터</span></div>
+          </div>
 
-      <nav className="tabs">
-        {MAIN_TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>
-            {t.label}
+          <button className="sidebar-elder" onClick={() => setPicked(null)}>
+            <span className="elder-face sm">{picked.name?.slice(0, 1)}</span>
+            <span><b>{picked.name}</b><small>{picked.preferred_call_name ?? "돌봄 대상"}</small></span>
+            <i>⌄</i>
           </button>
-        ))}
-      </nav>
 
-      {tab === "report" &&
-        (summary ? (
-          <ReportTabs
-            summary={summary}
-            days={days}
-            onDays={setDays}
-            onReload={loadSummary}
-          />
-        ) : (
-          <p className="hint">불러오는 중…</p>
-        ))}
+          <nav className="sidebar-nav" aria-label="보호자 메뉴">
+            {MAIN_TABS.map((item) => (
+              <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => setTab(item.id)}>
+                <span aria-hidden="true">{item.icon}</span>{item.label}
+              </button>
+            ))}
+          </nav>
 
-      {tab === "memories" && <MemoryPanel />}
-      {tab === "plan" && (
-        <>
-          <ScheduleForm />
-          <MedicationForm />
-        </>
-      )}
-      {tab === "setup" && <PersonaPanel />}
+          <div className="sidebar-foot">
+            <p>기억과 현재를 연결하는<br />AI 인지·정서 케어</p>
+            <a href="#elder">어르신 화면으로</a>
+          </div>
+        </aside>
+
+        <main className="guardian-workspace">
+          <header className="dashboard-heading">
+            <div>
+              <p className="eyebrow">{picked.name} 어르신</p>
+              <h1>{current?.label}</h1>
+              <span>통화에서 관찰된 사실을 근거와 함께 확인합니다.</span>
+            </div>
+          </header>
+
+          {error && <p className="error">{error}</p>}
+          {tab === "report" &&
+            (summary ? (
+              <ReportTabs
+                elderId={picked.elder_id}
+                elderName={picked.name}
+                summary={summary}
+                days={summary.days}
+                period={period}
+                onPeriod={setPeriod}
+                onReload={loadSummary}
+              />
+            ) : <p className="hint">리포트를 불러오는 중…</p>)}
+          {tab === "memories" && <MemoryPanel elderId={picked.elder_id} elderName={picked.name} />}
+          {tab === "setup" && <PersonaPanel />}
+        </main>
+      </div>
     </div>
   );
 }
