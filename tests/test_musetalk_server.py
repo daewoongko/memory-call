@@ -217,7 +217,7 @@ class MuseTalkEncoderTests(unittest.TestCase):
         self.assertEqual(decoded, produced)
 
     def test_gpu_cache_is_released_after_success_and_after_failure(self):
-        """Chatterbox shares this GPU; holding the peak starves it."""
+        """Holding the inference peak indefinitely wastes VRAM on a long-running worker."""
         for should_fail in (False, True):
             with self.subTest(failed=should_fail):
                 engine = self.build_engine()

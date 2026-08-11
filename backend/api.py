@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 import admin as admin_mod
 import age_timeline
 import db
+import elevenlabs_tts
 import linking as link_mod
 import llm
 import medication as med_mod
@@ -477,7 +478,7 @@ def health():
 
 @app.get("/api/tts/health")
 def tts_health():
-    """별도 Python 3.11 프로세스에서 실행 중인 로컬 음성 모델 상태."""
+    """로컬 GPU에서 실행 중인 MuseTalk 립싱크 워커 상태. 음성 합성은 ElevenLabs API라 별도 헬스체크가 없다."""
     try:
         return tts_proxy.health()
     except tts_proxy.TTSUnavailable as exc:
@@ -505,24 +506,27 @@ def register_tts_bridge(req: TTSBridgeRegistration, request: Request):
 
 @app.post("/api/tts")
 def synthesize_speech(req: TTSRequest, request: Request):
-    """Chatterbox가 만든 WAV를 브라우저에 그대로 전달한다."""
+    """ElevenLabs가 만든 WAV를 브라우저에 그대로 전달한다."""
     _enforce_tts_rate_limit(request)
     _acquire_tts_capacity()
     request_id = uuid.uuid4().hex
     try:
         try:
-            result = tts_proxy.synthesize_with_metadata(
+            result = elevenlabs_tts.synthesize_with_metadata(
                 req.text.strip(),
                 req.rate,
                 request_id=request_id,
             )
-        except tts_proxy.TTSUnavailable as exc:
+        except (
+            elevenlabs_tts.ElevenLabsNotConfigured,
+            elevenlabs_tts.ElevenLabsUnavailable,
+        ) as exc:
             raise HTTPException(503, str(exc)) from exc
     finally:
         _tts_capacity.release()
     response_headers = {
         "Cache-Control": "no-store",
-        "X-TTS-Engine": "chatterbox-v3",
+        "X-TTS-Engine": "elevenlabs",
         **result.public_headers(request_id=request_id),
     }
     return Response(
@@ -534,34 +538,57 @@ def synthesize_speech(req: TTSRequest, request: Request):
 
 @app.post("/api/tts/video")
 def synthesize_lipsync_video(req: TTSRequest, request: Request):
-    """Return a MuseTalk MP4, or an explicit Chatterbox WAV fallback."""
+    """ElevenLabs로 오디오를 만들고 로컬 MuseTalk으로 립싱크 MP4를 씌운다.
+
+    MuseTalk이 없거나 바쁘거나 실패하면 이미 만든 ElevenLabs WAV를 그대로
+    반환한다 (X-Lipsync-Fallback: audio). 오디오 자체가 실패했을 때만 503.
+    """
     _enforce_tts_rate_limit(request)
     _acquire_tts_capacity()
     request_id = uuid.uuid4().hex
     try:
         try:
-            result = tts_proxy.synthesize_video_with_metadata(
+            audio_result = elevenlabs_tts.synthesize_with_metadata(
                 req.text.strip(),
                 req.rate,
                 request_id=request_id,
             )
-        except tts_proxy.TTSUnavailable as exc:
+        except (
+            elevenlabs_tts.ElevenLabsNotConfigured,
+            elevenlabs_tts.ElevenLabsUnavailable,
+        ) as exc:
             raise HTTPException(503, str(exc)) from exc
+
+        try:
+            video_result = tts_proxy.render_lipsync_with_metadata(
+                audio_result.body,
+                request_id=request_id,
+            )
+        except tts_proxy.TTSUnavailable:
+            response_headers = {
+                "Cache-Control": "no-store",
+                "X-TTS-Engine": "elevenlabs",
+                "X-Lipsync-Fallback": "audio",
+                **audio_result.public_headers(request_id=request_id),
+            }
+            return Response(
+                content=audio_result.body,
+                media_type="audio/wav",
+                headers=response_headers,
+            )
     finally:
         _tts_capacity.release()
 
-    # The proxy already validates this allowlist. Keep the public boundary
-    # closed as well in case a future/custom proxy implementation regresses.
-    if result.media_type not in {"audio/wav", "video/mp4"}:
-        raise HTTPException(503, "TTS service returned an unsupported media type")
     response_headers = {
         "Cache-Control": "no-store",
-        "X-TTS-Engine": "chatterbox-v3",
-        **result.public_headers(request_id=request_id),
+        "X-TTS-Engine": "elevenlabs",
+        "X-Audio-Duration": f"{audio_result.audio_duration_seconds:.3f}",
+        "X-Generation-Seconds": f"{audio_result.generation_seconds:.3f}",
+        **video_result.public_headers(request_id=request_id),
     }
     return Response(
-        content=result.body,
-        media_type=result.media_type,
+        content=video_result.body,
+        media_type=video_result.media_type,
         headers=response_headers,
     )
 

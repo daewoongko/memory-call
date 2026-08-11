@@ -78,34 +78,6 @@ class TtsBridgeDiscoveryTests(unittest.TestCase):
             )
             self.assertEqual(result, explicit.resolve())
 
-    def test_broken_primary_tts_environment_falls_back_to_recovered(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            suffix = Path("Scripts/python.exe") if os.name == "nt" else Path("bin/python")
-            primary = root / ".venv-tts" / suffix
-            recovered = root / ".venv-tts-recovered" / suffix
-            primary.parent.mkdir(parents=True)
-            recovered.parent.mkdir(parents=True)
-            primary.touch()
-            recovered.touch()
-            result = tts_bridge.find_tts_python(
-                root,
-                {},
-                probe=lambda value: value == recovered.resolve(),
-            )
-            self.assertEqual(result, recovered.resolve())
-
-    def test_explicit_broken_tts_python_fails_closed(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "python.exe"
-            path.touch()
-            with self.assertRaises(tts_bridge.BridgeError):
-                tts_bridge.find_tts_python(
-                    Path(temporary),
-                    {"TTS_PYTHON_PATH": str(path)},
-                    probe=lambda _value: False,
-                )
-
     def test_musetalk_runtime_prefers_prepared_portable_python(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -124,6 +96,17 @@ class TtsBridgeDiscoveryTests(unittest.TestCase):
             )
         self.assertEqual(result, python.resolve())
 
+    def test_musetalk_runtime_explicit_broken_python_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "python.exe"
+            path.touch()
+            with self.assertRaises(tts_bridge.BridgeError):
+                tts_bridge.find_musetalk_python(
+                    Path(temporary),
+                    {"MUSETALK_PYTHON_PATH": str(path)},
+                    probe=lambda _value: False,
+                )
+
 
 class TtsBridgeLifecycleTests(unittest.TestCase):
     @staticmethod
@@ -131,9 +114,10 @@ class TtsBridgeLifecycleTests(unittest.TestCase):
         return tts_bridge.BridgeConfig(
             render_url="https://memory-call.onrender.com",
             token=VALID_TOKEN,
-            tts_python=Path("tts-python.exe"),
             cloudflared=Path("cloudflared.exe"),
-            reference=Path("reference.wav"),
+            musetalk_python=Path("musetalk-python.exe"),
+            musetalk_dir=Path("MuseTalk"),
+            musetalk_source_video=Path("idle.mp4"),
             restart_delay=0.001,
         )
 
@@ -142,19 +126,12 @@ class TtsBridgeLifecycleTests(unittest.TestCase):
             tts_bridge.subprocess, "Popen", side_effect=OSError("not executable")
         ):
             with self.assertRaises(tts_bridge.BridgeError):
-                tts_bridge.start_tts(self.config())
+                tts_bridge.start_musetalk(self.config())
             with self.assertRaises(tts_bridge.BridgeError):
                 tts_bridge.start_tunnel(self.config())
 
     def test_musetalk_starts_offline_on_its_fixed_loopback_port(self):
-        config = replace(
-            self.config(),
-            musetalk_enabled=True,
-            musetalk_python=Path("musetalk-python.exe"),
-            musetalk_dir=Path("MuseTalk"),
-            musetalk_source_video=Path("idle.mp4"),
-            musetalk_port=8002,
-        )
+        config = self.config()
         process = object()
         with patch.object(
             tts_bridge.subprocess,
@@ -172,6 +149,17 @@ class TtsBridgeLifecycleTests(unittest.TestCase):
         self.assertEqual(environment["HF_HUB_OFFLINE"], "1")
         self.assertEqual(environment["TRANSFORMERS_OFFLINE"], "1")
         self.assertEqual(environment["TTS_BRIDGE_TOKEN"], VALID_TOKEN)
+
+    def test_tunnel_targets_the_musetalk_port(self):
+        config = replace(self.config(), musetalk_port=8002)
+        stub_process = type("StubProcess", (), {"stdout": None})()
+        with patch.object(
+            tts_bridge.subprocess, "Popen", return_value=stub_process
+        ) as popen:
+            tts_bridge.start_tunnel(config)
+
+        command = popen.call_args.args[0]
+        self.assertIn("http://127.0.0.1:8002", command)
 
     def test_loopback_health_opener_has_no_proxy(self):
         proxy_handlers = [
@@ -196,7 +184,6 @@ class TtsBridgeLifecycleTests(unittest.TestCase):
             tts_bridge._register_until_success(
                 self.config(),
                 "https://voice.trycloudflare.com",
-                process,
                 process,
                 threading.Event(),
             )

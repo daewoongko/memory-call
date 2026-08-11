@@ -19,5 +19,9 @@ services:
         value: gemini-3.5-flash
       - key: LLM_API_KEY
         sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
       - key: TTS_BRIDGE_TOKEN
         sync: false

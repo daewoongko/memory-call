@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 import api  # noqa: E402
+import elevenlabs_tts  # noqa: E402
 import tts_proxy  # noqa: E402
 
 VALID_TOKEN = "test-secret-" + "x" * 40
@@ -39,12 +40,21 @@ class _Response:
         return self.body
 
 
-def _proxy_result(body: bytes = b"RIFF-wave") -> tts_proxy.ProxyCallResult:
+def _proxy_result(body: bytes = b"\x00\x00\x00\x18ftypisom-video") -> tts_proxy.ProxyCallResult:
     return tts_proxy.ProxyCallResult(
         body=body,
         upstream_wait_seconds=0.01,
         proxy_read_seconds=0.02,
         proxy_total_seconds=0.03,
+        media_type="video/mp4",
+    )
+
+
+def _speech_result(body: bytes = b"RIFF-wave") -> elevenlabs_tts.SpeechResult:
+    return elevenlabs_tts.SpeechResult(
+        body=body,
+        audio_duration_seconds=1.5,
+        generation_seconds=0.4,
     )
 
 
@@ -58,7 +68,7 @@ class TTSProxyBridgeTests(unittest.TestCase):
                 "BRIDGE_ALLOWED_HOSTS",
                 ("trycloudflare.com",),
             ),
-            patch.object(tts_proxy, "SERVICE_URL", "http://127.0.0.1:8001"),
+            patch.object(tts_proxy, "SERVICE_URL", "http://127.0.0.1:8002"),
         )
         for item in self.config:
             item.start()
@@ -129,7 +139,7 @@ class TTSProxyBridgeTests(unittest.TestCase):
         expired = tts_proxy.bridge_status(now=146.0)
         self.assertFalse(expired["active"])
         self.assertEqual(expired["source"], "fixed_service")
-        self.assertEqual(expired["service_url"], "http://127.0.0.1:8001")
+        self.assertEqual(expired["service_url"], "http://127.0.0.1:8002")
 
     def test_concurrent_heartbeats_leave_a_valid_registration(self):
         urls = (
@@ -154,84 +164,58 @@ class TTSProxyBridgeTests(unittest.TestCase):
             urls,
         )
 
-    def test_proxy_uses_bridge_and_forwards_bearer(self):
+    def test_render_uses_bridge_and_forwards_bearer(self):
         captured = {}
 
         def fake_urlopen(req, timeout):
             captured["url"] = req.full_url
             captured["authorization"] = req.get_header("Authorization")
-            captured["payload"] = json.loads(req.data.decode("utf-8"))
+            captured["content_type"] = req.get_header("Content-type")
+            captured["data"] = req.data
             captured["timeout"] = timeout
-            return _Response(b"RIFF-wave")
+            return _Response(
+                b"\x00\x00\x00\x18ftypisom-video",
+                {"Content-Type": "video/mp4", "X-Lipsync-Seconds": "0.9"},
+            )
 
         with (
             patch.object(tts_proxy.time, "monotonic", return_value=100.0),
             patch.object(tts_proxy, "_open_no_redirect", side_effect=fake_urlopen),
         ):
             tts_proxy.register_bridge("https://voice.trycloudflare.com")
-            audio = tts_proxy.synthesize("hello", 0.92)
+            result = tts_proxy.render_lipsync_with_metadata(b"RIFF-input-wave")
 
-        self.assertEqual(audio, b"RIFF-wave")
+        self.assertEqual(result.body, b"\x00\x00\x00\x18ftypisom-video")
         self.assertEqual(
             captured["url"],
-            "https://voice.trycloudflare.com/synthesize",
+            "https://voice.trycloudflare.com/render",
         )
         self.assertEqual(captured["authorization"], f"Bearer {VALID_TOKEN}")
-        self.assertEqual(captured["payload"], {"text": "hello", "rate": 0.92})
-        self.assertEqual(captured["timeout"], 120)
-
-    def test_video_proxy_accepts_only_a_valid_mp4_contract(self):
-        captured = {}
-
-        def fake_urlopen(req, timeout):
-            captured["url"] = req.full_url
-            captured["timeout"] = timeout
-            return _Response(
-                b"\x00\x00\x00\x18ftypisom-video",
-                {
-                    "Content-Type": "video/mp4",
-                    "X-Lipsync-Seconds": "3.25",
-                },
-            )
-
-        with patch.object(
-            tts_proxy, "_open_no_redirect", side_effect=fake_urlopen
-        ):
-            result = tts_proxy.synthesize_video_with_metadata("hello", 0.92)
-
-        self.assertEqual(captured["url"], "http://127.0.0.1:8001/synthesize-video")
+        self.assertEqual(captured["content_type"], "audio/wav")
+        self.assertEqual(captured["data"], b"RIFF-input-wave")
         self.assertEqual(captured["timeout"], 180)
-        self.assertEqual(result.media_type, "video/mp4")
-        self.assertEqual(result.lipsync_seconds, 3.25)
+        self.assertEqual(result.lipsync_seconds, 0.9)
 
-    def test_video_proxy_requires_explicit_byte_identical_audio_fallback_marker(self):
-        wav = b"RIFF\x04\x00\x00\x00WAVE"
+    def test_render_rejects_a_non_mp4_response(self):
         with patch.object(
             tts_proxy,
             "_open_no_redirect",
-            return_value=_Response(wav, {"Content-Type": "audio/wav"}),
+            return_value=_Response(b"not-a-video", {"Content-Type": "text/plain"}),
         ):
             with self.assertRaises(tts_proxy.TTSUnavailable):
-                tts_proxy.synthesize_video_with_metadata("hello", 1.0)
+                tts_proxy.render_lipsync_with_metadata(b"RIFF-wave")
 
-    def test_proxy_exposes_only_sanitized_timing_headers(self):
+    def test_render_exposes_only_sanitized_timing_headers(self):
         request_id = "a" * 32
         captured = {}
 
         def fake_urlopen(req, timeout):
             captured["request_id"] = req.get_header("X-request-id")
-            captured["timeout"] = timeout
             return _Response(
-                b"RIFF-metadata",
+                b"\x00\x00\x00\x18ftypisom-video",
                 {
-                    "X-Audio-Duration": "2.3456",
-                    "X-Generation-Seconds": "1.25",
-                    "X-TTS-Request-Seconds": "1.50",
-                    "X-TTS-Queue-Seconds": "0.125",
-                    "X-TTS-Generation-Seconds": "1.20",
-                    "X-TTS-Time-Stretch-Seconds": "0.050",
-                    "X-TTS-Wav-Encode-Seconds": "0.025",
-                    "X-TTS-Model": "chatterbox-multilingual-v3",
+                    "Content-Type": "video/mp4",
+                    "X-Lipsync-Seconds": "1.25",
                     "X-Request-ID": request_id,
                     "Server-Timing": f'secret;desc="{VALID_TOKEN}"',
                     "X-Internal-Path": r"C:\\private\\reference.wav",
@@ -239,111 +223,45 @@ class TTSProxyBridgeTests(unittest.TestCase):
                 },
             )
 
-        with (
-            patch.object(tts_proxy, "_open_no_redirect", side_effect=fake_urlopen),
-            patch.object(
-                tts_proxy.time,
-                "perf_counter",
-                side_effect=(10.0, 10.25, 10.30),
-            ),
-        ):
-            result = tts_proxy.synthesize_with_metadata(
-                "hello", 0.92, request_id=request_id
+        with patch.object(tts_proxy, "_open_no_redirect", side_effect=fake_urlopen):
+            result = tts_proxy.render_lipsync_with_metadata(
+                b"RIFF-wave", request_id=request_id
             )
 
         headers = result.public_headers(request_id=request_id)
-        self.assertEqual(result.body, b"RIFF-metadata")
         self.assertEqual(captured["request_id"], request_id)
-        self.assertEqual(captured["timeout"], 120)
         self.assertEqual(
-            set(headers),
-            {
-                "X-Request-ID",
-                "X-Audio-Duration",
-                "X-Generation-Seconds",
-                "X-TTS-Request-Seconds",
-                "X-TTS-Queue-Seconds",
-                "X-TTS-Generation-Seconds",
-                "X-TTS-Time-Stretch-Seconds",
-                "X-TTS-Wav-Encode-Seconds",
-                "X-TTS-Model",
-                "Server-Timing",
-            },
+            set(headers), {"X-Request-ID", "X-Lipsync-Seconds", "Server-Timing"}
         )
         self.assertEqual(headers["X-Request-ID"], request_id)
-        self.assertEqual(headers["X-Audio-Duration"], "2.346")
-        self.assertEqual(headers["X-Generation-Seconds"], "1.250")
-        self.assertEqual(headers["X-TTS-Request-Seconds"], "1.500")
-        self.assertEqual(headers["X-TTS-Queue-Seconds"], "0.125")
-        self.assertEqual(headers["X-TTS-Generation-Seconds"], "1.200")
-        self.assertEqual(headers["X-TTS-Time-Stretch-Seconds"], "0.050")
-        self.assertEqual(headers["X-TTS-Wav-Encode-Seconds"], "0.025")
-        self.assertEqual(headers["X-TTS-Model"], "chatterbox-multilingual-v3")
-        self.assertEqual(
-            headers["Server-Timing"],
-            "tts_total;dur=1250.0, tts_request;dur=1500.0, "
-            "tts_queue;dur=125.0, tts_model;dur=1200.0, "
-            "tts_stretch;dur=50.0, tts_wav;dur=25.0, "
-            "upstream_wait;dur=250.0, "
-            "proxy_read;dur=50.0, proxy_total;dur=300.0",
-        )
+        self.assertEqual(headers["X-Lipsync-Seconds"], "1.250")
         self.assertNotIn(VALID_TOKEN, str(headers))
         self.assertNotIn("private", str(headers))
 
     def test_invalid_local_metadata_is_dropped(self):
-        with (
-            patch.object(
-                tts_proxy,
-                "_open_no_redirect",
-                return_value=_Response(
-                    b"RIFF-wave",
-                    {
-                        "X-Audio-Duration": "-1",
-                        "X-Generation-Seconds": "nan",
-                        "X-TTS-Request-Seconds": "infinity",
-                        "X-TTS-Queue-Seconds": "-0.1",
-                        "X-TTS-Generation-Seconds": "3601",
-                        "X-TTS-Time-Stretch-Seconds": "not-a-number",
-                        "X-TTS-Wav-Encode-Seconds": "1e100",
-                        "X-TTS-Model": "../../private-model",
-                        "X-Request-ID": "not-a-safe-request-id",
-                    },
-                ),
-            ),
-            patch.object(
-                tts_proxy.time,
-                "perf_counter",
-                side_effect=(1.0, 1.1, 1.2),
-            ),
-        ):
-            result = tts_proxy.synthesize_with_metadata("hello", 1.0)
-
-        headers = result.public_headers()
-        self.assertIsNone(result.audio_duration_seconds)
-        self.assertIsNone(result.generation_seconds)
-        self.assertIsNone(result.local_request_id)
-        self.assertIsNone(result.tts_request_seconds)
-        self.assertIsNone(result.tts_queue_seconds)
-        self.assertIsNone(result.tts_model_seconds)
-        self.assertIsNone(result.tts_time_stretch_seconds)
-        self.assertIsNone(result.tts_wav_encode_seconds)
-        self.assertIsNone(result.tts_model)
-        self.assertEqual(set(headers), {"Server-Timing"})
-
-    def test_buffered_synthesize_remains_bytes_compatible(self):
         with patch.object(
             tts_proxy,
-            "_call_with_metadata",
-            return_value=_proxy_result(b"legacy-bytes"),
+            "_open_no_redirect",
+            return_value=_Response(
+                b"\x00\x00\x00\x18ftypisom-video",
+                {
+                    "Content-Type": "video/mp4",
+                    "X-Lipsync-Seconds": "not-a-number",
+                    "X-Request-ID": "not-a-safe-request-id",
+                },
+            ),
         ):
-            audio = tts_proxy.synthesize("legacy", 1.0)
+            result = tts_proxy.render_lipsync_with_metadata(b"RIFF-wave")
 
-        self.assertEqual(audio, b"legacy-bytes")
+        headers = result.public_headers()
+        self.assertIsNone(result.lipsync_seconds)
+        self.assertIsNone(result.local_request_id)
+        self.assertEqual(set(headers), {"Server-Timing"})
 
     def test_bridge_http_redirects_are_not_followed(self):
         handler = tts_proxy._NoRedirectHandler()
         redirected = handler.redirect_request(
-            tts_proxy.request.Request("https://voice.trycloudflare.com/synthesize"),
+            tts_proxy.request.Request("https://voice.trycloudflare.com/render"),
             None,
             302,
             "Found",
@@ -356,7 +274,11 @@ class TTSProxyBridgeTests(unittest.TestCase):
         tts_proxy.register_bridge("https://voice.trycloudflare.com", now=100.0)
         with (
             patch.object(tts_proxy.time, "monotonic", return_value=110.0),
-            patch.object(tts_proxy, "_call", return_value=b'{"ok":true}'),
+            patch.object(
+                tts_proxy,
+                "_request_metadata",
+                return_value=(b'{"ok":true}', {}, 0.0, 0.0, 0.0),
+            ),
         ):
             result = tts_proxy.health()
 
@@ -370,17 +292,19 @@ class TTSProxyBridgeTests(unittest.TestCase):
         def fake_urlopen(req, timeout):
             captured["url"] = req.full_url
             captured["authorization"] = req.get_header("Authorization")
-            return _Response(b"fixed")
+            return _Response(
+                b"\x00\x00\x00\x18ftypisom-video", {"Content-Type": "video/mp4"}
+            )
 
         tts_proxy.register_bridge("https://voice.trycloudflare.com", now=10.0)
         with (
             patch.object(tts_proxy.time, "monotonic", return_value=41.0),
             patch.object(tts_proxy, "_open_no_redirect", side_effect=fake_urlopen),
         ):
-            audio = tts_proxy.synthesize("fallback", 1.0)
+            result = tts_proxy.render_lipsync_with_metadata(b"RIFF-fallback")
 
-        self.assertEqual(audio, b"fixed")
-        self.assertEqual(captured["url"], "http://127.0.0.1:8001/synthesize")
+        self.assertEqual(result.body, b"\x00\x00\x00\x18ftypisom-video")
+        self.assertEqual(captured["url"], "http://127.0.0.1:8002/render")
         self.assertEqual(captured["authorization"], f"Bearer {VALID_TOKEN}")
 
 
@@ -455,9 +379,9 @@ class TTSApiTests(unittest.TestCase):
         with (
             patch.object(api, "TTS_RATE_LIMIT_PER_MINUTE", 2),
             patch.object(
-                tts_proxy,
+                elevenlabs_tts,
                 "synthesize_with_metadata",
-                return_value=_proxy_result(),
+                return_value=_speech_result(),
             ),
         ):
             first = self.client.post("/api/tts", json={"text": "one"})
@@ -470,56 +394,67 @@ class TTSApiTests(unittest.TestCase):
         self.assertGreaterEqual(int(blocked.headers["retry-after"]), 1)
 
     def test_public_tts_keeps_500_character_validation_limit(self):
-        with patch.object(tts_proxy, "synthesize_with_metadata") as synthesize:
+        with patch.object(elevenlabs_tts, "synthesize_with_metadata") as synthesize:
             response = self.client.post("/api/tts", json={"text": "x" * 501})
 
         self.assertEqual(response.status_code, 422)
         synthesize.assert_not_called()
 
-    def test_public_video_route_preserves_valid_upstream_media_type(self):
-        result = tts_proxy.ProxyCallResult(
-            body=b"\x00\x00\x00\x18ftypisom-video",
-            upstream_wait_seconds=0.1,
-            proxy_read_seconds=0.1,
-            proxy_total_seconds=0.2,
-            media_type="video/mp4",
-            lipsync_seconds=3.25,
-        )
-        with patch.object(
-            tts_proxy,
-            "synthesize_video_with_metadata",
-            return_value=result,
-        ) as synthesize:
+    def test_public_video_route_renders_lipsync_after_elevenlabs_audio(self):
+        video = _proxy_result(body=b"\x00\x00\x00\x18ftypisom-video")
+        with (
+            patch.object(
+                elevenlabs_tts,
+                "synthesize_with_metadata",
+                return_value=_speech_result(),
+            ) as synthesize,
+            patch.object(
+                tts_proxy,
+                "render_lipsync_with_metadata",
+                return_value=video,
+            ) as render,
+        ):
             response = self.client.post("/api/tts/video", json={"text": "video"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["content-type"], "video/mp4")
-        self.assertEqual(response.headers["x-lipsync-seconds"], "3.250")
-        self.assertEqual(response.content, result.body)
+        self.assertEqual(response.content, video.body)
         synthesize.assert_called_once()
+        render.assert_called_once()
+
+    def test_public_video_route_falls_back_to_audio_when_musetalk_unavailable(self):
+        with (
+            patch.object(
+                elevenlabs_tts,
+                "synthesize_with_metadata",
+                return_value=_speech_result(body=b"RIFF-fallback-wave"),
+            ),
+            patch.object(
+                tts_proxy,
+                "render_lipsync_with_metadata",
+                side_effect=tts_proxy.TTSUnavailable("MuseTalk busy"),
+            ),
+        ):
+            response = self.client.post("/api/tts/video", json={"text": "video"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "audio/wav")
+        self.assertEqual(response.headers["x-lipsync-fallback"], "audio")
+        self.assertEqual(response.content, b"RIFF-fallback-wave")
 
     def test_public_tts_propagates_only_safe_latency_metadata(self):
         request_id = "b" * 32
-        result = tts_proxy.ProxyCallResult(
+        result = elevenlabs_tts.SpeechResult(
             body=b"RIFF-timed",
-            upstream_wait_seconds=0.125,
-            proxy_read_seconds=0.025,
-            proxy_total_seconds=0.150,
-            generation_seconds=1.5,
             audio_duration_seconds=2.75,
+            generation_seconds=1.5,
             local_request_id="c" * 32,
-            tts_request_seconds=1.75,
-            tts_queue_seconds=0.125,
-            tts_model_seconds=1.45,
-            tts_time_stretch_seconds=0.10,
-            tts_wav_encode_seconds=0.05,
-            tts_model="chatterbox-multilingual-v3",
         )
         fake_uuid = type("FakeUuid", (), {"hex": request_id})()
         with (
             patch.object(api.uuid, "uuid4", return_value=fake_uuid),
             patch.object(
-                tts_proxy,
+                elevenlabs_tts,
                 "synthesize_with_metadata",
                 return_value=result,
             ) as synthesize,
@@ -529,26 +464,10 @@ class TTSApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"RIFF-timed")
         self.assertEqual(response.headers["cache-control"], "no-store")
-        self.assertEqual(response.headers["x-tts-engine"], "chatterbox-v3")
+        self.assertEqual(response.headers["x-tts-engine"], "elevenlabs")
         self.assertEqual(response.headers["x-request-id"], request_id)
         self.assertEqual(response.headers["x-audio-duration"], "2.750")
         self.assertEqual(response.headers["x-generation-seconds"], "1.500")
-        self.assertEqual(response.headers["x-tts-request-seconds"], "1.750")
-        self.assertEqual(response.headers["x-tts-queue-seconds"], "0.125")
-        self.assertEqual(response.headers["x-tts-generation-seconds"], "1.450")
-        self.assertEqual(response.headers["x-tts-time-stretch-seconds"], "0.100")
-        self.assertEqual(response.headers["x-tts-wav-encode-seconds"], "0.050")
-        self.assertEqual(
-            response.headers["x-tts-model"], "chatterbox-multilingual-v3"
-        )
-        self.assertEqual(
-            response.headers["server-timing"],
-            "tts_total;dur=1500.0, tts_request;dur=1750.0, "
-            "tts_queue;dur=125.0, tts_model;dur=1450.0, "
-            "tts_stretch;dur=100.0, tts_wav;dur=50.0, "
-            "upstream_wait;dur=125.0, "
-            "proxy_read;dur=25.0, proxy_total;dur=150.0",
-        )
         self.assertNotIn("authorization", response.headers)
         synthesize.assert_called_once_with(
             "timed", 0.92, request_id=request_id
@@ -578,7 +497,7 @@ class TTSApiTests(unittest.TestCase):
         busy = type("BusyCapacity", (), {"acquire": lambda self, blocking: False})()
         with (
             patch.object(api, "_tts_capacity", busy),
-            patch.object(tts_proxy, "synthesize_with_metadata") as synthesize,
+            patch.object(elevenlabs_tts, "synthesize_with_metadata") as synthesize,
         ):
             response = self.client.post("/api/tts", json={"text": "busy"})
 
@@ -600,9 +519,9 @@ class TTSApiTests(unittest.TestCase):
         with (
             patch.object(api, "_tts_capacity", capacity),
             patch.object(
-                tts_proxy,
+                elevenlabs_tts,
                 "synthesize_with_metadata",
-                side_effect=tts_proxy.TTSUnavailable("offline"),
+                side_effect=elevenlabs_tts.ElevenLabsUnavailable("offline"),
             ),
         ):
             response = self.client.post("/api/tts", json={"text": "failure"})

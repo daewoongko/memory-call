@@ -127,43 +127,45 @@ npm run dev
 이 검사는 미영(딸)과 정훈(아들)을 고길동 어르신의 데모 가족으로 등록합니다.
 브라우저 마이크 입력과 TTS·영상 재생은 실제 기기에서 별도로 확인합니다.
 
-## Chatterbox V3 보안 브리지
+## ElevenLabs 음성 클론
 
-배포된 앱의 복제 음성은 Render에서 합성하지 않습니다. CUDA GPU가 있는 이 PC에서 Chatterbox Multilingual V3와 `data/voice/reference.wav`를 사용해 합성하고, Cloudflare Quick Tunnel을 통해 Render API에 전달합니다. 로컬 서버는 `127.0.0.1`에만 열리며, 터널 등록·상태 확인·음성 합성 모두 동일한 Bearer 비밀키를 요구합니다. 임시 터널 주소는 짧은 TTL heartbeat로 갱신됩니다.
+배포된 앱의 복제 음성은 ElevenLabs API로 직접 만듭니다. 로컬 GPU나 터널이 필요 없으며, Render 백엔드가 `backend/elevenlabs_tts.py`를 통해 바로 호출합니다.
 
-최초 한 번 다음 순서로 준비합니다. 첫 스크립트는 사라진 Python 3.11을 복구할 때에도 기존 대용량 `.venv-tts`를 삭제하지 않고 우선 재사용합니다.
+최초 한 번 `data/voice/reference.wav`를 ElevenLabs Instant Voice Cloning에 등록합니다.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup_tts_runtime.ps1 -InstallPython
+.\.venv\Scripts\python.exe tools\elevenlabs_clone_voice.py --name "가족 목소리"
+```
+
+출력된 `voice_id`를 `.env`의 `ELEVENLABS_VOICE_ID`에, 발급받은 키를 `ELEVENLABS_API_KEY`에 넣습니다. Render 대시보드의 환경변수에도 같은 값을 저장한 뒤 재배포하세요. **립싱크(MuseTalk) 없이 순수 음성 통화는 이 설정만으로 완전히 동작하며, 로컬 PC를 켜 둘 필요가 없습니다.**
+
+## MuseTalk 립싱크 (선택, 로컬 GPU 필요)
+
+립싱크 영상은 선택 기능입니다. 원할 때만 CUDA GPU가 있는 PC에서 `tools/tts_bridge.py`를 켜서 붙입니다. 브리지는 이제 MuseTalk 1.5 워커 하나만 `127.0.0.1:8002`에 띄우고 Cloudflare Quick Tunnel로 노출합니다. 백엔드가 ElevenLabs로 만든 오디오를 이 터널의 `/render`로 전달하면 입 모양에 맞춘 MP4를 돌려받습니다. 로컬 서버는 `127.0.0.1`에만 열리며, 터널 등록·상태 확인·립싱크 렌더 모두 동일한 Bearer 비밀키를 요구합니다. 임시 터널 주소는 짧은 TTL heartbeat로 갱신됩니다.
+
+최초 한 번 다음 순서로 준비합니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup_musetalk_runtime.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup_cloudflared.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\configure_tts_bridge_secret.ps1 -CopyToClipboard
 ```
 
 마지막 명령은 임의 비밀키를 `.env`에 저장하고 값은 출력하지 않은 채 클립보드에만 복사합니다. Render 대시보드에서 서비스의 환경변수 `TTS_BRIDGE_TOKEN`에 같은 값을 한 번 저장한 뒤 재배포하세요. `render.yaml`의 `sync: false` 설정 때문에 비밀키는 Git에 들어가지 않습니다.
 
-배포가 완료되면 터미널 하나에서 브리지 관리자를 실행합니다. 관리자가 로컬 TTS 서버와 Quick Tunnel을 함께 시작하고, 주소 등록·heartbeat·비정상 종료 후 재시작까지 담당하므로 TTS 서버를 별도 터미널에서 먼저 켜지 않습니다.
+모델을 기본 위치가 아닌 곳에 두었다면 `.env`에 `MEMORY_CALL_MUSETALK_DIR`를 지정합니다. 아바타 캐시가 없거나 불완전하면 브리지가 시작 시점에 실패하므로, MuseTalk이 통화 중에 대화형 프롬프트로 멈추는 일은 없습니다.
+
+배포가 완료되면 터미널 하나에서 브리지 관리자를 실행합니다. 관리자가 로컬 MuseTalk 워커와 Quick Tunnel을 함께 시작하고, 주소 등록·heartbeat·비정상 종료 후 재시작까지 담당합니다.
 
 ```powershell
 .\.venv\Scripts\python.exe tools\tts_bridge.py --render-url https://memory-call.onrender.com
 ```
 
-VS Code에서는 `Terminal → Run Task → memory-call: TTS bridge (Render)`를 선택해도 됩니다. 이 터미널과 PC/GPU가 켜져 있을 때만 배포 앱의 복제 음성이 동작합니다. 연결이 끊기면 다른 여성 브라우저 음성으로 바뀌지 않고 오류를 표시합니다. 개발 중 브라우저 음성을 명시적으로 허용하려는 경우에만 `frontend/.env.local`에 `VITE_TTS_BROWSER_FALLBACK=true`를 설정하세요.
+VS Code에서는 `Terminal → Run Task → memory-call: TTS bridge (Render)`를 선택해도 됩니다. 이 터미널과 PC/GPU가 켜져 있을 때만 배포 앱의 립싱크 영상이 동작합니다. 개발 중 브라우저 음성을 명시적으로 허용하려는 경우에만 `frontend/.env.local`에 `VITE_TTS_BROWSER_FALLBACK=true`를 설정하세요.
 
 Heartbeat는 브리지가 켜져 있는 동안 Render 무료 인스턴스를 활성 상태로 유지합니다. 따라서 PC에서 브리지를 오래 켜 둘수록 Render의 월 무료 실행 시간이 함께 사용됩니다.
 
-## MuseTalk 립싱크
-
-브리지는 Chatterbox와 함께 MuseTalk 1.5 워커를 `127.0.0.1:8002`에 띄웁니다. 합성한 음성을 그대로 입 모양에 맞춘 MP4로 만들어 `/api/tts/video`로 돌려주며, 같은 Bearer 비밀키를 요구하고 터널은 기존 하나만 씁니다. 아바타·모델 경로·출력 위치는 프로세스 시작 시 고정되므로 호출자가 로컬 파일을 지정할 수 없습니다.
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup_musetalk_runtime.ps1
-```
-
-모델을 기본 위치가 아닌 곳에 두었다면 `.env`에 `MEMORY_CALL_MUSETALK_DIR`를 지정합니다. 아바타 캐시가 없거나 불완전하면 브리지가 시작 시점에 실패하므로, MuseTalk이 통화 중에 대화형 프롬프트로 멈추는 일은 없습니다.
-
-**립싱크는 선택 경로입니다.** 워커가 없거나(404) 바쁘거나(409) 실패하면(503) 프론트가 같은 Chatterbox 음성 WAV로 조용히 전환하고 통화는 그대로 이어집니다. 데모 중 GPU가 흔들려도 대화가 끊기지 않게 하기 위한 것이며, 얼굴이 정지 화면으로 돌아갈 뿐입니다.
-
-두 모델이 16GB GPU 하나를 나눠 쓰므로 MuseTalk은 렌더가 끝날 때마다 추론 피크 메모리를 반환합니다. 이 반환을 빼면 PyTorch 캐싱 할당자가 약 8GB를 계속 붙잡아 Chatterbox가 호스트 메모리로 밀려나고, 음성 합성이 2.6초에서 13.6초로 느려집니다.
+**립싱크는 선택 경로입니다.** 워커가 없거나 바쁘거나 실패하면 프론트가 같은 ElevenLabs 음성 WAV로 조용히 전환하고 통화는 그대로 이어집니다. 데모 중 GPU가 흔들려도 대화가 끊기지 않게 하기 위한 것이며, 얼굴이 정지 화면으로 돌아갈 뿐입니다. MuseTalk이 이제 GPU를 혼자 쓰므로, 예전에 Chatterbox와 나눠 쓰며 겪던 VRAM 경합(음성 합성이 2.6초에서 13.6초로 느려지던 문제)은 더 이상 발생하지 않습니다.
 
 ## 프로덕션 빌드
 

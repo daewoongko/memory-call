@@ -1,13 +1,16 @@
-"""Keep the local GPU TTS server reachable through a Cloudflare Quick Tunnel.
+"""Keep the local MuseTalk lip-sync worker reachable through a Cloudflare Quick Tunnel.
 
-The bridge owns two child processes:
+TTS itself is ElevenLabs (a hosted API), so it needs no local process or
+tunnel at all. Running this bridge is entirely optional: without it, calls
+still work end-to-end with ElevenLabs audio only, just without lip-synced
+video. This script exists only for people who want the lip-sync feature and
+owns exactly one child process plus the tunnel that exposes it:
 
-* ``tts_server.py`` running only on 127.0.0.1
-* ``musetalk_server.py`` running only on 127.0.0.1 (optional/fail-open)
+* ``musetalk_server.py`` running only on 127.0.0.1
 * ``cloudflared tunnel --url ...`` exposing that loopback server
 
 It registers each newly-created Quick Tunnel URL with the deployed Memory Call
-API and repeats the same request as a heartbeat.  The shared Bearer token is
+API and repeats the same request as a heartbeat. The shared Bearer token is
 never passed on a command line or written to logs.
 """
 
@@ -67,19 +70,14 @@ class RegistrationError(BridgeError):
 class BridgeConfig:
     render_url: str
     token: str
-    tts_python: Path
     cloudflared: Path
-    reference: Path
-    port: int = 8001
+    musetalk_python: Path
+    musetalk_dir: Path
+    musetalk_source_video: Path
+    musetalk_port: int = 8002
     heartbeat_seconds: float = 45.0
-    tts_startup_timeout: float = 600.0
     tunnel_url_timeout: float = 90.0
     restart_delay: float = 5.0
-    musetalk_enabled: bool = True
-    musetalk_python: Path | None = None
-    musetalk_dir: Path | None = None
-    musetalk_source_video: Path | None = None
-    musetalk_port: int = 8002
     musetalk_batch_size: int = 32
     musetalk_fallback_batch_size: int = 20
 
@@ -164,41 +162,6 @@ def _python_runs(path: Path) -> bool:
     except (OSError, subprocess.SubprocessError):
         return False
     return completed.returncode == 0
-
-
-def find_tts_python(
-    root: Path = ROOT,
-    environ: dict[str, str] | None = None,
-    *,
-    probe: Callable[[Path], bool] = _python_runs,
-) -> Path:
-    """Locate a working TTS virtual-environment interpreter."""
-    env = os.environ if environ is None else environ
-    configured = (env.get("TTS_PYTHON_PATH") or env.get("TTS_PYTHON") or "").strip()
-    if configured:
-        path = _expand_path(configured)
-        if not path.is_file() or not probe(path):
-            raise BridgeError(f"Configured TTS Python is not runnable: {path}")
-        return path
-
-    relative = (
-        (".venv-tts/Scripts/python.exe", ".venv-tts-recovered/Scripts/python.exe")
-        if os.name == "nt"
-        else (".venv-tts/bin/python", ".venv-tts-recovered/bin/python")
-    )
-    broken: list[Path] = []
-    for item in relative:
-        path = (root / item).resolve()
-        if path.is_file() and probe(path):
-            return path
-        if path.is_file():
-            broken.append(path)
-
-    detail = f" Existing but broken: {', '.join(map(str, broken))}." if broken else ""
-    raise BridgeError(
-        "No runnable TTS Python was found. Run tools/setup_tts_runtime.ps1, then "
-        "set TTS_PYTHON_PATH to the Python path it reports." + detail
-    )
 
 
 def find_musetalk_python(
@@ -346,63 +309,13 @@ def _authorized_health_request(port: int, token: str, timeout: float) -> bool:
         return False
 
 
-def wait_for_tts(
-    process: subprocess.Popen,
-    port: int,
-    token: str,
-    stop_event: threading.Event,
-    timeout: float,
-) -> None:
-    deadline = time.monotonic() + timeout
-    while not stop_event.is_set():
-        code = process.poll()
-        if code is not None:
-            raise ProcessExited(f"TTS server exited during startup (code {code}).")
-        if _authorized_health_request(port, token, timeout=3.0):
-            return
-        if time.monotonic() >= deadline:
-            raise BridgeError(f"TTS server did not become healthy within {timeout:g}s.")
-        stop_event.wait(1.0)
-    raise BridgeError("Bridge shutdown requested.")
-
-
-def start_tts(config: BridgeConfig) -> subprocess.Popen:
-    env = os.environ.copy()
-    env[TOKEN_ENV] = config.token
-    env["MUSE_TALK_ENABLED"] = "true" if config.musetalk_enabled else "false"
-    env["PYTHONUNBUFFERED"] = "1"
-    command = [
-        str(config.tts_python),
-        "-u",
-        str(ROOT / "tools" / "tts_server.py"),
-        "--host",
-        "127.0.0.1",
-        "--port",
-        str(config.port),
-        "--reference",
-        str(config.reference),
-    ]
-    try:
-        return subprocess.Popen(command, cwd=ROOT, env=env)
-    except OSError as exc:
-        raise BridgeError(f"Unable to start the TTS Python process: {exc}") from exc
-
-
 def start_musetalk(config: BridgeConfig) -> subprocess.Popen:
-    """Start the optional MuseTalk worker without exposing a second tunnel."""
-    if (
-        not config.musetalk_enabled
-        or config.musetalk_python is None
-        or config.musetalk_dir is None
-        or config.musetalk_source_video is None
-    ):
-        raise BridgeError("MuseTalk is not configured")
     env = os.environ.copy()
     env[TOKEN_ENV] = config.token
     env["PYTHONUNBUFFERED"] = "1"
     # All model files have already been downloaded by the setup command. Keep
-    # service startup deterministic and prevent a model hub request from
-    # delaying the existing audio bridge.
+    # startup deterministic and prevent a model hub request from delaying the
+    # worker.
     env["HF_HUB_OFFLINE"] = "1"
     env["TRANSFORMERS_OFFLINE"] = "1"
     command = [
@@ -452,7 +365,7 @@ def start_tunnel(config: BridgeConfig) -> tuple[subprocess.Popen, queue.Queue[st
         str(config.cloudflared),
         "tunnel",
         "--url",
-        f"http://127.0.0.1:{config.port}",
+        f"http://127.0.0.1:{config.musetalk_port}",
         "--no-autoupdate",
     ]
     try:
@@ -519,13 +432,10 @@ def terminate_process(process: subprocess.Popen | None, timeout: float = 10.0) -
 def _register_until_success(
     config: BridgeConfig,
     service_url: str,
-    tts: subprocess.Popen,
     tunnel: subprocess.Popen,
     stop_event: threading.Event,
 ) -> None:
     while not stop_event.is_set():
-        if tts.poll() is not None:
-            raise ProcessExited("TTS server exited before bridge registration.")
         if tunnel.poll() is not None:
             raise ProcessExited("cloudflared exited before bridge registration.")
         try:
@@ -541,51 +451,25 @@ def _register_until_success(
 
 
 def supervise(config: BridgeConfig, stop_event: threading.Event) -> None:
-    """Supervise TTS and tunnel lifetimes until shutdown is requested."""
-    tts: subprocess.Popen | None = None
+    """Supervise the MuseTalk worker and tunnel lifetimes until shutdown."""
     musetalk: subprocess.Popen | None = None
     musetalk_ready = False
     next_musetalk_restart = 0.0
     tunnel: subprocess.Popen | None = None
     try:
         while not stop_event.is_set():
-            if tts is None:
-                try:
-                    print("Starting local GPU TTS server...", flush=True)
-                    tts = start_tts(config)
-                    wait_for_tts(
-                        tts,
-                        config.port,
-                        config.token,
-                        stop_event,
-                        config.tts_startup_timeout,
-                    )
-                    print("Local GPU TTS server is healthy.", flush=True)
-                except BridgeError as exc:
-                    terminate_process(tts)
-                    tts = None
-                    if stop_event.is_set():
-                        break
-                    print(f"TTS restart required: {exc}", file=sys.stderr, flush=True)
-                    stop_event.wait(config.restart_delay)
-                    continue
-
-            # MuseTalk is optional: launch it in parallel with tunnel setup and
-            # let /synthesize-video return the already-generated WAV until the
-            # worker becomes healthy. A model/OOM failure must never take down
-            # the primary Chatterbox bridge.
-            if (
-                config.musetalk_enabled
-                and musetalk is None
-                and time.monotonic() >= next_musetalk_restart
-            ):
+            # MuseTalk loads its models before it starts accepting connections
+            # (see musetalk_server.py's FastAPI lifespan), so opening the
+            # tunnel in parallel is safe: requests during warmup simply fail
+            # to connect, and the backend already falls back to audio-only.
+            if musetalk is None and time.monotonic() >= next_musetalk_restart:
                 try:
                     print("Starting local MuseTalk worker...", flush=True)
                     musetalk = start_musetalk(config)
                     musetalk_ready = False
-                except BridgeError:
+                except BridgeError as exc:
                     print(
-                        "MuseTalk could not start; audio fallback remains active.",
+                        f"MuseTalk restart required: {exc}",
                         file=sys.stderr,
                         flush=True,
                     )
@@ -598,18 +482,16 @@ def supervise(config: BridgeConfig, stop_event: threading.Event) -> None:
                 service_url = wait_for_tunnel_url(
                     tunnel, urls, stop_event, config.tunnel_url_timeout
                 )
-                _register_until_success(config, service_url, tts, tunnel, stop_event)
+                _register_until_success(config, service_url, tunnel, stop_event)
                 next_heartbeat = time.monotonic() + config.heartbeat_seconds
 
                 while not stop_event.is_set():
-                    if tts.poll() is not None:
-                        raise ProcessExited("Local TTS server stopped.")
                     if tunnel.poll() is not None:
                         raise ProcessExited("Cloudflare Quick Tunnel stopped.")
 
                     if musetalk is not None and musetalk.poll() is not None:
                         print(
-                            "MuseTalk stopped; audio fallback remains active.",
+                            "MuseTalk stopped; lip-sync unavailable until it restarts.",
                             file=sys.stderr,
                             flush=True,
                         )
@@ -619,11 +501,7 @@ def supervise(config: BridgeConfig, stop_event: threading.Event) -> None:
                         next_musetalk_restart = (
                             time.monotonic() + config.restart_delay
                         )
-                    if (
-                        musetalk is None
-                        and config.musetalk_enabled
-                        and time.monotonic() >= next_musetalk_restart
-                    ):
+                    if musetalk is None and time.monotonic() >= next_musetalk_restart:
                         try:
                             musetalk = start_musetalk(config)
                             musetalk_ready = False
@@ -662,19 +540,14 @@ def supervise(config: BridgeConfig, stop_event: threading.Event) -> None:
                 # Authentication and other permanent 4xx errors need operator action.
                 raise
             except BridgeError as exc:
-                tts_alive = tts is not None and tts.poll() is None
                 print(f"Bridge process restart: {exc}", file=sys.stderr, flush=True)
                 terminate_process(tunnel)
                 tunnel = None
-                if not tts_alive:
-                    terminate_process(tts)
-                    tts = None
                 if not stop_event.is_set():
                     stop_event.wait(config.restart_delay)
     finally:
         terminate_process(tunnel)
         terminate_process(musetalk)
-        terminate_process(tts)
 
 
 def _positive_float(value: str) -> float:
@@ -682,13 +555,6 @@ def _positive_float(value: str) -> float:
     if parsed <= 0:
         raise argparse.ArgumentTypeError("must be greater than zero")
     return parsed
-
-
-def _enabled_env(name: str, default: bool = True) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() not in {"0", "false", "no", "off"}
 
 
 def _int_env(name: str, default: int) -> int:
@@ -700,23 +566,9 @@ def _int_env(name: str, default: int) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Expose local GPU TTS and keep its Render registration alive."
+        description="Expose local MuseTalk lip-sync and keep its Render registration alive."
     )
     parser.add_argument("--render-url", default=None)
-    parser.add_argument("--port", type=int, default=8001)
-    parser.add_argument(
-        "--reference", type=Path, default=ROOT / "data" / "voice" / "reference.wav"
-    )
-    parser.add_argument("--heartbeat-seconds", type=_positive_float, default=45.0)
-    parser.add_argument("--tts-startup-timeout", type=_positive_float, default=600.0)
-    parser.add_argument("--tunnel-url-timeout", type=_positive_float, default=90.0)
-    parser.add_argument("--restart-delay", type=_positive_float, default=5.0)
-    parser.add_argument(
-        "--musetalk",
-        action=argparse.BooleanOptionalAction,
-        default=_enabled_env("MUSE_TALK_ENABLED", True),
-        help="run the optional loopback MuseTalk worker (default: enabled)",
-    )
     parser.add_argument(
         "--musetalk-port", type=int, default=_int_env("MUSE_TALK_PORT", 8002)
     )
@@ -725,6 +577,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--musetalk-source-video", type=Path, default=None)
     parser.add_argument("--musetalk-batch-size", type=int, default=32)
     parser.add_argument("--musetalk-fallback-batch-size", type=int, default=20)
+    parser.add_argument("--heartbeat-seconds", type=_positive_float, default=45.0)
+    parser.add_argument("--tunnel-url-timeout", type=_positive_float, default=90.0)
+    parser.add_argument("--restart-delay", type=_positive_float, default=5.0)
     return parser
 
 
@@ -742,9 +597,7 @@ def main(argv: list[str] | None = None) -> int:
     load_local_env()
     args = build_parser().parse_args(argv)
     try:
-        if not 1 <= args.port <= 65535:
-            raise BridgeError("Port must be between 1 and 65535.")
-        if args.musetalk_port != 8002 or args.musetalk_port == args.port:
+        if args.musetalk_port != 8002:
             raise BridgeError("MuseTalk must use its fixed loopback port 8002.")
         token = require_bridge_token()
         render_url = normalize_render_url(
@@ -752,70 +605,43 @@ def main(argv: list[str] | None = None) -> int:
             or os.getenv(RENDER_URL_ENV, "").strip()
             or DEFAULT_RENDER_URL
         )
-        reference = args.reference
-        if not reference.is_absolute():
-            reference = ROOT / reference
-        reference = reference.resolve()
-        if not reference.is_file():
-            raise BridgeError(f"TTS reference audio was not found: {reference}")
+        musetalk_python = (
+            args.musetalk_python.resolve()
+            if args.musetalk_python is not None
+            else find_musetalk_python()
+        )
+        musetalk_dir = (
+            args.musetalk_dir
+            or Path(
+                os.getenv("MEMORY_CALL_MUSETALK_DIR", "").strip()
+                or ROOT.parent / "Models" / "MuseTalk"
+            )
+        ).resolve()
+        musetalk_source_video = (
+            args.musetalk_source_video
+            or Path(
+                os.getenv("MUSE_TALK_SOURCE_VIDEO", "").strip()
+                or ROOT / "data" / "faces" / "loops" / "idle.mp4"
+            )
+        ).resolve()
+        if not (musetalk_dir / "scripts" / "realtime_inference.py").is_file():
+            raise BridgeError("MuseTalk source checkout was not found")
+        if not musetalk_source_video.is_file():
+            raise BridgeError("MuseTalk source video was not found")
+        if args.musetalk_batch_size <= 0 or args.musetalk_fallback_batch_size <= 0:
+            raise BridgeError("MuseTalk batch sizes must be greater than zero.")
 
-        musetalk_enabled = bool(args.musetalk)
-        musetalk_python: Path | None = None
-        musetalk_dir: Path | None = None
-        musetalk_source_video: Path | None = None
-        if musetalk_enabled:
-            try:
-                musetalk_python = (
-                    args.musetalk_python.resolve()
-                    if args.musetalk_python is not None
-                    else find_musetalk_python()
-                )
-                musetalk_dir = (
-                    args.musetalk_dir
-                    or Path(
-                        os.getenv("MEMORY_CALL_MUSETALK_DIR", "").strip()
-                        or ROOT.parent / "Models" / "MuseTalk"
-                    )
-                ).resolve()
-                musetalk_source_video = (
-                    args.musetalk_source_video
-                    or Path(
-                        os.getenv("MUSE_TALK_SOURCE_VIDEO", "").strip()
-                        or ROOT / "data" / "faces" / "loops" / "idle.mp4"
-                    )
-                ).resolve()
-                if not (musetalk_dir / "scripts" / "realtime_inference.py").is_file():
-                    raise BridgeError("MuseTalk source checkout was not found")
-                if not musetalk_source_video.is_file():
-                    raise BridgeError("MuseTalk source video was not found")
-                if args.musetalk_batch_size <= 0 or args.musetalk_fallback_batch_size <= 0:
-                    raise BridgeError("MuseTalk batch sizes must be greater than zero.")
-            except (BridgeError, OSError) as exc:
-                print(
-                    f"MuseTalk disabled for this run: {exc}. "
-                    "Audio fallback remains available.",
-                    file=sys.stderr,
-                )
-                musetalk_enabled = False
-                musetalk_python = None
-                musetalk_dir = None
-                musetalk_source_video = None
         config = BridgeConfig(
             render_url=render_url,
             token=token,
-            tts_python=find_tts_python(),
             cloudflared=find_cloudflared(),
-            reference=reference,
-            port=args.port,
-            heartbeat_seconds=args.heartbeat_seconds,
-            tts_startup_timeout=args.tts_startup_timeout,
-            tunnel_url_timeout=args.tunnel_url_timeout,
-            restart_delay=args.restart_delay,
-            musetalk_enabled=musetalk_enabled,
             musetalk_python=musetalk_python,
             musetalk_dir=musetalk_dir,
             musetalk_source_video=musetalk_source_video,
             musetalk_port=args.musetalk_port,
+            heartbeat_seconds=args.heartbeat_seconds,
+            tunnel_url_timeout=args.tunnel_url_timeout,
+            restart_delay=args.restart_delay,
             musetalk_batch_size=args.musetalk_batch_size,
             musetalk_fallback_batch_size=args.musetalk_fallback_batch_size,
         )
@@ -824,13 +650,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     print(f"Render API: {config.render_url}")
-    print(f"Local TTS:  http://127.0.0.1:{config.port}")
-    print(f"TTS Python: {config.tts_python}")
-    if config.musetalk_enabled:
-        print(f"Local MuseTalk: http://127.0.0.1:{config.musetalk_port}")
-        print(f"MuseTalk Python: {config.musetalk_python}")
-    else:
-        print("Local MuseTalk: disabled; audio fallback active")
+    print(f"Local MuseTalk: http://127.0.0.1:{config.musetalk_port}")
+    print(f"MuseTalk Python: {config.musetalk_python}")
     print(f"cloudflared: {config.cloudflared}")
     print("TTS_BRIDGE_TOKEN: configured (value hidden)")
 

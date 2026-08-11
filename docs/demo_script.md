@@ -23,11 +23,14 @@
 ## 시작 전 (2분)
 
 ```bash
-.\.venv\Scripts\python.exe tools\tts_bridge.py    터미널 1, 목소리·립싱크. 먼저 켠다
+.\.venv\Scripts\python.exe tools\tts_bridge.py    터미널 1, 립싱크(MuseTalk). 먼저 켠다
 python tools/serve.py                             터미널 2, 계속 켜둠
 cd frontend && npm run dev                        터미널 3, 계속 켜둠
 python tools/demo_reset.py --med-in 6             터미널 4
 ```
+
+목소리는 ElevenLabs API라 `.env`에 키만 있으면 터미널 1 없이도 바로 나온다.
+터미널 1은 립싱크 영상용이고, 없어도 통화는 오디오만으로 이어진다.
 
 체크리스트
 
@@ -35,8 +38,8 @@ python tools/demo_reset.py --med-in 6             터미널 4
 - [ ] 마이크 권한 허용
 - [ ] 스피커 볼륨
 - [ ] 탭 두 개 준비: `localhost:5173` / `localhost:5173/#guardian`
-- [ ] 브리지 터미널에 **Chatterbox 와 MuseTalk 둘 다 준비 완료** 가 찍혔는지
-      (모델 로딩에 30초 정도 걸린다. 그 전에는 목소리가 안 나온다)
+- [ ] 립싱크를 켤 계획이면 브리지 터미널에 **MuseTalk 준비 완료** 가 찍혔는지
+      (모델 로딩에 30초 정도 걸린다. 그 전에는 얼굴이 정지 화면으로 대체된다)
 - [ ] 개발자 도구는 **닫아둘 것**
 
 **시연은 배포 주소가 아니라 `localhost` 로 한다.** 왕복이 8초 대 10.5초로
