@@ -66,7 +66,13 @@ def selected_sources(plan: dict) -> list[tuple[int, Path]]:
         raise FileNotFoundError(f"Missing current photo: {current_path}")
 
     entries: list[tuple[int, Path]] = []
-    descending = path_with_refinements(current_age, plan.get("extra_ages") or [])
+    if plan.get("path_mode") == "selected":
+        selected_ages = {int(age) for age in plan["selections"]}
+        if any(age >= current_age or age < 1 for age in selected_ages):
+            raise ValueError("Selected ages must be younger than the current age.")
+        descending = [current_age, *sorted(selected_ages, reverse=True)]
+    else:
+        descending = path_with_refinements(current_age, plan.get("extra_ages") or [])
     for age in reversed(descending):
         if age == current_age:
             entries.append((age, current_path))
@@ -558,19 +564,21 @@ def main() -> None:
     sheet_path = output_dir / "contact_sheet.png"
     contact_sheet(manifest_rows, sheet_path, args.width, args.height)
     transition_rows = [row for row in manifest_rows if row["age"] in {15, 16, 17}]
-    transition_path = output_dir / "transition_15_16_17.png"
-    contact_sheet(
-        transition_rows,
-        transition_path,
-        args.width,
-        args.height,
-        columns=3,
-    )
+    if transition_rows:
+        transition_path = output_dir / "transition_15_16_17.png"
+        contact_sheet(
+            transition_rows,
+            transition_path,
+            args.width,
+            args.height,
+            columns=3,
+        )
 
     print(f"\nPrepared {len(manifest_rows)} keyframes: {output_dir}")
     print(f"Manifest: {manifest_path}")
     print(f"Contact sheet: {sheet_path}")
-    print(f"15-16-17 transition: {transition_path}")
+    if transition_rows:
+        print(f"15-16-17 transition: {transition_path}")
 
 
 if __name__ == "__main__":

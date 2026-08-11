@@ -1,0 +1,963 @@
+{
+  "version": 1,
+  "created_at": "2026-08-11T05:18:52.544067+00:00",
+  "purpose": "RIFE-ready selected age keyframes",
+  "order": "youngest_to_current",
+  "canvas": {
+    "width": 768,
+    "height": 1024
+  },
+  "alignment": {
+    "type": "eye-center global scale and translation",
+    "target_eye_center": [
+      383.93797,
+      344.00038
+    ],
+    "target_eye_span": 129.37368,
+    "target_eye_angle_degrees": -0.38002,
+    "rotation_alignment_enabled": false,
+    "nonrigid_face_warp": false,
+    "photometric_normalization": false,
+    "child_torso_stabilization": {
+      "enabled": false,
+      "endpoint_ages": [
+        8,
+        14
+      ],
+      "scope": "monotonic same-image remap below y=620/1024",
+      "face_pixels_changed": false
+    }
+  },
+  "rows": [
+    {
+      "index": 1,
+      "age": 8,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age08_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/01_age08.png",
+      "output_name": "01_age08.png",
+      "detection_score_before": 0.938501,
+      "detection_score_after": 0.93551,
+      "source_landmarks": [
+        [
+          333.5571,
+          449.33426
+        ],
+        [
+          450.13107,
+          446.58582
+        ],
+        [
+          391.48056,
+          520.17963
+        ],
+        [
+          347.54968,
+          576.60815
+        ],
+        [
+          440.49747,
+          573.09235
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          312.82281,
+          347.62839
+        ],
+        [
+          447.9975,
+          340.39624
+        ],
+        [
+          385.66852,
+          423.14944
+        ],
+        [
+          329.45428,
+          489.60391
+        ],
+        [
+          444.19595,
+          483.86713
+        ]
+      ],
+      "source_eye": [
+        391.84409,
+        447.96004,
+        116.60637,
+        -1.3506,
+        270.00159,
+        311.58954,
+        250.61411,
+        348.47232
+      ],
+      "aligned_eye": [
+        380.41016,
+        344.01231,
+        135.36801,
+        -3.06253,
+        238.34473,
+        188.5069,
+        282.17065,
+        400.36212
+      ],
+      "transform": [
+        [
+          1.10949,
+          0.0,
+          -50.8094
+        ],
+        [
+          -0.0,
+          1.10949,
+          -153.00711
+        ]
+      ],
+      "scale": 1.109491,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 2,
+      "age": 11,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age11_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/02_age11.png",
+      "output_name": "02_age11.png",
+      "detection_score_before": 0.936737,
+      "detection_score_after": 0.936612,
+      "source_landmarks": [
+        [
+          318.29593,
+          410.69623
+        ],
+        [
+          446.88947,
+          403.98743
+        ],
+        [
+          390.23422,
+          484.55316
+        ],
+        [
+          334.56744,
+          547.19531
+        ],
+        [
+          442.67938,
+          541.61633
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          318.03708,
+          347.83902
+        ],
+        [
+          448.88046,
+          338.98914
+        ],
+        [
+          392.19568,
+          421.77753
+        ],
+        [
+          336.96432,
+          487.61157
+        ],
+        [
+          447.14777,
+          480.18539
+        ]
+      ],
+      "source_eye": [
+        382.5927,
+        407.34183,
+        128.76842,
+        -2.98645,
+        241.63907,
+        251.34254,
+        270.5238,
+        391.74387
+      ],
+      "aligned_eye": [
+        383.45877,
+        343.41408,
+        131.14233,
+        -3.86943,
+        242.42007,
+        185.50386,
+        271.56586,
+        400.60147
+      ],
+      "transform": [
+        [
+          1.0047,
+          0.0,
+          -0.45307
+        ],
+        [
+          -0.0,
+          1.0047,
+          -65.25612
+        ]
+      ],
+      "scale": 1.0047,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 3,
+      "age": 14,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age14_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/03_age14.png",
+      "output_name": "03_age14.png",
+      "detection_score_before": 0.939357,
+      "detection_score_after": 0.935707,
+      "source_landmarks": [
+        [
+          323.70108,
+          380.01971
+        ],
+        [
+          445.0502,
+          381.3862
+        ],
+        [
+          383.0015,
+          456.53879
+        ],
+        [
+          331.96432,
+          512.57629
+        ],
+        [
+          431.15289,
+          512.47833
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          320.85876,
+          342.86414
+        ],
+        [
+          447.37308,
+          342.65234
+        ],
+        [
+          382.35175,
+          424.87454
+        ],
+        [
+          330.19324,
+          483.37192
+        ],
+        [
+          434.08859,
+          482.32938
+        ]
+      ],
+      "source_eye": [
+        384.37564,
+        380.70296,
+        121.35681,
+        0.64517,
+        253.42119,
+        241.29216,
+        264.31467,
+        361.1525
+      ],
+      "aligned_eye": [
+        384.11592,
+        342.75824,
+        126.51449,
+        -0.09592,
+        249.84003,
+        194.714,
+        271.71423,
+        384.67178
+      ],
+      "transform": [
+        [
+          1.06606,
+          0.0,
+          -25.82964
+        ],
+        [
+          -0.0,
+          1.06606,
+          -61.85193
+        ]
+      ],
+      "scale": 1.06606,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 4,
+      "age": 18,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age18_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/04_age18.png",
+      "output_name": "04_age18.png",
+      "detection_score_before": 0.942008,
+      "detection_score_after": 0.938831,
+      "source_landmarks": [
+        [
+          317.71466,
+          358.39291
+        ],
+        [
+          448.15179,
+          355.25549
+        ],
+        [
+          387.4549,
+          433.83228
+        ],
+        [
+          330.3432,
+          497.57623
+        ],
+        [
+          442.75046,
+          494.34036
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          325.60431,
+          342.8942
+        ],
+        [
+          447.82205,
+          345.72198
+        ],
+        [
+          383.43677,
+          421.79227
+        ],
+        [
+          330.90887,
+          476.26501
+        ],
+        [
+          432.54156,
+          477.66614
+        ]
+      ],
+      "source_eye": [
+        382.93323,
+        356.8242,
+        130.47486,
+        -1.37788,
+        240.8558,
+        208.85226,
+        269.97839,
+        392.362
+      ],
+      "aligned_eye": [
+        386.71318,
+        344.30809,
+        122.25045,
+        1.32543,
+        255.85471,
+        200.87257,
+        262.97662,
+        366.70255
+      ],
+      "transform": [
+        [
+          0.99156,
+          0.0,
+          4.23661
+        ],
+        [
+          -0.0,
+          0.99156,
+          -9.81231
+        ]
+      ],
+      "scale": 0.99156,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 5,
+      "age": 24,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age24_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/05_age24.png",
+      "output_name": "05_age24.png",
+      "detection_score_before": 0.941067,
+      "detection_score_after": 0.940363,
+      "source_landmarks": [
+        [
+          316.12646,
+          348.29144
+        ],
+        [
+          442.68292,
+          344.07031
+        ],
+        [
+          384.065,
+          420.73126
+        ],
+        [
+          329.81464,
+          482.41898
+        ],
+        [
+          437.8555,
+          478.629
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          324.53622,
+          344.05524
+        ],
+        [
+          452.13376,
+          344.92331
+        ],
+        [
+          386.27271,
+          426.34714
+        ],
+        [
+          331.34927,
+          482.52466
+        ],
+        [
+          440.09927,
+          482.46234
+        ]
+      ],
+      "source_eye": [
+        379.40469,
+        346.18088,
+        126.62683,
+        -1.91032,
+        243.0134,
+        194.79678,
+        265.29071,
+        382.95398
+      ],
+      "aligned_eye": [
+        388.33499,
+        344.48927,
+        127.60049,
+        0.38979,
+        253.45486,
+        197.34966,
+        269.00153,
+        386.7662
+      ],
+      "transform": [
+        [
+          1.02169,
+          0.0,
+          -3.69695
+        ],
+        [
+          -0.0,
+          1.02169,
+          -9.69002
+        ]
+      ],
+      "scale": 1.021692,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 6,
+      "age": 30,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age30_imagegen_candidate03.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/06_age30.png",
+      "output_name": "06_age30.png",
+      "detection_score_before": 0.938591,
+      "detection_score_after": 0.938702,
+      "source_landmarks": [
+        [
+          314.56918,
+          342.64249
+        ],
+        [
+          443.82043,
+          340.99728
+        ],
+        [
+          381.01147,
+          419.42786
+        ],
+        [
+          324.95288,
+          478.03802
+        ],
+        [
+          437.52551,
+          476.17566
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          324.37262,
+          341.28345
+        ],
+        [
+          451.42163,
+          344.82596
+        ],
+        [
+          383.7168,
+          424.03961
+        ],
+        [
+          326.62335,
+          475.98523
+        ],
+        [
+          437.25024,
+          478.48523
+        ]
+      ],
+      "source_eye": [
+        379.19481,
+        341.81989,
+        129.26172,
+        -0.72926,
+        242.98059,
+        182.10165,
+        265.69165,
+        398.39307
+      ],
+      "aligned_eye": [
+        387.89713,
+        343.0547,
+        127.09839,
+        1.59717,
+        253.47849,
+        196.48033,
+        267.19727,
+        379.81332
+      ],
+      "transform": [
+        [
+          1.00087,
+          0.0,
+          4.41472
+        ],
+        [
+          -0.0,
+          1.00087,
+          1.88442
+        ]
+      ],
+      "scale": 1.000866,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 7,
+      "age": 36,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age36_imagegen_candidate01.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/07_age36.png",
+      "output_name": "07_age36.png",
+      "detection_score_before": 0.938252,
+      "detection_score_after": 0.937111,
+      "source_landmarks": [
+        [
+          320.73956,
+          336.94568
+        ],
+        [
+          449.96381,
+          345.16925
+        ],
+        [
+          377.46432,
+          423.21292
+        ],
+        [
+          317.34543,
+          473.61511
+        ],
+        [
+          432.00061,
+          480.14352
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          319.78189,
+          338.39642
+        ],
+        [
+          448.90393,
+          346.36884
+        ],
+        [
+          377.05295,
+          424.73715
+        ],
+        [
+          317.05136,
+          474.73099
+        ],
+        [
+          431.09106,
+          481.30261
+        ]
+      ],
+      "source_eye": [
+        385.35168,
+        341.05746,
+        129.48564,
+        3.64128,
+        249.02843,
+        191.11386,
+        270.94339,
+        388.89301
+      ],
+      "aligned_eye": [
+        384.34291,
+        342.38263,
+        129.36793,
+        3.53314,
+        248.06262,
+        191.36156,
+        271.05316,
+        389.29385
+      ],
+      "transform": [
+        [
+          0.99914,
+          0.0,
+          -1.08051
+        ],
+        [
+          -0.0,
+          0.99914,
+          3.23782
+        ]
+      ],
+      "scale": 0.999135,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 8,
+      "age": 46,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age46_imagegen_candidate02.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/08_age46.png",
+      "output_name": "08_age46.png",
+      "detection_score_before": 0.939564,
+      "detection_score_after": 0.93924,
+      "source_landmarks": [
+        [
+          317.92609,
+          339.75482
+        ],
+        [
+          449.07452,
+          339.68439
+        ],
+        [
+          384.89194,
+          417.71991
+        ],
+        [
+          325.15546,
+          474.66681
+        ],
+        [
+          442.15762,
+          474.86255
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          317.48886,
+          341.92142
+        ],
+        [
+          449.37192,
+          341.93149
+        ],
+        [
+          385.181,
+          420.24921
+        ],
+        [
+          324.49115,
+          476.92236
+        ],
+        [
+          442.24103,
+          477.10211
+        ]
+      ],
+      "source_eye": [
+        383.50031,
+        339.7196,
+        131.14846,
+        -0.03077,
+        242.61893,
+        181.88277,
+        268.77484,
+        401.9335
+      ],
+      "aligned_eye": [
+        383.43039,
+        341.92645,
+        131.88306,
+        0.00438,
+        241.93013,
+        184.8652,
+        269.25162,
+        400.66223
+      ],
+      "transform": [
+        [
+          0.98647,
+          0.0,
+          5.62741
+        ],
+        [
+          -0.0,
+          0.98647,
+          8.87805
+        ]
+      ],
+      "scale": 0.986467,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 9,
+      "age": 51,
+      "source_path": "data/personas/persona_miyeong/age_candidates/age51_imagegen_candidate02.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/09_age51.png",
+      "output_name": "09_age51.png",
+      "detection_score_before": 0.938639,
+      "detection_score_after": 0.93844,
+      "source_landmarks": [
+        [
+          317.29581,
+          339.39139
+        ],
+        [
+          451.62585,
+          340.96988
+        ],
+        [
+          384.87454,
+          420.99588
+        ],
+        [
+          322.36853,
+          479.49185
+        ],
+        [
+          442.487,
+          481.5719
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          320.09793,
+          340.39246
+        ],
+        [
+          448.49316,
+          343.17194
+        ],
+        [
+          385.16113,
+          419.52063
+        ],
+        [
+          324.22672,
+          474.98227
+        ],
+        [
+          437.3009,
+          477.41235
+        ]
+      ],
+      "source_eye": [
+        384.46083,
+        340.18063,
+        134.33932,
+        0.67324,
+        240.28078,
+        177.39813,
+        272.62509,
+        419.52026
+      ],
+      "aligned_eye": [
+        384.29555,
+        341.7822,
+        128.42531,
+        1.24014,
+        242.6181,
+        183.63432,
+        268.13452,
+        399.11276
+      ],
+      "transform": [
+        [
+          0.96304,
+          0.0,
+          13.68812
+        ],
+        [
+          -0.0,
+          0.96304,
+          16.39398
+        ]
+      ],
+      "scale": 0.963037,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 10,
+      "age": 56,
+      "source_path": "data/personas/persona_miyeong/source/miyeong_05.png",
+      "output_path": "data/personas/persona_miyeong/aligned/age_path_final/10_age56.png",
+      "output_name": "10_age56.png",
+      "detection_score_before": 0.939277,
+      "detection_score_after": 0.938821,
+      "source_landmarks": [
+        [
+          320.02719,
+          335.35565
+        ],
+        [
+          454.11377,
+          339.43423
+        ],
+        [
+          389.0264,
+          418.71402
+        ],
+        [
+          322.89975,
+          474.70029
+        ],
+        [
+          442.62787,
+          478.52859
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          319.57617,
+          338.56677
+        ],
+        [
+          446.4819,
+          345.63718
+        ],
+        [
+          383.53674,
+          418.58606
+        ],
+        [
+          318.54941,
+          472.58612
+        ],
+        [
+          430.99979,
+          478.7265
+        ]
+      ],
+      "source_eye": [
+        387.07048,
+        337.39494,
+        134.14859,
+        1.74226,
+        238.41193,
+        177.1256,
+        275.4151,
+        412.54984
+      ],
+      "aligned_eye": [
+        383.02904,
+        342.10197,
+        127.10254,
+        3.18887,
+        236.95515,
+        187.15283,
+        272.86288,
+        397.49695
+      ],
+      "transform": [
+        [
+          0.96441,
+          0.0,
+          10.64495
+        ],
+        [
+          -0.0,
+          0.96441,
+          18.61474
+        ]
+      ],
+      "scale": 0.964406,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    }
+  ]
+}

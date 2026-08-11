@@ -1,0 +1,870 @@
+{
+  "version": 1,
+  "created_at": "2026-08-11T05:18:52.429665+00:00",
+  "purpose": "RIFE-ready selected age keyframes",
+  "order": "youngest_to_current",
+  "canvas": {
+    "width": 768,
+    "height": 1024
+  },
+  "alignment": {
+    "type": "eye-center global scale and translation",
+    "target_eye_center": [
+      389.3201,
+      342.24797
+    ],
+    "target_eye_span": 127.08472,
+    "target_eye_angle_degrees": -2.90029,
+    "rotation_alignment_enabled": false,
+    "nonrigid_face_warp": false,
+    "photometric_normalization": false,
+    "child_torso_stabilization": {
+      "enabled": false,
+      "endpoint_ages": [
+        8,
+        15
+      ],
+      "scope": "monotonic same-image remap below y=620/1024",
+      "face_pixels_changed": false
+    }
+  },
+  "rows": [
+    {
+      "index": 1,
+      "age": 8,
+      "source_path": "data/personas/persona_yujin/age_candidates/age08_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/01_age08.png",
+      "output_name": "01_age08.png",
+      "detection_score_before": 0.943795,
+      "detection_score_after": 0.940163,
+      "source_landmarks": [
+        [
+          325.75638,
+          422.06134
+        ],
+        [
+          451.15045,
+          415.15002
+        ],
+        [
+          394.78638,
+          490.97049
+        ],
+        [
+          345.05682,
+          545.93213
+        ],
+        [
+          451.49353,
+          539.77771
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          331.7959,
+          347.81348
+        ],
+        [
+          449.76825,
+          341.44434
+        ],
+        [
+          398.94138,
+          413.57632
+        ],
+        [
+          350.14615,
+          464.37201
+        ],
+        [
+          448.58075,
+          458.2825
+        ]
+      ],
+      "source_eye": [
+        388.45341,
+        418.60568,
+        125.58439,
+        -3.15477,
+        258.63632,
+        285.03769,
+        252.86958,
+        343.55603
+      ],
+      "aligned_eye": [
+        390.78207,
+        344.62891,
+        118.14416,
+        -3.09031,
+        261.66852,
+        206.00539,
+        251.11928,
+        336.75589
+      ],
+      "transform": [
+        [
+          1.01195,
+          0.0,
+          -3.77407
+        ],
+        [
+          -0.0,
+          1.01195,
+          -81.35869
+        ]
+      ],
+      "scale": 1.011947,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 2,
+      "age": 10,
+      "source_path": "data/personas/persona_yujin/age_candidates/age10_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/02_age10.png",
+      "output_name": "02_age10.png",
+      "detection_score_before": 0.940766,
+      "detection_score_after": 0.936851,
+      "source_landmarks": [
+        [
+          331.07843,
+          407.21515
+        ],
+        [
+          450.379,
+          396.6745
+        ],
+        [
+          402.10648,
+          471.02484
+        ],
+        [
+          353.6579,
+          526.00452
+        ],
+        [
+          453.03979,
+          516.2002
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          328.83322,
+          344.0741
+        ],
+        [
+          459.13864,
+          339.11566
+        ],
+        [
+          401.00677,
+          420.55109
+        ],
+        [
+          345.12991,
+          476.70197
+        ],
+        [
+          454.44028,
+          472.93677
+        ]
+      ],
+      "source_eye": [
+        390.72871,
+        401.94482,
+        119.76532,
+        -5.04918,
+        258.62518,
+        259.81967,
+        255.23357,
+        348.49756
+      ],
+      "aligned_eye": [
+        393.98593,
+        341.59488,
+        130.39973,
+        -2.17919,
+        252.90596,
+        188.59248,
+        268.33719,
+        377.68808
+      ],
+      "transform": [
+        [
+          1.06111,
+          0.0,
+          -25.28783
+        ],
+        [
+          -0.0,
+          1.06111,
+          -84.26153
+        ]
+      ],
+      "scale": 1.061115,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 3,
+      "age": 12,
+      "source_path": "data/personas/persona_yujin/age_candidates/age12_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/03_age12.png",
+      "output_name": "03_age12.png",
+      "detection_score_before": 0.940969,
+      "detection_score_after": 0.940256,
+      "source_landmarks": [
+        [
+          327.10333,
+          386.11969
+        ],
+        [
+          454.60583,
+          379.97757
+        ],
+        [
+          398.25415,
+          457.97318
+        ],
+        [
+          345.01358,
+          517.32263
+        ],
+        [
+          452.88916,
+          511.81387
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          330.66949,
+          347.80939
+        ],
+        [
+          447.83578,
+          341.35687
+        ],
+        [
+          398.99658,
+          413.30261
+        ],
+        [
+          350.13736,
+          468.70203
+        ],
+        [
+          444.53595,
+          462.84198
+        ]
+      ],
+      "source_eye": [
+        390.85458,
+        383.04863,
+        127.65036,
+        -2.75795,
+        254.3651,
+        243.75752,
+        257.0961,
+        363.87234
+      ],
+      "aligned_eye": [
+        389.25264,
+        344.58313,
+        117.34383,
+        -3.15218,
+        258.40027,
+        208.1174,
+        252.69107,
+        338.97052
+      ],
+      "transform": [
+        [
+          0.99557,
+          0.0,
+          0.19745
+        ],
+        [
+          -0.0,
+          0.99557,
+          -39.10331
+        ]
+      ],
+      "scale": 0.995569,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 4,
+      "age": 15,
+      "source_path": "data/personas/persona_yujin/age_candidates/age15_imagegen_identity_v1.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/04_age15.png",
+      "output_name": "04_age15.png",
+      "detection_score_before": 0.942867,
+      "detection_score_after": 0.940158,
+      "source_landmarks": [
+        [
+          324.85089,
+          360.8223
+        ],
+        [
+          452.13644,
+          355.18222
+        ],
+        [
+          395.10828,
+          433.42181
+        ],
+        [
+          340.72723,
+          491.02637
+        ],
+        [
+          450.72388,
+          485.83942
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          330.83853,
+          349.05161
+        ],
+        [
+          451.07056,
+          340.98114
+        ],
+        [
+          400.40332,
+          415.17798
+        ],
+        [
+          351.24985,
+          469.64285
+        ],
+        [
+          450.69427,
+          462.14951
+        ]
+      ],
+      "source_eye": [
+        388.49367,
+        358.00226,
+        127.41045,
+        -2.53714,
+        251.04448,
+        217.85228,
+        259.70676,
+        368.35489
+      ],
+      "aligned_eye": [
+        390.95454,
+        345.01637,
+        120.50258,
+        -3.84017,
+        260.50778,
+        207.25996,
+        252.32811,
+        341.39102
+      ],
+      "transform": [
+        [
+          0.99744,
+          0.0,
+          1.81963
+        ],
+        [
+          -0.0,
+          0.99744,
+          -14.83904
+        ]
+      ],
+      "scale": 0.997443,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 5,
+      "age": 18,
+      "source_path": "data/personas/persona_yujin/age_candidates/age18_imagegen_candidate03.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/05_age18.png",
+      "output_name": "05_age18.png",
+      "detection_score_before": 0.940658,
+      "detection_score_after": 0.938853,
+      "source_landmarks": [
+        [
+          329.56546,
+          346.37125
+        ],
+        [
+          451.66647,
+          338.12469
+        ],
+        [
+          402.05615,
+          413.84958
+        ],
+        [
+          350.39273,
+          470.69061
+        ],
+        [
+          451.03314,
+          463.20575
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          327.28601,
+          345.44385
+        ],
+        [
+          454.40338,
+          338.28302
+        ],
+        [
+          402.98929,
+          418.31238
+        ],
+        [
+          346.17743,
+          477.26004
+        ],
+        [
+          451.26648,
+          471.24127
+        ]
+      ],
+      "source_eye": [
+        390.61597,
+        342.24797,
+        122.37918,
+        -3.86382,
+        254.43698,
+        194.511,
+        258.5816,
+        360.18271
+      ],
+      "aligned_eye": [
+        390.8447,
+        341.86343,
+        127.3189,
+        -3.2242,
+        247.21858,
+        188.55803,
+        266.04922,
+        377.70358
+      ],
+      "transform": [
+        [
+          1.03845,
+          0.0,
+          -16.31525
+        ],
+        [
+          -0.0,
+          1.03845,
+          -13.15961
+        ]
+      ],
+      "scale": 1.038451,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 6,
+      "age": 21,
+      "source_path": "data/personas/persona_yujin/age_candidates/age21_imagegen_candidate01.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/06_age21.png",
+      "output_name": "06_age21.png",
+      "detection_score_before": 0.943095,
+      "detection_score_after": 0.939795,
+      "source_landmarks": [
+        [
+          329.12106,
+          344.4476
+        ],
+        [
+          452.87399,
+          334.16028
+        ],
+        [
+          403.4361,
+          411.27234
+        ],
+        [
+          350.612,
+          466.10867
+        ],
+        [
+          455.47589,
+          456.89557
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          327.73541,
+          346.95801
+        ],
+        [
+          454.58713,
+          337.62189
+        ],
+        [
+          404.57861,
+          418.53397
+        ],
+        [
+          349.42038,
+          477.38086
+        ],
+        [
+          453.77246,
+          469.21075
+        ]
+      ],
+      "source_eye": [
+        390.99753,
+        339.30394,
+        124.17978,
+        -4.75195,
+        255.11682,
+        191.22084,
+        258.9198,
+        359.02896
+      ],
+      "aligned_eye": [
+        391.16127,
+        342.28995,
+        127.19481,
+        -4.20931,
+        248.44887,
+        190.58961,
+        265.15994,
+        371.63016
+      ],
+      "transform": [
+        [
+          1.02339,
+          0.0,
+          -10.82405
+        ],
+        [
+          -0.0,
+          1.02339,
+          -4.99332
+        ]
+      ],
+      "scale": 1.023393,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 7,
+      "age": 24,
+      "source_path": "data/personas/persona_yujin/age_candidates/age24_imagegen_candidate01.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/07_age24.png",
+      "output_name": "07_age24.png",
+      "detection_score_before": 0.939618,
+      "detection_score_after": 0.938924,
+      "source_landmarks": [
+        [
+          325.38474,
+          343.68854
+        ],
+        [
+          452.71402,
+          338.16992
+        ],
+        [
+          400.03873,
+          417.64563
+        ],
+        [
+          342.59479,
+          477.73929
+        ],
+        [
+          446.87961,
+          473.0932
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          326.26389,
+          344.13864
+        ],
+        [
+          454.92175,
+          339.32373
+        ],
+        [
+          400.27707,
+          419.87799
+        ],
+        [
+          342.82895,
+          480.00397
+        ],
+        [
+          449.19434,
+          475.85654
+        ]
+      ],
+      "source_eye": [
+        389.04938,
+        340.92923,
+        127.44882,
+        -2.48172,
+        245.78279,
+        186.40778,
+        269.39792,
+        381.84534
+      ],
+      "aligned_eye": [
+        390.59282,
+        341.73119,
+        128.74793,
+        -2.14325,
+        247.08421,
+        185.89052,
+        268.94302,
+        387.22488
+      ],
+      "transform": [
+        [
+          0.99714,
+          0.0,
+          1.38218
+        ],
+        [
+          -0.0,
+          0.99714,
+          2.29272
+        ]
+      ],
+      "scale": 0.997143,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 8,
+      "age": 27,
+      "source_path": "data/personas/persona_yujin/age_candidates/age27_imagegen_candidate01.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/08_age27.png",
+      "output_name": "08_age27.png",
+      "detection_score_before": 0.94098,
+      "detection_score_after": 0.940068,
+      "source_landmarks": [
+        [
+          325.36487,
+          342.71756
+        ],
+        [
+          453.27533,
+          338.45471
+        ],
+        [
+          399.82153,
+          417.87054
+        ],
+        [
+          340.76608,
+          477.71588
+        ],
+        [
+          446.50812,
+          474.14563
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          326.97888,
+          343.03104
+        ],
+        [
+          455.86023,
+          339.3707
+        ],
+        [
+          402.04318,
+          419.78326
+        ],
+        [
+          341.97333,
+          479.14679
+        ],
+        [
+          448.70831,
+          475.99182
+        ]
+      ],
+      "source_eye": [
+        389.3201,
+        340.58614,
+        127.98148,
+        -1.90878,
+        245.30113,
+        185.98213,
+        270.63522,
+        385.4285
+      ],
+      "aligned_eye": [
+        391.41956,
+        341.20087,
+        128.93332,
+        -1.62681,
+        245.2305,
+        185.20033,
+        269.75848,
+        388.14743
+      ],
+      "transform": [
+        [
+          0.99299,
+          0.0,
+          2.72794
+        ],
+        [
+          -0.0,
+          0.99299,
+          4.0483
+        ]
+      ],
+      "scale": 0.992993,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 9,
+      "age": 30,
+      "source_path": "data/personas/persona_yujin/source/yujin_05.png",
+      "output_path": "data/personas/persona_yujin/aligned/age_path_final/09_age30.png",
+      "output_name": "09_age30.png",
+      "detection_score_before": 0.942346,
+      "detection_score_after": 0.942507,
+      "source_landmarks": [
+        [
+          324.25769,
+          342.58868
+        ],
+        [
+          451.17963,
+          336.15845
+        ],
+        [
+          399.26163,
+          415.17166
+        ],
+        [
+          341.97018,
+          475.32233
+        ],
+        [
+          446.92542,
+          469.82062
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          326.07776,
+          343.52939
+        ],
+        [
+          454.77319,
+          338.69357
+        ],
+        [
+          400.12164,
+          417.65622
+        ],
+        [
+          341.9812,
+          477.37988
+        ],
+        [
+          450.25757,
+          472.97543
+        ]
+      ],
+      "source_eye": [
+        387.71866,
+        339.37357,
+        127.08472,
+        -2.90029,
+        245.97305,
+        186.97942,
+        268.82361,
+        380.02646
+      ],
+      "aligned_eye": [
+        390.42548,
+        341.11148,
+        128.78626,
+        -2.15191,
+        246.87691,
+        186.93121,
+        271.80356,
+        385.99396
+      ],
+      "transform": [
+        [
+          1.0,
+          0.0,
+          1.60144
+        ],
+        [
+          -0.0,
+          1.0,
+          2.8744
+        ]
+      ],
+      "scale": 1.0,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": null,
+      "torso_metrics_target": null,
+      "torso_metrics_after": null,
+      "torso_remap_passes": [],
+      "warnings": []
+    }
+  ]
+}

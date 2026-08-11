@@ -7,13 +7,19 @@
   "age_source": "manual_age",
   "biological_sex": "male",
   "population_group": "korean",
+  "path_mode": "selected",
   "extra_ages": [],
   "selections": {
     "54": "age54_imagegen_candidate04.png",
     "49": "age49_imagegen_candidate03.png",
     "44": "age44_imagegen_candidate02.png",
     "36": "age36_imagegen_candidate01.png",
-    "30": "age30_imagegen_candidate03.png"
+    "30": "age30_imagegen_candidate03.png",
+    "24": "age24_imagegen_identity_v1.png",
+    "18": "age18_imagegen_identity_v1.png",
+    "14": "age14_imagegen_identity_v1.png",
+    "11": "age11_imagegen_identity_v1.png",
+    "8": "age08_imagegen_identity_v1.png"
   },
   "updated_at": "2026-08-11T00:41:38.531598+00:00"
 }
