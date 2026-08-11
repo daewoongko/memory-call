@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../api.js";
+import { calculateCallStyle, callStylePersonaPatch } from "../callStyle.js";
+import CallStyleQuiz from "../components/CallStyleQuiz.jsx";
 
 /**
  * 가족 페르소나 등록.
@@ -39,6 +41,8 @@ const validationStatusLabel = (status) => ({
 
 export default function PersonaPanel() {
   const [data, setData] = useState(null);
+  const [personaTargets, setPersonaTargets] = useState([]);
+  const [selectedPersonaId, setSelectedPersonaId] = useState("");
   const [persona, setPersona] = useState({});
   const [elder, setElder] = useState({});
   const [agePlan, setAgePlan] = useState({
@@ -53,14 +57,18 @@ export default function PersonaPanel() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [quizAnswers, setQuizAnswers] = useState({});
   const fileRef = useRef(null);
+  const personaType = useMemo(() => calculateCallStyle(quizAnswers), [quizAnswers]);
 
-  const load = () =>
-    api
-      .getPersona()
-      .then((r) => {
+  const load = (personaId = selectedPersonaId) =>
+    Promise.all([api.getPersonas(), api.getPersona(personaId || undefined)])
+      .then(([targetData, r]) => {
+        setPersonaTargets(targetData.personas.filter((target) => target.ready));
         setData(r);
         setPersona(r.persona ?? {});
+        setQuizAnswers(r.persona?.call_style_answers ?? {});
+        setSelectedPersonaId(r.persona?.persona_id ?? "");
         setElder(r.elder ?? {});
         setAgePlan(r.age_plan ?? { current_age: "", current_photo: null, stages: [] });
       })
@@ -77,7 +85,7 @@ export default function PersonaPanel() {
     try {
       await fn();
       setNote(message);
-      await load();
+      await load(selectedPersonaId);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -96,9 +104,23 @@ export default function PersonaPanel() {
           tone: persona.tone,
           frequent_phrases: fromLines(toLines(persona.frequent_phrases)),
           forbidden_phrases: fromLines(toLines(persona.forbidden_phrases)),
-        }),
+          call_style_code: persona.call_style_code,
+          call_style_name: persona.call_style_name,
+          call_style_scores: persona.call_style_scores,
+          call_style_answers: persona.call_style_answers,
+        }, selectedPersonaId),
       "페르소나를 저장했어요."
     );
+
+  const applyPersonaType = () => {
+    if (!personaType) return;
+    const stylePatch = callStylePersonaPatch(personaType, quizAnswers);
+    setPersona({
+      ...persona,
+      ...stylePatch,
+    });
+    setNote(`${personaType.code} · ${personaType.name} 말투 초안을 적용했어요. 저장하면 실제 통화에 반영됩니다.`);
+  };
 
   const saveElder = () =>
     guard(
@@ -116,7 +138,7 @@ export default function PersonaPanel() {
 
   const upload = (files) =>
     files?.length &&
-    guard(() => api.uploadFaces(files), `사진 ${files.length}장을 올렸어요.`);
+    guard(() => api.uploadFaces(files, selectedPersonaId), `사진 ${files.length}장을 올렸어요.`);
 
   const uploadIdentity = (files) => {
     if (!files?.length) return;
@@ -127,7 +149,7 @@ export default function PersonaPanel() {
       return;
     }
     guard(async () => {
-      const result = await api.uploadIdentityPhotos(files);
+      const result = await api.uploadIdentityPhotos(files, selectedPersonaId);
       if (result.errors?.length) {
         await load();
         throw new Error(
@@ -140,7 +162,7 @@ export default function PersonaPanel() {
 
   const prepare = () =>
     guard(async () => {
-      const r = await api.prepareFaces();
+      const r = await api.prepareFaces(selectedPersonaId);
       if (!r.ok) throw new Error("정렬에 실패했어요. 사진 형식을 확인해 주세요.");
     }, "사진을 정렬했어요.");
 
@@ -169,7 +191,7 @@ export default function PersonaPanel() {
         current_photo_date: agePlan.current_photo_date || null,
         biological_sex: agePlan.biological_sex || "unspecified",
         population_group: agePlan.population_group || "unspecified",
-      }),
+      }, selectedPersonaId),
       "현재 나이와 과거 얼굴 생성 순서를 저장했어요."
     );
   };
@@ -183,7 +205,7 @@ export default function PersonaPanel() {
       )
     ) return;
     guard(
-      () => api.selectAgeCandidate(stage.age, candidate.name),
+      () => api.selectAgeCandidate(stage.age, candidate.name, selectedPersonaId),
       `${stage.age}세 후보를 선택했어요.`
     );
   };
@@ -210,8 +232,29 @@ export default function PersonaPanel() {
       <section className="meds">
         <h2>가족 페르소나</h2>
         <p className="hint">
-          여기 적은 말투와 호칭이 그대로 통화에 쓰여요.
+          가족을 선택한 뒤 질문에 답하면, 각자의 말투와 호칭이 따로 통화에 쓰여요.
         </p>
+
+        <div className="family-persona-selector" aria-label="설정할 가족 선택">
+          {personaTargets.map((target) => (
+            <button
+              type="button"
+              key={target.persona_id}
+              className={selectedPersonaId === target.persona_id ? "selected" : ""}
+              onClick={() => {
+                setQuizAnswers({});
+                setNote("");
+                setSelectedPersonaId(target.persona_id);
+                load(target.persona_id);
+              }}
+            >
+              {target.face ? <img src={target.face} alt="" /> : <span>{target.display_name.slice(0, 1)}</span>}
+              <strong>{target.display_name}</strong>
+              <small>{target.relationship}</small>
+              <i>{target.call_style_code ? `${target.call_style_code} · ${target.call_style_name}` : "통화 유형 미설정"}</i>
+            </button>
+          ))}
+        </div>
 
         <div className="field-grid">
           <label>
@@ -255,35 +298,40 @@ export default function PersonaPanel() {
           </label>
         </div>
 
-        <label className="block">
-          말투
-          <input
-            placeholder="따뜻하고 편안한 반말. 서두르지 않고 천천히."
-            value={persona.tone ?? ""}
-            onChange={(e) => setPersona({ ...persona, tone: e.target.value })}
-          />
-        </label>
+        <CallStyleQuiz answers={quizAnswers} onAnswers={setQuizAnswers} onApply={applyPersonaType} />
 
-        <div className="field-grid">
+        <details className="persona-advanced">
+          <summary>적용된 말투와 문장 직접 조정</summary>
           <label className="block">
-            자주 쓰는 말 <span className="hint">한 줄에 하나씩</span>
-            <textarea
-              value={toLines(persona.frequent_phrases)}
-              onChange={(e) =>
-                setPersona({ ...persona, frequent_phrases: e.target.value.split("\n") })
-              }
+            말투
+            <input
+              placeholder="따뜻하고 편안한 반말. 서두르지 않고 천천히."
+              value={persona.tone ?? ""}
+              onChange={(e) => setPersona({ ...persona, tone: e.target.value })}
             />
           </label>
-          <label className="block">
-            쓰면 안 되는 말 <span className="hint">한 줄에 하나씩</span>
-            <textarea
-              value={toLines(persona.forbidden_phrases)}
-              onChange={(e) =>
-                setPersona({ ...persona, forbidden_phrases: e.target.value.split("\n") })
-              }
-            />
-          </label>
-        </div>
+
+          <div className="field-grid">
+            <label className="block">
+              자주 쓰는 말 <span className="hint">한 줄에 하나씩</span>
+              <textarea
+                value={toLines(persona.frequent_phrases)}
+                onChange={(e) =>
+                  setPersona({ ...persona, frequent_phrases: e.target.value.split("\n") })
+                }
+              />
+            </label>
+            <label className="block">
+              쓰면 안 되는 말 <span className="hint">한 줄에 하나씩</span>
+              <textarea
+                value={toLines(persona.forbidden_phrases)}
+                onChange={(e) =>
+                  setPersona({ ...persona, forbidden_phrases: e.target.value.split("\n") })
+                }
+              />
+            </label>
+          </div>
+        </details>
 
         <button className="save" onClick={savePersona} disabled={busy}>
           페르소나 저장
@@ -334,7 +382,7 @@ export default function PersonaPanel() {
                   <button
                     disabled={busy}
                     onClick={() => guard(
-                      () => api.deleteIdentityPhoto(photo.name),
+                      () => api.deleteIdentityPhoto(photo.name, selectedPersonaId),
                       "사진을 지웠어요."
                     )}
                   >
@@ -437,13 +485,19 @@ export default function PersonaPanel() {
             <p className="hint">
               생성 사진 {Math.max(0, agePlan.stages.length - 1)}장 + 현재 원본 1장
             </p>
-            <div className="age-timeline" aria-label="과거에서 현재까지의 얼굴 순서">
-              {agePlan.stages.map((stage) => (
-                <span className={stage.kind === "current" ? "age-stage current" : "age-stage"} key={`${stage.kind}-${stage.age}`}>
-                  <b>{stage.age}세</b>
-                  {stage.kind === "current" ? <small>현재 원본</small> : <small>생성 앵커</small>}
-                </span>
-              ))}
+            <div className="age-anchor-grid" aria-label="과거에서 현재까지 선택된 얼굴 순서">
+              {agePlan.stages.map((stage) => {
+                const selectedCandidate = stage.candidates?.find((candidate) => candidate.name === stage.selected);
+                const preview = stage.kind === "current" ? stage.url : selectedCandidate?.url;
+                return <article className={`age-anchor ${stage.kind === "current" ? "current" : ""} ${preview ? "selected" : "empty"}`} key={`${stage.kind}-${stage.age}`}>
+                  <div className="age-anchor-image">
+                    {preview ? <img src={preview} alt={`${stage.age}세 ${stage.kind === "current" ? "현재 얼굴" : "선택 얼굴"}`} /> : <span>?</span>}
+                    <b>{stage.age}세</b>
+                  </div>
+                  <strong>{stage.kind === "current" ? "현재 원본" : stage.selected ? "선택 완료" : "선택 필요"}</strong>
+                  <small>{stage.kind === "current" ? "변경하지 않음" : `후보 ${stage.candidates?.length || 0}개`}</small>
+                </article>;
+              })}
             </div>
           </>
         )}
@@ -455,15 +509,26 @@ export default function PersonaPanel() {
                 <section className="candidate-group" key={`candidates-${stage.age}`}>
                   <h3>{stage.age}세 후보 — 과거의 나와 가장 닮은 사진을 선택하세요</h3>
                   <div className="candidate-grid">
-                    {stage.candidates.map((candidate) => (
+                    {stage.candidates.map((candidate, candidateIndex) => (
                       <button
                         className={stage.selected === candidate.name ? "candidate selected" : "candidate"}
                         disabled={busy}
                         key={candidate.name}
                         onClick={() => choosePastCandidate(stage, candidate)}
                       >
-                        <img src={candidate.url} alt={`${stage.age}세 얼굴 후보`} />
-                        <span>{stage.selected === candidate.name ? "선택됨" : "이 사진 선택"}</span>
+                        <div className="candidate-image">
+                          <img
+                            src={candidate.url}
+                            alt={`${stage.age}세 얼굴 후보 ${candidateIndex + 1}`}
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                              event.currentTarget.parentElement.classList.add("failed");
+                            }}
+                          />
+                          <i>후보 {candidateIndex + 1}</i>
+                          {stage.selected === candidate.name && <em>✓ 현재 선택</em>}
+                        </div>
+                        <span>{stage.selected === candidate.name ? "이 사진을 사용 중" : "이 사진 선택"}</span>
                         {candidate.validation && (
                           <small className={`candidate-metrics ${candidate.validation.review_status ?? "legacy"}`}>
                             외관 나이 {candidate.validation.estimated_age}세 · 신원 {candidate.validation.identity_pass ? "통과" : "실패"}
@@ -540,7 +605,7 @@ export default function PersonaPanel() {
                   <button
                     disabled={busy}
                     onClick={() =>
-                      guard(() => api.deleteFace(f.name), "사진을 지웠어요.")
+                      guard(() => api.deleteFace(f.name, selectedPersonaId), "사진을 지웠어요.")
                     }
                   >
                     ✕

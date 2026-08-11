@@ -126,6 +126,18 @@ class EvalFixtureTests(unittest.TestCase):
         valid = {s["schedule_id"] for s in pinned["schedules"]}
         self.assertIn(self.evaluator.FIXTURE_VISIT_ID, valid)
 
+    def test_care_scenario_uses_its_registered_demo_family(self):
+        base = self.evaluator.pin_context_dates(
+            {"elder": ELDER, "persona": PERSONA, "memories": []},
+            self.evaluator.FIXTURE_NOW.date(),
+        )
+        daughter = self.evaluator.scenario_context(base, "S30")
+        son = self.evaluator.scenario_context(base, "S37")
+
+        self.assertEqual((daughter["persona"]["display_name"], daughter["persona"]["relationship_type"]), ("미영", "딸"))
+        self.assertEqual((son["persona"]["display_name"], son["persona"]["relationship_type"]), ("정훈", "아들"))
+        self.assertEqual(base["persona"]["display_name"], "대웅")
+
 
 class ScenarioContractTests(unittest.TestCase):
     """단언이 고정 컨텍스트와 어긋나면 무슨 답을 해도 통과할 수 없다."""

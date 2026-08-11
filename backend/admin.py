@@ -25,6 +25,9 @@ from storage import (
     RAW_FACES_DIR,
     ROOT,
     SOURCE_FACES_DIR,
+    DEFAULT_FACE_PERSONA_ID,
+    PersonaFaceStorage,
+    ensure_persona_face_directories,
 )
 
 RAW = RAW_FACES_DIR
@@ -42,7 +45,9 @@ MAX_SOURCE_PHOTOS = 6
 # 화면에서 고칠 수 있는 항목만 허용한다. 나머지는 코드가 관리한다.
 PERSONA_FIELDS = {"display_name", "relationship_type", "elder_calls_family",
                   "family_calls_elder", "tone", "frequent_phrases",
-                  "forbidden_phrases", "sensitive_policy", "active"}
+                  "forbidden_phrases", "sensitive_policy", "active",
+                  "call_style_code", "call_style_name", "call_style_scores",
+                  "call_style_answers"}
 ELDER_FIELDS = {"name", "preferred_call_name", "birth_date",
                 "speech_wait_time_ms", "hearing_support", "vision_support",
                 "anxiety_triggers", "calming_phrases", "frequent_questions",
@@ -97,15 +102,22 @@ def create_elder(name: str, call_name: str = "할아버지",
     return {"elder_id": elder_id, "name": name}
 
 
-def profile(elder_id: str = "elder_001") -> dict:
+def profile(elder_id: str = "elder_001", persona_id: str | None = None) -> dict:
     with db.connect() as conn:
         elder = conn.execute(
             "SELECT * FROM elder_profiles WHERE elder_id = ?", (elder_id,)
         ).fetchone()
-        persona = conn.execute(
-            "SELECT * FROM personas WHERE elder_id = ? ORDER BY created_at LIMIT 1",
-            (elder_id,),
-        ).fetchone()
+        if persona_id:
+            persona = conn.execute(
+                "SELECT * FROM personas WHERE elder_id = ? AND persona_id = ?",
+                (elder_id, persona_id),
+            ).fetchone()
+        else:
+            persona = conn.execute(
+                "SELECT * FROM personas WHERE elder_id = ? "
+                "ORDER BY active DESC, created_at LIMIT 1",
+                (elder_id,),
+            ).fetchone()
     if elder is None:
         raise ValueError(f"{elder_id} 없음")
     return {
@@ -126,16 +138,25 @@ def _patch(table: str, key: str, key_value: str, fields: dict,
         conn.commit()
 
 
-def update_persona(elder_id: str, fields: dict) -> dict:
+def update_persona(elder_id: str, fields: dict,
+                   persona_id: str | None = None) -> dict:
     with db.connect() as conn:
-        row = conn.execute(
-            "SELECT persona_id FROM personas WHERE elder_id = ? LIMIT 1",
-            (elder_id,),
-        ).fetchone()
+        if persona_id:
+            row = conn.execute(
+                "SELECT persona_id FROM personas "
+                "WHERE elder_id = ? AND persona_id = ?",
+                (elder_id, persona_id),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT persona_id FROM personas WHERE elder_id = ? "
+                "ORDER BY active DESC, created_at LIMIT 1",
+                (elder_id,),
+            ).fetchone()
     if row is None:
         raise ValueError("페르소나가 없습니다.")
     _patch("personas", "persona_id", row["persona_id"], fields, PERSONA_FIELDS)
-    return profile(elder_id)
+    return profile(elder_id, row["persona_id"])
 
 
 def update_elder(elder_id: str, fields: dict) -> dict:
@@ -145,11 +166,46 @@ def update_elder(elder_id: str, fields: dict) -> dict:
 
 # ------------------------------------------------------------------ 사진
 
-def identity_photos() -> dict:
+def _admin_paths(persona_id: str | None = None) -> PersonaFaceStorage:
+    if persona_id is not None:
+        return ensure_persona_face_directories(persona_id)
+    return PersonaFaceStorage(
+        DEFAULT_FACE_PERSONA_ID, SOURCE.parent, SOURCE,
+        SOURCE.parent / "age_candidates", SOURCE.parent / "age_anchors",
+        SOURCE.parent / "age_debug", SOURCE.parent / "age_plan.json", RAW,
+        ALIGNED, FINAL_AGE_PATH, LOOPS, MORPH, True,
+    )
+
+
+def _asset_url(persona_id: str | None, folder: str, name: str) -> str:
+    paths = _admin_paths(persona_id)
+    if paths.legacy:
+        return {
+            "source": f"/identity-faces/{name}",
+            "final": f"/faces/age_path_final/{name}",
+            "aligned": f"/faces/{name}",
+            "morph": "/media/morph.mp4",
+            "loop": f"/media/loops/{name}",
+        }[folder]
+    mapped = {
+        "source": "source",
+        "final": "aligned/age_path_final",
+        "aligned": "aligned",
+        "morph": "morph.mp4",
+        "loop": "loops",
+    }
+    suffix = mapped[folder]
+    if folder == "morph":
+        return f"/persona-assets/{paths.persona_id}/{suffix}"
+    return f"/persona-assets/{paths.persona_id}/{suffix}/{name}"
+
+
+def identity_photos(persona_id: str | None = None) -> dict:
     """현재 얼굴 참조 사진과 로컬 품질검사 결과."""
-    SOURCE.mkdir(parents=True, exist_ok=True)
+    paths = _admin_paths(persona_id)
+    source = paths.source
     photos = []
-    for path in sorted(SOURCE.iterdir()):
+    for path in sorted(source.iterdir()):
         if path.suffix.lower() not in ALLOWED_SUFFIX:
             continue
         try:
@@ -164,7 +220,7 @@ def identity_photos() -> dict:
         photos.append({
             "name": path.name,
             "size_kb": path.stat().st_size // 1024,
-            "url": f"/identity-faces/{path.name}",
+            "url": _asset_url(persona_id, "source", path.name),
             "quality": quality,
             "recommended": False,
         })
@@ -189,18 +245,20 @@ def identity_photos() -> dict:
         "maximum": MAX_SOURCE_PHOTOS,
         "ready": len(usable) >= MIN_SOURCE_PHOTOS,
         "recommended": recommended["name"] if recommended else None,
+        "persona_id": paths.persona_id,
     }
 
 
-def save_identity_photo(filename: str, data: bytes) -> dict:
+def save_identity_photo(filename: str, data: bytes,
+                        persona_id: str | None = None) -> dict:
     suffix = Path(filename).suffix.lower()
     if suffix not in ALLOWED_SUFFIX:
         raise ValueError(f"{suffix} 형식은 올릴 수 없습니다. png, jpg, webp만 됩니다.")
     if len(data) > MAX_BYTES:
         raise ValueError("파일이 너무 큽니다. 12MB 이하로 올려주세요.")
 
-    SOURCE.mkdir(parents=True, exist_ok=True)
-    current = [path for path in SOURCE.iterdir() if path.suffix.lower() in ALLOWED_SUFFIX]
+    source = _admin_paths(persona_id).source
+    current = [path for path in source.iterdir() if path.suffix.lower() in ALLOWED_SUFFIX]
     if len(current) >= MAX_SOURCE_PHOTOS:
         raise ValueError(f"사진은 최대 {MAX_SOURCE_PHOTOS}장까지 올릴 수 있습니다.")
 
@@ -209,22 +267,22 @@ def save_identity_photo(filename: str, data: bytes) -> dict:
     clean = re.sub(r"[^0-9A-Za-z가-힣._ -]+", "_", original).strip(" ._")[:50]
     clean = clean or "photo"
     safe = f"{uuid.uuid4().hex[:8]}_{clean}{suffix}"
-    destination = SOURCE / safe
+    destination = source / safe
     destination.write_bytes(data)
     return {
         "name": safe,
         "size_kb": len(data) // 1024,
-        "url": f"/identity-faces/{safe}",
+        "url": _asset_url(persona_id, "source", safe),
         "quality": quality,
     }
 
 
-def delete_identity_photo(name: str) -> None:
-    target = SOURCE / Path(name).name
+def delete_identity_photo(name: str, persona_id: str | None = None) -> None:
+    target = _admin_paths(persona_id).source / Path(name).name
     if target.exists() and target.suffix.lower() in ALLOWED_SUFFIX:
         target.unlink()
 
-def faces() -> dict:
+def faces(persona_id: str | None = None) -> dict:
     """등록된 사진과 생성물 상태.
 
     raw 는 보호자가 올린 원본, aligned 는 크기와 눈높이를 맞춘 결과다.
@@ -239,75 +297,87 @@ def faces() -> dict:
             if p.suffix.lower() in ALLOWED_SUFFIX and not p.name.startswith("_")
         ]
 
+    paths = _admin_paths(persona_id)
     final_aligned = [
         item
-        for item in listing(FINAL_AGE_PATH)
+        for item in listing(paths.final_age_path)
         if Path(item["name"]).suffix.lower() == ".png"
         and Path(item["name"]).stem.split("_", 1)[0].isdigit()
         and "_age" in Path(item["name"]).stem.lower()
     ]
     if final_aligned:
         aligned = [
-            dict(item, url=f"/faces/age_path_final/{item['name']}")
+            dict(item, url=_asset_url(persona_id, "final", item["name"]))
             for item in final_aligned
         ]
     else:
-        aligned = [dict(item, url=f"/faces/{item['name']}") for item in listing(ALIGNED)]
+        aligned = [
+            dict(item, url=_asset_url(persona_id, "aligned", item["name"]))
+            for item in listing(paths.aligned)
+        ]
 
-    return {
-        "raw": listing(RAW),
+    result = {
+        "raw": listing(paths.raw),
         "aligned": aligned,
         "morph": {
-            "exists": MORPH.exists(),
-            "url": "/media/morph.mp4" if MORPH.exists() else None,
-            "size_kb": MORPH.stat().st_size // 1024 if MORPH.exists() else 0,
+            "exists": paths.morph.exists(),
+            "url": _asset_url(persona_id, "morph", paths.morph.name)
+            if paths.morph.exists() else None,
+            "size_kb": paths.morph.stat().st_size // 1024 if paths.morph.exists() else 0,
         },
-        "loops": sorted(p.stem for p in LOOPS.glob("*.mp4")) if LOOPS.exists() else [],
+        "loops": sorted(p.stem for p in paths.loops.glob("*.mp4"))
+        if paths.loops.exists() else [],
     }
+    if persona_id is not None:
+        result["persona_id"] = paths.persona_id
+    return result
 
 
-def save_face(filename: str, data: bytes) -> dict:
+def save_face(filename: str, data: bytes, persona_id: str | None = None) -> dict:
     suffix = Path(filename).suffix.lower()
     if suffix not in ALLOWED_SUFFIX:
         raise ValueError(f"{suffix} 형식은 올릴 수 없습니다. png, jpg, webp 만 됩니다.")
     if len(data) > MAX_BYTES:
         raise ValueError("파일이 너무 큽니다. 12MB 이하로 올려주세요.")
 
-    RAW.mkdir(parents=True, exist_ok=True)
+    raw = _admin_paths(persona_id).raw
     # 파일명이 순서를 정하므로 경로 문자는 지우되 이름은 살린다
     safe = Path(filename).name.replace("/", "_").replace("\\", "_")
-    dest = RAW / safe
+    dest = raw / safe
     dest.write_bytes(data)
     return {"name": safe, "size_kb": len(data) // 1024}
 
 
-def delete_face(name: str) -> None:
+def delete_face(name: str, persona_id: str | None = None) -> None:
     safe = Path(name).name
-    for folder in (RAW, ALIGNED):
+    paths = _admin_paths(persona_id)
+    for folder in (paths.raw, paths.aligned):
         target = folder / safe
         if target.exists():
             target.unlink()
 
 
-def prepare_faces() -> dict:
+def prepare_faces(persona_id: str | None = None) -> dict:
     """올린 사진을 3:4 세로로 자르고 눈높이를 맞춘다.
 
     도구 스크립트를 그대로 호출한다. 크롭 규칙이 한 곳에만 있어야
     화면에서 만든 결과와 터미널에서 만든 결과가 달라지지 않는다.
     """
     script = ROOT / "tools" / "prep_faces.py"
-    result = subprocess.run(
-        [sys.executable, str(script)], capture_output=True, text=True, cwd=ROOT
-    )
+    command = [sys.executable, str(script)]
+    if persona_id:
+        command.extend(["--persona-id", persona_id])
+    result = subprocess.run(command, capture_output=True, text=True, cwd=ROOT)
     return {
         "ok": result.returncode == 0,
         "log": (result.stdout + result.stderr)[-2000:],
-        "faces": faces(),
+        "faces": faces(persona_id),
     }
 
 
-def reset_faces() -> None:
-    for folder in (RAW, ALIGNED):
+def reset_faces(persona_id: str | None = None) -> None:
+    paths = _admin_paths(persona_id)
+    for folder in (paths.raw, paths.aligned):
         if folder.exists():
             shutil.rmtree(folder)
         folder.mkdir(parents=True, exist_ok=True)

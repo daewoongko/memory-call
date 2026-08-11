@@ -9,6 +9,9 @@ LLM 은 마지막에 한 번만, 이미 확정된 사실을 읽기 좋은 문장
 """
 
 import json
+import re
+from collections import Counter
+from datetime import date, datetime, timedelta
 from difflib import SequenceMatcher
 
 import db
@@ -18,6 +21,16 @@ import schemas
 # 같은 질문으로 묶을 유사도 기준. 치매 노인은 표현을 조금씩 바꿔 되묻는다.
 SIMILARITY = 0.72
 MIN_REPEAT = 2
+
+RHYTHM_SIGNAL_ACTIONS = {
+    "loneliness": "연락이 몰리기 30분 전에 짧은 안부 통화를 시도해 보세요.",
+    "medication_uncertain": "해당 시간대 전에는 약통과 복약 기록을 먼저 확인해 주세요.",
+    "meal_uncertain": "해당 시간대 전에 식사 여부를 표시해 두면 반복 확인에 도움이 됩니다.",
+    "time_confusion": "시계와 오늘 날짜를 잘 보이는 곳에 함께 표시해 주세요.",
+    "place_confusion": "해당 시간대에는 현재 장소를 알려주는 익숙한 사진과 표지를 확인해 주세요.",
+    "schedule_support": "방문·외출 시간을 큰 글씨로 미리 표시해 주세요.",
+    "item_location_uncertain": "자주 찾는 물건의 고정 위치를 해당 시간 전에 함께 확인해 주세요.",
+}
 
 
 def _normalize(text: str) -> str:
@@ -153,6 +166,7 @@ def _risks(events: list[dict], utterances: list[dict]) -> list[dict]:
         "fall": "낙상", "chest_pain": "가슴 통증", "breathing": "호흡 곤란",
         "lost": "길 잃음", "overdose": "약 과다 복용 의심",
         "self_harm": "정서적 위기 표현", "intrusion": "침입", "fire": "화재",
+        "gas_leak": "가스 누출 의심",
     }
     out = []
     for e in events:
@@ -209,6 +223,343 @@ def _safety(utterances: list[dict]) -> list[dict]:
                 "reason": flag.get("reason"),
             })
     return out
+
+
+CARE_DOMAIN_LABEL = {
+    "memory_orientation": "인지·지남력",
+    "emotion": "정서",
+    "daily_living": "생활",
+}
+
+CARE_SIGNAL_LABEL = {
+    "time_confusion": "시간 혼동",
+    "place_confusion": "장소 혼동",
+    "person_confusion": "사람 혼동",
+    "recent_event_confusion": "최근 사건 혼동",
+    "past_role_confusion": "과거 역할 혼동",
+    "anxiety": "불안",
+    "fear": "두려움",
+    "loneliness": "외로움",
+    "sadness": "슬픔",
+    "agitation": "초조",
+    "anger": "분노",
+    "distrust": "불신",
+    "affection": "애정",
+    "gratitude": "고마움",
+    "apology": "미안함",
+    "longing": "그리움",
+    "pride": "자부심",
+    "joy": "기쁨",
+    "regret": "후회",
+    "worry_for_family": "가족 걱정",
+    "meal_uncertain": "식사 여부 불확실",
+    "hydration_need": "수분 섭취 필요 표현",
+    "medication_uncertain": "복약 여부 불확실",
+    "item_location_uncertain": "물건 위치 불확실",
+    "financial_concern": "재산·금융 확인 필요",
+    "schedule_support": "일정 확인 필요",
+    "task_support": "행동 순서 지원 필요",
+}
+
+MEANING_LABEL = {
+    "affection": "가족을 향한 애정",
+    "gratitude": "고마움",
+    "apology": "미안함",
+    "longing": "그리움",
+    "pride": "자부심",
+    "wish_for_family": "가족을 향한 바람",
+    "preference": "좋아하는 것",
+    "joy": "기쁨의 순간",
+    "life_story": "삶의 이야기",
+}
+
+HEART_KEYWORDS = {
+    "affection": ["안 잊", "이름", "사랑", "우리", "걱정"],
+    "gratitude": ["고맙", "감사"],
+    "apology": ["미안", "해준 것도 없"],
+    "longing": ["그립", "생각난", "그때가 참 좋", "보고 싶"],
+    "pride": ["자랑", "대견", "뿌듯"],
+    "wish_for_family": ["잘됐으면", "건강", "바라"],
+    "preference": ["좋아", "예쁘"],
+    "joy": ["좋았", "기쁘", "행복", "웃"],
+    "life_story": ["옛날", "고향", "그때", "살던"],
+}
+
+
+def _short_quote(text: str, category: str | None = None) -> str:
+    """마음 리포트용으로 원문 안의 가장 관련 있는 한 문장을 고른다."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    parts = [part.strip() for part in re.split(r"(?<=[.!?])\s+|[\r\n]+", text) if part.strip()]
+    keywords = HEART_KEYWORDS.get(category or "", [])
+    for keyword in keywords:
+        for part in parts:
+            if keyword in part:
+                return part[:220]
+    return min(parts, key=len)[:220]
+
+
+def _heart_report(care_summary: dict, moments: list[dict], mentions: list[dict],
+                  risks: list[dict], actions: list[str], unverified: list[dict],
+                  memories: list[dict], used_memory_ids: list[str],
+                  artwork: dict | None = None,
+                  memory_artworks: dict[str, dict] | None = None) -> dict:
+    """관찰 사실을 가족이 읽을 수 있는 마음 리포트로 번역한다.
+
+    새 감정을 추론하지 않는다. 마음 표현은 meaningful_moments의 직접 발화만,
+    가족 반복은 이름 횟수만, 기억 연결은 확인된 기억만 사용한다.
+    """
+    domain_counts = {
+        domain: len(care_summary.get(domain) or [])
+        for domain in CARE_DOMAIN_LABEL
+    }
+    state_parts = [
+        f"{CARE_DOMAIN_LABEL[domain]} {count}건"
+        for domain, count in domain_counts.items() if count
+    ]
+    state_line = (
+        "이번 통화에서는 " + ", ".join(state_parts) + "이 관찰되었습니다."
+        if state_parts else "이번 통화에서는 분류된 인지·정서·생활 관찰이 없었습니다."
+    )
+
+    priority = {name: index for index, name in enumerate(
+        ["apology", "affection", "worry_for_family", "longing", "gratitude",
+         "pride", "wish_for_family", "joy", "life_story", "preference"]
+    )}
+    strongest = min(
+        moments,
+        key=lambda item: priority.get(item.get("category"), 99),
+        default=None,
+    )
+    top_mention = mentions[0] if mentions else None
+    family_line = "가족에게 전할 직접적인 마음 표현은 확인되지 않았습니다."
+    if strongest:
+        quote = _short_quote(strongest.get("evidence", ""), strongest.get("category"))
+        family_line = f"“{quote}”라는 말씀은 {strongest['label']}으로 기록되었습니다."
+        if top_mention and top_mention.get("count", 0) >= 2:
+            family_line = (
+                f"{top_mention['name']}님의 이름을 {top_mention['count']}번 말씀하셨습니다. "
+                + family_line
+            )
+    elif top_mention and top_mention.get("count", 0) >= 2:
+        family_line = (
+            f"{top_mention['name']}님의 이름이 {top_mention['count']}번 등장했습니다. "
+            "이 사실만으로 특정 감정을 단정하지는 않았습니다."
+        )
+
+    missed_word = None
+    if strongest:
+        missed_word = {
+            "label": strongest["label"],
+            "quote": _short_quote(strongest.get("evidence", ""), strongest.get("category")),
+            "at": strongest.get("at"),
+            "note": "가족과 관련된 직접적인 감정·삶의 표현 중 우선해서 전할 말씀입니다.",
+        }
+
+    memory_by_id = {
+        memory["memory_id"]: memory for memory in memories
+        if memory.get("status") == "verified" and memory.get("conversation_allowed")
+    }
+    related_ids = []
+    for moment in moments:
+        related_ids.extend(moment.get("related_memory_ids") or [])
+    related_ids.extend(used_memory_ids)
+    matched = next((memory_by_id[mid] for mid in related_ids if mid in memory_by_id), None)
+    if not matched:
+        # 모델이 memory_id를 돌려주지 않아도 실제 발화에 보호자가 확정한 기억
+        # 제목이 명확히 포함돼 있으면 연결한다. 짧은 제목은 우연히 겹칠 수 있어
+        # 자동 연결하지 않는다.
+        matched = next((
+            memory
+            for moment in moments
+            for memory in memory_by_id.values()
+            if len(_normalize(memory.get("title", ""))) >= 4
+            and _normalize(memory.get("title", "")) in _normalize(moment.get("evidence", ""))
+        ), None)
+
+    memory_bridge = None
+    if matched:
+        memory_bridge = {
+            "mode": "verified",
+            "title": matched.get("title"),
+            "description": matched.get("description"),
+            "date_text": matched.get("date_text"),
+            "location": matched.get("location"),
+            "quote": missed_word.get("quote") if missed_word else None,
+            "suggestion": "확인된 사진이나 이야기가 있다면 다음 만남에서 함께 다시 꺼내보세요.",
+        }
+    elif strongest or unverified:
+        source = unverified[0].get("evidence") if unverified else strongest.get("evidence")
+        memory_bridge = {
+            "mode": "confirm_first",
+            "title": "다시 이어볼 수 있는 이야기",
+            "description": "이 말씀과 직접 연결된 확인 완료 가족 기억은 아직 없습니다.",
+            "quote": _short_quote(source, strongest.get("category") if strongest else None),
+            "suggestion": "가족이 사실 관계를 확인한 뒤 가족 기억으로 등록해 다음 통화에 이어보세요.",
+        }
+
+    if not artwork and matched:
+        artwork = (memory_artworks or {}).get(matched["memory_id"])
+
+    visual_story = None
+    if artwork:
+        approved = artwork.get("status") == "approved"
+        visual_story = {
+            "status": artwork.get("status"),
+            "status_label": "확인된 기억 기반" if approved else "보호자 확인 전 · 상상 이미지",
+            "image_url": artwork.get("image_url"),
+            "source_quote": artwork.get("source_quote"),
+            "alt_text": artwork.get("alt_text"),
+            "caption": artwork.get("caption"),
+            "memory_id": artwork.get("memory_id"),
+        }
+
+    memory_banner = None
+    if matched and artwork and artwork.get("status") == "approved":
+        linked_moment = next((
+            moment for moment in moments
+            if matched["memory_id"] in (moment.get("related_memory_ids") or [])
+        ), None) or next((
+            moment for moment in moments
+            if _normalize(matched.get("title", "")) in _normalize(moment.get("evidence", ""))
+        ), None)
+        quote = _short_quote(
+            (linked_moment or {}).get("evidence", ""),
+            (linked_moment or {}).get("category"),
+        )
+        if quote:
+            category = linked_moment.get("category")
+            message = {
+                "longing": "그리움을 직접 표현하신 소중한 말씀입니다.",
+                "joy": "기쁜 마음으로 다시 떠올리신 소중한 말씀입니다.",
+                "life_story": "좋았던 시간을 다시 떠올리신 소중한 말씀입니다.",
+                "gratitude": "고마운 마음을 직접 전하신 소중한 말씀입니다.",
+                "affection": "가족을 향한 마음을 직접 전하신 소중한 말씀입니다.",
+            }.get(category, "확인된 가족 기억과 다시 연결된 소중한 말씀입니다.")
+            memory_banner = {
+                "title": "이날 다시 떠오른 가족 기억",
+                "memory_title": matched.get("title"),
+                "image_url": artwork.get("image_url"),
+                "alt_text": artwork.get("alt_text"),
+                "quote": quote,
+                "message": message,
+                "caption": artwork.get("caption"),
+                "memory_id": matched.get("memory_id"),
+            }
+
+    return {
+        "priority": "safety" if any(risk.get("level") == "high" for risk in risks) else "heart",
+        "day_translation": {
+            "state": state_line,
+            "family": family_line,
+            "observation_count": sum(domain_counts.values()),
+        },
+        "missed_word": missed_word,
+        "memory_bridge": memory_bridge,
+        "visual_story": visual_story,
+        "memory_banner": memory_banner,
+        "guardian_actions": actions,
+    }
+
+
+def _care_analysis(utterances: list[dict]) -> dict:
+    """검증된 care_data를 실제 환자 발화에 다시 연결한다.
+
+    care_data 안의 evidence 문구는 분류 검증용일 뿐 보호자 인용문으로 쓰지
+    않는다. 화면과 리포트에는 source_utterance_id로 DB에서 되찾은 원문만 쓴다.
+    """
+    by_domain = {key: [] for key in CARE_DOMAIN_LABEL}
+    moments = []
+    seen_observations = set()
+    seen_moments = set()
+
+    for ai in utterances:
+        if ai.get("speaker") != "ai":
+            continue
+        data = ai.get("care_data") or {}
+        source_uid = data.get("source_utterance_id") or _preceding_elder(
+            utterances, ai
+        )
+        evidence = _quote(utterances, source_uid)
+        if source_uid is None or not evidence:
+            continue
+        source = next(
+            (u for u in utterances if u.get("utterance_id") == source_uid), {}
+        )
+
+        for obs in data.get("observations") or []:
+            domain = obs.get("domain")
+            signal = obs.get("signal")
+            if domain not in by_domain or signal not in CARE_SIGNAL_LABEL:
+                continue
+            key = (source_uid, domain, signal)
+            if key in seen_observations:
+                continue
+            seen_observations.add(key)
+            by_domain[domain].append({
+                "signal": signal,
+                "label": CARE_SIGNAL_LABEL[signal],
+                "utterance_id": source_uid,
+                "evidence": evidence,
+                "at": source.get("created_at"),
+            })
+
+        for moment in data.get("meaningful_moments") or []:
+            category = moment.get("category")
+            if category not in MEANING_LABEL:
+                continue
+            key = (source_uid, category)
+            if key in seen_moments:
+                continue
+            seen_moments.add(key)
+            moments.append({
+                "category": category,
+                "label": MEANING_LABEL[category],
+                "utterance_id": source_uid,
+                "evidence": evidence,
+                "at": source.get("created_at"),
+                "related_memory_ids": moment.get("related_memory_ids") or [],
+            })
+
+    return {
+        "memory_orientation": by_domain["memory_orientation"],
+        "emotion": by_domain["emotion"],
+        "daily_living": by_domain["daily_living"],
+        "meaningful_moments": moments,
+    }
+
+
+def _family_mentions(utterances: list[dict], family_names: list[str]) -> list[dict]:
+    """등록된 가족 이름이 환자 발화에 등장한 횟수를 규칙으로 센다.
+
+    이름이 자주 나왔다는 사실과 그 사람을 그리워한다는 해석은 다르다.
+    여기서는 전자만 만들고, 그리움은 meaningful_moments의 직접 발화가 있을
+    때만 별도로 보여준다.
+    """
+    out = []
+    for name in sorted({str(n).strip() for n in family_names if str(n).strip()}):
+        count = 0
+        utterance_ids = []
+        examples = []
+        for row in utterances:
+            if row.get("speaker") != "elder":
+                continue
+            text = row.get("transcript") or ""
+            hits = text.count(name)
+            if not hits:
+                continue
+            count += hits
+            utterance_ids.append(row["utterance_id"])
+            examples.append(text)
+        if count:
+            out.append({
+                "name": name,
+                "count": count,
+                "utterance_ids": utterance_ids,
+                "examples": examples[:3],
+            })
+    return sorted(out, key=lambda item: (-item["count"], item["name"]))
 
 
 def _offered_ids(facts: dict) -> set[str]:
@@ -285,6 +636,13 @@ SUMMARY_SYSTEM = """너는 치매 노인의 통화 기록을 보호자에게 전
 진단하지 않는다. "치매가 악화되었다" 같은 의학적 판단은 절대 쓰지 않는다.
 관찰된 사실과 보호자가 할 수 있는 행동만 적는다.
 
+가족에게 정서적 울림이 있는 순간은 따뜻하게 전달하되 마음을 지어내지 않는다.
+- "보고 싶다", "고맙다", "미안하다"처럼 직접 표현한 감정은 그대로 설명한다.
+- 가족 이름이 반복됐지만 감정을 직접 말하지 않았다면 "이름이 여러 번
+  등장했다"까지만 쓴다. 그리움이나 사랑으로 단정하지 않는다.
+- 단일한 모호한 발화는 해석하지 말고 가족이 함께 봤으면 하는 순간으로 남긴다.
+- 보호자가 죄책감을 느끼게 하는 문장이나 "마지막 말" 같은 표현은 쓰지 않는다.
+
 "발화" 는 어르신이 실제로 한 말이다. 무슨 일이 있었는지 파악하는 데만 쓰고,
 그 문장을 그대로 옮겨 적지 않는다. 음성 인식 오류가 섞여 있어 그대로 옮기면
 어르신이 이상하게 말한 것처럼 보인다. 원문은 화면이 따로 보여주므로
@@ -318,6 +676,30 @@ observations 규칙:
   high 는 다치셨거나 위험한 일이 실제로 있었을 때만 쓴다."""
 
 
+def _fallback_narrative(facts: dict) -> dict:
+    """모델 없이 확정 집계만으로 만드는 안전한 요약."""
+    care_items = facts.get("인지_정서_생활_관찰") or []
+    risks = facts.get("위험이벤트") or []
+    recalls = facts.get("확인이필요한_기억") or []
+    domains = []
+    for item in care_items:
+        label = item.get("영역")
+        if label and label not in domains:
+            domains.append(label)
+    summary_parts = [f"통화에서 관찰 근거 {len(care_items)}건이 기록되었습니다."]
+    if domains:
+        summary_parts.append(f"관찰 영역은 {', '.join(domains)}입니다.")
+    if risks:
+        summary_parts.append(f"안전 확인이 필요한 신호 {len(risks)}건이 있습니다.")
+    actions = []
+    if risks:
+        actions.append("안전 신호의 실제 발화를 확인하고 현재 상태를 직접 확인해 주세요.")
+    if recalls:
+        actions.append("새로 나온 이야기는 사실 여부를 확인한 뒤 가족 기억으로 등록해 주세요.")
+    return {"summary": " ".join(summary_parts),
+            "observations": [], "guardian_actions": actions}
+
+
 def _narrative(facts: dict) -> dict:
     """집계 결과를 보호자가 읽을 문장으로 바꾼다.
 
@@ -334,10 +716,9 @@ def _narrative(facts: dict) -> dict:
         model=llm.REPORT_MODEL,
     )
     if out is None:
-        # TODO(6단계): 집계로 규칙 문장을 조립한다.
-        # 지금 문장은 위험 이벤트가 있어도 "정상"이라고 말하는 거짓말이다.
-        return {"summary": "통화가 정상적으로 진행되었습니다.",
-                "observations": [], "guardian_actions": []}
+        # 모델 한도가 끝나도 위험을 "정상"으로 지우지 않는다. 확정 집계만으로
+        # 짧은 문장을 조립하고, 보호자가 직접 확인할 항목을 남긴다.
+        return _fallback_narrative(facts)
     return out.model_dump()
 
 
@@ -349,11 +730,12 @@ def build(call_id: str, regenerate: bool = False) -> dict:
     비싼 것은 LLM 문장뿐이라 그것만 저장해 두고 재사용한다.
     """
     with db.connect() as conn:
-        call = conn.execute(
+        call_row = conn.execute(
             "SELECT * FROM calls WHERE call_id = ?", (call_id,)
         ).fetchone()
-        if call is None:
+        if call_row is None:
             raise ValueError(f"통화 {call_id} 없음")
+        call = db._row(call_row)
 
         cached = None if regenerate else conn.execute(
             "SELECT summary, guardian_actions FROM reports WHERE call_id = ?",
@@ -373,6 +755,41 @@ def build(call_id: str, regenerate: bool = False) -> dict:
             "SELECT * FROM medication_logs WHERE call_id = ? ORDER BY log_id",
             (call_id,)
         ).fetchall()]
+        elder_profile = db._row(conn.execute(
+            "SELECT * FROM elder_profiles WHERE elder_id = ?", (call["elder_id"],)
+        ).fetchone())
+        personas = [db._row(r) for r in conn.execute(
+            "SELECT * FROM personas WHERE elder_id = ?", (call["elder_id"],)
+        ).fetchall()]
+        registered_memories = [db._row(r) for r in conn.execute(
+            "SELECT * FROM memories WHERE elder_id = ?", (call["elder_id"],)
+        ).fetchall()]
+        # 이미지의 출처 문장이 같은 통화의 실제 어르신 발화에 포함될 때만
+        # 보호자 화면으로 보낸다. 잘못 연결된 이미지 행은 조용히 노출하지 않는다.
+        artwork_row = conn.execute(
+            "SELECT a.* FROM heart_artworks a "
+            "JOIN utterances u ON u.utterance_id = a.source_utterance_id "
+            "LEFT JOIN memories m ON m.memory_id = a.memory_id "
+            "WHERE a.call_id = ? AND a.status != 'rejected' "
+            "AND u.call_id = a.call_id AND u.speaker = 'elder' "
+            "AND instr(u.transcript, a.source_quote) > 0 "
+            "AND (a.memory_id IS NULL OR (m.status = 'verified' AND m.conversation_allowed = 1)) "
+            "ORDER BY CASE a.status WHEN 'approved' THEN 0 ELSE 1 END, a.created_at DESC "
+            "LIMIT 1",
+            (call_id,),
+        ).fetchone()
+        artwork = db._row(artwork_row) if artwork_row else None
+        archived_artworks = [db._row(r) for r in conn.execute(
+            "SELECT a.* FROM heart_artworks a "
+            "JOIN memories m ON m.memory_id = a.memory_id "
+            "WHERE m.elder_id = ? AND a.status = 'approved' "
+            "AND m.status = 'verified' AND m.conversation_allowed = 1 "
+            "ORDER BY a.created_at DESC",
+            (call["elder_id"],),
+        ).fetchall()]
+        memory_artworks = {}
+        for archived in archived_artworks:
+            memory_artworks.setdefault(archived["memory_id"], archived)
 
     elder_turns = [u for u in utterances if u["speaker"] == "elder"]
     ai_turns = [u for u in utterances if u["speaker"] == "ai"]
@@ -383,6 +800,19 @@ def build(call_id: str, regenerate: bool = False) -> dict:
     risks = _risks(events, utterances)
     unverified = _unverified(utterances)
     safety = _safety(utterances)
+    care_summary = _care_analysis(utterances)
+    meaningful_moments = care_summary.pop("meaningful_moments")
+    household_names = [
+        row.get("name")
+        for row in (elder_profile.get("household_members") or [])
+        if isinstance(row, dict) and row.get("name")
+    ]
+    family_mentions = _family_mentions(
+        utterances,
+        [p.get("display_name") for p in personas]
+        + household_names
+        + [call.get("counterpart_name")],
+    )
 
     topics = sorted({
         mid for u in ai_turns for mid in (u.get("used_memory_ids") or [])
@@ -450,13 +880,53 @@ def build(call_id: str, regenerate: bool = False) -> dict:
             }
             for s in safety
         ],
+        "인지_정서_생활_관찰": [
+            {
+                "영역": CARE_DOMAIN_LABEL[domain],
+                "신호": item["label"],
+                "발화": item["evidence"],
+                "근거": _evidence_ids(
+                    utterance_ids=[item.get("utterance_id")]
+                ),
+            }
+            for domain, items in care_summary.items()
+            for item in items
+        ],
+        "마음기록_후보": [
+            {
+                "종류": item["label"],
+                "발화": item["evidence"],
+                "연결된_확인기억": item["related_memory_ids"],
+                "근거": _evidence_ids(
+                    utterance_ids=[item.get("utterance_id")]
+                ),
+            }
+            for item in meaningful_moments
+        ],
+        "가족이름_언급": [
+            {
+                "이름": item["name"],
+                "횟수": item["count"],
+                "발화예시": item["examples"],
+                "근거": _evidence_ids(
+                    utterance_ids=item["utterance_ids"]
+                ),
+            }
+            for item in family_mentions
+        ],
     }
 
-    if cached and cached["summary"]:
+    stale_normal_summary = (
+        cached and cached["summary"] == "통화가 정상적으로 진행되었습니다."
+        and (facts["인지_정서_생활_관찰"] or facts["위험이벤트"])
+    )
+    if cached and cached["summary"] and not stale_normal_summary:
         story = {
             "summary": cached["summary"],
             "guardian_actions": json.loads(cached["guardian_actions"] or "[]"),
         }
+    elif stale_normal_summary:
+        story = _fallback_narrative(facts)
     else:
         story = _narrative(facts)
 
@@ -467,17 +937,34 @@ def build(call_id: str, regenerate: bool = False) -> dict:
 
     report = {
         "call_id": call_id,
+        "call_meta": {
+            "started_at": call.get("started_at"),
+            "duration_sec": call.get("duration_sec") or 0,
+            "counterpart_name": call.get("counterpart_name"),
+            "counterpart_relation": call.get("counterpart_relation"),
+            "report_title": call.get("report_title") or "인지·정서 케어 통화",
+        },
         "summary": story.get("summary", ""),
         "repeated_questions": repeats,
         "medication_summary": medication,
         "new_recalls": unverified,
         "risk_summary": risks,
+        "care_summary": care_summary,
+        "meaningful_moments": meaningful_moments,
+        "family_mentions": family_mentions,
         "guardian_actions": story.get("guardian_actions", []),
     }
+    heart_report = _heart_report(
+        care_summary, meaningful_moments, family_mentions, risks,
+        report["guardian_actions"], unverified, registered_memories, topics,
+        artwork, memory_artworks,
+    )
 
     with db.connect() as conn:
         conn.execute("DELETE FROM reports WHERE call_id = ?", (call_id,))
-        db.insert(conn, "reports", report)
+        db.insert(conn, "reports", {
+            key: value for key, value in report.items() if key != "call_meta"
+        })
         conn.commit()
 
     # facts 는 DB 에 저장하지 않는다 (reports 테이블 컬럼이 아니다).
@@ -486,7 +973,7 @@ def build(call_id: str, regenerate: bool = False) -> dict:
     # 그래서 캐시된 리포트를 읽을 때는 비어 있다. 확인할 때 regenerate=True 를 쓸 것.
     # observations_dropped 는 근거 검증에서 걸러낸 관찰이다. 숨기지 않고
     # 실어 보낸다. 무엇이 왜 빠졌는지 볼 수 없으면 검증이 조용한 손실이 된다.
-    return dict(report, observations=observations,
+    return dict(report, heart_report=heart_report, observations=observations,
                 observations_dropped=dropped,
                 facts=facts, stats={
         "duration_sec": call["duration_sec"],
@@ -504,7 +991,9 @@ def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
     with db.connect() as conn:
         rows = conn.execute(
             "SELECT c.call_id, c.started_at, c.duration_sec, "
-            "       r.summary, r.repeated_questions, r.risk_summary "
+            "       c.counterpart_name, c.counterpart_relation, c.report_title, "
+            "       r.summary, r.repeated_questions, r.risk_summary, "
+            "       r.meaningful_moments, r.care_summary "
             "FROM calls c LEFT JOIN reports r ON r.call_id = c.call_id "
             "WHERE c.elder_id = ? AND c.status = 'ended' "
             "ORDER BY c.started_at DESC LIMIT ?",
@@ -513,13 +1002,41 @@ def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
     out = []
     for r in rows:
         row = db._row(r)
+        care = row.get("care_summary") or {}
+        care_domains = [
+            {
+                "key": key,
+                "label": CARE_DOMAIN_LABEL[key],
+                "count": len(care.get(key) or []),
+            }
+            for key in CARE_DOMAIN_LABEL if care.get(key)
+        ]
+        observed_items = [
+            {"domain": CARE_DOMAIN_LABEL[key], "label": item.get("label")}
+            for key in CARE_DOMAIN_LABEL
+            for item in (care.get(key) or [])
+            if item.get("label")
+        ]
+        observed_items.extend({
+            "domain": "안전",
+            "label": risk.get("label") or risk.get("type") or "위험 신호",
+        } for risk in (row.get("risk_summary") or []))
         out.append({
             "call_id": row["call_id"],
             "started_at": row["started_at"],
             "duration_sec": row["duration_sec"],
             "summary": row.get("summary"),
+            "counterpart_name": row.get("counterpart_name"),
+            "counterpart_relation": row.get("counterpart_relation"),
+            "report_title": row.get("report_title") or "인지·정서 케어 통화",
             "repeat_count": len(row.get("repeated_questions") or []),
             "risk_count": len(row.get("risk_summary") or []),
+            "meaning_count": len(row.get("meaningful_moments") or []),
+            "care_domains": care_domains,
+            "observed_items": observed_items[:5],
+            "care_count": sum(len(care.get(key) or []) for key in (
+                "memory_orientation", "emotion", "daily_living"
+            )),
         })
     return out
 
@@ -545,13 +1062,13 @@ def _window(elder_id: str, since: str, until: str | None = None) -> dict:
     with db.connect() as conn:
         calls = [db._row(r) for r in conn.execute(
             "SELECT * FROM calls WHERE elder_id = ? AND status = 'ended' "
-            "AND date(started_at) >= ? AND date(started_at) <= ?",
+            "AND substr(started_at, 1, 10) >= ? AND substr(started_at, 1, 10) <= ?",
             (elder_id, since, upper),
         ).fetchall()]
         risks = conn.execute(
             "SELECT COUNT(*) FROM call_events e JOIN calls c ON c.call_id = e.call_id "
             "WHERE c.elder_id = ? AND e.event_type = 'risk' "
-            "AND date(c.started_at) >= ? AND date(c.started_at) <= ?",
+            "AND substr(c.started_at, 1, 10) >= ? AND substr(c.started_at, 1, 10) <= ?",
             (elder_id, since, upper),
         ).fetchone()[0]
         logs = [db._row(r) for r in conn.execute(
@@ -561,8 +1078,8 @@ def _window(elder_id: str, since: str, until: str | None = None) -> dict:
         ).fetchall()]
         reports = [db._row(r) for r in conn.execute(
             "SELECT r.* FROM reports r JOIN calls c ON c.call_id = r.call_id "
-            "WHERE c.elder_id = ? AND date(c.started_at) >= ? "
-            "AND date(c.started_at) <= ?",
+            "WHERE c.elder_id = ? AND substr(c.started_at, 1, 10) >= ? "
+            "AND substr(c.started_at, 1, 10) <= ?",
             (elder_id, since, upper),
         ).fetchall()]
 
@@ -595,41 +1112,518 @@ def _delta(now: int, before: int, unit: str, more_is_better: bool) -> dict | Non
     }
 
 
-def period(elder_id: str = "elder_001", days: int = 7,
-           narrative: bool = True) -> dict:
+def _merge_period_repeats(reports: list[dict]) -> list[dict]:
+    """통화별 반복 질문을 기간 전체의 같은 질문으로 다시 묶는다."""
+    groups: list[dict] = []
+    for report_row in reports:
+        for item in report_row.get("repeated_questions") or []:
+            question = str(item.get("question") or "").strip()
+            norm = _normalize(question)
+            if not norm:
+                continue
+            matched = next((
+                group for group in groups
+                if SequenceMatcher(None, group["_norm"], norm).ratio() >= SIMILARITY
+            ), None)
+            if matched is None:
+                matched = {
+                    "_norm": norm, "question": question, "count": 0,
+                    "call_count": 0, "utterance_ids": [],
+                }
+                groups.append(matched)
+            matched["count"] += int(item.get("count") or 0)
+            matched["call_count"] += 1
+            matched["utterance_ids"].extend(item.get("utterance_ids") or [])
+    return [
+        {key: value for key, value in group.items() if key != "_norm"}
+        for group in sorted(groups, key=lambda row: (-row["count"], -row["call_count"]))[:5]
+    ]
+
+
+DAILY_HEART_PRIORITY = {
+    name: index for index, name in enumerate(
+        ["apology", "affection", "worry_for_family", "longing", "gratitude",
+         "pride", "wish_for_family", "joy", "life_story", "preference"]
+    )
+}
+
+
+def _daily_analyses(
+    calls: list[dict], reports: list[dict], risks: list[dict],
+    start: date, end: date,
+) -> list[dict]:
+    """Combine many calls into one evidence-backed caregiver report per day."""
+    reports_by_call = {
+        row["call_id"]: row for row in reports if row.get("call_id")
+    }
+    risks_by_call: dict[str, list[dict]] = {}
+    for event in risks:
+        risks_by_call.setdefault(event["call_id"], []).append(event)
+
+    calls_by_day: dict[str, list[dict]] = {}
+    for call in calls:
+        day = str(call.get("started_at") or "")[:10]
+        if day:
+            calls_by_day.setdefault(day, []).append(call)
+
+    rows = []
+    cursor = start
+    while cursor <= end:
+        key = cursor.isoformat()
+        day_calls = calls_by_day.get(key, [])
+        day_reports = [
+            reports_by_call[call["call_id"]]
+            for call in day_calls if call["call_id"] in reports_by_call
+        ]
+        day_risks = [
+            event for call in day_calls
+            for event in risks_by_call.get(call["call_id"], [])
+        ]
+
+        observation_groups: dict[tuple[str, str], dict] = {}
+        for report_row in day_reports:
+            for domain, items in (report_row.get("care_summary") or {}).items():
+                for item in items or []:
+                    signal = str(item.get("signal") or "").strip()
+                    label = str(item.get("label") or CARE_SIGNAL_LABEL.get(signal, signal)).strip()
+                    if not signal or not label:
+                        continue
+                    group = observation_groups.setdefault((domain, signal), {
+                        "domain": domain,
+                        "domain_label": CARE_DOMAIN_LABEL.get(domain, domain),
+                        "signal": signal,
+                        "label": label,
+                        "count": 0,
+                        "evidence": [],
+                    })
+                    group["count"] += 1
+                    evidence = str(item.get("evidence") or "").strip()
+                    if evidence and evidence not in group["evidence"]:
+                        group["evidence"].append(evidence)
+
+        observations = sorted(
+            observation_groups.values(), key=lambda item: (-item["count"], item["label"])
+        )
+        for item in observations:
+            item["evidence"] = item["evidence"][:3]
+
+        repeats = _merge_period_repeats(day_reports)
+        actions = []
+        for item in observations:
+            action = RHYTHM_SIGNAL_ACTIONS.get(item["signal"])
+            if action and action not in actions:
+                actions.append(action)
+        for report_row in day_reports:
+            for action in report_row.get("guardian_actions") or []:
+                if action and action not in actions:
+                    actions.append(action)
+        if day_risks:
+            urgent = "안전 신호의 발생 시각과 현재 상태를 먼저 직접 확인해 주세요."
+            if urgent not in actions:
+                actions.insert(0, urgent)
+
+        moments = [
+            moment for report_row in day_reports
+            for moment in (report_row.get("meaningful_moments") or [])
+            if moment.get("evidence")
+        ]
+        strongest = min(
+            moments,
+            key=lambda item: DAILY_HEART_PRIORITY.get(item.get("category"), 99),
+            default=None,
+        )
+        heart = None
+        if strongest:
+            quote = _short_quote(
+                strongest.get("evidence", ""), strongest.get("category")
+            )
+            heart = {
+                "label": strongest.get("label") or MEANING_LABEL.get(
+                    strongest.get("category"), "가족에게 전할 말씀"
+                ),
+                "quote": quote,
+                "at": strongest.get("at"),
+                "message": (
+                    f"어르신께서 직접 하신 말씀을 "
+                    f"{strongest.get('label') or '마음 표현'}으로 기록했습니다."
+                ),
+                "policy": "실제 발화에 드러난 표현만 전하며 말하지 않은 감정은 추측하지 않습니다.",
+            }
+
+        rows.append({
+            "date": key,
+            "calls": len(day_calls),
+            "seconds": sum(call.get("duration_sec") or 0 for call in day_calls),
+            "observation_count": sum(item["count"] for item in observations),
+            "observations": observations[:8],
+            "repeated_total": sum(item.get("count") or 0 for item in repeats),
+            "repeated_phrases": repeats[:4],
+            "risk_count": len(day_risks),
+            "risks": [
+                {
+                    "event_id": event["event_id"],
+                    "call_id": event["call_id"],
+                    "at": event.get("started_at"),
+                    "acknowledged": bool(event.get("acknowledged")),
+                    **(event.get("payload") or {}),
+                }
+                for event in day_risks
+            ],
+            "guardian_actions": actions[:5],
+            "heart_report": heart,
+        })
+        cursor += timedelta(days=1)
+    return rows
+
+
+def _time_analyses(
+    calls: list[dict], reports: list[dict], risks: list[dict], selected_day: date,
+) -> list[dict]:
+    """Build the same evidence/action report in two-hour blocks for one day."""
+    reports_by_call = {
+        row["call_id"]: row for row in reports if row.get("call_id")
+    }
+    rows = []
+    for start_hour in range(0, 24, 2):
+        block_calls = []
+        for call in calls:
+            started = _started_datetime(call.get("started_at"))
+            if started and start_hour <= started.hour < start_hour + 2:
+                block_calls.append(call)
+        if block_calls:
+            call_ids = {call["call_id"] for call in block_calls}
+            block_reports = [
+                reports_by_call[call_id] for call_id in call_ids
+                if call_id in reports_by_call
+            ]
+            block_risks = [event for event in risks if event.get("call_id") in call_ids]
+            row = _daily_analyses(
+                block_calls, block_reports, block_risks, selected_day, selected_day
+            )[0]
+        else:
+            # 빈 시간도 누락하지 않는다. 화면은 이를 '통화 없음'으로 표시하며,
+            # 관찰이나 감정을 임의로 채우지 않는다.
+            row = {
+                "date": selected_day.isoformat(),
+                "analysis_title": "이 시간에는 통화가 없었습니다",
+                "calls": 0,
+                "seconds": 0,
+                "observation_count": 0,
+                "observations": [],
+                "repeated_total": 0,
+                "repeated_phrases": [],
+                "risk_count": 0,
+                "risks": [],
+                "guardian_actions": [],
+                "heart_report": None,
+            }
+        row.update({
+            "key": f"{selected_day.isoformat()}-{start_hour:02d}",
+            "time_label": f"{start_hour:02d}:00~{start_hour + 2:02d}:00",
+            "start_hour": start_hour,
+            "has_calls": bool(block_calls),
+        })
+        rows.append(row)
+    return rows
+
+
+def _period_dates(
+    days: int, start_date: str | None = None, end_date: str | None = None,
+) -> tuple[date, date, int]:
+    if start_date or end_date:
+        if not start_date or not end_date:
+            raise ValueError("start_date와 end_date를 함께 입력해야 합니다.")
+        try:
+            start = date.fromisoformat(start_date)
+            end = date.fromisoformat(end_date)
+        except ValueError as exc:
+            raise ValueError("날짜는 YYYY-MM-DD 형식이어야 합니다.") from exc
+        if start > end:
+            raise ValueError("시작일은 종료일보다 늦을 수 없습니다.")
+        span = (end - start).days + 1
+        if span > 366:
+            raise ValueError("조회 기간은 최대 366일입니다.")
+        return start, end, span
+    end = date.today()
+    return end - timedelta(days=days - 1), end, days
+
+
+def _started_datetime(value: str | None) -> datetime | None:
+    """Return a timezone-aware-enough datetime for locally stored call times."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _report_signal_counts(report_row: dict | None) -> Counter:
+    counts: Counter = Counter()
+    for items in ((report_row or {}).get("care_summary") or {}).values():
+        for item in items or []:
+            signal = str(item.get("signal") or "").strip()
+            if signal:
+                counts[signal] += 1
+    return counts
+
+
+def _rhythm_window_stats(
+    calls: list[dict], reports_by_call: dict[str, dict], start: date, end: date,
+) -> dict:
+    selected = []
+    for call in calls:
+        started = _started_datetime(call.get("started_at"))
+        if started and start <= started.date() <= end:
+            selected.append(call)
+    signals: Counter = Counter()
+    repeat_total = 0
+    for call in selected:
+        report_row = reports_by_call.get(call["call_id"], {})
+        signals.update(_report_signal_counts(report_row))
+        repeat_total += sum(
+            int(item.get("count") or 0)
+            for item in report_row.get("repeated_questions") or []
+        )
+    return {
+        "calls": len(selected),
+        "repeat_total": repeat_total,
+        "loneliness": signals["loneliness"],
+        "medication_uncertain": signals["medication_uncertain"],
+        "time_confusion": signals["time_confusion"],
+    }
+
+
+def _rhythm_change(label: str, current: int, previous: int, unit: str = "건") -> dict:
+    difference = current - previous
+    if difference > 0:
+        description = f"지난주보다 {difference}{unit} 늘었습니다."
+        direction = "up"
+    elif difference < 0:
+        description = f"지난주보다 {abs(difference)}{unit} 줄었습니다."
+        direction = "down"
+    else:
+        description = "지난주와 같습니다."
+        direction = "same"
+    return {
+        "key": label,
+        "current": current,
+        "previous": previous,
+        "difference": difference,
+        "direction": direction,
+        "description": description,
+    }
+
+
+def _rhythm_analysis(
+    period_calls: list[dict], period_reports: list[dict],
+    comparison_calls: list[dict], comparison_reports: list[dict],
+    *, today: date | None = None,
+) -> dict:
+    """Aggregate call time and observed speech without inferring a diagnosis.
+
+    Calls are grouped into fixed two-hour blocks.  Emotional wording is only
+    shown when the corresponding signal exists in a report backed by an elder
+    utterance; a busy time block alone is never called a lonely time block.
+    """
+    today = today or date.today()
+    reports_by_call = {
+        row["call_id"]: row for row in period_reports if row.get("call_id")
+    }
+    block_calls: Counter = Counter()
+    block_signals: dict[int, Counter] = {
+        hour: Counter() for hour in range(0, 24, 2)
+    }
+    block_evidence: dict[int, list[str]] = {
+        hour: [] for hour in range(0, 24, 2)
+    }
+    observed_days = set()
+
+    for call in period_calls:
+        started = _started_datetime(call.get("started_at"))
+        if not started:
+            continue
+        block = (started.hour // 2) * 2
+        block_calls[block] += 1
+        observed_days.add(started.date().isoformat())
+        report_row = reports_by_call.get(call["call_id"], {})
+        block_signals[block].update(_report_signal_counts(report_row))
+        for items in (report_row.get("care_summary") or {}).values():
+            for item in items or []:
+                evidence = str(item.get("evidence") or "").strip()
+                if evidence and evidence not in block_evidence[block]:
+                    block_evidence[block].append(evidence)
+
+    total_calls = sum(block_calls.values())
+    blocks = []
+    for start_hour in range(0, 24, 2):
+        calls = block_calls[start_hour]
+        blocks.append({
+            "start_hour": start_hour,
+            "end_hour": start_hour + 2,
+            "label": f"{start_hour:02d}:00~{start_hour + 2:02d}:00",
+            "calls": calls,
+            "share_percent": round(calls / total_calls * 100) if total_calls else 0,
+            "observation_count": sum(block_signals[start_hour].values()),
+        })
+
+    peak = max(blocks, key=lambda row: row["calls"], default=blocks[0])
+    peak_start = peak["start_hour"]
+    top_peak_signals = [
+        {
+            "signal": signal,
+            "label": CARE_SIGNAL_LABEL.get(signal, signal),
+            "count": count,
+        }
+        for signal, count in block_signals[peak_start].most_common(3)
+    ]
+    loneliness_count = block_signals[peak_start]["loneliness"]
+    if loneliness_count:
+        peak_summary = (
+            f"통화가 가장 많이 몰린 시간대이며 외로움 관련 표현이 "
+            f"{loneliness_count}회 함께 관찰되었습니다."
+        )
+        peak_action = RHYTHM_SIGNAL_ACTIONS["loneliness"]
+    elif top_peak_signals:
+        first = top_peak_signals[0]
+        peak_summary = (
+            f"통화가 가장 많이 몰렸고 {first['label']} 표현이 "
+            f"{first['count']}회 함께 관찰되었습니다."
+        )
+        peak_action = RHYTHM_SIGNAL_ACTIONS.get(
+            first["signal"], "이 시간대 전후의 통화 내용을 함께 살펴봐 주세요."
+        )
+    else:
+        peak_summary = "통화가 가장 많이 몰린 시간대입니다. 함께 분류된 특이 발화는 없었습니다."
+        peak_action = "통화가 몰리기 전에 짧은 안부 연락을 시도해 보세요."
+
+    signal_blocks: dict[str, Counter] = {}
+    for block, counts in block_signals.items():
+        for signal, count in counts.items():
+            signal_blocks.setdefault(signal, Counter())[block] += count
+    patterns = []
+    for signal in RHYTHM_SIGNAL_ACTIONS:
+        counts = signal_blocks.get(signal)
+        if not counts:
+            continue
+        block, count = counts.most_common(1)[0]
+        patterns.append({
+            "signal": signal,
+            "label": CARE_SIGNAL_LABEL.get(signal, signal),
+            "time_label": f"{block:02d}:00~{block + 2:02d}:00",
+            "count": count,
+            "description": (
+                f"{CARE_SIGNAL_LABEL.get(signal, signal)} 표현이 이 시간대에 "
+                f"가장 많이 관찰되었습니다."
+            ),
+            "guardian_action": RHYTHM_SIGNAL_ACTIONS[signal],
+        })
+    patterns.sort(key=lambda row: row["count"], reverse=True)
+
+    comparison_by_call = {
+        row["call_id"]: row for row in comparison_reports if row.get("call_id")
+    }
+    current_start = today - timedelta(days=6)
+    previous_start = today - timedelta(days=13)
+    previous_end = today - timedelta(days=7)
+    current = _rhythm_window_stats(
+        comparison_calls, comparison_by_call, current_start, today
+    )
+    previous = _rhythm_window_stats(
+        comparison_calls, comparison_by_call, previous_start, previous_end
+    )
+    comparisons = [
+        _rhythm_change("통화", current["calls"], previous["calls"], "회"),
+        _rhythm_change(
+            "반복 질문", current["repeat_total"], previous["repeat_total"], "회"
+        ),
+        _rhythm_change(
+            "외로움 표현", current["loneliness"], previous["loneliness"], "회"
+        ),
+        _rhythm_change(
+            "복약 혼동", current["medication_uncertain"],
+            previous["medication_uncertain"], "회",
+        ),
+    ]
+
+    return {
+        "name": "생활 리듬",
+        "ready": len(observed_days) >= 7 and total_calls >= 30,
+        "minimum_days": 7,
+        "days_observed": len(observed_days),
+        "calls_analyzed": total_calls,
+        "basis": "통화 시작 시각과 실제 발화에서 검증된 관찰 신호",
+        "time_blocks": blocks,
+        "peak_window": {
+            **peak,
+            "summary": peak_summary,
+            "top_signals": top_peak_signals,
+            "evidence_examples": block_evidence[peak_start][:3],
+            "guardian_action": peak_action,
+        },
+        "patterns": patterns[:4],
+        "week_comparison": comparisons,
+    }
+
+
+def period(
+    elder_id: str = "elder_001", days: int = 7, narrative: bool = True,
+    start_date: str | None = None, end_date: str | None = None,
+) -> dict:
     """며칠치를 모아서 본다.
 
     통화 하나짜리 리포트로는 변화가 보이지 않는다.
     반복 질문이 늘었는지, 복약을 얼마나 챙기셨는지는 기간으로 봐야 한다.
     같은 길이의 직전 구간과 비교해 늘고 줄었다는 사실만 전한다.
     """
-    from datetime import date, timedelta
-
-    since = (date.today() - timedelta(days=days - 1)).isoformat()
-    prev_since = (date.today() - timedelta(days=days * 2 - 1)).isoformat()
-    prev_until = (date.today() - timedelta(days=days)).isoformat()
+    period_start, period_end, days = _period_dates(days, start_date, end_date)
+    since = period_start.isoformat()
+    until = period_end.isoformat()
+    prev_until_date = period_start - timedelta(days=1)
+    prev_since_date = prev_until_date - timedelta(days=days - 1)
+    prev_since = prev_since_date.isoformat()
+    prev_until = prev_until_date.isoformat()
+    rhythm_since = min(
+        since, (period_end - timedelta(days=13)).isoformat()
+    )
 
     with db.connect() as conn:
         calls = [db._row(r) for r in conn.execute(
             "SELECT * FROM calls WHERE elder_id = ? AND status = 'ended' "
-            "AND date(started_at) >= ? ORDER BY started_at",
-            (elder_id, since),
+            "AND substr(started_at, 1, 10) >= ? "
+            "AND substr(started_at, 1, 10) <= ? ORDER BY started_at",
+            (elder_id, since, until),
         ).fetchall()]
         risks = [db._row(r) for r in conn.execute(
             "SELECT e.*, c.started_at FROM call_events e "
             "JOIN calls c ON c.call_id = e.call_id "
             "WHERE c.elder_id = ? AND e.event_type = 'risk' "
-            "AND date(c.started_at) >= ? ORDER BY c.started_at DESC",
-            (elder_id, since),
+            "AND substr(c.started_at, 1, 10) >= ? "
+            "AND substr(c.started_at, 1, 10) <= ? ORDER BY c.started_at DESC",
+            (elder_id, since, until),
         ).fetchall()]
         med_logs = [db._row(r) for r in conn.execute(
-            "SELECT * FROM medication_logs WHERE elder_id = ? AND taken_date >= ?",
-            (elder_id, since),
+            "SELECT * FROM medication_logs WHERE elder_id = ? "
+            "AND taken_date >= ? AND taken_date <= ?",
+            (elder_id, since, until),
         ).fetchall()]
         reports = [db._row(r) for r in conn.execute(
             "SELECT r.* FROM reports r JOIN calls c ON c.call_id = r.call_id "
-            "WHERE c.elder_id = ? AND date(c.started_at) >= ?",
-            (elder_id, since),
+            "WHERE c.elder_id = ? AND substr(c.started_at, 1, 10) >= ? "
+            "AND substr(c.started_at, 1, 10) <= ?",
+            (elder_id, since, until),
+        ).fetchall()]
+        rhythm_calls = [db._row(r) for r in conn.execute(
+            "SELECT * FROM calls WHERE elder_id = ? AND status = 'ended' "
+            "AND substr(started_at, 1, 10) >= ? "
+            "AND substr(started_at, 1, 10) <= ? ORDER BY started_at",
+            (elder_id, rhythm_since, until),
+        ).fetchall()]
+        rhythm_reports = [db._row(r) for r in conn.execute(
+            "SELECT r.* FROM reports r JOIN calls c ON c.call_id = r.call_id "
+            "WHERE c.elder_id = ? AND substr(c.started_at, 1, 10) >= ? "
+            "AND substr(c.started_at, 1, 10) <= ?",
+            (elder_id, rhythm_since, until),
         ).fetchall()]
 
     by_day: dict[str, dict] = {}
@@ -639,14 +1633,28 @@ def period(elder_id: str = "elder_001", days: int = 7,
         slot["calls"] += 1
         slot["seconds"] += c["duration_sec"] or 0
 
-    repeats = []
-    for r in reports:
-        repeats.extend(r.get("repeated_questions") or [])
-    top_repeats = sorted(repeats, key=lambda x: -x.get("count", 0))[:5]
+    top_repeats = _merge_period_repeats(reports)
 
     confirmed = sum(1 for log in med_logs if log["status"] == "USER_CONFIRMED")
     unclear = sum(1 for log in med_logs
                   if log["status"] in ("UNCLEAR", "REFUSED", "DUPLICATE_SUSPECTED"))
+    care_counts = {
+        key: sum(len((r.get("care_summary") or {}).get(key) or []) for r in reports)
+        for key in ("memory_orientation", "emotion", "daily_living")
+    }
+    meaningful_total = sum(
+        len(r.get("meaningful_moments") or []) for r in reports
+    )
+    rhythm = _rhythm_analysis(
+        calls, reports, rhythm_calls, rhythm_reports, today=period_end
+    )
+    daily_reports = _daily_analyses(
+        calls, reports, risks, period_start, period_end
+    )
+    time_reports = (
+        _time_analyses(calls, reports, risks, period_start)
+        if days == 1 else []
+    )
 
     facts = {
         "기간_일수": days,
@@ -662,7 +1670,7 @@ def period(elder_id: str = "elder_001", days: int = 7,
     if narrative and calls:
         story = _narrative_period(facts)
 
-    this_w = _window(elder_id, since)
+    this_w = _window(elder_id, since, until)
     prev_w = _window(elder_id, prev_since, prev_until)
     changes = [
         c for c in (
@@ -686,12 +1694,21 @@ def period(elder_id: str = "elder_001", days: int = 7,
     return {
         "days": days,
         "since": since,
+        "until": until,
         "changes": changes,
         "repeat_total": this_w["repeat_total"],
         "calls": len(calls),
         "total_seconds": facts["총_통화시간_초"],
-        "by_day": sorted(by_day.values(), key=lambda d: d["date"]),
+        "by_day": [
+            {"date": row["date"], "calls": row["calls"], "seconds": row["seconds"]}
+            for row in daily_reports
+        ],
+        "daily_reports": daily_reports,
+        "time_reports": time_reports,
         "top_repeats": top_repeats,
+        "care_counts": care_counts,
+        "meaningful_total": meaningful_total,
+        "rhythm": rhythm,
         "medication": {"confirmed": confirmed, "needs_check": unclear},
         "risks": [
             {

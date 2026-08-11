@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS personas (
     frequent_phrases   TEXT,   -- JSON 배열
     forbidden_phrases  TEXT,   -- JSON 배열
     sensitive_policy   TEXT,
+    call_style_code    TEXT,   -- CEML 같은 4글자 통화 성향 코드
+    call_style_name    TEXT,
+    call_style_scores  TEXT,   -- JSON 축별 점수
+    call_style_answers TEXT,   -- JSON 문항별 선택값
     active             INTEGER DEFAULT 1,
     created_at         TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -95,6 +99,10 @@ CREATE TABLE IF NOT EXISTS calls (
     call_id      TEXT PRIMARY KEY,
     elder_id     TEXT NOT NULL REFERENCES elder_profiles(elder_id),
     persona_id   TEXT REFERENCES personas(persona_id),
+    -- 통화 당시 표시값. 나중에 페르소나 이름이 바뀌어도 과거 리포트는 유지한다.
+    counterpart_name     TEXT,
+    counterpart_relation TEXT,
+    report_title         TEXT,
     call_type    TEXT DEFAULT 'ai' CHECK (call_type IN ('direct','ai','ai_to_direct')),
     started_at   TEXT DEFAULT CURRENT_TIMESTAMP,
     ended_at     TEXT,
@@ -116,6 +124,8 @@ CREATE TABLE IF NOT EXISTS utterances (
     used_memory_ids   TEXT,   -- JSON 배열
     used_schedule_ids TEXT,   -- JSON 배열
     unverified_recall TEXT,   -- JSON 객체
+    -- 비진단적 인지·정서·생활 관찰과 실제 응답에 사용한 근거·지원 행동.
+    care_data          TEXT,   -- JSON 객체
     grounding         TEXT,
     safety_flags      TEXT,   -- JSON 배열. safety.py가 잡아낸 위반
     was_rewritten     INTEGER DEFAULT 0,
@@ -169,6 +179,28 @@ CREATE TABLE IF NOT EXISTS reports (
     medication_summary TEXT,   -- JSON
     new_recalls        TEXT,   -- JSON. 보호자 확인 대기
     risk_summary       TEXT,   -- JSON
+    care_summary       TEXT,   -- JSON. 인지·정서·생활 관찰
+    meaningful_moments TEXT,   -- JSON. 마음 기록/Life Archive 후보
+    family_mentions    TEXT,   -- JSON. 등록된 가족 이름의 실제 발화 횟수
     guardian_actions   TEXT,   -- JSON
     created_at         TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 마음 기록의 실제 발화로부터 만든 감성 이미지 후보.
+-- candidate 단계에서는 사실 재현물이 아니라 '기억에서 영감을 받은 상상 이미지'로만 노출한다.
+-- 보호자가 사실 관계를 확인하면 approved, 부정하면 rejected로 남긴다.
+CREATE TABLE IF NOT EXISTS heart_artworks (
+    artwork_id          TEXT PRIMARY KEY,
+    call_id             TEXT NOT NULL REFERENCES calls(call_id),
+    source_utterance_id INTEGER NOT NULL REFERENCES utterances(utterance_id),
+    memory_id           TEXT REFERENCES memories(memory_id),
+    status              TEXT NOT NULL CHECK (status IN ('candidate','approved','rejected')),
+    image_url           TEXT NOT NULL,
+    source_quote        TEXT NOT NULL,
+    alt_text            TEXT NOT NULL,
+    caption             TEXT NOT NULL,
+    prompt_summary      TEXT,
+    created_at          TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_heart_artworks_call
+    ON heart_artworks(call_id, status, created_at);

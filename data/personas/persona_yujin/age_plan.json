@@ -1,0 +1,18 @@
+{
+  "version": 4,
+  "current_age": 30,
+  "current_photo": "yujin_05.png",
+  "birth_date": null,
+  "current_photo_date": null,
+  "age_source": "manual_age",
+  "biological_sex": "female",
+  "population_group": "korean",
+  "extra_ages": [],
+  "selections": {
+    "27": "age27_imagegen_candidate01.png",
+    "24": "age24_imagegen_candidate01.png",
+    "21": "age21_imagegen_candidate01.png",
+    "18": "age18_imagegen_candidate03.png"
+  },
+  "updated_at": "2026-08-11T00:41:38.604355+00:00"
+}

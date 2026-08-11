@@ -16,9 +16,11 @@ JSON_COLUMNS = {
     "anxiety_triggers", "calming_phrases", "frequent_questions",
     "emergency_contacts", "household_members", "frequent_phrases",
     "forbidden_phrases",
+    "call_style_scores", "call_style_answers",
     "participants", "days_of_week", "used_memory_ids", "used_schedule_ids",
-    "unverified_recall", "safety_flags", "payload", "repeated_questions",
+    "unverified_recall", "care_data", "safety_flags", "payload", "repeated_questions",
     "medication_summary", "new_recalls", "risk_summary", "guardian_actions",
+    "care_summary", "meaningful_moments", "family_mentions",
 }
 
 # CREATE TABLE IF NOT EXISTS 는 이미 있는 테이블에 새 컬럼을 붙이지 않는다.
@@ -27,6 +29,25 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "elder_profiles": {
         "residence_type": "TEXT",
         "household_members": "TEXT",
+    },
+    "personas": {
+        "call_style_code": "TEXT",
+        "call_style_name": "TEXT",
+        "call_style_scores": "TEXT",
+        "call_style_answers": "TEXT",
+    },
+    "utterances": {
+        "care_data": "TEXT",
+    },
+    "calls": {
+        "counterpart_name": "TEXT",
+        "counterpart_relation": "TEXT",
+        "report_title": "TEXT",
+    },
+    "reports": {
+        "care_summary": "TEXT",
+        "meaningful_moments": "TEXT",
+        "family_mentions": "TEXT",
     },
 }
 

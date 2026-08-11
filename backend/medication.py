@@ -144,3 +144,17 @@ def today_status(elder_id: str = "elder_001") -> list[dict]:
             "last_status": entries[-1]["status"] if entries else None,
         })
     return out
+
+
+def listing(elder_id: str = "elder_001") -> list[dict]:
+    """달력 표시용 전체 활성 복약 일정.
+
+    오늘 복용 여부와 달리 반복 요일 자체가 필요하므로 days_of_week를 보존한다.
+    """
+    with db.connect() as conn:
+        rows = [db._row(r) for r in conn.execute(
+            "SELECT * FROM medications WHERE elder_id = ? AND active = 1 "
+            "ORDER BY scheduled_time, medication_name",
+            (elder_id,),
+        ).fetchall()]
+    return rows

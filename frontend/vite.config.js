@@ -11,7 +11,9 @@ export default defineConfig({
       "/api": "http://127.0.0.1:8000",
       "/faces": "http://127.0.0.1:8000",
       "/identity-faces": "http://127.0.0.1:8000",
+      "/age-candidates": "http://127.0.0.1:8000",
       "/media": "http://127.0.0.1:8000",
+      "/persona-assets": "http://127.0.0.1:8000",
     },
   },
 });

@@ -9,11 +9,13 @@ React 화면(D5-B)이 이 API만 보고 동작하도록 응답 형태를 고정�
 """
 
 from collections import defaultdict, deque
+import json
 import math
 import os
 import threading
 import time
 import uuid
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -41,8 +43,11 @@ from storage import (
     FRONTEND_DIST,
     LOOPS_DIR,
     MORPH_PATH,
+    PERSONAS_ROOT,
+    ROOT,
     SOURCE_FACES_DIR,
     ensure_directories,
+    ensure_persona_face_directories,
 )
 
 FACES_DIR = ALIGNED_FACES_DIR
@@ -69,6 +74,10 @@ app.add_middleware(
 )
 
 ensure_directories()
+# 로컬·배포 모두 기존 통화 DB를 지우지 않고 새 컬럼만 보강한다. 배포 시작점은
+# DB가 이미 있으면 init_db.py를 건너뛰므로 API 자체가 마이그레이션을 맡아야 한다.
+with db.connect() as schema_conn:
+    db.init_schema(schema_conn)
 app.mount("/faces", StaticFiles(directory=FACES_DIR), name="faces")
 app.mount(
     "/identity-faces",
@@ -83,6 +92,11 @@ app.mount(
 # 모핑 영상(morph.mp4)을 내보낸다. 브라우저가 구간 요청을 하므로
 # StaticFiles 가 Range 헤더를 처리해 준다.
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+app.mount(
+    "/persona-assets",
+    StaticFiles(directory=PERSONAS_ROOT),
+    name="persona-assets",
+)
 
 
 @app.middleware("http")
@@ -162,10 +176,14 @@ class PersonaPatch(BaseModel):
     relationship_type: str | None = Field(default=None, max_length=20)
     elder_calls_family: str | None = Field(default=None, max_length=30)
     family_calls_elder: str | None = Field(default=None, max_length=30)
-    tone: str | None = Field(default=None, max_length=200)
+    tone: str | None = Field(default=None, max_length=500)
     frequent_phrases: list[str] | None = None
     forbidden_phrases: list[str] | None = None
     sensitive_policy: str | None = Field(default=None, max_length=300)
+    call_style_code: str | None = Field(default=None, pattern=r"^[CB][EP][MO][LG]$")
+    call_style_name: str | None = Field(default=None, max_length=40)
+    call_style_scores: dict | None = None
+    call_style_answers: dict[str, str] | None = None
 
 
 class ElderPatch(BaseModel):
@@ -326,47 +344,128 @@ def _acquire_tts_capacity() -> None:
         )
 
 
-def _morph_url() -> str | None:
+def _morph_url(persona_id: str | None = None) -> str | None:
     """페르소나 등록 시 미리 만들어 둔 모핑 영상. 없으면 이미지 전환으로 대체된다."""
-    if not MORPH.exists():
+    paths = ensure_persona_face_directories(persona_id)
+    if not paths.morph.exists():
         return None
-    return f"/media/{MORPH.name}?v={MORPH.stat().st_mtime_ns}"
+    prefix = "/media" if paths.legacy else f"/persona-assets/{paths.persona_id}"
+    return f"{prefix}/{paths.morph.name}?v={paths.morph.stat().st_mtime_ns}"
 
 
-def _loop_urls() -> dict[str, str]:
+def _loop_urls(persona_id: str | None = None) -> dict[str, str]:
     """표정 루프. 모핑이 끝난 뒤 상황에 맞는 것을 반복 재생한다.
 
     폴더에 있는 파일을 그대로 알려주고, 어떤 것을 언제 틀지는 화면이 정한다.
     루프를 나중에 추가하거나 빼도 서버는 손대지 않아도 된다.
     """
-    if not LOOPS_DIR.exists():
+    paths = ensure_persona_face_directories(persona_id)
+    if not paths.loops.exists():
         return {}
-    return {p.stem: f"/media/loops/{p.name}" for p in sorted(LOOPS_DIR.glob("*.mp4"))}
+    prefix = "/media/loops" if paths.legacy else (
+        f"/persona-assets/{paths.persona_id}/loops"
+    )
+    return {p.stem: f"{prefix}/{p.name}" for p in sorted(paths.loops.glob("*.mp4"))}
 
 
-def _face_urls() -> list[dict]:
+def _face_urls(persona_id: str | None = None) -> list[dict]:
     """모핑에 쓸 얼굴 단계 목록. 파일명 앞 숫자가 순서다."""
-    if not FACES_DIR.exists():
+    if persona_id is None:
+        aligned_dir = FACES_DIR
+        final_dir = FINAL_AGE_PATH_DIR
+        legacy = True
+        selected_persona_id = "persona_daewoong"
+    else:
+        face_paths = ensure_persona_face_directories(persona_id)
+        aligned_dir = face_paths.aligned
+        final_dir = face_paths.final_age_path
+        legacy = face_paths.legacy
+        selected_persona_id = face_paths.persona_id
+    if not aligned_dir.exists():
         return []
     final_paths = []
-    if FINAL_AGE_PATH_DIR.exists():
+    if final_dir.exists():
         final_paths = [
             path
-            for path in sorted(FINAL_AGE_PATH_DIR.glob("*.png"))
+            for path in sorted(final_dir.glob("*.png"))
             if not path.name.startswith("_")
             and path.stem.split("_", 1)[0].isdigit()
             and "_age" in path.stem.lower()
         ]
+
+    # 새 가족은 전체 모핑 경로가 완성되기 전에도 보호자가 확정한
+    # 연령 후보를 미리 볼 수 있어야 한다. 현재 사진(99_*)만 있는 동안은
+    # age_plan의 선택값을 직접 반환하고, 최종 키프레임이 만들어지면
+    # 기존 final_age_path가 다시 단일 기준이 된다.
+    current_only = (
+        not legacy
+        and len(final_paths) == 1
+        and final_paths[0].name.startswith("99_")
+    )
+    if not legacy and (not final_paths or current_only):
+        try:
+            plan = age_timeline.get_plan(selected_persona_id)
+        except (OSError, ValueError):
+            plan = {}
+        preview = []
+        persona_paths = ensure_persona_face_directories(selected_persona_id)
+        for stage_data in plan.get("stages", []):
+            selected = stage_data.get("selected")
+            if not selected:
+                continue
+            folder = "source" if stage_data.get("kind") == "current" else "age_candidates"
+            candidate = persona_paths.root / folder / selected
+            if not candidate.is_file():
+                continue
+            preview.append({
+                "stage": f"age{int(stage_data['age']):02d}",
+                "url": (
+                    f"/persona-assets/{selected_persona_id}/"
+                    f"{folder}/{selected}"
+                ),
+            })
+        if len(preview) > len(final_paths):
+            return preview
+
     paths = final_paths or [
-        path for path in sorted(FACES_DIR.glob("*.png"))
+        path for path in sorted(aligned_dir.glob("*.png"))
         if not path.name.startswith("_")
     ]
-    url_prefix = "/faces/age_path_final" if final_paths else "/faces"
+    if legacy:
+        url_prefix = "/faces/age_path_final" if final_paths else "/faces"
+    else:
+        folder = "aligned/age_path_final" if final_paths else "aligned"
+        url_prefix = f"/persona-assets/{selected_persona_id}/{folder}"
     stages = []
     for path in paths:
         stage = path.stem.split("_", 1)[-1]
         stages.append({"stage": stage, "url": f"{url_prefix}/{path.name}"})
     return stages
+
+
+def _persona_face_url(persona_id: str) -> str | None:
+    """가족별 대표 얼굴. 준비되지 않은 가족에게 다른 사람 얼굴을 빌려주지 않는다."""
+    if persona_id in {"persona_minjun", "persona_daewoong"}:
+        legacy = _face_urls(persona_id)
+        return legacy[-1]["url"] if legacy else None
+    paths = ensure_persona_face_directories(persona_id)
+    manifest = paths.root / "profile.json"
+    try:
+        profile_data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        profile_data = {}
+    relative = Path(str(profile_data.get("representative_photo") or "")).as_posix()
+    candidate = paths.root / relative
+    try:
+        candidate.resolve().relative_to(paths.root.resolve())
+    except ValueError:
+        return None
+    if candidate.is_file():
+        return (
+            f"/persona-assets/{persona_id}/{relative}"
+            f"?v={candidate.stat().st_mtime_ns}"
+        )
+    return None
 
 
 # ------------------------------------------------------------------ 엔드포인트
@@ -474,6 +573,16 @@ def call_targets(elder_id: str = "elder_001"):
     등록이 끝난 사람만 실제로 걸 수 있다.
     나머지는 얼굴 사진과 영상이 아직 없어 대기 상태로 보여준다.
     """
+    family_order = {
+        "persona_jeonghun": 0,
+        "persona_miyeong": 1,
+        "persona_daewoong": 2,  # 데모의 민준 데이터가 사용하던 기존 ID
+        "persona_yujin": 3,
+    }
+    personas = sorted(
+        db.personas(elder_id),
+        key=lambda item: (family_order.get(item["persona_id"], 99), item["display_name"]),
+    )
     return {
         "elder_id": elder_id,
         "personas": [
@@ -481,10 +590,12 @@ def call_targets(elder_id: str = "elder_001"):
                 "persona_id": p["persona_id"],
                 "display_name": p["display_name"],
                 "relationship": p["relationship_type"],
-                "ready": bool(p.get("active")),
-                "face": _face_urls()[-1]["url"] if p.get("active") and _face_urls() else None,
+                "call_style_code": p.get("call_style_code"),
+                "call_style_name": p.get("call_style_name"),
+                "ready": bool(p.get("active") and _persona_face_url(p["persona_id"])),
+                "face": _persona_face_url(p["persona_id"]) if p.get("active") else None,
             }
-            for p in db.personas(elder_id)
+            for p in personas
         ],
     }
 
@@ -507,9 +618,9 @@ def profile(elder_id: str = "elder_001", persona_id: str | None = None):
             "display_name": ctx["persona"].get("display_name"),
             "relationship": ctx["persona"].get("relationship_type"),
         },
-        "faces": _face_urls(),
-        "morph_url": _morph_url(),
-        "loops": _loop_urls(),
+        "faces": _face_urls(persona_id),
+        "morph_url": _morph_url(persona_id),
+        "loops": _loop_urls(persona_id),
         "counts": {
             "memories": len(ctx["memories"]),
             "schedules": len(ctx["schedules"]),
@@ -548,23 +659,26 @@ def verify_link_code(req: LinkVerify):
 
 
 @app.get("/api/elders/{elder_id}/persona")
-def get_persona(elder_id: str = "elder_001"):
+def get_persona(elder_id: str = "elder_001", persona_id: str | None = None):
     """페르소나 등록 화면에 필요한 전체 정보."""
     try:
         return dict(
-            admin_mod.profile(elder_id),
-            faces=admin_mod.faces(),
-            identity_photos=admin_mod.identity_photos(),
-            age_plan=age_timeline.get_plan(),
+            admin_mod.profile(elder_id, persona_id),
+            faces=admin_mod.faces(persona_id),
+            identity_photos=admin_mod.identity_photos(persona_id),
+            age_plan=age_timeline.get_plan(persona_id),
         )
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
 
 
 @app.patch("/api/elders/{elder_id}/persona")
-def patch_persona(elder_id: str, req: PersonaPatch):
+def patch_persona(elder_id: str, req: PersonaPatch,
+                  persona_id: str | None = None):
     try:
-        return admin_mod.update_persona(elder_id, req.model_dump(exclude_none=True))
+        return admin_mod.update_persona(
+            elder_id, req.model_dump(exclude_none=True), persona_id
+        )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
 
@@ -578,47 +692,50 @@ def patch_elder(elder_id: str, req: ElderPatch):
 
 
 @app.get("/api/faces")
-def list_faces():
-    return admin_mod.faces()
+def list_faces(persona_id: str | None = None):
+    return admin_mod.faces(persona_id)
 
 
 @app.get("/api/identity-photos")
-def list_identity_photos():
-    return admin_mod.identity_photos()
+def list_identity_photos(persona_id: str | None = None):
+    return admin_mod.identity_photos(persona_id)
 
 
 @app.post("/api/identity-photos")
-async def upload_identity_photos(files: list[UploadFile] = File(...)):
+async def upload_identity_photos(files: list[UploadFile] = File(...),
+                                 persona_id: str | None = None):
     """나이 변환의 신원 기준이 될 현재 얼굴 사진을 최대 6장 받는다."""
     saved, errors = [], []
     for file in files:
         try:
             saved.append(
-                admin_mod.save_identity_photo(file.filename or "photo", await file.read())
+                admin_mod.save_identity_photo(
+                    file.filename or "photo", await file.read(), persona_id
+                )
             )
         except ValueError as exc:
             errors.append({"file": file.filename, "error": str(exc)})
     return {
         "saved": saved,
         "errors": errors,
-        "identity_photos": admin_mod.identity_photos(),
+        "identity_photos": admin_mod.identity_photos(persona_id),
     }
 
 
 @app.delete("/api/identity-photos/{name}")
-def delete_identity_photo(name: str):
-    admin_mod.delete_identity_photo(name)
-    return {"ok": True, "identity_photos": admin_mod.identity_photos()}
+def delete_identity_photo(name: str, persona_id: str | None = None):
+    admin_mod.delete_identity_photo(name, persona_id)
+    return {"ok": True, "identity_photos": admin_mod.identity_photos(persona_id)}
 
 
 @app.get("/api/age-plan")
-def get_age_plan():
+def get_age_plan(persona_id: str | None = None):
     """현재 나이를 마지막 지점으로 삼는 과거 얼굴 생성 계획."""
-    return age_timeline.get_plan()
+    return age_timeline.get_plan(persona_id)
 
 
 @app.put("/api/age-plan")
-def put_age_plan(req: AgePlanRequest):
+def put_age_plan(req: AgePlanRequest, persona_id: str | None = None):
     try:
         return age_timeline.save_plan(
             req.current_age,
@@ -627,30 +744,36 @@ def put_age_plan(req: AgePlanRequest):
             current_photo_date=req.current_photo_date,
             biological_sex=req.biological_sex,
             population_group=req.population_group,
+            persona_id=persona_id,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
 
 @app.put("/api/age-plan/selection")
-def put_age_candidate_selection(req: AgeCandidateSelection):
+def put_age_candidate_selection(req: AgeCandidateSelection,
+                                persona_id: str | None = None):
     try:
-        return age_timeline.select_candidate(req.age, req.filename)
+        return age_timeline.select_candidate(req.age, req.filename, persona_id)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
 
 @app.post("/api/age-plan/refine")
-def post_age_path_refinement(req: AgePathRefinementRequest):
+def post_age_path_refinement(req: AgePathRefinementRequest,
+                             persona_id: str | None = None):
     """Split a failed adjacent age segment without weakening quality gates."""
     try:
-        return age_timeline.refine_failed_segment(req.older_age, req.younger_age)
+        return age_timeline.refine_failed_segment(
+            req.older_age, req.younger_age, persona_id
+        )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
 
 @app.post("/api/faces")
-async def upload_faces(files: list[UploadFile] = File(...)):
+async def upload_faces(files: list[UploadFile] = File(...),
+                       persona_id: str | None = None):
     """얼굴 사진 업로드.
 
     파일명 순서가 나이 순서가 되므로 01_, 02_ 처럼 앞에 번호를 붙여 올린다.
@@ -658,22 +781,22 @@ async def upload_faces(files: list[UploadFile] = File(...)):
     saved, errors = [], []
     for f in files:
         try:
-            saved.append(admin_mod.save_face(f.filename, await f.read()))
+            saved.append(admin_mod.save_face(f.filename, await f.read(), persona_id))
         except ValueError as e:
             errors.append({"file": f.filename, "error": str(e)})
-    return {"saved": saved, "errors": errors, "faces": admin_mod.faces()}
+    return {"saved": saved, "errors": errors, "faces": admin_mod.faces(persona_id)}
 
 
 @app.delete("/api/faces/{name}")
-def delete_face(name: str):
-    admin_mod.delete_face(name)
-    return {"ok": True, "faces": admin_mod.faces()}
+def delete_face(name: str, persona_id: str | None = None):
+    admin_mod.delete_face(name, persona_id)
+    return {"ok": True, "faces": admin_mod.faces(persona_id)}
 
 
 @app.post("/api/faces/prepare")
-def prepare_faces():
+def prepare_faces(persona_id: str | None = None):
     """올린 사진을 3:4 세로로 자르고 눈높이를 맞춘다."""
-    return admin_mod.prepare_faces()
+    return admin_mod.prepare_faces(persona_id)
 
 
 @app.get("/api/elders/{elder_id}/memories")
@@ -753,7 +876,11 @@ def delete_schedule(schedule_id: str):
 @app.get("/api/elders/{elder_id}/medications")
 def list_medications(elder_id: str = "elder_001"):
     """보호자가 등록한 복약 일정과 오늘 현황."""
-    return {"elder_id": elder_id, "today": med_mod.today_status(elder_id)}
+    return {
+        "elder_id": elder_id,
+        "today": med_mod.today_status(elder_id),
+        "medications": med_mod.listing(elder_id),
+    }
 
 
 @app.post("/api/elders/{elder_id}/medications")
@@ -804,9 +931,10 @@ def pending_call(elder_id: str = "elder_001"):
 
 @app.post("/api/calls")
 def start_call(req: StartCallRequest):
-    """AI 대리통화를 연다."""
+    """AI 인지·정서 케어 통화를 연다."""
     session = Session(elder_id=req.elder_id, persona_id=req.persona_id)
     SESSIONS[session.call_id] = session
+    selected_persona_id = session.ctx["persona"].get("persona_id")
     persona_name = session.ctx["persona"].get("display_name", "가족")
     return {
         "call_id": session.call_id,
@@ -815,9 +943,9 @@ def start_call(req: StartCallRequest):
         "opening": session.opening(),
         # 명세 13.1 — 연결 전 1회만 고지한다. 통화 중에는 반복하지 않는다.
         "announcement": f"{persona_name}이가 준비한 AI 기억통화가 연결됩니다.",
-        "faces": _face_urls(),
-        "morph_url": _morph_url(),
-        "loops": _loop_urls(),
+        "faces": _face_urls(selected_persona_id),
+        "morph_url": _morph_url(selected_persona_id),
+        "loops": _loop_urls(selected_persona_id),
     }
 
 
@@ -841,6 +969,7 @@ def turn(call_id: str, req: TurnRequest):
         "risk": result.get("risk"),
         "medication_status": result.get("medication_status"),
         "unverified_recall": result.get("unverified_recall"),
+        "care": result.get("care"),
         "grounding": result.get("grounding"),
         "safety_flags": result.get("_safety_flags") or [],
         "rewritten": bool(result.get("_rewritten")),
@@ -853,7 +982,7 @@ def call_log(call_id: str):
     with db.connect() as conn:
         rows = conn.execute(
             "SELECT utterance_id, seq, speaker, transcript, intent, certainty, "
-            "safety_flags, was_rewritten, latency_ms "
+            "care_data, safety_flags, was_rewritten, latency_ms "
             "FROM utterances WHERE call_id = ? ORDER BY seq",
             (call_id,),
         ).fetchall()
@@ -877,9 +1006,16 @@ def call_report(call_id: str, regenerate: bool = False):
 
 @app.get("/api/elders/{elder_id}/summary")
 def period_summary(elder_id: str = "elder_001", days: int = 7,
-                   narrative: bool = True):
+                   narrative: bool = True, start: str | None = None,
+                   end: str | None = None):
     """며칠치를 모아 본다. 통화 하나로는 변화가 보이지 않는다."""
-    return report_mod.period(elder_id, days=days, narrative=narrative)
+    try:
+        return report_mod.period(
+            elder_id, days=days, narrative=narrative,
+            start_date=start, end_date=end,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @app.post("/api/risk-events/{event_id}/acknowledge")

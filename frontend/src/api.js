@@ -49,11 +49,11 @@ export const sendTurn = (callId, text) =>
     body: JSON.stringify({ text }),
   });
 
-export const getPersona = (elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/persona`);
+export const getPersona = (personaId, elderId = "elder_001") =>
+  request(`/api/elders/${elderId}/persona${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`);
 
-export const patchPersona = (body, elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/persona`, {
+export const patchPersona = (body, personaId, elderId = "elder_001") =>
+  request(`/api/elders/${elderId}/persona${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, {
     method: "PATCH",
     body: JSON.stringify(body),
   });
@@ -64,50 +64,52 @@ export const patchElder = (body, elderId = "elder_001") =>
     body: JSON.stringify(body),
   });
 
-export const uploadFaces = async (fileList) => {
+export const uploadFaces = async (fileList, personaId) => {
   const form = new FormData();
   [...fileList].forEach((f) => form.append("files", f));
-  const res = await fetch("/api/faces", { method: "POST", body: form });
+  const query = personaId ? `?persona_id=${encodeURIComponent(personaId)}` : "";
+  const res = await fetch(`/api/faces${query}`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`업로드 실패 (${res.status})`);
   return res.json();
 };
 
-export const uploadIdentityPhotos = async (fileList) => {
+export const uploadIdentityPhotos = async (fileList, personaId) => {
   const form = new FormData();
   [...fileList].forEach((file) => form.append("files", file));
-  const res = await fetch("/api/identity-photos", { method: "POST", body: form });
+  const query = personaId ? `?persona_id=${encodeURIComponent(personaId)}` : "";
+  const res = await fetch(`/api/identity-photos${query}`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`사진 검사 실패 (${res.status})`);
   return res.json();
 };
 
-export const deleteIdentityPhoto = (name) =>
-  request(`/api/identity-photos/${encodeURIComponent(name)}`, {
+export const deleteIdentityPhoto = (name, personaId) =>
+  request(`/api/identity-photos/${encodeURIComponent(name)}${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, {
     method: "DELETE",
   });
 
-export const saveAgePlan = (body) =>
-  request("/api/age-plan", {
+export const saveAgePlan = (body, personaId) =>
+  request(`/api/age-plan${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, {
     method: "PUT",
     body: JSON.stringify(body),
   });
 
-export const selectAgeCandidate = (age, filename) =>
-  request("/api/age-plan/selection", {
+export const selectAgeCandidate = (age, filename, personaId) =>
+  request(`/api/age-plan/selection${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, {
     method: "PUT",
     body: JSON.stringify({ age, filename }),
   });
 
-export const refineAgePlan = (olderAge, youngerAge) =>
-  request("/api/age-plan/refine", {
+export const refineAgePlan = (olderAge, youngerAge, personaId) =>
+  request(`/api/age-plan/refine${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, {
     method: "POST",
     body: JSON.stringify({ older_age: olderAge, younger_age: youngerAge }),
   });
 
-export const deleteFace = (name) =>
-  request(`/api/faces/${encodeURIComponent(name)}`, { method: "DELETE" });
+export const deleteFace = (name, personaId) =>
+  request(`/api/faces/${encodeURIComponent(name)}${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, { method: "DELETE" });
 
-export const prepareFaces = () =>
-  request("/api/faces/prepare", { method: "POST" });
+export const prepareFaces = (personaId) =>
+  request(`/api/faces/prepare${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, { method: "POST" });
 
 export const getMemories = (elderId = "elder_001") =>
   request(`/api/elders/${elderId}/memories`);
@@ -127,8 +129,8 @@ export const patchMemory = (memoryId, body) =>
 export const deleteMemory = (memoryId) =>
   request(`/api/memories/${memoryId}`, { method: "DELETE" });
 
-export const reviewRecall = (utteranceId, body) =>
-  request(`/api/recalls/${utteranceId}/review`, {
+export const reviewRecall = (utteranceId, body, elderId = "elder_001") =>
+  request(`/api/recalls/${utteranceId}/review?elder_id=${encodeURIComponent(elderId)}`, {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -166,15 +168,21 @@ export const addMedication = (body, elderId = "elder_001") =>
 export const removeMedication = (scheduleId) =>
   request(`/api/medications/${scheduleId}`, { method: "DELETE" });
 
-export const getReports = (elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/reports`);
+export const getReports = (elderId = "elder_001", limit = 120) =>
+  request(`/api/elders/${elderId}/reports?limit=${limit}`);
 
 export const getReport = (callId) => request(`/api/calls/${callId}/report`);
 
 export const getTranscript = (callId) => request(`/api/calls/${callId}/log`);
 
-export const getPeriodSummary = (days = 7, elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/summary?days=${days}`);
+export const getPeriodSummary = (days = 7, elderId = "elder_001", range = {}) => {
+  const params = new URLSearchParams({ days: String(days) });
+  if (range.start && range.end) {
+    params.set("start", range.start);
+    params.set("end", range.end);
+  }
+  return request(`/api/elders/${elderId}/summary?${params}`);
+};
 
 export const acknowledgeRisk = (eventId) =>
   request(`/api/risk-events/${eventId}/acknowledge`, { method: "POST" });

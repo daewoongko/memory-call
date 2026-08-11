@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_01.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_01.png",
+      "bbox": [
+        352.184,
+        216.286,
+        780.773,
+        811.78
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_03.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_03.png",
+      "bbox": [
+        365.439,
+        222.673,
+        762.469,
+        775.341
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_05.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_05.png",
+      "bbox": [
+        368.027,
+        219.942,
+        762.259,
+        771.587
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age21_imagegen_candidate01.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age21_imagegen_candidate01.png",
+      "bbox": [
+        381.681,
+        240.195,
+        757.548,
+        761.201
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age18_imagegen_candidate01.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age18_imagegen_candidate01.png",
+      "bbox": [
+        370.674,
+        232.942,
+        764.341,
+        774.879
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age18_imagegen_candidate02.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age18_imagegen_candidate02.png",
+      "bbox": [
+        371.376,
+        244.728,
+        764.676,
+        781.84
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age18_imagegen_candidate03.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age18_imagegen_candidate03.png",
+      "bbox": [
+        379.121,
+        240.854,
+        757.001,
+        761.236
+      ]
+    }
+  ]
+}

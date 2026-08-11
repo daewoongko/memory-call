@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\source\\jeonghun_01.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\source\\jeonghun_01.png",
+      "bbox": [
+        349.216,
+        211.859,
+        793.931,
+        812.887
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\source\\jeonghun_02.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\source\\jeonghun_02.png",
+      "bbox": [
+        339.426,
+        208.689,
+        797.949,
+        838.28
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\source\\jeonghun_06.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\source\\jeonghun_06.png",
+      "bbox": [
+        370.941,
+        220.498,
+        779.009,
+        777.081
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\age_candidates\\age49_imagegen_candidate03.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\age_candidates\\age49_imagegen_candidate03.png",
+      "bbox": [
+        376.622,
+        231.19,
+        785.051,
+        784.273
+      ]
+    },
+    {
+      "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\age_candidates\\age44_imagegen_candidate02.png",
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_jeonghun\\age_candidates\\age44_imagegen_candidate02.png",
+      "bbox": [
+        374.03,
+        227.22,
+        777.2,
+        783.567
+      ]
+    }
+  ]
+}

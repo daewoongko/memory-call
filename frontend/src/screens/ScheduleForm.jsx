@@ -27,7 +27,7 @@ function label(dateStr) {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ScheduleForm() {
+export default function ScheduleForm({ elderId = "elder_001", onChanged }) {
   const [upcoming, setUpcoming] = useState([]);
   const [past, setPast] = useState([]);
   const [form, setForm] = useState({
@@ -42,7 +42,7 @@ export default function ScheduleForm() {
 
   const load = () =>
     api
-      .getSchedules()
+      .getSchedules(elderId)
       .then((r) => {
         setUpcoming(r.upcoming);
         setPast(r.past);
@@ -59,6 +59,7 @@ export default function ScheduleForm() {
     try {
       await fn();
       await load();
+      onChanged?.();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -69,7 +70,7 @@ export default function ScheduleForm() {
   const add = () =>
     form.title.trim() &&
     guard(async () => {
-      await api.addSchedule(form);
+      await api.addSchedule(form, elderId);
       setForm({ ...form, title: "", note: "" });
     });
 

@@ -140,10 +140,14 @@ def _elder_block(e: dict) -> str:
 
 
 def _persona_block(p: dict) -> str:
+    style = ""
+    if p.get("call_style_code"):
+        style = f"\n통화 성향: {p['call_style_code']} · {p.get('call_style_name') or '이름 미등록'}"
     return (
         f"이름: {p['display_name']} ({p['relationship_type']})\n"
         f"할아버지가 부르는 호칭: {p['elder_calls_family']}\n"
         f"말투: {p['tone']}"
+        f"{style}"
     )
 
 

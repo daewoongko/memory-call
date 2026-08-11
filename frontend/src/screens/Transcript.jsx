@@ -7,7 +7,7 @@ import * as api from "../api.js";
  * 요약만으로는 보호자가 "정말 그랬나" 를 확인할 수 없다.
  * 원문을 볼 수 있어야 요약을 신뢰할 수 있다 (명세 NFR-05).
  */
-export default function Transcript({ callId, personaName = "대웅" }) {
+export default function Transcript({ callId, personaName = "AI 가족", elderName = "어르신" }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
 
@@ -26,7 +26,7 @@ export default function Transcript({ callId, personaName = "대웅" }) {
       {rows.map((u) => (
         <div key={u.seq} className={`line ${u.speaker}`}>
           <span className="speaker">
-            {u.speaker === "elder" ? "할아버지" : personaName}
+            {u.speaker === "elder" ? elderName : personaName}
           </span>
           <div className="bubble">
             {u.transcript}

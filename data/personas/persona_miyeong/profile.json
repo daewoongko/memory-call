@@ -1,0 +1,21 @@
+{
+  "persona_id": "persona_miyeong",
+  "display_name": "미영",
+  "relationship_type": "딸",
+  "current_age": 56,
+  "representative_photo": "source/miyeong_05.png",
+  "identity_reference_photos": [
+    "source/miyeong_01.png",
+    "source/miyeong_03.png",
+    "source/miyeong_05.png"
+  ],
+  "source_photos": [
+    "source/miyeong_01.png",
+    "source/miyeong_02.png",
+    "source/miyeong_03.png",
+    "source/miyeong_04.png",
+    "source/miyeong_05.png"
+  ],
+  "quality_status": "usable_with_softness_warning",
+  "updated_at": "2026-08-10T15:50:00+09:00"
+}

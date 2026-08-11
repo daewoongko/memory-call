@@ -31,6 +31,7 @@ const RISK_LABEL = {
   self_harm: "가족에게 바로 알렸어요",
   intrusion: "가족에게 바로 알렸어요",
   fire: "가족에게 바로 알렸어요",
+  gas_leak: "가스 냄새를 가족에게 알렸어요",
 };
 
 function elapsedText(seconds) {

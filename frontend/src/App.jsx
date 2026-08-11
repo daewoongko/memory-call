@@ -11,6 +11,7 @@ import IncomingScreen from "./screens/IncomingScreen.jsx";
 import SplashScreen from "./screens/SplashScreen.jsx";
 import RoleScreen from "./screens/RoleScreen.jsx";
 import LinkScreen from "./screens/LinkScreen.jsx";
+import GuardianOnboardingScreen from "./screens/GuardianOnboardingScreen.jsx";
 
 const ANSWER_TIMEOUT = 15;
 const PENDING_POLL_MS = 20000;  // 복약 시간이 되었는지 주기적으로 확인
@@ -18,6 +19,7 @@ const RING_COOLDOWN_MS = 300000; // 거절하거나 통화가 끝난 뒤 다시 
 
 const KEY_ROLE = "dasoni.role";
 const KEY_LINKED = "dasoni.linked";
+const KEY_GUARDIAN_ONBOARDING = "dasoni.guardianOnboarding.v1";
 
 function readLocal(key) {
   try {
@@ -54,6 +56,9 @@ export default function App() {
   const [booted, setBooted] = useState(false);
   const [role, setRole] = useState(() => readLocal(KEY_ROLE));
   const [linked, setLinked] = useState(() => readLocal(KEY_LINKED));
+  const [guardianOnboarded, setGuardianOnboarded] = useState(
+    () => readLocal(KEY_GUARDIAN_ONBOARDING) === "done"
+  );
 
   const [phase, setPhase] = useState("idle"); // idle | calling | incall | ended
   const [profile, setProfile] = useState(null);
@@ -110,7 +115,7 @@ export default function App() {
       setError(`통화를 열지 못했어요. (${e.message})`);
       setPhase("idle");
     }
-  }, []);
+  }, [target]);
 
   // 대기 시간이 끝나면 AI 대리통화로 넘어간다
   useEffect(() => {
@@ -147,9 +152,9 @@ export default function App() {
     setPhase("idle");
   }
 
-  const wrap = (node, { gear = false } = {}) => (
-    <div className="frame">
-      <div className="device">
+  const wrap = (node, { gear = false, wide = false } = {}) => (
+    <div className={`frame${wide ? " guardian-frame" : ""}`}>
+      <div className={`device${wide ? " guardian-device" : ""}`}>
         {gear && (
           <button
             className="gear"
@@ -183,15 +188,25 @@ export default function App() {
     writeLocal(KEY_LINKED, elderId || "skipped");
   };
 
-  // 주소로 직접 들어온 경우는 입구를 건너뛴다
-  if (hash === "#guardian") return wrap(<GuardianScreen />, { gear: true });
+  const finishGuardianOnboarding = () => {
+    setGuardianOnboarded(true);
+    writeLocal(KEY_GUARDIAN_ONBOARDING, "done");
+  };
 
-  if (!booted)
+  // 주소로 직접 들어온 경우는 입구를 건너뛴다.
+  // #elder는 이 브라우저에 저장된 보호자 역할과 무관하게 어르신 화면을 연다.
+  const directElder = hash === "#elder";
+  if (hash === "#guardian") {
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen onDone={finishGuardianOnboarding} />, { wide: true });
+    return wrap(<GuardianScreen />, { gear: true, wide: true });
+  }
+
+  if (!directElder && !booted)
     return wrap(<SplashScreen onDone={() => setBooted(true)} />);
 
-  if (!role) return wrap(<RoleScreen onPick={chooseRole} />);
+  if (!directElder && !role) return wrap(<RoleScreen onPick={chooseRole} />);
 
-  if (!linked)
+  if (!directElder && !linked)
     return wrap(
       <LinkScreen
         role={role}
@@ -200,7 +215,10 @@ export default function App() {
       />
     );
 
-  if (role === "guardian") return wrap(<GuardianScreen />, { gear: true });
+  if (!directElder && role === "guardian") {
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen onDone={finishGuardianOnboarding} />, { wide: true });
+    return wrap(<GuardianScreen />, { gear: true, wide: true });
+  }
 
 
   if (phase === "idle" && incomingReason)

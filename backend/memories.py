@@ -28,7 +28,41 @@ def listing(elder_id: str = "elder_001", status: str | None = None) -> list[dict
     sql += " ORDER BY CASE status WHEN 'prohibited' THEN 1 ELSE 0 END, created_at DESC"
 
     with db.connect() as conn:
-        return [db._row(r) for r in conn.execute(sql, params).fetchall()]
+        memories = [db._row(r) for r in conn.execute(sql, params).fetchall()]
+        usage_rows = [db._row(r) for r in conn.execute(
+            "SELECT u.used_memory_ids, u.created_at FROM utterances u "
+            "JOIN calls c ON c.call_id = u.call_id "
+            "WHERE c.elder_id = ? AND u.speaker = 'ai' "
+            "AND u.used_memory_ids IS NOT NULL AND u.used_memory_ids != ''",
+            (elder_id,),
+        ).fetchall()]
+        artwork_rows = [db._row(r) for r in conn.execute(
+            "SELECT a.memory_id, a.image_url, a.alt_text, a.caption, a.source_quote, a.status "
+            "FROM heart_artworks a JOIN memories m ON m.memory_id = a.memory_id "
+            "WHERE a.memory_id IS NOT NULL AND a.status = 'approved' "
+            "AND m.status = 'verified' AND m.conversation_allowed = 1 "
+            "ORDER BY a.created_at DESC"
+        ).fetchall()]
+
+    usage: dict[str, dict] = {}
+    for row in usage_rows:
+        for memory_id in row.get("used_memory_ids") or []:
+            slot = usage.setdefault(memory_id, {"used_count": 0, "last_used_at": None})
+            slot["used_count"] += 1
+            if not slot["last_used_at"] or row["created_at"] > slot["last_used_at"]:
+                slot["last_used_at"] = row["created_at"]
+
+    for memory in memories:
+        memory.update(usage.get(memory["memory_id"], {
+            "used_count": 0,
+            "last_used_at": None,
+        }))
+    artwork_by_memory = {}
+    for artwork in artwork_rows:
+        artwork_by_memory.setdefault(artwork["memory_id"], artwork)
+    for memory in memories:
+        memory["artwork"] = artwork_by_memory.get(memory["memory_id"])
+    return memories
 
 
 def create(elder_id: str, data: dict) -> dict:
@@ -78,6 +112,10 @@ def update(memory_id: str, fields: dict) -> dict:
 def delete(memory_id: str) -> None:
     """삭제 요청된 기억은 보관하지 않는다 (명세 21장)."""
     with db.connect() as conn:
+        conn.execute(
+            "UPDATE heart_artworks SET memory_id = NULL, status = 'rejected' "
+            "WHERE memory_id = ?", (memory_id,),
+        )
         conn.execute("DELETE FROM memories WHERE memory_id = ?", (memory_id,))
         conn.commit()
 
@@ -148,6 +186,14 @@ def review(utterance_id: int, decision: str, elder_id: str = "elder_001",
             "memory_id": created["memory_id"] if created else None,
             "note": note,
         })
+        if created:
+            # 확인 전 미리보기 후보가 있었다면 이제 확정된 가족 기억에 귀속한다.
+            # 운영에서는 이 시점에 가족이 보완한 세부 정보로 최종 이미지를 생성한다.
+            conn.execute(
+                "UPDATE heart_artworks SET memory_id = ?, status = 'approved' "
+                "WHERE source_utterance_id = ? AND status = 'candidate'",
+                (created["memory_id"], utterance_id),
+            )
         conn.commit()
 
     return {"decision": decision, "memory": created}

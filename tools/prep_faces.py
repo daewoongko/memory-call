@@ -17,6 +17,7 @@ data/faces/raw/*  →  data/faces/aligned/*  +  _contact_sheet.png
 crop.json 으로 사진마다 확대율과 위치를 조절한다.
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -26,11 +27,7 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
-from storage import ALIGNED_FACES_DIR, FACES_ROOT, RAW_FACES_DIR  # noqa: E402
-
-RAW = RAW_FACES_DIR
-OUT = ALIGNED_FACES_DIR
-CONFIG = FACES_ROOT / "crop.json"
+from storage import ensure_persona_face_directories  # noqa: E402
 
 WIDTH, HEIGHT = 864, 1152  # 3:4 세로
 
@@ -48,17 +45,25 @@ def default_for(stem: str) -> dict:
 
 
 def main() -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
-    files = sorted(p for p in RAW.iterdir()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--persona-id")
+    args = parser.parse_args()
+    paths = ensure_persona_face_directories(args.persona_id)
+    raw = paths.raw
+    out = paths.aligned
+    config_path = paths.root / "crop.json"
+
+    out.mkdir(parents=True, exist_ok=True)
+    files = sorted(p for p in raw.iterdir()
                    if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"})
     if not files:
-        sys.exit(f"{RAW} 에 이미지가 없습니다.")
+        sys.exit(f"{raw} 에 이미지가 없습니다.")
 
-    config = json.loads(CONFIG.read_text(encoding="utf-8")) if CONFIG.exists() else {}
+    config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
     for p in files:
         config.setdefault(p.name, default_for(p.stem))
-    CONFIG.write_text(json.dumps(config, ensure_ascii=False, indent=2),
-                      encoding="utf-8")
+    config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2),
+                           encoding="utf-8")
 
     crops = []
     for p in files:
@@ -76,7 +81,7 @@ def main() -> None:
         crop = img.crop((round(cx - box_w / 2), round(cy - box_h / 2),
                          round(cx + box_w / 2), round(cy + box_h / 2)))
         crop = crop.resize((WIDTH, HEIGHT), Image.LANCZOS)
-        crop.save(OUT / f"{p.stem}.png")
+        crop.save(out / f"{p.stem}.png")
         crops.append(crop)
         print(f"  OK  {p.name}  zoom {cfg['zoom']}  y {cfg['y']}")
 
@@ -93,9 +98,9 @@ def main() -> None:
               fill=(0, 200, 120), width=2)        # 어깨 확인선
     for i in range(len(crops)):
         draw.line([(i * tw, 0), (i * tw, th)], fill=(120, 120, 120), width=1)
-    sheet.save(OUT / "_contact_sheet.png")
+    sheet.save(out / "_contact_sheet.png")
 
-    print(f"\n{GREEN}{len(crops)}장 완료{RESET} → {OUT}  ({WIDTH}x{HEIGHT})")
+    print(f"\n{GREEN}{len(crops)}장 완료{RESET} → {out}  ({WIDTH}x{HEIGHT})")
     print("_contact_sheet.png 를 열고 두 가지만 확인하세요.")
     print(f"{DIM}  1. 빨간 선 위에 네 장 모두 눈이 놓였는가")
     print(f"  2. 초록 선 높이에서 옷이 좌우 끝까지 닿는가")

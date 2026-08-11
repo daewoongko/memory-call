@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timezone
 
 import db
+import care
 import llm
 import medication
 import safety
@@ -43,6 +44,9 @@ class Session:
                 "call_id": self.call_id,
                 "elder_id": elder_id,
                 "persona_id": self.persona_id,
+                "counterpart_name": self.ctx["persona"].get("display_name"),
+                "counterpart_relation": self.ctx["persona"].get("relationship_type"),
+                "report_title": "AI 인지·정서 케어 통화",
                 "call_type": call_type,
                 "started_at": _now(),
                 "status": "active",
@@ -97,6 +101,23 @@ class Session:
         latency_ms = int((time.time() - t0) * 1000)
 
         result = self._apply_safety(result, user_text)
+        care_data = care.normalize(
+            result.get("care"),
+            user_text=user_text,
+            ctx=self.ctx,
+            due_medications=self.due_meds,
+            response_rewritten=bool(result.get("_rewritten")),
+        )
+        # 보호자 리포트가 모델이 만든 인용문만 믿지 않고 실제 환자 발화와
+        # 그 시각을 다시 조회할 수 있도록 원본 행을 연결한다.
+        if (
+            care_data["observations"]
+            or care_data["context_support"]
+            or care_data["daily_action"] is not None
+            or care_data["meaningful_moments"]
+        ):
+            care_data["source_utterance_id"] = elder_uid
+        result["care"] = care_data
         reply = result.get("reply", "")
 
         self.seq += 1
@@ -109,6 +130,7 @@ class Session:
             "used_memory_ids": result.get("used_memory_ids") or [],
             "used_schedule_ids": result.get("used_schedule_ids") or [],
             "unverified_recall": result.get("unverified_recall"),
+            "care_data": result.get("care"),
             "grounding": result.get("grounding"),
             "safety_flags": result.get("_safety_flags") or [],
             "was_rewritten": 1 if result.get("_rewritten") else 0,

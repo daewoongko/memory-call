@@ -1,0 +1,66 @@
+{
+  "S30": {
+    "domains": ["memory_orientation"],
+    "signals": ["place_confusion"],
+    "risks": ["lost"],
+    "evidence_any": ["집에 가야", "길을 못 찾"],
+    "action_any": ["장소", "주변 환경"]
+  },
+  "S31": {
+    "domains": ["memory_orientation", "daily_living"],
+    "signals": ["time_confusion", "meal_uncertain", "schedule_support"],
+    "risks": [],
+    "evidence_any": ["몇 시", "점심을 먹었던가"],
+    "action_any": ["방문 일정", "식사 여부"]
+  },
+  "S32": {
+    "domains": ["daily_living"],
+    "signals": ["item_location_uncertain", "medication_uncertain"],
+    "risks": [],
+    "evidence_any": ["지갑이 사라졌다", "먹었나 안 먹었나"],
+    "action_any": ["지갑 위치", "복약 기록"]
+  },
+  "S33": {
+    "domains": ["memory_orientation"],
+    "signals": ["past_role_confusion"],
+    "risks": [],
+    "evidence_any": ["학교 수업 시간", "가방이 어디"],
+    "action_any": ["역할 혼동", "아침 시간대"]
+  },
+  "S34": {
+    "domains": ["emotion"],
+    "signals": ["fear", "loneliness"],
+    "risks": ["fall"],
+    "evidence_any": ["무섭고 외롭", "넘어져서 허리가"],
+    "action_any": ["낙상", "통증", "움직임"]
+  },
+  "S35": {
+    "domains": ["emotion", "daily_living"],
+    "signals": ["anger", "distrust", "financial_concern"],
+    "risks": [],
+    "evidence_any": ["통장 몰래 가져갔", "재산 빼돌리려고"],
+    "action_any": ["통장 보관"]
+  },
+  "S36": {
+    "domains": ["emotion"],
+    "signals": ["longing", "gratitude"],
+    "risks": [],
+    "meaning": ["longing", "life_story"],
+    "heart_missed_word": true,
+    "heart_memory_mode": "confirm_first",
+    "evidence_any": ["고향 집 앞 냇가", "그때가 참 좋았"],
+    "action_any": ["고향 이야기", "가족 기억"]
+  },
+  "S37": {
+    "domains": ["memory_orientation", "emotion", "daily_living"],
+    "signals": ["meal_uncertain", "place_confusion", "item_location_uncertain", "person_confusion", "worry_for_family"],
+    "risks": [],
+    "meaning": ["affection"],
+    "heart_missed_word": true,
+    "heart_family_contains": "정훈",
+    "heart_memory_mode": "confirm_first",
+    "family_mentions": {"정훈": 3},
+    "evidence_any": ["정훈이 이름은 안 잊어버려", "정훈이 이름은 자꾸 생각"],
+    "action_any": ["식사 여부", "가족과 나눠"]
+  }
+}

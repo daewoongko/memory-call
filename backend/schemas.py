@@ -64,3 +64,122 @@ class PeriodNarrative(BaseModel):
 
     summary: str = ""
     guardian_actions: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# 통화 중 인지·정서 케어 관찰
+
+CareDomain = Literal["memory_orientation", "emotion", "daily_living"]
+CareSignal = Literal[
+    "time_confusion",
+    "place_confusion",
+    "person_confusion",
+    "recent_event_confusion",
+    "past_role_confusion",
+    "anxiety",
+    "fear",
+    "loneliness",
+    "sadness",
+    "agitation",
+    "anger",
+    "distrust",
+    "affection",
+    "gratitude",
+    "apology",
+    "longing",
+    "pride",
+    "joy",
+    "regret",
+    "worry_for_family",
+    "meal_uncertain",
+    "hydration_need",
+    "medication_uncertain",
+    "item_location_uncertain",
+    "financial_concern",
+    "schedule_support",
+    "task_support",
+]
+ContextKind = Literal[
+    "server_time",
+    "residence",
+    "household",
+    "schedule",
+    "medication",
+    "memory",
+    "user_statement",
+]
+EmotionalSupport = Literal[
+    "none",
+    "acknowledge",
+    "validate_emotion",
+    "ground_and_redirect",
+]
+DailyActionKind = Literal[
+    "meal_check",
+    "hydration_prompt",
+    "medication_check",
+    "schedule_step",
+    "item_search_step",
+]
+DailyActionBasis = Literal[
+    "user_statement",
+    "registered_schedule",
+    "registered_medication",
+]
+
+
+class CareObservation(BaseModel):
+    """환자 발화에서 직접 확인한 비진단적 관찰."""
+
+    domain: CareDomain
+    signal: CareSignal
+    evidence: str = Field(min_length=1, max_length=200)
+
+
+class ContextSupport(BaseModel):
+    """AI가 실제 답변에 사용한 현재 맥락과 그 사실 원천."""
+
+    kind: ContextKind
+    source_id: str = Field(min_length=1, max_length=100)
+
+
+class DailyAction(BaseModel):
+    """필요할 때만 제안하는 생활 행동 한 가지."""
+
+    kind: DailyActionKind
+    basis: DailyActionBasis
+    source_id: str | None = Field(default=None, max_length=100)
+    evidence: str | None = Field(default=None, max_length=200)
+
+
+MeaningCategory = Literal[
+    "affection",
+    "gratitude",
+    "apology",
+    "longing",
+    "pride",
+    "wish_for_family",
+    "preference",
+    "joy",
+    "life_story",
+]
+
+
+class MeaningfulMoment(BaseModel):
+    """가족에게 전달하거나 Life Archive에 쌓을 실제 발화 후보."""
+
+    category: MeaningCategory
+    evidence: str = Field(min_length=1, max_length=300)
+    related_memory_ids: list[str] = Field(default_factory=list, max_length=4)
+
+
+class CarePayload(BaseModel):
+    """한 번의 AI 응답에 딸린 케어 메타데이터."""
+
+    observations: list[CareObservation] = Field(default_factory=list, max_length=6)
+    context_support: list[ContextSupport] = Field(default_factory=list, max_length=6)
+    emotional_support: EmotionalSupport = "none"
+    daily_action: DailyAction | None = None
+    meaningful_moments: list[MeaningfulMoment] = Field(
+        default_factory=list, max_length=4
+    )

@@ -1,0 +1,688 @@
+{
+  "version": 7,
+  "created_at": "2026-08-11T00:26:07.084263+00:00",
+  "current_age": 30,
+  "parent_age": 24,
+  "parent_photo": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age24_imagegen_candidate01.png",
+  "parent_age_estimation": {
+    "votes": [
+      32,
+      33,
+      33,
+      33,
+      34
+    ],
+    "distribution": {
+      "32": 0.2,
+      "33": 0.6,
+      "34": 0.2
+    },
+    "mean": 33,
+    "median": 33.0,
+    "standard_deviation": 0.63,
+    "stability_interval": {
+      "min": 32,
+      "max": 34
+    },
+    "target_range_vote_share": 0.0,
+    "range_pass": false,
+    "review_status": "fail",
+    "uncertainty_kind": "test_time_view_stability_not_calibrated_confidence"
+  },
+  "parent_corrected_age": 25.0,
+  "parent_mivolo_age_estimation": null,
+  "parent_mivolo_corrected_age_estimation": null,
+  "source_age_estimations": [
+    {
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_01.png",
+      "age_estimation": {
+        "votes": [
+          35,
+          36,
+          36,
+          36,
+          36
+        ],
+        "distribution": {
+          "35": 0.2,
+          "36": 0.8
+        },
+        "mean": 35.8,
+        "median": 36.0,
+        "standard_deviation": 0.4,
+        "stability_interval": {
+          "min": 35,
+          "max": 36
+        },
+        "target_range_vote_share": 0.2,
+        "range_pass": false,
+        "review_status": "fail",
+        "uncertainty_kind": "test_time_view_stability_not_calibrated_confidence"
+      }
+    },
+    {
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_03.png",
+      "age_estimation": {
+        "votes": [
+          35,
+          38,
+          39,
+          39,
+          39
+        ],
+        "distribution": {
+          "35": 0.2,
+          "38": 0.2,
+          "39": 0.6
+        },
+        "mean": 38,
+        "median": 39.0,
+        "standard_deviation": 1.55,
+        "stability_interval": {
+          "min": 35,
+          "max": 39
+        },
+        "target_range_vote_share": 0.2,
+        "range_pass": false,
+        "review_status": "fail",
+        "uncertainty_kind": "test_time_view_stability_not_calibrated_confidence"
+      }
+    },
+    {
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_05.png",
+      "age_estimation": {
+        "votes": [
+          36,
+          38,
+          38,
+          39,
+          39
+        ],
+        "distribution": {
+          "36": 0.2,
+          "38": 0.4,
+          "39": 0.4
+        },
+        "mean": 38,
+        "median": 38.0,
+        "standard_deviation": 1.1,
+        "stability_interval": {
+          "min": 36,
+          "max": 39
+        },
+        "target_range_vote_share": 0.0,
+        "range_pass": false,
+        "review_status": "fail",
+        "uncertainty_kind": "test_time_view_stability_not_calibrated_confidence"
+      }
+    }
+  ],
+  "personal_age_calibration": {
+    "status": "local_person_offset_advisory",
+    "chronological_age": 30,
+    "reference_count": 3,
+    "reference_centers": [
+      36.0,
+      39.0,
+      38.0
+    ],
+    "model_reference_median": 38.0,
+    "bias_years": 8.0,
+    "median_absolute_deviation": 1.0,
+    "calibrated_probability": false,
+    "note": "Local offset estimated from real current-age portraits only. It is not a lifespan growth-curve calibration."
+  },
+  "source_mivolo_age_estimations": [],
+  "source_mivolo_raw_age_estimations": [],
+  "source_mivolo_corrected_age_estimations": [],
+  "personal_mivolo_age_calibration": null,
+  "growth_prior": {
+    "profile": "general_backward_craniofacial_growth_direction_v1",
+    "stage": "young_adult",
+    "parent_age": 24,
+    "target_age": 21,
+    "guidance_weight": 0.25,
+    "biological_sex": "female",
+    "population_group": "korean",
+    "demographic_match_status": "requested_but_not_cohort_calibrated",
+    "calibrated": false,
+    "used_as_hard_gate": false,
+    "expected_metric_directions": {
+      "face_width_height": "increase",
+      "jaw_width_ratio": "decrease",
+      "lower_face_ratio": "decrease",
+      "midface_ratio": "decrease"
+    },
+    "note": "General population growth direction only. Magnitudes are not used until a consented longitudinal demographic cohort is calibrated."
+  },
+  "personal_3d_structure_profile": {
+    "status": "personal_current_age_residual",
+    "reference_count": 3,
+    "shape_dimensions": 40,
+    "shape_coefficient_median": [
+      -272522.9375,
+      -197208.09375,
+      199820.03125,
+      33724.226562,
+      37064.449219,
+      2577.875,
+      -86902.226562,
+      45814.019531,
+      -89974.296875,
+      8867.427734,
+      1104.46875,
+      41438.558594,
+      -33431.875,
+      -6535.255859,
+      -22860.314453,
+      17160.611328,
+      -139.133301,
+      -3181.509766,
+      -29013.673828,
+      -5548.8125,
+      -5548.990234,
+      -10877.886719,
+      -46.613281,
+      -33898.8125,
+      606.166016,
+      -6841.029297,
+      -13111.613281,
+      3547.654541,
+      -5477.175293,
+      6020.121582,
+      -3203.898438,
+      894.063843,
+      -4566.192871,
+      8445.588867,
+      -7402.516113,
+      -7835.383789,
+      -970.304504,
+      8608.681641,
+      67.204834,
+      1018.032959
+    ],
+    "shape_coefficient_mad": [
+      8586.3125,
+      595.5,
+      407.109375,
+      7804.21875,
+      2495.558593,
+      86.554688,
+      2476.476563,
+      572.371094,
+      1766.390625,
+      1087.178711,
+      763.929688,
+      99.421875,
+      128.445312,
+      847.120606,
+      461.460937,
+      221.091797,
+      60.979981,
+      579.765137,
+      38.390625,
+      360.211914,
+      46.556641,
+      11.06836,
+      28.148437,
+      131.96875,
+      137.245057,
+      34.689453,
+      119.097657,
+      96.656494,
+      102.182617,
+      231.358887,
+      98.932374,
+      170.545166,
+      5.679688,
+      305.398437,
+      155.632325,
+      15.518066,
+      61.735901,
+      0.875976,
+      189.328735,
+      19.16272
+    ],
+    "source_pair_rmse_median": 5833.121021,
+    "source_pair_rmse_max": 8254.914965,
+    "metric_median": {
+      "face_width_height": 1.28286,
+      "jaw_width_ratio": 0.78393,
+      "lower_face_ratio": 0.61446,
+      "midface_ratio": 0.40562,
+      "mouth_width_ratio": 0.35381,
+      "nose_width_ratio": 0.16564
+    },
+    "calibrated_growth_curve": false
+  },
+  "parent_3d_structure": {
+    "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age24_imagegen_candidate01.png",
+    "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age24_imagegen_candidate01.png",
+    "bbox": [
+      368.301,
+      224.186,
+      760.081,
+      772.495
+    ],
+    "roi_box": [
+      193.191,
+      193.147,
+      935.191,
+      935.147
+    ],
+    "pose_degrees": {
+      "yaw": 0.14,
+      "pitch": 8.52,
+      "roll": 0.75
+    },
+    "shape_coefficients": [
+      -303491.375,
+      -159001.25,
+      158821.78125,
+      35104.726562,
+      41400.53125,
+      -11961.042969,
+      -74683.351562,
+      38868.523438,
+      -69362.265625,
+      8048.821289,
+      3658.251953,
+      36957.640625,
+      -30137.083984,
+      -6005.87793,
+      -24569.082031,
+      18146.191406,
+      -2707.984619,
+      -1322.424194,
+      -25664.714844,
+      -2650.668945,
+      -3837.488281,
+      -11026.265625,
+      -3000.526611,
+      -30216.738281,
+      -891.288757,
+      -5744.83252,
+      -11758.042969,
+      1253.228271,
+      -7052.370117,
+      4506.696289,
+      -3762.164062,
+      412.628174,
+      -4034.741699,
+      6795.677734,
+      -6946.137207,
+      -7354.935547,
+      -279.685883,
+      8105.864746,
+      -454.795593,
+      1551.18335
+    ],
+    "expression_coefficient_l2": 0.88272,
+    "pose_normalized_metrics": {
+      "face_width_height": 1.28557,
+      "jaw_width_ratio": 0.78601,
+      "lower_face_ratio": 0.61543,
+      "midface_ratio": 0.40479,
+      "mouth_width_ratio": 0.35178,
+      "nose_width_ratio": 0.1653
+    },
+    "normalized_landmark_sha256": "d43ed7c3089857f36f8c33f0c155e37d9aaadbc07d34b107cf8abe60ff4b8074"
+  },
+  "structure_model": {
+    "status": "available",
+    "role": "pose_normalized_3d_structure_advisory",
+    "model": {
+      "name": "3DDFA-V2 MobileNet V1 120x120",
+      "repository": "https://github.com/cleardusk/3DDFA_V2",
+      "repository_revision": "1b6c67601abffc1e9f248b291708aef0e43b55ae",
+      "checkpoint": "C:\\Users\\PJ02\\Models\\3DDFA_V2\\weights\\mb1_120x120.pth",
+      "checkpoint_sha256": "a45a946c6e9b16f8d3cf2e69376da9560a7cf9afae671bebceb7e437a405ea79",
+      "bfm": "C:\\Users\\PJ02\\Models\\3DDFA_V2\\configs\\bfm_noneck_v3.pkl",
+      "bfm_sha256": "89ac96480eddc331120f2c8401737c55a5fcc97b10f8a64574e63976c3d246ca",
+      "device": "cpu",
+      "torch_version": "2.6.0+cu124",
+      "shape_dimensions": 40,
+      "expression_dimensions": 10
+    },
+    "pose_normalization": "3DMM shape coefficients and canonical 68 landmarks exclude camera rotation, translation, scale, and expression",
+    "reason": null,
+    "request_path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_debug\\age21_3ddfa_request.json",
+    "output_path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_debug\\age21_3ddfa_output.json",
+    "used_as_hard_gate": false
+  },
+  "age_models": {
+    "primary": {
+      "name": "InsightFace antelopev2 genderage",
+      "role": "primary_age_estimator",
+      "view_count": 5
+    },
+    "secondary": {
+      "status": "unavailable",
+      "role": "independent_secondary_age_estimator",
+      "model": null,
+      "reason": "runner_failed",
+      "request_path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_debug\\age21_mivolo_request.json",
+      "output_path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_debug\\age21_mivolo_output.json",
+      "hard_gate_age_basis": "raw_model_output",
+      "person_offset_policy": "current_age_offset_advisory_only"
+    },
+    "consensus_policy": "both_models_when_secondary_available"
+  },
+  "parent_structure_metrics": {
+    "face_width_height": 0.7145,
+    "inter_eye_ratio": 0.4658,
+    "mouth_width_ratio": 0.3898,
+    "eye_to_mouth_ratio": 0.3395,
+    "eye_to_chin_ratio": 0.577,
+    "nose_to_mouth_ratio": 0.1289
+  },
+  "target_age": 21,
+  "thresholds": {
+    "target_age": 21,
+    "parent_age": 24,
+    "year_gap": 3,
+    "allowed_apparent_age": {
+      "min": 19,
+      "max": 23
+    },
+    "identity": {
+      "adjacent_parent": 0.88,
+      "current_reference_mean": 0.78,
+      "current_primary": 0.82,
+      "review_margin": 0.05
+    },
+    "on_failure": "split_age_gap"
+  },
+  "population_reference": {
+    "biological_sex": "female",
+    "population_group": "korean",
+    "status": "population_age_model_proxy_structure_uncalibrated",
+    "note": "Age likelihood comes from population-trained model views. Structure directions are advisory until a longitudinal demographic calibration cohort is installed."
+  },
+  "primary_photo": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\source\\yujin_05.png",
+  "identity_pass_count": 1,
+  "insightface_age_pass_count": 0,
+  "mivolo_age_pass_count": 0,
+  "age_model_disagreement_count": 0,
+  "exact_age_pass_count": 0,
+  "full_pass_count": 0,
+  "borderline_pass_count": 0,
+  "rows": [
+    {
+      "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age21_imagegen_candidate01.png",
+      "estimated_age": 31,
+      "corrected_estimated_age": 23.0,
+      "age_estimation": {
+        "votes": [
+          31,
+          31,
+          31,
+          31,
+          32
+        ],
+        "distribution": {
+          "31": 0.8,
+          "32": 0.2
+        },
+        "mean": 31.2,
+        "median": 31.0,
+        "standard_deviation": 0.4,
+        "stability_interval": {
+          "min": 31,
+          "max": 32
+        },
+        "target_range_vote_share": 0.0,
+        "range_pass": false,
+        "review_status": "fail",
+        "uncertainty_kind": "test_time_view_stability_not_calibrated_confidence"
+      },
+      "insightface_age_estimation": {
+        "votes": [
+          31,
+          31,
+          31,
+          31,
+          32
+        ],
+        "distribution": {
+          "31": 0.8,
+          "32": 0.2
+        },
+        "mean": 31.2,
+        "median": 31.0,
+        "standard_deviation": 0.4,
+        "stability_interval": {
+          "min": 31,
+          "max": 32
+        },
+        "target_range_vote_share": 0.0,
+        "range_pass": false,
+        "review_status": "fail",
+        "uncertainty_kind": "test_time_view_stability_not_calibrated_confidence"
+      },
+      "mivolo_raw_age_estimation": {
+        "status": "unavailable",
+        "reason": "runner_failed",
+        "used_as_hard_gate": true
+      },
+      "mivolo_age_estimation": {
+        "status": "unavailable",
+        "reason": "runner_failed"
+      },
+      "mivolo_corrected_age_estimation": {
+        "status": "unavailable",
+        "reason": "current_age_person_offset_unavailable",
+        "used_as_hard_gate": false
+      },
+      "age_consensus": {
+        "primary_pass": false,
+        "secondary_available": false,
+        "secondary_pass": null,
+        "model_agreement": null,
+        "automated_pass": false,
+        "review_status": "fail",
+        "reason": "secondary_model_unavailable_primary_only_degraded_mode",
+        "policy": "both_models_when_secondary_available"
+      },
+      "relative_age_evidence": {
+        "parent_estimate": 25.0,
+        "candidate_estimate": 23.0,
+        "expected_delta_years": -3.0,
+        "observed_delta_years": -2.0,
+        "delta_error_years": 1.0,
+        "younger_direction": true,
+        "within_two_year_tolerance": true,
+        "status": "expected_within_tolerance",
+        "used_as_hard_gate": false
+      },
+      "mivolo_relative_age_evidence": null,
+      "similarity_min": 0.8215,
+      "similarity_mean": 0.8529,
+      "similarity_max": 0.8848,
+      "primary_similarity": 0.8848,
+      "parent_similarity": 0.9057,
+      "face_detection_score": 0.8841,
+      "structure_metrics": {
+        "face_width_height": 0.7214,
+        "inter_eye_ratio": 0.4613,
+        "mouth_width_ratio": 0.3863,
+        "eye_to_mouth_ratio": 0.3454,
+        "eye_to_chin_ratio": 0.5914,
+        "nose_to_mouth_ratio": 0.1304
+      },
+      "structure_assessment": {
+        "profile": "uncalibrated_general_growth_direction_v1",
+        "calibrated": false,
+        "score": 0.25,
+        "status": "advisory_only",
+        "measurements": [
+          {
+            "metric": "face_width_height",
+            "parent": 0.7145,
+            "candidate": 0.7214,
+            "delta": 0.0069,
+            "expected_direction": "increase",
+            "status": "expected"
+          },
+          {
+            "metric": "inter_eye_ratio",
+            "parent": 0.4658,
+            "candidate": 0.4613,
+            "delta": -0.0045,
+            "expected_direction": "increase",
+            "status": "opposite"
+          },
+          {
+            "metric": "eye_to_mouth_ratio",
+            "parent": 0.3395,
+            "candidate": 0.3454,
+            "delta": 0.0059,
+            "expected_direction": "decrease",
+            "status": "opposite"
+          },
+          {
+            "metric": "eye_to_chin_ratio",
+            "parent": 0.577,
+            "candidate": 0.5914,
+            "delta": 0.0144,
+            "expected_direction": "decrease",
+            "status": "opposite"
+          }
+        ],
+        "note": "Relative growth-direction proxy only. It is not a demographic confidence interval and is not used as a hard acceptance gate."
+      },
+      "structure_3d": {
+        "id": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age21_imagegen_candidate01.png",
+        "path": "C:\\Users\\PJ02\\Documents\\Codex\\memory-call\\data\\personas\\persona_yujin\\age_candidates\\age21_imagegen_candidate01.png",
+        "bbox": [
+          381.681,
+          240.195,
+          757.548,
+          761.201
+        ],
+        "roi_box": [
+          215.614,
+          209.479,
+          923.614,
+          917.479
+        ],
+        "pose_degrees": {
+          "yaw": -1.37,
+          "pitch": 9.68,
+          "roll": 1.23
+        },
+        "shape_coefficients": [
+          -320394.4375,
+          -175295.359375,
+          216438.796875,
+          11952.179688,
+          49935.246094,
+          -181.761719,
+          -91072.0,
+          46832.414062,
+          -94155.9375,
+          8196.299805,
+          1378.8125,
+          38435.140625,
+          -32977.886719,
+          -3239.393555,
+          -24239.025391,
+          16583.611328,
+          421.833008,
+          -3439.049805,
+          -29453.560547,
+          -6471.969238,
+          -5910.541992,
+          -10673.039062,
+          -1498.119629,
+          -33454.832031,
+          452.398407,
+          -6489.875977,
+          -12267.217773,
+          2884.524658,
+          -5890.723145,
+          5663.405273,
+          -3507.392822,
+          636.913574,
+          -4358.655273,
+          8909.414062,
+          -7683.44873,
+          -7653.627441,
+          -814.609985,
+          8321.554688,
+          457.640381,
+          1066.785156
+        ],
+        "expression_coefficient_l2": 1.2101,
+        "pose_normalized_metrics": {
+          "face_width_height": 1.27835,
+          "jaw_width_ratio": 0.78238,
+          "lower_face_ratio": 0.6145,
+          "midface_ratio": 0.40592,
+          "mouth_width_ratio": 0.35337,
+          "nose_width_ratio": 0.16541
+        },
+        "normalized_landmark_sha256": "57202e999971576939e82ee43054c1ba697b0355fb7cff8def7784a8efea31ec"
+      },
+      "structure_3d_assessment": {
+        "status": "advisory_only",
+        "used_as_hard_gate": false,
+        "personal_shape_rmse": 9695.845951,
+        "parent_shape_rmse": 11901.748816,
+        "personal_preservation_reference_limit": 12382.372447,
+        "personal_structure_stable": true,
+        "growth_direction_score": 0.5,
+        "growth_direction_measurements": [
+          {
+            "metric": "face_width_height",
+            "parent": 1.28557,
+            "candidate": 1.27835,
+            "delta": -0.00722,
+            "expected_direction": "increase",
+            "status": "opposite"
+          },
+          {
+            "metric": "jaw_width_ratio",
+            "parent": 0.78601,
+            "candidate": 0.78238,
+            "delta": -0.00363,
+            "expected_direction": "decrease",
+            "status": "expected"
+          },
+          {
+            "metric": "lower_face_ratio",
+            "parent": 0.61543,
+            "candidate": 0.6145,
+            "delta": -0.00093,
+            "expected_direction": "decrease",
+            "status": "stable"
+          },
+          {
+            "metric": "midface_ratio",
+            "parent": 0.40479,
+            "candidate": 0.40592,
+            "delta": 0.00113,
+            "expected_direction": "decrease",
+            "status": "stable"
+          }
+        ],
+        "pose_reliable": true,
+        "pose_degrees": {
+          "yaw": -1.37,
+          "pitch": 9.68,
+          "roll": 1.23
+        },
+        "prior_profile": "general_backward_craniofacial_growth_direction_v1",
+        "calibrated": false,
+        "note": "Pose-normalized 3D shape is a preservation and direction signal, not a biological age certificate or automatic rejection gate."
+      },
+      "identity_pass": true,
+      "insightface_age_range_pass": false,
+      "mivolo_age_range_pass": null,
+      "age_range_pass": false,
+      "age_exact_pass": false,
+      "full_pass": false,
+      "review_status": "fail"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "persona_id": "persona_jeonghun",
+  "display_name": "정훈",
+  "relationship_type": "아들",
+  "current_age": 59,
+  "representative_photo": "source/jeonghun_01.png",
+  "identity_reference_photos": [
+    "source/jeonghun_01.png",
+    "source/jeonghun_02.png",
+    "source/jeonghun_06.png"
+  ],
+  "source_photos": [
+    "source/jeonghun_01.png",
+    "source/jeonghun_02.png",
+    "source/jeonghun_03.png",
+    "source/jeonghun_04.png",
+    "source/jeonghun_05.png",
+    "source/jeonghun_06.png"
+  ],
+  "quality_status": "ready",
+  "updated_at": "2026-08-10T15:45:00+09:00"
+}
