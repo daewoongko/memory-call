@@ -21,6 +21,20 @@ def main() -> None:
             check=True,
         )
 
+    # 공개 데모는 새 컨테이너마다 빈 SQLite로 시작할 수 있다. 명시적으로
+    # 활성화된 환경에서만, 실제 통화가 한 건도 없을 때 현실적인 30일 데모를
+    # 적재한다. 기존 사용자 통화가 있으면 절대 덮어쓰지 않는다.
+    if os.getenv("DEMO_SEED_MODE") == "high_volume":
+        with db.connect() as conn:
+            call_count = conn.execute("SELECT COUNT(*) FROM calls").fetchone()[0]
+        if call_count == 0:
+            print("빈 공개 데모 DB에 30일 통화 기록을 적재합니다.")
+            subprocess.run(
+                [sys.executable, str(ROOT / "tools" / "seed_high_volume_demo.py")],
+                cwd=ROOT,
+                check=True,
+            )
+
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(
         "api:app",

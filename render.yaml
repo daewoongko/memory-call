@@ -11,6 +11,8 @@ services:
     envVars:
       - key: STORAGE_DIR
         value: /app/storage
+      - key: DEMO_SEED_MODE
+        value: high_volume
       - key: LLM_BASE_URL
         value: https://generativelanguage.googleapis.com/v1beta/openai/
       - key: LLM_MODEL
