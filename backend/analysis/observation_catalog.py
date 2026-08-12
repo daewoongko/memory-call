@@ -142,8 +142,11 @@ SIGNALS: dict[str, SignalSpec] = {
 
     # D7 ADL/IADL
     "meal_uncertain": _a("daily_living", "식사 여부 불확실",
-        r"(?:아침|점심|저녁|밥|식사)[^.!?]{0,12}(?:먹었|드셨)[^.!?]{0,14}(?:나|가|모르|까먹)",
-        negative=(r"(?:안|아직) (?:먹었|먹었다)",)),
+        r"(?:아침|점심|저녁|밥|식사)[^.!?]{0,12}(?:먹었|드셨)[^.!?]{0,14}(?:나|가|모르|까먹|기억)",
+        negative=(
+            r"(?:안|아직) (?:먹었|먹었다)",
+            r"(?:아침|점심|저녁)\s*약",
+        )),
     "meal_skipped": _a("daily_living", "식사 거름", r"(?:밥|식사)[^.!?]{0,8}(?:안 먹|못 먹|거르)"),
     "hydration_need": _a("daily_living", "수분 필요 표현", r"목(?:이)? 마르", r"물이 필요"),
     "medication_uncertain": _a("daily_living", "복약 여부 불확실",

@@ -1,4 +1,5 @@
 import sys
+import json
 import unittest
 from datetime import date
 from pathlib import Path
@@ -9,7 +10,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 
 import care  # noqa: E402
 from analysis import medication, rates  # noqa: E402
-from analysis.observation_catalog import DOMAIN_LABELS  # noqa: E402
+from analysis.observation_catalog import DOMAIN_LABELS, SIGNALS, find_evidence  # noqa: E402
 
 
 class EightDomainObservationTest(unittest.TestCase):
@@ -32,6 +33,34 @@ class EightDomainObservationTest(unittest.TestCase):
         signals = {row["signal"] for row in result["observations"]}
         self.assertIn("fall_reported", signals)
         self.assertIn("pain_report", signals)
+
+    def test_meal_and_medication_uncertainty_do_not_collide(self):
+        medication_text = "아침 약을 먹었나? 약을 먹었는지 기억이 안 난다."
+        meal_text = "아침밥을 먹었는지 기억이 안 난다."
+        self.assertIsNone(find_evidence("meal_uncertain", medication_text))
+        self.assertIsNotNone(find_evidence("medication_uncertain", medication_text))
+        self.assertIsNotNone(find_evidence("meal_uncertain", meal_text))
+        self.assertIsNone(find_evidence("medication_uncertain", meal_text))
+
+    def test_registered_observation_scenarios_respect_positive_and_negative_examples(self):
+        scenarios = json.loads((ROOT / "tools" / "observation_scenarios.json").read_text(encoding="utf-8"))
+        for row in scenarios:
+            with self.subTest(row=row["id"], kind="positive"):
+                self.assertIsNotNone(find_evidence(row["signal"], row["positive"]))
+            with self.subTest(row=row["id"], kind="negative"):
+                self.assertIsNone(find_evidence(row["signal"], row["negative"]))
+
+    def test_tier_a_catalog_can_be_audited_pairwise(self):
+        tier_a = [signal for signal, spec in SIGNALS.items() if spec.tier == "A"]
+        scenarios = json.loads((ROOT / "tools" / "observation_scenarios.json").read_text(encoding="utf-8"))
+        matrix = {
+            row["id"]: [signal for signal in tier_a if find_evidence(signal, row["positive"])]
+            for row in scenarios
+        }
+        self.assertIn("medication_uncertain", matrix["O13"])
+        self.assertNotIn("meal_uncertain", matrix["O13"])
+        self.assertIn("meal_uncertain", matrix["O12"])
+        self.assertNotIn("medication_uncertain", matrix["O12"])
 
 
 class NormalizedRateTest(unittest.TestCase):

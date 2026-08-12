@@ -1413,7 +1413,8 @@ def _rhythm_change(label: str, current: float | None, previous: float | None,
 def _rhythm_analysis(
     period_calls: list[dict], period_reports: list[dict],
     comparison_calls: list[dict], comparison_reports: list[dict],
-    *, today: date | None = None,
+    *, today: date | None = None, period_start: date | None = None,
+    period_end: date | None = None,
 ) -> dict:
     """Aggregate call time and observed speech without inferring a diagnosis.
 
@@ -1433,6 +1434,7 @@ def _rhythm_analysis(
         hour: [] for hour in range(0, 24, 2)
     }
     observed_days = set()
+    weekday_block_calls: Counter = Counter()
 
     for call in period_calls:
         started = _started_datetime(call.get("started_at"))
@@ -1440,6 +1442,7 @@ def _rhythm_analysis(
             continue
         block = (started.hour // 2) * 2
         block_calls[block] += 1
+        weekday_block_calls[(started.weekday(), block)] += 1
         observed_days.add(started.date().isoformat())
         report_row = reports_by_call.get(call["call_id"], {})
         block_signals[block].update(_report_signal_counts(report_row))
@@ -1461,6 +1464,42 @@ def _rhythm_analysis(
             "share_percent": round(calls / total_calls * 100) if total_calls else 0,
             "observation_count": sum(block_signals[start_hour].values()),
         })
+
+    valid_started = [
+        started for call in period_calls
+        if (started := _started_datetime(call.get("started_at")))
+    ]
+    heatmap_start = period_start or (
+        min(started.date() for started in valid_started) if valid_started else today
+    )
+    heatmap_end = period_end or (
+        max(started.date() for started in valid_started) if valid_started else today
+    )
+    if heatmap_start > heatmap_end:
+        heatmap_start, heatmap_end = heatmap_end, heatmap_start
+    weekday_days: Counter = Counter()
+    cursor = heatmap_start
+    while cursor <= heatmap_end:
+        weekday_days[cursor.weekday()] += 1
+        cursor += timedelta(days=1)
+    weekday_labels = ("월", "화", "수", "목", "금", "토", "일")
+    heatmap_cells = []
+    for weekday in range(7):
+        for start_hour in range(0, 24, 2):
+            calls = weekday_block_calls[(weekday, start_hour)]
+            denominator = weekday_days[weekday]
+            heatmap_cells.append({
+                "weekday": weekday,
+                "weekday_label": weekday_labels[weekday],
+                "start_hour": start_hour,
+                "end_hour": start_hour + 2,
+                "calls": calls,
+                "days_observed": denominator,
+                "average_per_day": round(calls / denominator, 2) if denominator else 0,
+            })
+    max_heatmap_average = max(
+        (cell["average_per_day"] for cell in heatmap_cells), default=0
+    )
 
     peak = max(blocks, key=lambda row: row["calls"], default=blocks[0])
     peak_start = peak["start_hour"]
@@ -1551,6 +1590,29 @@ def _rhythm_analysis(
         "calls_analyzed": total_calls,
         "basis": "통화 시작 시각과 실제 발화에서 검증된 관찰 신호",
         "time_blocks": blocks,
+        "weekday_time_heatmap": {
+            "period_start": heatmap_start.isoformat(),
+            "period_end": heatmap_end.isoformat(),
+            "days": (heatmap_end - heatmap_start).days + 1,
+            "weekdays": [
+                {
+                    "weekday": weekday,
+                    "label": weekday_labels[weekday],
+                    "days_observed": weekday_days[weekday],
+                }
+                for weekday in range(7)
+            ],
+            "time_blocks": [
+                {
+                    "start_hour": start_hour,
+                    "end_hour": start_hour + 2,
+                    "label": f"{start_hour:02d}~{start_hour + 2:02d}",
+                }
+                for start_hour in range(0, 24, 2)
+            ],
+            "cells": heatmap_cells,
+            "max_average_per_day": max_heatmap_average,
+        },
         "peak_window": {
             **peak,
             "summary": peak_summary,
@@ -1682,7 +1744,8 @@ def period(
         len(r.get("meaningful_moments") or []) for r in reports
     )
     rhythm = _rhythm_analysis(
-        calls, reports, rhythm_calls, rhythm_reports, today=period_end
+        calls, reports, rhythm_calls, rhythm_reports, today=period_end,
+        period_start=period_start, period_end=period_end,
     )
     daily_reports = _daily_analyses(
         calls, reports, risks, period_start, period_end

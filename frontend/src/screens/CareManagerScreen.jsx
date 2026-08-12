@@ -41,6 +41,13 @@ function selectedRange(period) {
   return { days: Math.max(1, Math.round((new Date(end) - new Date(`${period.value}-01`)) / 86400000) + 1), start: `${period.value}-01`, end };
 }
 
+function rollingRange(end, days = 30) {
+  const endDate = new Date(`${end}T12:00:00`);
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - days + 1);
+  return { days, start: localDateKey(startDate), end };
+}
+
 function SpecialNotes({ summary, onReload }) {
   const [busy, setBusy] = useState(0);
   const rows = useMemo(() => (summary.daily_reports || []).slice().reverse(), [summary]);
@@ -102,7 +109,7 @@ export default function CareManagerScreen() {
     if (!picked) return Promise.resolve();
     const range = selectedRange(period);
     const comparisonDate = period.mode === "day" ? period.value : range.end;
-    const monthRange = selectedRange({ mode: "month", value: comparisonDate.slice(0, 7) });
+    const baselineRange = rollingRange(comparisonDate, 30);
     setError("");
     setSummary(null);
     setBaselineSummary(null);
@@ -114,7 +121,7 @@ export default function CareManagerScreen() {
       setSummary(selected);
       setComparisonDay(period.mode === "day" ? selected : null);
       setBaselineLoading(true);
-      return api.getPeriodSummary(monthRange.days, picked.elder_id, monthRange)
+      return api.getPeriodSummary(baselineRange.days, picked.elder_id, baselineRange)
         .then((baseline) => {
           setBaselineSummary(baseline);
           if (period.mode !== "day") {
@@ -123,7 +130,7 @@ export default function CareManagerScreen() {
           }
           return null;
         })
-        .catch((e) => setError(`월 비교 기준은 잠시 뒤 다시 불러옵니다. (${e.message})`))
+        .catch((e) => setError(`최근 30일 비교 기준은 잠시 뒤 다시 불러옵니다. (${e.message})`))
         .finally(() => setBaselineLoading(false));
     }).catch((e) => setError(`분석을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (${e.message})`));
   }, [period, picked]);
@@ -143,7 +150,7 @@ export default function CareManagerScreen() {
       <section className="guardian-workspace">
         <header className="dashboard-heading manager-heading"><div><p className="eyebrow">{picked.name} 어르신 · {patientProfile?.diagnosis_label || picked.diagnosis_label || "진단 정보 미등록"}</p><h1>{new Date(`${period.value}T00:00:00`).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 분석 리포트</h1><span>{tab === "analysis" ? "발화 변화에서 오늘의 확인 우선순위를 정리합니다." : "담당자가 직접 확인해야 할 근거와 행동을 모았습니다."}</span></div><label className="manager-date-picker"><span>분석 날짜</span><input type="date" value={period.value} max={localDateKey()} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} /></label></header>
         {error && <p className="error">{error}</p>}
-        {!summary ? <p className="hint">분석 데이터를 불러오는 중…</p> : tab === "analysis" ? <><ReportTabs elderId={picked.elder_id} elderName={picked.name} patientProfile={patientProfile} summary={summary} baselineSummary={baselineSummary || summary} comparisonDay={comparisonDay || summary} days={summary.days} period={period} onPeriod={setPeriod} onReload={loadSummary} />{baselineLoading && <p className="manager-baseline-loading">월 평균 비교를 이어서 계산하고 있습니다.</p>}</> : <SpecialNotes summary={summary} onReload={loadSummary} />}
+        {!summary ? <p className="hint">분석 데이터를 불러오는 중…</p> : tab === "analysis" ? <><ReportTabs elderId={picked.elder_id} elderName={picked.name} patientProfile={patientProfile} summary={summary} baselineSummary={baselineSummary || summary} comparisonDay={comparisonDay || summary} days={summary.days} period={period} onPeriod={setPeriod} onReload={loadSummary} />{baselineLoading && <p className="manager-baseline-loading">최근 30일 비교 기준을 이어서 계산하고 있습니다.</p>}</> : <SpecialNotes summary={summary} onReload={loadSummary} />}
       </section>
     </div>
   </main>;
