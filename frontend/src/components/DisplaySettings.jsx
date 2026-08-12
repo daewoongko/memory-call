@@ -1,4 +1,4 @@
-import { THEMES, SIZES } from "../theme.js";
+import { SIZE_MAX, SIZE_MIN, SIZE_STEP, THEMES } from "../theme.js";
 
 /**
  * 화면 설정.
@@ -13,30 +13,24 @@ export default function DisplaySettings({ theme, size, onTheme, onSize, onClose 
         <h2>화면 설정</h2>
 
         <p className="sheet-label">글씨 크기</p>
-        <div className="choice">
-          {SIZES.map((s) => (
-            <button
-              key={s.id}
-              className={size === s.id ? "on" : ""}
-              onClick={() => onSize(s.id)}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="text-size-range">
+          <div><span>작게</span><b>{size}%</b><span>크게</span></div>
+          <input type="range" min={SIZE_MIN} max={SIZE_MAX} step={SIZE_STEP} value={size} onChange={(event) => onSize(Number(event.target.value))} aria-label="글씨 크기" />
         </div>
 
-        <p className="sheet-label">화면 밝기</p>
-        <div className="choice">
+        <p className="sheet-label">화면 보기</p>
+        <div className="choice display-mode-choice">
           {THEMES.map((t) => (
             <button
               key={t.id}
               className={theme === t.id ? "on" : ""}
               onClick={() => onTheme(t.id)}
             >
-              {t.label}
+              <b>{t.label}</b><small>{t.description}</small>
             </button>
           ))}
         </div>
+        <p className="display-hint">기기의 실제 밝기는 Windows 또는 휴대폰의 밝기 설정에서 조절해 주세요.</p>
 
         <button className="sheet-close" onClick={onClose}>
           닫기

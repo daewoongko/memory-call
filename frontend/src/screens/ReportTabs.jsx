@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../api.js";
 import CareCalendar from "./CareCalendar.jsx";
-import MedicationForm from "./MedicationForm.jsx";
 import Transcript from "./Transcript.jsx";
 import { BubbleChart, DistributionDonut, LineChart, MiniTrend } from "../components/Charts.jsx";
 
@@ -951,7 +950,6 @@ export default function ReportTabs({
     {tab === "plan" && <div className="plan-dashboard report-plan-dashboard">
       <MedicationAnalytics elderId={elderId} medication={summary.medication} selectedDate={summary.since} />
       <CareCalendar elderId={elderId} refreshKey={planVersion} onChanged={() => setPlanVersion((value) => value + 1)} />
-      <div className="plan-editor-grid single"><MedicationForm elderId={elderId} onChanged={() => setPlanVersion((value) => value + 1)} /></div>
     </div>}
 
     {selectedDay && <DailyReportModal

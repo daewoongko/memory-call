@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../api.js";
 
-
 const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
 const DAY_CODE = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MEDICATION_COLORS = [
-  "#8f96ff", "#ff9b73", "#56c6a5", "#e88bc3", "#e4bd55",
-  "#55b7dc", "#b391ed", "#ef707b", "#83bd63", "#d98b5f",
+  "#24744f", "#d46b21", "#859d29", "#b45a2f", "#b3801f",
+  "#4f7654", "#9a6435", "#6f8538", "#c2513f", "#477660",
 ];
 
 function medicationColor(medication, allMedications = []) {
@@ -71,6 +70,13 @@ function weekBars(week, medications, schedules, todayKey, confirmedToday) {
   return bars;
 }
 
+const emptySchedule = () => ({ type: "hospital", time: "10:00", title: "", note: "" });
+const emptyMedication = () => ({
+  medication_name: "", dosage_text: "1정", scheduled_time: "20:00", meal_relation: "after",
+  repeat: "daily", indication: "", monitoring_text: "", review_interval_days: 14,
+  escalation_criteria: "",
+});
+
 export default function CareCalendar({ elderId = "elder_001", refreshKey = 0, onChanged }) {
   const [cursor, setCursor] = useState(() => new Date());
   const [schedules, setSchedules] = useState([]);
@@ -78,51 +84,94 @@ export default function CareCalendar({ elderId = "elder_001", refreshKey = 0, on
   const [todayMeds, setTodayMeds] = useState([]);
   const [error, setError] = useState("");
   const [selectedKey, setSelectedKey] = useState(() => dateKey(new Date()));
-  const [draft, setDraft] = useState({ type: "hospital", time: "10:00", title: "", note: "" });
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorTab, setEditorTab] = useState("schedule");
+  const [scheduleDraft, setScheduleDraft] = useState(emptySchedule);
+  const [medicationDraft, setMedicationDraft] = useState(emptyMedication);
   const [busy, setBusy] = useState(false);
 
+  async function load() {
+    const [scheduleResult, medicationResult] = await Promise.all([
+      api.getSchedules(elderId), api.getMedications(elderId),
+    ]);
+    setSchedules([...(scheduleResult.past || []), ...(scheduleResult.upcoming || [])]);
+    setMedications(medicationResult.medications || medicationResult.today || []);
+    setTodayMeds(medicationResult.today || []);
+  }
+
   useEffect(() => {
-    Promise.all([api.getSchedules(elderId), api.getMedications(elderId)])
-      .then(([scheduleResult, medicationResult]) => {
-        setSchedules([...(scheduleResult.past || []), ...(scheduleResult.upcoming || [])]);
-        setMedications(medicationResult.medications || medicationResult.today || []);
-        setTodayMeds(medicationResult.today || []);
-      })
-      .catch((reason) => setError(reason.message));
+    load().catch((reason) => setError(reason.message));
   }, [elderId, refreshKey]);
 
   const cells = useMemo(() => monthCells(cursor), [cursor]);
   const weeks = useMemo(() => [...Array(6)].map((_, index) => cells.slice(index * 7, index * 7 + 7)), [cells]);
   const todayKey = dateKey(new Date());
   const confirmedToday = new Set(todayMeds.filter((item) => item.confirmed).map((item) => item.schedule_id));
-  const moveMonth = (amount) => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + amount, 1));
-  const todaySchedules = schedules.filter((item) => item.date === todayKey);
+  const selectedDate = new Date(`${selectedKey}T00:00:00`);
+  const selectedDayCode = DAY_CODE[selectedDate.getDay()];
+  const selectedLabel = selectedDate.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
   const selectedSchedules = schedules.filter((item) => item.date === selectedKey);
-  const selectedLabel = new Date(`${selectedKey}T00:00:00`).toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
-  const nextWeek = new Date();
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  const comingWeek = schedules.filter((item) => item.date >= todayKey && item.date <= dateKey(nextWeek));
+  const selectedMedications = medications.filter((item) => (item.days_of_week || DAY_CODE).includes(selectedDayCode));
+  const moveMonth = (amount) => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + amount, 1));
+
+  function openEditor(key, tab = "schedule") {
+    setSelectedKey(key);
+    setEditorTab(tab);
+    setError("");
+    setEditorOpen(true);
+  }
 
   async function addSelectedSchedule() {
-    if (!draft.title.trim()) return;
+    if (!scheduleDraft.title.trim()) return;
     setBusy(true);
     setError("");
     try {
-      const prefix = { hospital: "병원", visit: "방문", care: "케어" }[draft.type];
+      const prefix = { hospital: "병원", visit: "가족 방문", care: "케어" }[scheduleDraft.type];
       await api.addSchedule({
-        title: draft.title.trim(), date: selectedKey, time: draft.time,
-        note: `[${prefix}] ${draft.note}`.trim(), confirmed: true,
+        title: scheduleDraft.title.trim(), date: selectedKey, time: scheduleDraft.time,
+        note: `[${prefix}] ${scheduleDraft.note}`.trim(), confirmed: true,
       }, elderId);
-      const result = await api.getSchedules(elderId);
-      setSchedules([...(result.past || []), ...(result.upcoming || [])]);
-      setDraft((current) => ({ ...current, title: "", note: "" }));
+      await load();
+      setScheduleDraft(emptySchedule());
+      onChanged?.();
+    } catch (reason) { setError(reason.message); } finally { setBusy(false); }
+  }
+
+  async function addSelectedMedication() {
+    if (!medicationDraft.medication_name.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      const payload = {
+        medication_name: medicationDraft.medication_name.trim(),
+        dosage_text: medicationDraft.dosage_text,
+        scheduled_time: medicationDraft.scheduled_time,
+        meal_relation: medicationDraft.meal_relation,
+        days_of_week: medicationDraft.repeat === "daily" ? DAY_CODE : [selectedDayCode],
+        indication: medicationDraft.indication,
+        monitoring_points: medicationDraft.monitoring_text.split("\n").map((item) => item.trim()).filter(Boolean),
+        review_interval_days: Number(medicationDraft.review_interval_days),
+        escalation_criteria: medicationDraft.escalation_criteria,
+      };
+      await api.addMedication(payload, elderId);
+      await load();
+      setMedicationDraft(emptyMedication());
+      onChanged?.();
+    } catch (reason) { setError(reason.message); } finally { setBusy(false); }
+  }
+
+  async function removeMedication(scheduleId) {
+    setBusy(true);
+    try {
+      await api.removeMedication(scheduleId);
+      await load();
       onChanged?.();
     } catch (reason) { setError(reason.message); } finally { setBusy(false); }
   }
 
   return <section className="care-calendar dashboard-card">
     <header className="calendar-head">
-      <div><p className="eyebrow">생활 케어 캘린더</p><h2>{cursor.getFullYear()}년 {cursor.getMonth() + 1}월</h2></div>
+      <div><p className="eyebrow">생활 케어 캘린더</p><h2>{cursor.getFullYear()}년 {cursor.getMonth() + 1}월</h2><small>날짜를 누르면 일정과 복약을 한곳에서 확인하고 추가할 수 있습니다.</small></div>
       <div className="calendar-nav">
         <button onClick={() => moveMonth(-1)} aria-label="이전 달">‹</button>
         <button onClick={() => setCursor(new Date())}>오늘</button>
@@ -143,47 +192,63 @@ export default function CareCalendar({ elderId = "elder_001", refreshKey = 0, on
       return <section className="calendar-week" key={`week-${weekIndex}`} style={{ "--calendar-lanes": lanes }}>
         <div className="calendar-week-days">{week.map((date) => {
           const key = dateKey(date);
-          return <article key={key} role="button" tabIndex="0" onClick={() => setSelectedKey(key)} onKeyDown={(event) => event.key === "Enter" && setSelectedKey(key)} className={`${date.getMonth() === cursor.getMonth() ? "" : "outside"} ${key === todayKey ? "today" : ""} ${key === selectedKey ? "selected" : ""}`}>
+          const open = () => openEditor(key);
+          return <article key={key} role="button" tabIndex="0" onClick={open} onKeyDown={(event) => (event.key === "Enter" || event.key === " ") && open()} className={`${date.getMonth() === cursor.getMonth() ? "" : "outside"} ${key === todayKey ? "today" : ""} ${key === selectedKey ? "selected" : ""}`} aria-label={`${key} 일정과 복약 열기`}>
             <time>{date.getDate()}</time>
           </article>;
         })}</div>
         <div className="calendar-week-events">{bars.map((bar) => <span
           key={bar.key}
           className={`calendar-event ${bar.kind} ${bar.confirmed ? "confirmed" : ""}`}
-          style={{
-            gridColumn: `${bar.start + 1} / span ${bar.span}`,
-            gridRow: bar.lane + 1,
-            "--event-color": bar.color,
-          }}
+          style={{ gridColumn: `${bar.start + 1} / span ${bar.span}`, gridRow: bar.lane + 1, "--event-color": bar.color }}
           title={bar.label}
         >{bar.label}</span>)}</div>
       </section>;
     })}</div>
-    <div className="calendar-bottom-panels">
-      <section>
-        <header><span className="calendar-panel-date">선택</span><h3>{selectedLabel} 일정</h3></header>
-        <div className="calendar-agenda-list">{selectedSchedules.map((item) => <article key={item.schedule_id}>
-          <time>{item.time || "종일"}</time><div><b>{item.title}</b><small>{item.confirmed ? "확정 일정" : "미확정"}</small></div>
-        </article>)}{!selectedSchedules.length && <p>선택한 날짜에 등록된 일정이 없습니다.</p>}</div>
-        <div className="calendar-quick-add">
-          <select value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value })}><option value="hospital">병원</option><option value="visit">가족 방문</option><option value="care">케어 일정</option></select>
-          <input type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} />
-          <input placeholder="일정 내용" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} onKeyDown={(event) => event.key === "Enter" && addSelectedSchedule()} />
-          <input placeholder="담당자 메모(선택)" value={draft.note} onChange={(event) => setDraft({ ...draft, note: event.target.value })} />
-          <button disabled={busy || !draft.title.trim()} onClick={addSelectedSchedule}>{busy ? "저장 중" : "이 날짜에 추가"}</button>
+    <footer className="calendar-compact-summary">
+      <span><b>{schedules.length}</b> 등록 일정</span>
+      <span><b>{medications.length}</b> 복약 루틴</span>
+      <button onClick={() => openEditor(todayKey)}>오늘 항목 추가</button>
+    </footer>
+    {error && !editorOpen && <p className="error">{error}</p>}
+
+    {editorOpen && <div className="daily-modal-backdrop calendar-editor-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setEditorOpen(false)}>
+      <section className="calendar-editor-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-editor-title">
+        <header>
+          <div><p className="eyebrow">선택한 날짜</p><h2 id="calendar-editor-title">{selectedLabel}</h2><small>등록된 내용을 확인한 뒤 필요한 항목만 추가하세요.</small></div>
+          <button onClick={() => setEditorOpen(false)} aria-label="닫기">×</button>
+        </header>
+
+        <div className="calendar-editor-tabs" role="tablist">
+          <button className={editorTab === "schedule" ? "on" : ""} onClick={() => setEditorTab("schedule")}>일정 추가</button>
+          <button className={editorTab === "medication" ? "on" : ""} onClick={() => setEditorTab("medication")}>복약 추가</button>
         </div>
+
+        <section className="calendar-editor-existing">
+          <div><span>등록 일정 {selectedSchedules.length}</span>{selectedSchedules.map((item) => <article key={item.schedule_id}><time>{item.time || "종일"}</time><b>{item.title}</b></article>)}{!selectedSchedules.length && <small>등록된 일정이 없습니다.</small>}</div>
+          <div><span>복약 루틴 {selectedMedications.length}</span>{selectedMedications.map((item) => <article key={item.schedule_id} style={{ "--medication-color": medicationColor(item, medications) }}><time>{item.scheduled_time}</time><b>{item.medication_name}</b><button onClick={() => removeMedication(item.schedule_id)} disabled={busy} aria-label={`${item.medication_name} 삭제`}>삭제</button></article>)}{!selectedMedications.length && <small>이 요일의 복약 루틴이 없습니다.</small>}</div>
+        </section>
+
+        {editorTab === "schedule" ? <div className="calendar-editor-form schedule">
+          <label><span>분류</span><select value={scheduleDraft.type} onChange={(event) => setScheduleDraft({ ...scheduleDraft, type: event.target.value })}><option value="hospital">병원</option><option value="visit">가족 방문</option><option value="care">케어 일정</option></select></label>
+          <label><span>시간</span><input type="time" value={scheduleDraft.time} onChange={(event) => setScheduleDraft({ ...scheduleDraft, time: event.target.value })} /></label>
+          <label className="wide"><span>일정 내용</span><input placeholder="예: 신경과 정기 진료" value={scheduleDraft.title} onChange={(event) => setScheduleDraft({ ...scheduleDraft, title: event.target.value })} /></label>
+          <label className="wide"><span>담당자 메모 · 선택</span><input placeholder="준비물이나 동행자를 적어주세요" value={scheduleDraft.note} onChange={(event) => setScheduleDraft({ ...scheduleDraft, note: event.target.value })} /></label>
+          <button className="calendar-editor-submit" disabled={busy || !scheduleDraft.title.trim()} onClick={addSelectedSchedule}>{busy ? "저장 중" : "이 날짜에 일정 추가"}</button>
+        </div> : <div className="calendar-editor-form medication">
+          <label className="wide"><span>약 이름</span><input placeholder="예: 아침 당뇨약" value={medicationDraft.medication_name} onChange={(event) => setMedicationDraft({ ...medicationDraft, medication_name: event.target.value })} /></label>
+          <label><span>시간</span><input type="time" value={medicationDraft.scheduled_time} onChange={(event) => setMedicationDraft({ ...medicationDraft, scheduled_time: event.target.value })} /></label>
+          <label><span>복용량</span><input value={medicationDraft.dosage_text} onChange={(event) => setMedicationDraft({ ...medicationDraft, dosage_text: event.target.value })} /></label>
+          <label><span>식사 관계</span><select value={medicationDraft.meal_relation} onChange={(event) => setMedicationDraft({ ...medicationDraft, meal_relation: event.target.value })}><option value="after">식후</option><option value="before">식전</option><option value="none">관계없음</option></select></label>
+          <label><span>반복</span><select value={medicationDraft.repeat} onChange={(event) => setMedicationDraft({ ...medicationDraft, repeat: event.target.value })}><option value="daily">매일</option><option value="weekday">매주 {WEEKDAY[selectedDate.getDay()]}요일</option></select></label>
+          <label className="wide"><span>복용 목적</span><input placeholder="예: 고혈압 관리" value={medicationDraft.indication} onChange={(event) => setMedicationDraft({ ...medicationDraft, indication: event.target.value })} /></label>
+          <label><span>경과 확인 주기</span><input type="number" min="1" max="180" value={medicationDraft.review_interval_days} onChange={(event) => setMedicationDraft({ ...medicationDraft, review_interval_days: event.target.value })} /></label>
+          <label className="wide"><span>담당자 관찰 항목</span><textarea placeholder={'한 줄에 하나씩 입력\n예: 어지럼\n예: 보행 불안'} value={medicationDraft.monitoring_text} onChange={(event) => setMedicationDraft({ ...medicationDraft, monitoring_text: event.target.value })} /></label>
+          <label className="wide"><span>의료진에게 보고할 기준</span><textarea placeholder="담당자가 관찰 후 의료진에게 알릴 기준을 적어주세요." value={medicationDraft.escalation_criteria} onChange={(event) => setMedicationDraft({ ...medicationDraft, escalation_criteria: event.target.value })} /></label>
+          <button className="calendar-editor-submit" disabled={busy || !medicationDraft.medication_name.trim()} onClick={addSelectedMedication}>{busy ? "저장 중" : "복약 루틴 추가"}</button>
+        </div>}
+        {error && <p className="error">{error}</p>}
       </section>
-      <section>
-        <header><span className="calendar-panel-date medication">약</span><h3>오늘 복약 루틴</h3></header>
-        <div className="calendar-routine-list">{todayMeds.map((item) => <article key={item.schedule_id} className={item.confirmed ? "done" : ""} style={{ "--medication-color": medicationColor(item, medications) }}>
-          <i>{item.confirmed ? "✓" : ""}</i><div><b>{item.medication_name}</b><small>{item.scheduled_time} · {item.dosage_text}</small></div><span>{item.confirmed ? "확인됨" : "확인 전"}</span>
-        </article>)}{!todayMeds.length && <p>오늘 복약 일정이 없습니다.</p>}</div>
-      </section>
-      <section className="calendar-week-summary">
-        <header><span className="calendar-panel-date summary">7일</span><h3>이번 주 요약</h3></header>
-        <div><p><b>{comingWeek.length}</b><span>예정 일정</span></p><p><b>{todayMeds.length}</b><span>오늘 복약</span></p><p><b>{todayMeds.filter((item) => item.confirmed).length}</b><span>복약 확인</span></p></div>
-      </section>
-    </div>
-    {error && <p className="error">{error}</p>}
+    </div>}
   </section>;
 }

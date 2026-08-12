@@ -9,16 +9,14 @@ import { useCallback, useEffect, useState } from "react";
  */
 
 export const THEMES = [
-  { id: "light", label: "밝게" },
-  { id: "dark", label: "어둡게" },
-  { id: "warm", label: "눈 보호" },
+  { id: "light", label: "편안하게", description: "연한 아이보리 바탕" },
+  { id: "contrast", label: "선명하게", description: "글자와 경계를 더 뚜렷하게" },
+  { id: "soft", label: "눈부심 줄이기", description: "밝은 흰색과 강한 색을 줄임" },
 ];
 
-export const SIZES = [
-  { id: "normal", label: "보통", scale: 1 },
-  { id: "large", label: "크게", scale: 1.15 },
-  { id: "xlarge", label: "아주 크게", scale: 1.32 },
-];
+export const SIZE_MIN = 90;
+export const SIZE_MAX = 180;
+export const SIZE_STEP = 5;
 
 const KEY_THEME = "dasoni.theme";
 const KEY_SIZE = "dasoni.size";
@@ -33,32 +31,44 @@ function read(key, fallback) {
 
 export function applyTheme(theme, size) {
   const root = document.documentElement;
-  root.dataset.theme = theme;
-  const found = SIZES.find((s) => s.id === size) ?? SIZES[0];
-  root.style.setProperty("--scale", String(found.scale));
+  root.dataset.theme = normalizeTheme(theme);
+  const percent = normalizeSize(size);
+  root.style.setProperty("--font-scale", String(percent / 100));
+}
+
+function normalizeTheme(value) {
+  return ({ dark: "contrast", warm: "soft" })[value] || (THEMES.some((item) => item.id === value) ? value : "light");
+}
+
+function normalizeSize(value) {
+  const legacy = { normal: 100, large: 115, xlarge: 130 };
+  const numeric = legacy[value] || Number(value) || 100;
+  return Math.min(SIZE_MAX, Math.max(SIZE_MIN, Math.round(numeric / SIZE_STEP) * SIZE_STEP));
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState(() => read(KEY_THEME, "light"));
-  const [size, setSizeState] = useState(() => read(KEY_SIZE, "normal"));
+  const [theme, setThemeState] = useState(() => normalizeTheme(read(KEY_THEME, "light")));
+  const [size, setSizeState] = useState(() => normalizeSize(read(KEY_SIZE, "100")));
 
   useEffect(() => {
     applyTheme(theme, size);
   }, [theme, size]);
 
   const setTheme = useCallback((next) => {
-    setThemeState(next);
+    const normalized = normalizeTheme(next);
+    setThemeState(normalized);
     try {
-      window.localStorage.setItem(KEY_THEME, next);
+      window.localStorage.setItem(KEY_THEME, normalized);
     } catch {
       // 저장에 실패해도 이번 세션에는 적용된다
     }
   }, []);
 
   const setSize = useCallback((next) => {
-    setSizeState(next);
+    const normalized = normalizeSize(next);
+    setSizeState(normalized);
     try {
-      window.localStorage.setItem(KEY_SIZE, next);
+      window.localStorage.setItem(KEY_SIZE, String(normalized));
     } catch {
       // 무시
     }

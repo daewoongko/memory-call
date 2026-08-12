@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api.js";
 import DisplaySettings from "./components/DisplaySettings.jsx";
+import WideDisplayDock from "./components/WideDisplayDock.jsx";
 import { useTheme } from "./theme.js";
 import FamilyScreen from "./screens/FamilyScreen.jsx";
 import CallingScreen from "./screens/CallingScreen.jsx";
@@ -159,7 +160,14 @@ export default function App() {
   const wrap = (node, { gear = false, wide = false, roleSwitch = false } = {}) => (
     <div className={`frame${wide ? " guardian-frame" : ""}`}>
       <div className={`device${wide ? " guardian-device" : ""}`}>
-        {roleSwitch && (
+        {wide && (roleSwitch || gear) && <WideDisplayDock
+          theme={theme}
+          size={size}
+          onTheme={setTheme}
+          onSize={setSize}
+          onRole={() => { setRole(null); window.location.hash = ""; }}
+        />}
+        {!wide && roleSwitch && (
           <button
             className="role-switch"
             onClick={() => { setRole(null); window.location.hash = ""; }}
@@ -168,7 +176,7 @@ export default function App() {
             역할 선택
           </button>
         )}
-        {gear && (
+        {!wide && gear && (
           <button
             className="gear"
             onClick={() => setSettingsOpen(true)}

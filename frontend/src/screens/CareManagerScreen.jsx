@@ -139,7 +139,6 @@ export default function CareManagerScreen() {
         <div className="sidebar-brand"><BrandMark size={32} /><div><b>다소니</b><span>요양원 케어 분석</span></div></div>
         <button className="sidebar-elder" onClick={() => elders.length > 1 && setPicked(null)}><span className="elder-face sm">{picked.name?.slice(0, 1)}</span><span><b>{picked.name}</b><small>{picked.preferred_call_name}</small></span><i>⌄</i></button>
         <nav className="sidebar-nav" aria-label="담당자 메뉴">{MAIN_TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => setTab(item.id)}><span>{item.icon}</span>{item.label}</button>)}</nav>
-        <div className="sidebar-foot"><p>통화에서 확인된 사실을<br />근거와 함께 봅니다.</p></div>
       </aside>
       <section className="guardian-workspace">
         <header className="dashboard-heading manager-heading"><div><p className="eyebrow">{picked.name} 어르신 · {patientProfile?.diagnosis_label || picked.diagnosis_label || "진단 정보 미등록"}</p><h1>{new Date(`${period.value}T00:00:00`).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 분석 리포트</h1><span>{tab === "analysis" ? "발화 변화에서 오늘의 확인 우선순위를 정리합니다." : "담당자가 직접 확인해야 할 근거와 행동을 모았습니다."}</span></div><label className="manager-date-picker"><span>분석 날짜</span><input type="date" value={period.value} max={localDateKey()} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} /></label></header>
