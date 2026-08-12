@@ -1,0 +1,174 @@
+<title>대화 주제 지도</title>
+<style>
+  :root{
+    --ground:#F7F9F8; --surface:#FCFCFB; --line:#E2E9E5; --grid:#EDF2EF;
+    --ink:#0F1F1A; --ink-2:#42544C; --ink-3:#6E8079; --ink-4:#9AAAA3;
+    --brand:#11624A;
+    --c1:#C8553D; --c2:#1A6FA8; --c3:#B8862B; --c4:#7B4FA8;
+    --font:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0C1512; --surface:#131F1B; --line:#2A3A34; --grid:#1E2C27;
+      --ink:#EAF2EE; --ink-2:#A9BCB4; --ink-3:#7C9189; --ink-4:#5E7269;
+      --brand:#5FBF9C;
+      --c1:#D96A54; --c2:#4A9AD8; --c3:#B08630; --c4:#A876C8;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0C1512; --surface:#131F1B; --line:#2A3A34; --grid:#1E2C27;
+    --ink:#EAF2EE; --ink-2:#A9BCB4; --ink-3:#7C9189; --ink-4:#5E7269;
+    --brand:#5FBF9C;
+    --c1:#D96A54; --c2:#4A9AD8; --c3:#B08630; --c4:#A876C8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.6}
+  .page{max-width:1000px;margin:0 auto;padding:48px 24px 72px;display:flex;flex-direction:column;gap:34px}
+  h1{margin:0 0 8px;font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .lede p{margin:0;color:var(--ink-2);max-width:64ch}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px 18px;display:flex;flex-direction:column;gap:16px}
+  .cap{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .cap h2{margin:0;font-size:17px;font-weight:700}
+  .cap p{margin:2px 0 0;font-size:13px;color:var(--ink-3)}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--ink-2)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:9px;height:9px;border-radius:99px;display:inline-block}
+  .sizekey{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-3);margin-left:auto}
+  .sizekey svg{display:block}
+
+  .plotwrap{overflow-x:auto}
+  svg.plot{display:block;width:100%;min-width:640px;height:auto}
+  .qlabel{font-size:12.5px;font-weight:600;fill:var(--ink-4);letter-spacing:.01em}
+  .axlabel{font-size:12.5px;fill:var(--ink-3)}
+  .axend{font-size:12px;fill:var(--ink-4)}
+  .blabel{font-size:11.5px;font-weight:600;fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+  .bsub{font-size:10.5px;fill:var(--ink-3);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+
+  .reads{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.reads{grid-template-columns:1fr}}
+  .read{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+  .read b{font-size:13.5px}
+  .read p{margin:0;font-size:13px;color:var(--ink-2)}
+  .read .q{font-size:11.5px;color:var(--ink-4);font-weight:600}
+
+  .why{border-left:2px solid var(--brand);padding-left:14px;display:flex;flex-direction:column;gap:9px}
+  .why h3{margin:0;font-size:13.5px;font-weight:700}
+  .why p{margin:0;font-size:13.5px;color:var(--ink-2)}
+  .why p b{color:var(--ink);font-weight:600}
+  footer{font-size:12.5px;color:var(--ink-4);border-top:1px solid var(--line);padding-top:16px}
+</style>
+
+<div class="page">
+
+  <div class="lede">
+    <h1>대화 주제 지도</h1>
+    <p>주제마다 <b>얼마나 자주 나오는지</b>와 <b>나올 때 얼마나 힘들어하시는지</b>를 함께 봅니다. 두 축이 서로 다른 것을 재기 때문에 주제가 네 칸에 흩어집니다.</p>
+  </div>
+
+  <section class="card">
+    <div class="cap">
+      <div>
+        <h2>박순자 어르신 · 최근 30일</h2>
+        <p>통화 1,093건에서 주제를 분류했습니다. 원 크기는 그 주제가 나왔을 때의 평균 대화 길이입니다.</p>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i style="background:var(--c1)"></i>사람·관계</span>
+      <span><i style="background:var(--c2)"></i>시간·장소</span>
+      <span><i style="background:var(--c3)"></i>물건·재산</span>
+      <span><i style="background:var(--c4)"></i>몸 상태</span>
+      <span class="sizekey">
+        <svg width="58" height="24" viewBox="0 0 58 24" aria-hidden="true">
+          <circle cx="10" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1"/>
+          <circle cx="34" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1"/>
+        </svg>
+        대화 2분 → 5분
+      </span>
+    </div>
+
+    <div class="plotwrap"><svg class="plot" viewBox="0 0 840 470" role="img"
+      aria-label="주제별 빈도와 정서 부담 산점도. 자세한 값은 아래 표에 있습니다."></svg></div>
+
+    <div class="reads">
+      <div class="read"><span class="q">우상 · 핵심 부담</span><b>가족</b><p>가장 자주 나오고 나올 때마다 힘들어하십니다. 여기를 줄이는 것이 부담을 가장 크게 낮춥니다.</p></div>
+      <div class="read"><span class="q">좌상 · 놓치기 쉬움</span><b>건강 · 집·물건 · 일·학교</b><p>드물어서 눈에 안 띄지만 나올 때는 힘들어하십니다. 놓치지 않게 알림이 필요합니다.</p></div>
+      <div class="read"><span class="q">좌하 · 여유 주제</span><b>고향·추억</b><p>드물지만 편안하고 가장 길게 이어집니다. 불안할 때 꺼낼 수 있는 대화 자원입니다.</p></div>
+      <div class="read"><span class="q">우하 · 안정된 일상</span><b>일상 · 식사</b><p>자주 나오지만 부담 없이 지나갑니다. 지금은 따로 손댈 것이 없습니다.</p></div>
+    </div>
+  </section>
+
+  <div class="why">
+    <h3>왜 이 두 축인가</h3>
+    <p><b>빈도는 13통에서 434통까지 33배 차이가 납니다.</b> 이미 크게 벌어져 있어 가로로 확실히 흩어집니다. 정서 부담도 고향(편안)과 건강(힘듦)이 뚜렷이 갈립니다. 두 축이 서로 다른 것을 재기 때문에 대각선으로 늘어서지 않습니다.</p>
+    <p><b>크기를 통화 수가 아니라 대화 길이로 바꿨습니다.</b> 빈도가 가로축으로 올라갔으니, 크기까지 통화 수로 두면 같은 정보를 두 번 그리게 됩니다. 지금 화면이 한 덩어리로 뭉치는 원인 중 하나입니다.</p>
+    <p><b>색은 주제 범주입니다.</b> 색이 정서를 나타내면 세로축과 겹칩니다. 범주로 두면 축·색·크기가 서로 독립적이라 한 장에서 네 가지를 읽을 수 있습니다.</p>
+  </div>
+
+  <footer>
+    통화 수는 시드의 실제 값이고, 정서 부담과 평균 길이는 배치를 보여주기 위한 예시값입니다.
+    실제 구현에서는 정서 부담을 D5 정서 신호의 동반 비율로, 길이를 통화 지속시간으로 계산합니다.
+  </footer>
+</div>
+
+<script>
+const DATA = [
+  { name:"가족",      calls:434, load:62, mins:4.8, cat:1 },
+  { name:"일상",      calls:361, load:28, mins:2.1, cat:4 },
+  { name:"식사",      calls:135, load:45, mins:2.4, cat:4 },
+  { name:"건강",      calls:56,  load:82, mins:3.2, cat:4 },
+  { name:"고향·추억", calls:52,  load:18, mins:5.4, cat:1 },
+  { name:"집·물건",   calls:42,  load:74, mins:2.8, cat:3 },
+  { name:"일·학교",   calls:13,  load:55, mins:1.9, cat:2 },
+];
+const W=840,H=470,L=64,R=34,T=48,B=62;
+const iw=W-L-R, ih=H-T-B;
+const xlo=Math.log10(8), xhi=Math.log10(620);
+const X = c => L + (Math.log10(c)-xlo)/(xhi-xlo)*iw;
+const Y = v => T + (100-v)/100*ih;
+const Rr = m => 9 + Math.sqrt(m/5.4)*17;
+// 경계선은 임의값이 아니라 데이터 범위의 중간이다.
+// 가로는 로그 범위의 기하 중앙, 세로는 척도의 중앙.
+const calls = DATA.map(d=>d.calls);
+const MIDX = X(Math.sqrt(Math.min(...calls)*Math.max(...calls)));
+const MIDY = Y(50);
+
+const svg = document.querySelector("svg.plot");
+const ns = "http://www.w3.org/2000/svg";
+const el = (t,a) => { const n=document.createElementNS(ns,t); for(const k in a) n.setAttribute(k,a[k]); return n; };
+const add = (t,a,txt) => { const n=el(t,a); if(txt!=null) n.textContent=txt; svg.appendChild(n); return n; };
+
+// plot field
+add("rect",{x:L,y:T,width:iw,height:ih,fill:"var(--grid)",rx:8,opacity:".55"});
+// quadrant crosshair
+add("line",{x1:MIDX,y1:T,x2:MIDX,y2:T+ih,stroke:"var(--line)","stroke-width":1});
+add("line",{x1:L,y1:MIDY,x2:L+iw,y2:MIDY,stroke:"var(--line)","stroke-width":1});
+
+// quadrant names
+const pad=13;
+add("text",{x:L+pad,y:T+pad+11,class:"qlabel"},"놓치기 쉬움");
+add("text",{x:L+iw-pad,y:T+pad+11,class:"qlabel","text-anchor":"end"},"핵심 부담");
+add("text",{x:L+pad,y:T+ih-pad,class:"qlabel"},"여유 주제");
+add("text",{x:L+iw-pad,y:T+ih-pad,class:"qlabel","text-anchor":"end"},"안정된 일상");
+
+// axis labels — 세로쓰기는 한글이 깨지므로 축 위에 가로로 둔다
+add("text",{x:L,y:T-16,class:"axlabel"},"정서 부담 ↑ 힘들어함");
+add("text",{x:L,y:H-30,class:"axend"},"드물게 나옴");
+add("text",{x:L+iw,y:H-30,class:"axend","text-anchor":"end"},"자주 나옴");
+add("text",{x:L+iw/2,y:H-10,class:"axlabel","text-anchor":"middle"},"주제가 나온 통화 수");
+add("text",{x:L-10,y:T+ih,class:"axend","text-anchor":"end"},"편안");
+
+// bubbles — draw larger first so small ones stay clickable/visible on top
+const order = DATA.slice().sort((a,b)=>Rr(b.mins)-Rr(a.mins));
+for (const d of order){
+  const cx=X(d.calls), cy=Y(d.load), r=Rr(d.mins), c=`var(--c${d.cat})`;
+  add("circle",{cx,cy,r,fill:c,"fill-opacity":".72",stroke:"var(--surface)","stroke-width":2});
+}
+for (const d of DATA){
+  const cx=X(d.calls), cy=Y(d.load), r=Rr(d.mins);
+  add("text",{x:cx,y:cy-r-9,class:"blabel","text-anchor":"middle"},d.name);
+  add("text",{x:cx,y:cy-r+3,class:"bsub","text-anchor":"middle"},`${d.calls}통 · ${d.mins}분`);
+}
+</script>
