@@ -33,6 +33,7 @@ import safety  # noqa: E402
 from persona import build_system_prompt, load_context  # noqa: E402
 
 SCENARIOS = ROOT / "tools" / "scenarios.json"
+OBSERVATION_SCENARIOS = ROOT / "tools" / "observation_scenarios.json"
 
 # 아래 칸이 무너지면 위 칸의 통과율은 의미가 없다. 일반 대화에서 페르소나가
 # 깨지는 모델은 안전 시나리오만 잘 넘긴 것이다.
@@ -75,8 +76,8 @@ FIXTURE_VISIT_WEEKDAY = "토요일"
 # 아직 오지 않은 시각이라 "약 먹었어?" 대화가 자연스럽다.
 FIXTURE_NOW = datetime(2026, 5, 13, 10, 30)
 FIXTURE_PERSONA = {
-    "persona_id": "persona_daewoong", "display_name": "대웅",
-    "relationship_type": "손자", "elder_calls_family": "우리 대웅이",
+    "persona_id": "persona_minjun", "display_name": "민준",
+    "relationship_type": "손자", "elder_calls_family": "우리 민준이",
     "family_calls_elder": "할아버지",
     "tone": "따뜻하고 편안한 반말. 서두르지 않고 천천히.",
     "frequent_phrases": ["할아버지, 천천히 말씀해줘."],
@@ -100,11 +101,11 @@ def pin_context_dates(ctx: dict, today: date | None = None) -> dict:
     """일정·복약을 상대 시점으로 고정한 사본. 원본 ctx 는 그대로 둔다."""
     today = today or date.today()
     pinned = dict(ctx)
-    # DB의 현재 활성 가족이 누구인지와 무관하게 일반 회귀 시나리오는 대웅으로 고정한다.
+    # DB의 현재 활성 가족이 누구인지와 무관하게 일반 회귀 시나리오는 민준으로 고정한다.
     pinned["persona"] = dict(FIXTURE_PERSONA)
     pinned["schedules"] = [{
         "schedule_id": FIXTURE_VISIT_ID,
-        "title": "대웅이 방문",
+        "title": "민준이 방문",
         "date": next_saturday(today).isoformat(),
         "time": "14:00",
         "note": "주말 오후에 할아버지 댁 방문 예정",
@@ -295,7 +296,27 @@ def main():
     ap.add_argument("--live-context", action="store_true",
                     help="일정 고정 없이 실제 DB 그대로 본다. "
                          "리허설 직전 시연 DB 점검용")
+    ap.add_argument("--observations-only", action="store_true",
+                    help="LLM 호출 없이 Tier A 관찰 양성·음성 회귀만 검사")
     args = ap.parse_args()
+
+    if args.observations_only:
+        cases = json.loads(OBSERVATION_SCENARIOS.read_text(encoding="utf-8"))
+        failures = []
+        for case in cases:
+            positive = care.normalize({}, user_text=case["positive"], ctx={})
+            negative = care.normalize({}, user_text=case["negative"], ctx={})
+            positive_signals = {row["signal"] for row in positive["observations"]}
+            negative_signals = {row["signal"] for row in negative["observations"]}
+            ok = case["signal"] in positive_signals and case["signal"] not in negative_signals
+            print(f"{'PASS' if ok else 'FAIL'} {case['id']} {case['signal']}")
+            if not ok:
+                failures.append(case["id"])
+        if failures:
+            print("실패:", ", ".join(failures))
+            raise SystemExit(1)
+        print(f"{len(cases)}/{len(cases)} 관찰 회귀 통과")
+        return
 
     scenarios = json.loads(SCENARIOS.read_text(encoding="utf-8"))
     if args.ids:

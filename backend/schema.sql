@@ -99,6 +99,19 @@ CREATE TABLE IF NOT EXISTS medication_reviews (
 CREATE INDEX IF NOT EXISTS idx_medication_reviews
     ON medication_reviews(elder_id, schedule_id, review_date);
 
+-- 약과 관찰 신호의 연결은 담당자가 명시적으로 등록한다. 시스템이 약 이름만
+-- 보고 부작용이나 인과 관계를 자동 추정하지 않는다.
+CREATE TABLE IF NOT EXISTS medication_signal_links (
+    schedule_id     TEXT NOT NULL REFERENCES medications(schedule_id),
+    signal          TEXT NOT NULL,
+    link_level      TEXT NOT NULL CHECK (link_level IN ('monitoring','escalation')),
+    criterion_text  TEXT NOT NULL,
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (schedule_id, signal, link_level)
+);
+CREATE INDEX IF NOT EXISTS idx_medication_signal_links
+    ON medication_signal_links(schedule_id, signal);
+
 -- 복약 기록. 노인이 직접 입력하지 않고 통화 중 말로 확인한 결과가 쌓인다.
 CREATE TABLE IF NOT EXISTS medication_logs (
     log_id        INTEGER PRIMARY KEY AUTOINCREMENT,

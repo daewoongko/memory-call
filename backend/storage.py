@@ -14,7 +14,7 @@ STORAGE_DIR = Path(
 
 DB_PATH = STORAGE_DIR / "memory_call.sqlite"
 PERSONAS_ROOT = STORAGE_DIR / "personas"
-DEFAULT_FACE_PERSONA_ID = "persona_daewoong"
+DEFAULT_FACE_PERSONA_ID = "persona_minjun"
 LEGACY_FACES_ROOT = STORAGE_DIR / "faces"
 
 # 기존 생성 도구들은 저장 경로 상수를 직접 import한다. 도구 실행 시에만
@@ -25,7 +25,7 @@ if TOOL_FACE_PERSONA_ID and not re.fullmatch(r"persona_[a-z0-9_]+", TOOL_FACE_PE
 FACES_ROOT = (
     PERSONAS_ROOT / TOOL_FACE_PERSONA_ID
     if TOOL_FACE_PERSONA_ID
-    and TOOL_FACE_PERSONA_ID not in {DEFAULT_FACE_PERSONA_ID, "persona_minjun"}
+    and TOOL_FACE_PERSONA_ID != DEFAULT_FACE_PERSONA_ID
     else LEGACY_FACES_ROOT
 )
 SOURCE_FACES_DIR = FACES_ROOT / "source"
@@ -64,7 +64,7 @@ def persona_face_storage(persona_id: str | None = None) -> PersonaFaceStorage:
     기존 ID를 그대로 해당 폴더에 연결한다.
     """
     selected = persona_id or DEFAULT_FACE_PERSONA_ID
-    if selected in {DEFAULT_FACE_PERSONA_ID, "persona_minjun"}:
+    if selected == DEFAULT_FACE_PERSONA_ID:
         root = LEGACY_FACES_ROOT
         aligned = root / "aligned"
         return PersonaFaceStorage(

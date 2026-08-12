@@ -69,35 +69,11 @@ class PeriodNarrative(BaseModel):
 # ---------------------------------------------------------------------------
 # 통화 중 인지·정서 케어 관찰
 
-CareDomain = Literal["memory_orientation", "emotion", "daily_living"]
-CareSignal = Literal[
-    "time_confusion",
-    "place_confusion",
-    "person_confusion",
-    "recent_event_confusion",
-    "past_role_confusion",
-    "anxiety",
-    "fear",
-    "loneliness",
-    "sadness",
-    "agitation",
-    "anger",
-    "distrust",
-    "affection",
-    "gratitude",
-    "apology",
-    "longing",
-    "pride",
-    "joy",
-    "regret",
-    "worry_for_family",
-    "meal_uncertain",
-    "hydration_need",
-    "medication_uncertain",
-    "item_location_uncertain",
-    "financial_concern",
-    "schedule_support",
-    "task_support",
+CareDomain = Literal[
+    "orientation", "memory", "language", "executive_judgment", "emotion",
+    "behavior_agitation", "daily_living", "safety_physical",
+    # 이전 저장 데이터와 오래된 모델 출력은 서버에서 새 도메인으로 교정한다.
+    "memory_orientation",
 ]
 ContextKind = Literal[
     "server_time",
@@ -132,8 +108,17 @@ class CareObservation(BaseModel):
     """환자 발화에서 직접 확인한 비진단적 관찰."""
 
     domain: CareDomain
-    signal: CareSignal
+    signal: str = Field(min_length=1, max_length=80)
     evidence: str = Field(min_length=1, max_length=200)
+
+    @field_validator("signal")
+    @classmethod
+    def _known_signal(cls, value: str) -> str:
+        # 지연 import로 스키마 모듈과 분석 카탈로그의 순환 의존을 피한다.
+        from analysis.observation_catalog import MEANING_ONLY_SIGNALS, SIGNALS
+        if value not in SIGNALS and value not in MEANING_ONLY_SIGNALS:
+            raise ValueError("등록되지 않은 관찰 신호")
+        return value
 
 
 class ContextSupport(BaseModel):

@@ -186,8 +186,8 @@
   "care": {
     "observations": [
       {
-        "domain": "memory_orientation | emotion | daily_living",
-        "signal": "아래 care 필드 규칙의 값 중 하나",
+        "domain": "orientation | memory | language | executive_judgment | emotion | behavior_agitation | daily_living | safety_physical",
+        "signal": "아래 care 필드 규칙에 등록된 Tier A 또는 Tier C 신호",
         "evidence": "환자 원문에서 그대로 가져온 짧은 연속 인용"
       }
     ],

@@ -36,7 +36,7 @@ class Session:
         self.seq = 0
         self.call_id = f"call_{uuid.uuid4().hex[:12]}"
         self._started = time.time()
-        # 지금 챙겨야 하는 약. 통화를 열 때 대웅이가 먼저 꺼낸다 (명세 FR-08).
+        # 지금 챙겨야 하는 약. 통화를 열 때 선택한 AI 가족이 먼저 꺼낸다 (명세 FR-08).
         self.due_meds = medication.due(elder_id)
 
         with db.connect() as conn:

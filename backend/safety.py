@@ -274,7 +274,7 @@ DIRECT_RISK_PATTERNS = [
 ]
 
 
-def _direct_risk(user_text: str) -> dict | None:
+def direct_risk(user_text: str) -> dict | None:
     """진단 없이 원문에 명시된 즉시 위험만 복원한다."""
     for risk_type, level, patterns in DIRECT_RISK_PATTERNS:
         for pattern in patterns:
@@ -286,6 +286,11 @@ def _direct_risk(user_text: str) -> dict | None:
                     "evidence": match.group(0)[:200],
                 }
     return None
+
+
+# Private alias retained for callers/tests written before the public bridge was
+# introduced.  care.py/report.py can now integrate D8 without copying patterns.
+_direct_risk = direct_risk
 
 
 def _ensure_registered_schedule_answer(

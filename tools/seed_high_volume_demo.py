@@ -207,6 +207,41 @@ TEMPLATES = [
         "summary": "주방에서 지속적인 가스 냄새가 난다고 직접 말씀하셨습니다.",
         "actions": ["가스 밸브와 실내 상황을 즉시 확인해 주세요."],
     },
+    {
+        "title": "단어 찾기 어려움", "repeat": 1,
+        "user": "그... 뭐더라, 말이 생각이 안 난다. 물 마실 때 쓰는 그거 말이다.",
+        "reply": "말이 바로 떠오르지 않으셨군요. 서두르지 말고 생김새부터 천천히 말씀해 주세요.",
+        "summary": "익숙한 물건의 단어를 바로 떠올리기 어렵다고 말씀하셨습니다.",
+        "actions": ["단어 찾기 어려움이 평소보다 잦거나 갑자기 심해졌는지 확인해 주세요."],
+    },
+    {
+        "title": "행동 순서 어려움", "repeat": 1,
+        "user": "옷을 입고 뭐부터 해야 하는지 모르겠다. 어떻게 해야 하냐?",
+        "reply": "한 번에 하나씩 해볼게요. 먼저 편하게 앉아서 겉옷을 찾아봐요.",
+        "summary": "외출 준비의 순서를 정하기 어렵다고 말씀하셨습니다.",
+        "actions": ["외출 준비를 한 단계씩 안내하고 어느 단계에서 막혔는지 기록해 주세요."],
+    },
+    {
+        "title": "수면 교란", "repeat": 1,
+        "user": "밤새 자꾸 깨서 못 잤다. 오늘은 기운이 없다.",
+        "reply": "밤에 자주 깨서 피곤하시군요. 오늘은 무리하지 않도록 담당자에게 남길게요.",
+        "summary": "밤새 자주 깨고 기운이 없다고 말씀하셨습니다.",
+        "actions": ["야간 각성 횟수와 낮 시간 졸림·활동 변화를 확인해 주세요."],
+    },
+    {
+        "title": "어지럼 표현", "repeat": 1,
+        "user": "자리에서 일어나니 어지럽고 휘청거린다.",
+        "reply": "어지러우시군요. 혼자 걷지 말고 앉아서 담당자가 확인할 때까지 기다려 주세요.",
+        "summary": "일어선 뒤 어지럼과 휘청거림을 말씀하셨습니다.",
+        "actions": ["기립 전후 상태와 보행 안정성을 확인하고 반복 여부를 기록해 주세요."],
+    },
+    {
+        "title": "식욕 저하", "repeat": 1,
+        "user": "요즘 입맛이 없어서 밥을 별로 못 먹겠다.",
+        "reply": "입맛이 없어 식사가 힘드셨군요. 오늘 드신 양을 담당자가 확인하도록 남길게요.",
+        "summary": "최근 입맛이 없고 식사량이 줄었다고 말씀하셨습니다.",
+        "actions": ["식사 섭취량과 체중 변화를 기록하고 지속되면 의료진에게 전달해 주세요."],
+    },
 ]
 
 
@@ -225,14 +260,15 @@ RARE_RISK_CALLS = {
     (2, 19): 24,   # 가스 누출 의심 1건
 }
 
-MORNING_ROTATION = [0, 3, 19, 17, 0, 4, 12, 5, 17, 19, 3, 0]
-DAY_ROTATION = [17, 1, 0, 5, 17, 7, 10, 3, 17, 11, 12, 8, 9, 16]
-EVENING_ROTATION = [17, 6, 1, 17, 0, 6, 17, 16, 1, 17, 9, 6]
+MORNING_ROTATION = [0, 3, 19, 17, 0, 4, 12, 5, 17, 25, 26, 19, 3, 0]
+DAY_ROTATION = [17, 1, 0, 5, 17, 7, 10, 3, 17, 11, 12, 8, 9, 16, 25, 26, 28]
+EVENING_ROTATION = [17, 6, 1, 17, 0, 6, 17, 16, 1, 17, 9, 6, 27]
 
 
-def _delete_calls(conn) -> None:
+def _delete_calls(conn, elder_id: str) -> None:
     call_ids = [row[0] for row in conn.execute(
-        "SELECT call_id FROM calls WHERE call_id LIKE ?", (f"{PREFIX}%",)
+        "SELECT call_id FROM calls WHERE call_id LIKE ? OR call_id LIKE ? OR call_id LIKE ?",
+        (f"{PREFIX}%", "demo_history_%", "demo_care_%"),
     ).fetchall()]
     for call_id in call_ids:
         conn.execute(
@@ -242,6 +278,14 @@ def _delete_calls(conn) -> None:
         for table in ("heart_artworks", "reports", "call_events", "medication_logs", "utterances"):
             conn.execute(f"DELETE FROM {table} WHERE call_id = ?", (call_id,))
         conn.execute("DELETE FROM calls WHERE call_id = ?", (call_id,))
+    conn.execute(
+        "DELETE FROM medication_logs WHERE elder_id = ? AND evidence_text LIKE '고빈도 데모:%'",
+        (elder_id,),
+    )
+    conn.execute(
+        "DELETE FROM medication_reviews WHERE elder_id = ? AND note = '고빈도 데모 정기 경과 관찰'",
+        (elder_id,),
+    )
 
 
 def _ensure_demo_medications(conn, elder_id: str) -> list[dict]:
@@ -258,6 +302,10 @@ def _ensure_demo_medications(conn, elder_id: str) -> list[dict]:
             "medication_name": "아침 혈압약", "dosage_text": "1정",
             "scheduled_time": "08:00", "meal_relation": "after",
             "days_of_week": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+            "indication": "고혈압 관리",
+            "monitoring_points": ["어지럼 표현", "낙상 또는 휘청거림"],
+            "review_interval_days": 14,
+            "escalation_criteria": "낙상·흉통·호흡 곤란 발생 시 담당자가 상태를 확인하고 처방 의료진에게 보고",
             "active": 1,
         },
         {
@@ -265,11 +313,28 @@ def _ensure_demo_medications(conn, elder_id: str) -> list[dict]:
             "medication_name": "저녁 기억건강약", "dosage_text": "1정",
             "scheduled_time": "20:00", "meal_relation": "after",
             "days_of_week": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+            "indication": "인지기능 증상 관리",
+            "monitoring_points": ["어지럼 표현", "식욕 변화", "수면 교란"],
+            "review_interval_days": 14,
+            "escalation_criteria": "새로운 실신·낙상 또는 일상 기능의 뚜렷한 변화 시 처방 의료진에게 보고",
             "active": 1,
         },
     ]
     for row in demo:
         db.insert(conn, "medications", row)
+    links = [
+        ("demo_med_blood_pressure", "dizziness", "monitoring", "어지럼 표현"),
+        ("demo_med_blood_pressure", "fall_reported", "escalation", "낙상 발생"),
+        ("demo_med_blood_pressure", "chest_pain", "escalation", "흉통 표현"),
+        ("demo_med_memory", "dizziness", "monitoring", "어지럼 표현"),
+        ("demo_med_memory", "appetite_change", "monitoring", "식욕 변화"),
+        ("demo_med_memory", "sleep_disturbance", "monitoring", "수면 교란"),
+    ]
+    for schedule_id, signal, level, criterion in links:
+        db.insert(conn, "medication_signal_links", {
+            "schedule_id": schedule_id, "signal": signal,
+            "link_level": level, "criterion_text": criterion,
+        })
     return demo
 
 
@@ -351,7 +416,7 @@ def seed(elder_id: str = "elder_001") -> dict:
     call_ids = []
     with db.connect() as conn:
         db.init_schema(conn)
-        _delete_calls(conn)
+        _delete_calls(conn, elder_id)
         _ensure_demo_family(conn, elder_id)
         medications = _ensure_demo_medications(conn, elder_id)
         conn.commit()
@@ -457,6 +522,48 @@ def seed(elder_id: str = "elder_001") -> dict:
                     "risk_summary": [], "care_summary": {}, "meaningful_moments": [],
                     "family_mentions": [], "guardian_actions": template["actions"],
                 })
+
+            # 통화에서 복약 이야기가 없었던 날도 담당자의 투약 기록은 별도로 남긴다.
+            # 대부분은 확인이며, 불확실·거부는 한 달에 몇 차례만 배치한다.
+            taken_date = (now - timedelta(days=days_ago)).date().isoformat()
+            for med_index, medication in enumerate(medications):
+                already_logged = conn.execute(
+                    "SELECT 1 FROM medication_logs WHERE elder_id = ? AND schedule_id = ? "
+                    "AND taken_date = ? LIMIT 1",
+                    (elder_id, medication["schedule_id"], taken_date),
+                ).fetchone()
+                if already_logged:
+                    continue
+                selector = (days_ago * 13 + med_index * 17) % 41
+                status = (
+                    "REFUSED" if selector == 7 else
+                    "UNCLEAR" if selector in {11, 29} else
+                    "USER_CONFIRMED"
+                )
+                hour, minute = map(int, str(medication["scheduled_time"]).split(":"))
+                db.insert(conn, "medication_logs", {
+                    "elder_id": elder_id,
+                    "schedule_id": medication["schedule_id"],
+                    "call_id": None,
+                    "utterance_id": None,
+                    "taken_date": taken_date,
+                    "status": status,
+                    "evidence_text": f"고빈도 데모: 담당자 투약 기록 {status}",
+                    "created_at": (now - timedelta(days=days_ago)).replace(
+                        hour=hour, minute=minute, second=0, microsecond=0,
+                    ).isoformat(timespec="seconds"),
+                })
+
+            if days_ago in {21, 7}:
+                for med_index, medication in enumerate(medications):
+                    db.insert(conn, "medication_reviews", {
+                        "elder_id": elder_id,
+                        "schedule_id": medication["schedule_id"],
+                        "review_date": taken_date,
+                        "severity": (days_ago + med_index) % 3,
+                        "observed_flags": [],
+                        "note": "고빈도 데모 정기 경과 관찰",
+                    })
         conn.commit()
 
     built = [report.build(call_id) for call_id in call_ids]

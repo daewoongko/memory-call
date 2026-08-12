@@ -11,7 +11,15 @@ import re
 
 from pydantic import ValidationError
 
+from analysis.observation_catalog import (
+    MEANING_ONLY_SIGNALS,
+    RISK_TO_SIGNAL,
+    SIGNALS,
+    canonical_domain,
+    find_evidence,
+)
 from schemas import CarePayload
+import safety
 
 
 EMPTY_CARE = {
@@ -22,7 +30,10 @@ EMPTY_CARE = {
     "meaningful_moments": [],
 }
 
-EMOTION_SIGNALS = {"anxiety", "fear", "loneliness", "sadness", "agitation"}
+EMOTION_SIGNALS = {
+    "anxiety", "fear", "loneliness", "sadness", "hopelessness", "apathy",
+    "worry_for_family", "guilt", "agitation", "anger", "abandonment_fear",
+}
 
 ACTION_SIGNAL = {
     "meal_check": "meal_uncertain",
@@ -32,63 +43,11 @@ ACTION_SIGNAL = {
     "item_search_step": "item_location_uncertain",
 }
 
-# 모델이 붙인 라벨을 원문 인용만으로 신뢰하면, 예를 들어
-# "일어서기 힘들다"를 분실물 신호로 잘못 기록할 수 있다. 아래 항목은
-# 표현 자체가 충분히 명확한 신호만 서버에서 교차검증하고, 모델이 누락한
-# 경우에도 같은 근거 문구로 보완한다. 진단 추론이 아니라 문자 그대로의 관찰이다.
+# Backward-compatible export for tests and scripts.  Definitions live in one
+# canonical catalog so report labels and extraction cannot drift apart.
 DIRECT_SIGNAL_PATTERNS = {
-    "time_confusion": ("memory_orientation", [
-        r"(오늘|지금)[^.!?]{0,12}(몇 시|무슨 요일|며칠|언제)",
-        r"몇 시[^.!?]{0,10}(이|오|가)",
-    ]),
-    "place_confusion": ("memory_orientation", [
-        r"여기가 어디", r"집에 가야", r"길을 못 찾", r"집이 아닌 것 같",
-        r"집 안[^.!?]{0,16}(낯설|모르)",
-    ]),
-    "person_confusion": ("memory_orientation", [
-        r"누구(?:냐|지|야)", r"몇 살", r"학교에서 안 (?:왔|와)",
-        r"내가 누구인지[^.!?]{0,12}(깜빡|모르)",
-    ]),
-    "recent_event_confusion": ("memory_orientation", [
-        r"(먹|했|갔|왔)던가", r"기억(?:이)? (?:안 나|못 하)",
-        r"(먹었는지|챙겼는지)[^.!?]{0,14}(까먹|모르)",
-    ]),
-    "past_role_confusion": ("memory_orientation", [
-        r"(학교|회사|직장)[^.!?]{0,18}(수업|출근|늦|가야)",
-        r"수업 시간[^.!?]{0,12}(늦|가야)",
-    ]),
-    "anxiety": ("emotion", [r"걱정", r"불안", r"어떡하"]),
-    "fear": ("emotion", [r"무서", r"무섭", r"두려", r"두렵", r"겁(?:이|나)"]),
-    "loneliness": ("emotion", [r"외로", r"외롭", r"혼자 있으니까"]),
-    "sadness": ("emotion", [r"슬프", r"서럽", r"눈물이"]),
-    "agitation": ("emotion", [r"큰일 났", r"빨리[^.!?]{0,8}(가야|찾아)"]),
-    "anger": ("emotion", [r"이놈아", r"화(?:가)? 나", r"거짓말 마"]),
-    "distrust": ("emotion", [r"몰래", r"속이", r"빼돌리", r"훔쳐", r"가져갔지"]),
-    "affection": ("emotion", [r"사랑(?:해|한다|하지)"]),
-    "gratitude": ("emotion", [r"고맙", r"감사"]),
-    "apology": ("emotion", [r"미안"]),
-    "longing": ("emotion", [r"그리", r"그립", r"보고 싶", r"생각나", r"그때가 참 좋"]),
-    "pride": ("emotion", [r"자랑", r"뿌듯"]),
-    "joy": ("emotion", [r"즐거", r"기쁘", r"참 좋았"]),
-    "regret": ("emotion", [r"후회", r"아쉽"]),
-    "worry_for_family": ("emotion", [
-        r"(우리 )?[가-힣]{2,4}?(?:이는|는|이가|가)[^.!?]{0,16}(안 추우|괜찮을|걱정)",
-    ]),
-    "meal_uncertain": ("daily_living", [
-        r"(아침|점심|저녁|밥|식사)[^.!?]{0,12}(먹었|드셨)[^.!?]{0,14}(나|가|모르|까먹)",
-    ]),
-    "hydration_need": ("daily_living", [r"목(?:이)? 마르", r"물[^.!?]{0,8}(마실|먹을)"]),
-    "medication_uncertain": ("daily_living", [
-        r"약[^.!?]{0,18}(먹었|드셨|복용)[^.!?]{0,10}(나|모르|기억)",
-    ]),
-    "item_location_uncertain": ("daily_living", [
-        r"(지갑|열쇠|가방|리모컨|물건)[^.!?]{0,12}(사라졌|없|어디|못 찾|잊)",
-    ]),
-    "financial_concern": ("daily_living", [r"통장", r"계좌", r"재산", r"내 돈"]),
-    "schedule_support": ("daily_living", [
-        r"(언제|몇 시)[^.!?]{0,10}(오|가|찾아)", r"오늘[^.!?]{0,10}오냐",
-    ]),
-    "task_support": ("daily_living", [r"어떻게 해야", r"혼자[^.!?]{0,8}힘들"]),
+    signal: (spec.domain, list(spec.patterns))
+    for signal, spec in SIGNALS.items() if spec.tier == "A"
 }
 
 MEANING_PATTERNS = {
@@ -127,11 +86,12 @@ def _first_match(patterns: list[str], text: str) -> str | None:
 
 
 def _signal_supported(signal: str, evidence: str, user_text: str) -> bool:
-    spec = DIRECT_SIGNAL_PATTERNS.get(signal)
-    if spec is None:
-        # 아직 명시 규칙이 없는 신호는 직접 인용 검증까지만 적용한다.
+    spec = SIGNALS.get(signal)
+    if spec is None or spec.tier == "B":
+        return False
+    if spec.tier == "C":
         return _quoted_by_user(evidence, user_text)
-    return _first_match(spec[1], evidence) is not None
+    return find_evidence(signal, evidence) is not None
 
 
 def _sentence_with(match_text: str, text: str, *, limit: int = 300) -> str:
@@ -195,11 +155,16 @@ def normalize(
     observations = []
     seen_observations = set()
     for item in payload.observations:
+        if item.signal in MEANING_ONLY_SIGNALS:
+            continue
         if not _quoted_by_user(item.evidence, user_text):
             continue
         if not _signal_supported(item.signal, item.evidence, user_text):
             continue
         row = item.model_dump()
+        row["domain"] = canonical_domain(row["signal"], row.get("domain"))
+        row["tier"] = SIGNALS[row["signal"]].tier
+        row["verification"] = "candidate" if row["tier"] == "C" else "confirmed"
         key = (row["domain"], row["signal"], _compact(row["evidence"]))
         if key in seen_observations:
             continue
@@ -211,14 +176,31 @@ def normalize(
     for signal, (domain, patterns) in DIRECT_SIGNAL_PATTERNS.items():
         if signal in present_signals:
             continue
-        evidence = _first_match(patterns, user_text)
+        evidence = find_evidence(signal, user_text)
         if evidence:
             observations.append({
                 "domain": domain,
                 "signal": signal,
                 "evidence": evidence,
+                "tier": "A",
+                "verification": "confirmed",
             })
             present_signals.add(signal)
+
+    # Urgent D8 observations reuse safety.py's single risk definition.  This
+    # prevents the report extractor and live-call safety layer from drifting.
+    risk = safety.direct_risk(user_text)
+    risk_signal = RISK_TO_SIGNAL.get((risk or {}).get("type"))
+    if risk_signal and risk_signal not in present_signals:
+        spec = SIGNALS[risk_signal]
+        observations.append({
+            "domain": spec.domain,
+            "signal": risk_signal,
+            "evidence": risk["evidence"],
+            "tier": "A",
+            "verification": "confirmed",
+        })
+        present_signals.add(risk_signal)
 
     verified_memory_ids = _valid_context_sources(ctx)["memory"]
     meaningful_moments = []

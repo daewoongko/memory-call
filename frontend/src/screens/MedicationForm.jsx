@@ -60,7 +60,7 @@ export default function MedicationForm({ elderId = "elder_001", onChanged }) {
     <section className="meds">
       <h2>복약 일정</h2>
       <p className="hint">
-        등록한 시간이 되면 대웅이가 먼저 전화해서 확인해요.
+        등록한 시간이 되면 선택한 AI 가족이 먼저 전화해서 확인해요.
         할아버지는 따로 입력하지 않으셔도 됩니다.
       </p>
 

@@ -1952,9 +1952,27 @@ label.checkbox { color: var(--text); }
   white-space: nowrap;
 }
 .domain-tag { color: var(--brand-soft); background: rgba(155, 161, 240, 0.13); }
-.domain-tag.emotion { color: #dbb9ff; background: rgba(180, 155, 236, 0.13); }
-.domain-tag.daily_living { color: var(--sky); background: rgba(169, 201, 242, 0.12); }
+.domain-tag.orientation { color: #8bd6b2; background: rgba(36, 116, 79, 0.2); }
+.domain-tag.memory { color: #a8dfbd; background: rgba(62, 138, 100, 0.2); }
+.domain-tag.language { color: #c5df91; background: rgba(97, 150, 69, 0.2); }
+.domain-tag.executive_judgment { color: #ffd18a; background: rgba(178, 122, 22, 0.2); }
+.domain-tag.emotion { color: #ffc098; background: rgba(212, 107, 33, 0.2); }
+.domain-tag.behavior_agitation { color: #ffaaa1; background: rgba(195, 77, 63, 0.2); }
+.domain-tag.daily_living { color: #d2df8d; background: rgba(133, 157, 41, 0.2); }
+.domain-tag.safety_physical { color: #ffb0ba; background: rgba(163, 62, 72, 0.2); }
 .domain-tag.safety, .observed-tags > span.risk { color: #ffb1aa; background: rgba(255, 139, 128, 0.13); }
+.medication-signal-links { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.medication-signal-links > header { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.medication-signal-links > header span, .medication-signal-links > header small { color: var(--muted); font-size: calc(11px * var(--font-scale)); }
+.medication-signal-links > header h3 { margin: 3px 0 0; font-size: calc(17px * var(--font-scale)); }
+.medication-signal-links > div { display: grid; gap: 8px; }
+.medication-signal-links article { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.medication-signal-links article > span { padding: 4px 7px; border-radius: 999px; color: #176b48; background: #dff3e9; font-size: calc(10px * var(--font-scale)); white-space: nowrap; }
+.medication-signal-links article > span.escalation { color: #9a3029; background: #fbe3df; }
+.medication-signal-links article b, .medication-signal-links article p, .medication-signal-links article blockquote { display: block; margin: 0; }
+.medication-signal-links article p { margin-top: 3px; color: var(--muted); font-size: calc(11px * var(--font-scale)); }
+.medication-signal-links article blockquote { margin-top: 6px; color: var(--text); font-size: calc(11px * var(--font-scale)); }
+.medication-signal-links article strong { color: var(--brand); white-space: nowrap; }
 .observed-tags > span { color: var(--text); background: var(--bg); border: 1px solid var(--line); }
 .observed-tags small { align-self: center; color: var(--muted); font-size: calc(9px * var(--font-scale)); }
 .observed-tags .no-observation { color: var(--muted); border-style: dashed; }

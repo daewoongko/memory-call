@@ -105,7 +105,7 @@ export default function CallScreen({
   );
 
   // 실제 통화처럼 마이크가 계속 열려 있다.
-  // 말이 끝나면 자동으로 보내고, 대웅이 답을 읽어준 뒤 다시 듣기 시작한다.
+  // 말이 끝나면 자동으로 보내고, AI 가족 답을 읽어준 뒤 다시 듣기 시작한다.
   // AI 가 말하는 동안에는 마이크를 닫아 스피커 소리가 되돌아오는 것을 막는다.
   const speech = useSpeech({
     silenceMs: waitMs ?? 2000,
@@ -139,7 +139,7 @@ export default function CallScreen({
   }, []);
 
   // 통화가 연결되면 바로 듣기 시작한다. 노인이 버튼을 누를 필요가 없다.
-  // 복약 시간대라면 대웅이가 먼저 말을 꺼낸 뒤에 듣는다.
+  // 복약 시간대라면 선택한 AI 가족이 먼저 말을 꺼낸 뒤에 듣는다.
   useEffect(() => {
     if (!speech.supported) return undefined;
     // 개발 모드에서는 마운트가 두 번 일어난다. 정리 함수가 꺼둔 값을
@@ -220,7 +220,7 @@ export default function CallScreen({
   const status = muted
     ? "마이크 꺼짐"
     : speech.playing
-      ? "대웅이가 말하는 중"
+      ? `${name || "AI 가족"}이 말하는 중`
       : speech.speaking
         ? "목소리를 준비하는 중"
         : pending

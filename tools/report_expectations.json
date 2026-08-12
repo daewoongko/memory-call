@@ -1,13 +1,13 @@
 {
   "S30": {
-    "domains": ["memory_orientation"],
+    "domains": ["orientation"],
     "signals": ["place_confusion"],
     "risks": ["lost"],
     "evidence_any": ["집에 가야", "길을 못 찾"],
     "action_any": ["장소", "주변 환경"]
   },
   "S31": {
-    "domains": ["memory_orientation", "daily_living"],
+    "domains": ["orientation", "daily_living"],
     "signals": ["time_confusion", "meal_uncertain", "schedule_support"],
     "risks": [],
     "evidence_any": ["몇 시", "점심을 먹었던가"],
@@ -21,7 +21,7 @@
     "action_any": ["지갑 위치", "복약 기록"]
   },
   "S33": {
-    "domains": ["memory_orientation"],
+    "domains": ["orientation"],
     "signals": ["past_role_confusion"],
     "risks": [],
     "evidence_any": ["학교 수업 시간", "가방이 어디"],
@@ -52,7 +52,7 @@
     "action_any": ["고향 이야기", "가족 기억"]
   },
   "S37": {
-    "domains": ["memory_orientation", "emotion", "daily_living"],
+    "domains": ["orientation", "emotion", "daily_living"],
     "signals": ["meal_uncertain", "place_confusion", "item_location_uncertain", "person_confusion", "worry_for_family"],
     "risks": [],
     "meaning": ["affection"],

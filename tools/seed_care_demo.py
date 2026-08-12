@@ -43,8 +43,7 @@ DEMO_PERSONAS = {
         "frequent_phrases": ["아버지, 천천히 말씀해 주세요.", "제가 같이 확인해 볼게요."],
     },
     "민준": {
-        # 기존 데모 통화가 참조하는 ID는 유지하고, 가족 설정만 민준으로 통일한다.
-        "persona_id": "persona_daewoong", "relationship_type": "손자",
+        "persona_id": "persona_minjun", "relationship_type": "손자",
         "elder_calls_family": "우리 민준이", "family_calls_elder": "할아버지",
         "tone": "따뜻하고 편안한 반말. 천천히 듣고 한 번에 한 가지씩 말한다.",
         "frequent_phrases": ["할아버지, 저 여기 있어요.", "우리 하나씩 같이 해봐요."],

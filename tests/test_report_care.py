@@ -14,16 +14,29 @@ import report  # noqa: E402
 
 
 class CareReportAggregationTest(unittest.TestCase):
+    def test_recent_groups_legacy_observations_into_current_domains(self):
+        groups = report._canonical_care_groups({
+            "memory_orientation": [
+                {"signal": "place_confusion", "label": "장소 혼동"},
+                {"signal": "recent_event_confusion", "label": "최근 사건 혼동"},
+            ],
+            "meaningful_moments": [{"label": "가족 애정"}],
+        })
+
+        self.assertEqual([item["label"] for item in groups["orientation"]], ["장소 혼동"])
+        self.assertEqual([item["label"] for item in groups["memory"]], ["최근 사건 혼동"])
+        self.assertNotIn("meaningful_moments", groups)
+
     def test_family_mentions_count_only_registered_names(self):
         utterances = [
-            {"utterance_id": 1, "speaker": "elder", "transcript": "대웅이는 잘 있나?"},
+            {"utterance_id": 1, "speaker": "elder", "transcript": "민준이는 잘 있나?"},
             {"utterance_id": 2, "speaker": "ai", "transcript": "응."},
-            {"utterance_id": 3, "speaker": "elder", "transcript": "대웅이 보고 싶네."},
-            {"utterance_id": 4, "speaker": "elder", "transcript": "민수도 바쁘겠지."},
+            {"utterance_id": 3, "speaker": "elder", "transcript": "민준이 보고 싶네."},
+            {"utterance_id": 4, "speaker": "elder", "transcript": "미영이도 바쁘겠지."},
         ]
-        mentions = report._family_mentions(utterances, ["대웅", "민수"])
+        mentions = report._family_mentions(utterances, ["민준", "미영"])
 
-        self.assertEqual(mentions[0]["name"], "대웅")
+        self.assertEqual(mentions[0]["name"], "민준")
         self.assertEqual(mentions[0]["count"], 2)
         self.assertEqual(mentions[0]["utterance_ids"], [1, 3])
         self.assertEqual(mentions[1]["count"], 1)
@@ -82,7 +95,7 @@ class CareReportAggregationTest(unittest.TestCase):
             }],
             [{"name": "정훈", "count": 3}], [], ["가족과 나눠보세요."], [], [], [],
         )
-        self.assertIn("인지·지남력 1건", heart["day_translation"]["state"])
+        self.assertIn("지남력 1건", heart["day_translation"]["state"])
         self.assertIn("정훈님의 이름을 3번", heart["day_translation"]["family"])
         self.assertEqual(heart["missed_word"]["quote"], "그래도 우리 정훈이 이름은 안 잊어버려.")
         self.assertEqual(heart["memory_bridge"]["mode"], "confirm_first")

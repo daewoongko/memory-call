@@ -296,7 +296,7 @@ export default function PersonaPanel() {
           <label>
             할아버지가 나를 부르는 말
             <input
-              placeholder="우리 대웅이"
+              placeholder="우리 민준이"
               value={persona.elder_calls_family ?? ""}
               onChange={(e) =>
                 setPersona({ ...persona, elder_calls_family: e.target.value })

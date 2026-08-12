@@ -78,7 +78,7 @@ export default function ScheduleForm({ elderId = "elder_001", onChanged }) {
     <section className="meds">
       <h2>방문·병원 일정</h2>
       <p className="hint">
-        대웅이는 <b>확정된 다가오는 일정만</b> 이야기해요.
+        AI 가족은 <b>확정된 다가오는 일정만</b> 이야기해요.
         등록되지 않은 방문을 약속하려 하면 자동으로 막힙니다.
       </p>
 
@@ -117,14 +117,14 @@ export default function ScheduleForm({ elderId = "elder_001", onChanged }) {
         ))}
         {!upcoming.length && (
           <li className="hint">
-            다가오는 일정이 없어요. 이 상태에서는 대웅이가 어떤 방문도 약속하지 않아요.
+            다가오는 일정이 없어요. 이 상태에서는 AI 가족이 어떤 방문도 약속하지 않아요.
           </li>
         )}
       </ul>
 
       <div className="med-form">
         <input
-          placeholder="일정 (예: 대웅이 방문)"
+          placeholder="일정 (예: 민준이 방문)"
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
           onKeyDown={(e) => e.key === "Enter" && add()}

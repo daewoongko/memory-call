@@ -23,8 +23,7 @@ ELDER = {
     "preferred_call_name": "할아버지",
     "residence_type": "자택 (아들 부부와 함께)",
     "household_members": [
-        {"name": "고민수", "relation": "아들"},
-        {"name": "박은영", "relation": "며느리"},
+        {"name": "정훈", "relation": "아들"},
     ],
     "anxiety_triggers": ["가족이 오지 않는다고 느낄 때"],
     "calming_phrases": ["괜찮아, 천천히 얘기해도 돼."],
@@ -38,8 +37,7 @@ class ResidenceBlockTests(unittest.TestCase):
         block = persona._elder_block(ELDER)
 
         self.assertIn("평소 지내는 곳: 자택 (아들 부부와 함께)", block)
-        self.assertIn("고민수(아들)", block)
-        self.assertIn("박은영(며느리)", block)
+        self.assertIn("정훈(아들)", block)
 
     def test_missing_residence_is_labelled_not_omitted(self):
         """빼 버리면 모델이 지어낸다. 넣고 미등록이라고 말해야 한다."""

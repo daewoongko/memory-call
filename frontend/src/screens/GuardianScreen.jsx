@@ -143,7 +143,7 @@ export default function GuardianScreen() {
               <label>
                 통화할 가족
                 <input
-                  placeholder="대웅"
+                  placeholder="민준"
                   value={form.persona_name}
                   onChange={(e) => setForm({ ...form, persona_name: e.target.value })}
                 />

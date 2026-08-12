@@ -48,7 +48,13 @@ for s in seed["schedules"]:
     db.insert(conn, "schedules", dict(s, elder_id=elder_id))
 
 for m in seed["medications"]:
-    db.insert(conn, "medications", dict(m, elder_id=elder_id))
+    medication = dict(m, elder_id=elder_id)
+    links = medication.pop("signal_links", [])
+    db.insert(conn, "medications", medication)
+    for link in links:
+        db.insert(conn, "medication_signal_links", {
+            "schedule_id": m["schedule_id"], **link,
+        })
 
 conn.commit()
 

@@ -35,6 +35,7 @@ import memories as mem_mod
 import report as report_mod
 import schedules as sched_mod
 import tts_proxy
+from analysis.observation_catalog import SIGNALS
 from conversation import Session
 from storage import (
     ALIGNED_FACES_DIR,
@@ -269,6 +270,12 @@ class SchedulePatch(BaseModel):
     confirmed: bool | None = None
 
 
+class MedicationSignalLinkRequest(BaseModel):
+    signal: str = Field(min_length=1, max_length=80)
+    link_level: str = Field(default="monitoring", pattern="^(monitoring|escalation)$")
+    criterion_text: str = Field(min_length=1, max_length=300)
+
+
 class MedicationRequest(BaseModel):
     medication_name: str = Field(min_length=1, max_length=60)
     dosage_text: str = Field(default="1정", max_length=40)
@@ -280,6 +287,7 @@ class MedicationRequest(BaseModel):
     monitoring_points: list[str] = Field(default=[])
     review_interval_days: int = Field(default=14, ge=1, le=180)
     escalation_criteria: str = Field(default="", max_length=300)
+    signal_links: list[MedicationSignalLinkRequest] = Field(default=[])
 
 
 class MedicationReviewRequest(BaseModel):
@@ -386,7 +394,7 @@ def _face_urls(persona_id: str | None = None) -> list[dict]:
         aligned_dir = FACES_DIR
         final_dir = FINAL_AGE_PATH_DIR
         legacy = True
-        selected_persona_id = "persona_daewoong"
+        selected_persona_id = "persona_minjun"
     else:
         face_paths = ensure_persona_face_directories(persona_id)
         aligned_dir = face_paths.aligned
@@ -457,7 +465,7 @@ def _face_urls(persona_id: str | None = None) -> list[dict]:
 
 def _persona_face_url(persona_id: str) -> str | None:
     """가족별 대표 얼굴. 준비되지 않은 가족에게 다른 사람 얼굴을 빌려주지 않는다."""
-    if persona_id in {"persona_minjun", "persona_daewoong"}:
+    if persona_id == "persona_minjun":
         legacy = _face_urls(persona_id)
         return legacy[-1]["url"] if legacy else None
     paths = ensure_persona_face_directories(persona_id)
@@ -614,7 +622,7 @@ def call_targets(elder_id: str = "elder_001"):
     family_order = {
         "persona_jeonghun": 0,
         "persona_miyeong": 1,
-        "persona_daewoong": 2,  # 데모의 민준 데이터가 사용하던 기존 ID
+        "persona_minjun": 2,
         "persona_yujin": 3,
     }
     personas = sorted(
@@ -919,11 +927,17 @@ def list_medications(elder_id: str = "elder_001"):
             "SELECT * FROM medication_reviews WHERE elder_id = ? "
             "ORDER BY review_date DESC, review_id DESC", (elder_id,),
         ).fetchall()
+        links = conn.execute(
+            "SELECT l.* FROM medication_signal_links l JOIN medications m "
+            "ON m.schedule_id = l.schedule_id WHERE m.elder_id = ? "
+            "ORDER BY l.schedule_id, l.link_level, l.signal", (elder_id,),
+        ).fetchall()
     return {
         "elder_id": elder_id,
         "today": med_mod.today_status(elder_id),
         "medications": med_mod.listing(elder_id),
         "reviews": [db._row(row) for row in reviews],
+        "signal_links": [db._row(row) for row in links],
     }
 
 
@@ -945,6 +959,15 @@ def add_medication(elder_id: str, req: MedicationRequest):
             "escalation_criteria": req.escalation_criteria,
             "active": 1,
         })
+        for link in req.signal_links:
+            if link.signal not in SIGNALS:
+                continue
+            db.insert(conn, "medication_signal_links", {
+                "schedule_id": schedule_id,
+                "signal": link.signal,
+                "link_level": link.link_level,
+                "criterion_text": link.criterion_text,
+            })
         conn.commit()
     return {"schedule_id": schedule_id, "today": med_mod.today_status(elder_id)}
 
@@ -1009,7 +1032,7 @@ def start_call(req: StartCallRequest):
     return {
         "call_id": session.call_id,
         "persona_name": persona_name,
-        # 복약 시간대면 대웅이가 먼저 건넬 말이 들어온다. 없으면 빈 문자열.
+        # 복약 시간대면 민준이가 먼저 건넬 말이 들어온다. 없으면 빈 문자열.
         "opening": session.opening(),
         # 명세 13.1 — 연결 전 1회만 고지한다. 통화 중에는 반복하지 않는다.
         "announcement": f"{persona_name}이가 준비한 AI 기억통화가 연결됩니다.",

@@ -90,8 +90,50 @@ def _add_missing_columns(conn: sqlite3.Connection) -> list[str]:
 def init_schema(conn: sqlite3.Connection) -> list[str]:
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
     added = _add_missing_columns(conn)
+    _migrate_demo_personas(conn)
     conn.commit()
     return added
+
+
+def _migrate_demo_personas(conn: sqlite3.Connection) -> None:
+    """초기 데모의 낡은 가족 ID를 현재 네 가족으로 합친다.
+
+    이미 생성된 DB에는 초기 시안에서 쓰던 이름이 남을 수 있다. 통화의
+    참조를 먼저 현재 ID로 옮긴 뒤 낡은 행만 지워 기존 기록을 보존한다.
+    """
+    migrations = {
+        "persona_" + "".join(("dae", "woong")): (
+            "persona_minjun", "민준", "손자", "우리 민준이",
+        ),
+        "persona_minsu": ("persona_jeonghun", "정훈", "아들", "우리 정훈이"),
+        "persona_jieun": ("persona_miyeong", "미영", "딸", "우리 미영이"),
+        "persona_ssuah": ("persona_yujin", "유진", "손녀", "우리 유진이"),
+    }
+    columns = [row["name"] for row in conn.execute("PRAGMA table_info(personas)")]
+    for legacy_id, (current_id, display_name, relationship, elder_call) in migrations.items():
+        legacy = conn.execute(
+            "SELECT * FROM personas WHERE persona_id = ?", (legacy_id,),
+        ).fetchone()
+        if legacy is None:
+            continue
+        current = conn.execute(
+            "SELECT 1 FROM personas WHERE persona_id = ?", (current_id,),
+        ).fetchone()
+        if current is None:
+            values = dict(zip(columns, legacy))
+            values.update({
+                "persona_id": current_id,
+                "display_name": display_name,
+                "relationship_type": relationship,
+                "elder_calls_family": elder_call,
+            })
+            insert(conn, "personas", values)
+        conn.execute(
+            "UPDATE calls SET persona_id = ?, counterpart_name = ?, "
+            "counterpart_relation = ? WHERE persona_id = ?",
+            (current_id, display_name, relationship, legacy_id),
+        )
+        conn.execute("DELETE FROM personas WHERE persona_id = ?", (legacy_id,))
 
 
 def _row(row: sqlite3.Row) -> dict:

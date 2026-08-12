@@ -17,6 +17,13 @@ from difflib import SequenceMatcher
 import db
 import llm
 import schemas
+from analysis import medication as medication_metrics
+from analysis import rates as rate_metrics
+from analysis.observation_catalog import (
+    DOMAIN_LABELS,
+    SIGNALS,
+    canonical_domain,
+)
 
 # 같은 질문으로 묶을 유사도 기준. 치매 노인은 표현을 조금씩 바꿔 되묻는다.
 SIMILARITY = 0.72
@@ -225,41 +232,8 @@ def _safety(utterances: list[dict]) -> list[dict]:
     return out
 
 
-CARE_DOMAIN_LABEL = {
-    "memory_orientation": "인지·지남력",
-    "emotion": "정서",
-    "daily_living": "생활",
-}
-
-CARE_SIGNAL_LABEL = {
-    "time_confusion": "시간 혼동",
-    "place_confusion": "장소 혼동",
-    "person_confusion": "사람 혼동",
-    "recent_event_confusion": "최근 사건 혼동",
-    "past_role_confusion": "과거 역할 혼동",
-    "anxiety": "불안",
-    "fear": "두려움",
-    "loneliness": "외로움",
-    "sadness": "슬픔",
-    "agitation": "초조",
-    "anger": "분노",
-    "distrust": "불신",
-    "affection": "애정",
-    "gratitude": "고마움",
-    "apology": "미안함",
-    "longing": "그리움",
-    "pride": "자부심",
-    "joy": "기쁨",
-    "regret": "후회",
-    "worry_for_family": "가족 걱정",
-    "meal_uncertain": "식사 여부 불확실",
-    "hydration_need": "수분 섭취 필요 표현",
-    "medication_uncertain": "복약 여부 불확실",
-    "item_location_uncertain": "물건 위치 불확실",
-    "financial_concern": "재산·금융 확인 필요",
-    "schedule_support": "일정 확인 필요",
-    "task_support": "행동 순서 지원 필요",
-}
+CARE_DOMAIN_LABEL = DOMAIN_LABELS
+CARE_SIGNAL_LABEL = {signal: spec.label for signal, spec in SIGNALS.items()}
 
 MEANING_LABEL = {
     "affection": "가족을 향한 애정",
@@ -310,10 +284,14 @@ def _heart_report(care_summary: dict, moments: list[dict], mentions: list[dict],
     새 감정을 추론하지 않는다. 마음 표현은 meaningful_moments의 직접 발화만,
     가족 반복은 이름 횟수만, 기억 연결은 확인된 기억만 사용한다.
     """
-    domain_counts = {
-        domain: len(care_summary.get(domain) or [])
-        for domain in CARE_DOMAIN_LABEL
-    }
+    domain_counts = {domain: 0 for domain in CARE_DOMAIN_LABEL}
+    for supplied_domain, items in care_summary.items():
+        if supplied_domain == "meaningful_moments":
+            continue
+        for item in items or []:
+            domain = canonical_domain(item.get("signal"), supplied_domain)
+            if domain in domain_counts:
+                domain_counts[domain] += 1
     state_parts = [
         f"{CARE_DOMAIN_LABEL[domain]} {count}건"
         for domain, count in domain_counts.items() if count
@@ -489,8 +467,10 @@ def _care_analysis(utterances: list[dict]) -> dict:
         )
 
         for obs in data.get("observations") or []:
-            domain = obs.get("domain")
             signal = obs.get("signal")
+            domain = canonical_domain(signal, obs.get("domain"))
+            if obs.get("verification") == "candidate":
+                continue
             if domain not in by_domain or signal not in CARE_SIGNAL_LABEL:
                 continue
             key = (source_uid, domain, signal)
@@ -522,12 +502,7 @@ def _care_analysis(utterances: list[dict]) -> dict:
                 "related_memory_ids": moment.get("related_memory_ids") or [],
             })
 
-    return {
-        "memory_orientation": by_domain["memory_orientation"],
-        "emotion": by_domain["emotion"],
-        "daily_living": by_domain["daily_living"],
-        "meaningful_moments": moments,
-    }
+    return {**by_domain, "meaningful_moments": moments}
 
 
 def _family_mentions(utterances: list[dict], family_names: list[str]) -> list[dict]:
@@ -986,6 +961,24 @@ def build(call_id: str, regenerate: bool = False) -> dict:
     })
 
 
+def _canonical_care_groups(care_summary: dict | None) -> dict[str, list[dict]]:
+    """저장 시점과 무관하게 관찰을 현재 8개 영역으로 묶는다.
+
+    초기 데모 데이터의 ``memory_orientation``처럼 지금은 사용하지 않는
+    영역명이 DB에 남아 있어도 최근 통화와 기간 리포트에서 빠지지 않게 한다.
+    의미 기록은 임상 관찰 건수와 분리한다.
+    """
+    groups = {key: [] for key in CARE_DOMAIN_LABEL}
+    for supplied_domain, items in (care_summary or {}).items():
+        if supplied_domain == "meaningful_moments":
+            continue
+        for item in items or []:
+            domain = canonical_domain(item.get("signal"), supplied_domain)
+            if domain in groups:
+                groups[domain].append(item)
+    return groups
+
+
 def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
     """보호자 화면 목록용. 통화별 한 줄 요약."""
     with db.connect() as conn:
@@ -1002,7 +995,7 @@ def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
     out = []
     for r in rows:
         row = db._row(r)
-        care = row.get("care_summary") or {}
+        care = _canonical_care_groups(row.get("care_summary"))
         care_domains = [
             {
                 "key": key,
@@ -1034,9 +1027,7 @@ def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
             "meaning_count": len(row.get("meaningful_moments") or []),
             "care_domains": care_domains,
             "observed_items": observed_items[:5],
-            "care_count": sum(len(care.get(key) or []) for key in (
-                "memory_orientation", "emotion", "daily_living"
-            )),
+            "care_count": sum(len(care.get(key) or []) for key in CARE_DOMAIN_LABEL),
         })
     return out
 
@@ -1082,34 +1073,38 @@ def _window(elder_id: str, since: str, until: str | None = None) -> dict:
             "AND substr(c.started_at, 1, 10) <= ?",
             (elder_id, since, upper),
         ).fetchall()]
+        elder_utterances = conn.execute(
+            "SELECT COUNT(*) FROM utterances u JOIN calls c ON c.call_id = u.call_id "
+            "WHERE c.elder_id = ? AND u.speaker = 'elder' "
+            "AND substr(c.started_at, 1, 10) >= ? AND substr(c.started_at, 1, 10) <= ?",
+            (elder_id, since, upper),
+        ).fetchone()[0]
 
     repeat_total = sum(
         q.get("count", 0)
         for r in reports for q in (r.get("repeated_questions") or [])
     )
-    return {
+    observations = sum(
+        len(items or [])
+        for report_row in reports
+        for domain, items in (report_row.get("care_summary") or {}).items()
+        if domain != "meaningful_moments"
+    )
+    out = {
         "calls": len(calls),
+        "elder_utterances": elder_utterances,
+        "observations": observations,
         "seconds": sum(c["duration_sec"] or 0 for c in calls),
         "risks": risks,
         "med_confirmed": sum(1 for x in logs if x["status"] == "USER_CONFIRMED"),
         "med_unclear": sum(1 for x in logs if x["status"] != "USER_CONFIRMED"),
         "repeat_total": repeat_total,
     }
-
-
-def _delta(now: int, before: int, unit: str, more_is_better: bool) -> dict | None:
-    """이전 구간과의 차이. 비교할 것이 없으면 만들지 않는다."""
-    if now == before:
-        return None
-    diff = now - before
-    direction = "up" if diff > 0 else "down"
-    good = (diff > 0) == more_is_better
-    word = "많아요" if diff > 0 else "적어요"
-    return {
-        "text": f"지난 기간보다 {abs(diff)}{unit} {word}",
-        "direction": direction,
-        "good": good,
-    }
+    out["rates"] = rate_metrics.window_rates(
+        calls=out["calls"], elder_utterances=elder_utterances,
+        observations=observations, repeats=repeat_total, risks=risks,
+    )
+    return out
 
 
 def _merge_period_repeats(reports: list[dict]) -> list[dict]:
@@ -1182,11 +1177,14 @@ def _daily_analyses(
 
         observation_groups: dict[tuple[str, str], dict] = {}
         for report_row in day_reports:
-            for domain, items in (report_row.get("care_summary") or {}).items():
+            for supplied_domain, items in (report_row.get("care_summary") or {}).items():
+                if supplied_domain == "meaningful_moments":
+                    continue
                 for item in items or []:
                     signal = str(item.get("signal") or "").strip()
+                    domain = canonical_domain(signal, supplied_domain)
                     label = str(item.get("label") or CARE_SIGNAL_LABEL.get(signal, signal)).strip()
-                    if not signal or not label:
+                    if not signal or not label or domain not in CARE_DOMAIN_LABEL:
                         continue
                     group = observation_groups.setdefault((domain, signal), {
                         "domain": domain,
@@ -1360,7 +1358,9 @@ def _started_datetime(value: str | None) -> datetime | None:
 
 def _report_signal_counts(report_row: dict | None) -> Counter:
     counts: Counter = Counter()
-    for items in ((report_row or {}).get("care_summary") or {}).values():
+    for domain, items in ((report_row or {}).get("care_summary") or {}).items():
+        if domain == "meaningful_moments":
+            continue
         for item in items or []:
             signal = str(item.get("signal") or "").strip()
             if signal:
@@ -1385,34 +1385,29 @@ def _rhythm_window_stats(
             int(item.get("count") or 0)
             for item in report_row.get("repeated_questions") or []
         )
+    observation_total = sum(signals.values())
     return {
         "calls": len(selected),
         "repeat_total": repeat_total,
+        "repeat_per_call": rate_metrics.per(repeat_total, len(selected), 1),
+        "observation_per_call": rate_metrics.per(observation_total, len(selected), 1),
         "loneliness": signals["loneliness"],
+        "loneliness_per_call": rate_metrics.per(signals["loneliness"], len(selected), 1),
         "medication_uncertain": signals["medication_uncertain"],
+        "medication_uncertain_per_call": rate_metrics.per(signals["medication_uncertain"], len(selected), 1),
         "time_confusion": signals["time_confusion"],
+        "time_confusion_per_call": rate_metrics.per(signals["time_confusion"], len(selected), 1),
     }
 
 
-def _rhythm_change(label: str, current: int, previous: int, unit: str = "건") -> dict:
-    difference = current - previous
-    if difference > 0:
-        description = f"지난주보다 {difference}{unit} 늘었습니다."
-        direction = "up"
-    elif difference < 0:
-        description = f"지난주보다 {abs(difference)}{unit} 줄었습니다."
-        direction = "down"
-    else:
-        description = "지난주와 같습니다."
-        direction = "same"
-    return {
-        "key": label,
-        "current": current,
-        "previous": previous,
-        "difference": difference,
-        "direction": direction,
-        "description": description,
-    }
+def _rhythm_change(label: str, current: float | None, previous: float | None,
+                   current_calls: int, previous_calls: int) -> dict:
+    row = rate_metrics.compare(
+        current, previous, label=label, unit="회/통화",
+        current_sample=current_calls, previous_sample=previous_calls,
+        minimum_sample=rate_metrics.MIN_CALLS_FOR_COMPARISON,
+    )
+    return {"key": label, "description": row.pop("text"), **row}
 
 
 def _rhythm_analysis(
@@ -1533,16 +1528,18 @@ def _rhythm_analysis(
         comparison_calls, comparison_by_call, previous_start, previous_end
     )
     comparisons = [
-        _rhythm_change("통화", current["calls"], previous["calls"], "회"),
         _rhythm_change(
-            "반복 질문", current["repeat_total"], previous["repeat_total"], "회"
+            "반복 질문", current["repeat_per_call"], previous["repeat_per_call"],
+            current["calls"], previous["calls"],
         ),
         _rhythm_change(
-            "외로움 표현", current["loneliness"], previous["loneliness"], "회"
+            "외로움 표현", current["loneliness_per_call"], previous["loneliness_per_call"],
+            current["calls"], previous["calls"],
         ),
         _rhythm_change(
-            "복약 혼동", current["medication_uncertain"],
-            previous["medication_uncertain"], "회",
+            "복약 혼동", current["medication_uncertain_per_call"],
+            previous["medication_uncertain_per_call"],
+            current["calls"], previous["calls"],
         ),
     ]
 
@@ -1617,6 +1614,16 @@ def period(
             "ORDER BY scheduled_time, medication_name",
             (elder_id,),
         ).fetchall()]
+        medication_reviews = [db._row(r) for r in conn.execute(
+            "SELECT * FROM medication_reviews WHERE elder_id = ? "
+            "AND review_date <= ? ORDER BY review_date DESC, review_id DESC",
+            (elder_id, until),
+        ).fetchall()]
+        medication_signal_links = [db._row(r) for r in conn.execute(
+            "SELECT l.* FROM medication_signal_links l JOIN medications m "
+            "ON m.schedule_id = l.schedule_id WHERE m.elder_id = ? AND m.active = 1",
+            (elder_id,),
+        ).fetchall()]
         reports = [db._row(r) for r in conn.execute(
             "SELECT r.* FROM reports r JOIN calls c ON c.call_id = r.call_id "
             "WHERE c.elder_id = ? AND substr(c.started_at, 1, 10) >= ? "
@@ -1645,78 +1652,32 @@ def period(
 
     top_repeats = _merge_period_repeats(reports)
 
-    confirmed = sum(1 for log in med_logs if log["status"] == "USER_CONFIRMED")
-    unclear = sum(1 for log in med_logs
-                  if log["status"] in ("UNCLEAR", "REFUSED", "DUPLICATE_SUSPECTED"))
-    medication_names = {row["schedule_id"]: row["medication_name"] for row in medications}
-    medication_times = {row["schedule_id"]: row.get("scheduled_time") for row in medications}
-    medication_by_day: dict[str, dict] = {
-        (period_start + timedelta(days=index)).isoformat(): {
-            "date": (period_start + timedelta(days=index)).isoformat(),
-            "confirmed": 0,
-            "needs_check": 0,
-        }
-        for index in range(days)
-    }
-    medication_by_schedule: dict[str, dict] = {
-        row["schedule_id"]: {
-            "schedule_id": row["schedule_id"],
-            "medication_name": row["medication_name"],
-            "scheduled_time": row.get("scheduled_time"),
-            "confirmed": 0,
-            "needs_check": 0,
-            "duplicate_suspected": 0,
-            "refused": 0,
-        }
-        for row in medications
-    }
-    for log in med_logs:
-        is_confirmed = log["status"] == "USER_CONFIRMED"
-        day_slot = medication_by_day.setdefault(log["taken_date"], {
-            "date": log["taken_date"], "confirmed": 0, "needs_check": 0,
-        })
-        day_slot["confirmed" if is_confirmed else "needs_check"] += 1
-        schedule_slot = medication_by_schedule.setdefault(log["schedule_id"], {
-            "schedule_id": log["schedule_id"],
-            "medication_name": medication_names.get(log["schedule_id"], "등록 약"),
-            "scheduled_time": medication_times.get(log["schedule_id"]),
-            "confirmed": 0, "needs_check": 0,
-            "duplicate_suspected": 0, "refused": 0,
-        })
-        schedule_slot["confirmed" if is_confirmed else "needs_check"] += 1
-        if log["status"] == "DUPLICATE_SUSPECTED":
-            schedule_slot["duplicate_suspected"] += 1
-        if log["status"] == "REFUSED":
-            schedule_slot["refused"] += 1
-    medication_rows = []
-    for row in medication_by_schedule.values():
-        total = row["confirmed"] + row["needs_check"]
-        medication_rows.append({
-            **row,
-            "confirmation_rate": round(row["confirmed"] / total * 100) if total else None,
-        })
-    medication_rows.sort(key=lambda row: (-row["needs_check"], row.get("scheduled_time") or ""))
-    previous_unclear = sum(
-        1 for log in previous_med_logs
-        if log["status"] in ("UNCLEAR", "REFUSED", "DUPLICATE_SUSPECTED")
+    medication_analysis = medication_metrics.build(
+        medications=medications,
+        logs=med_logs,
+        previous_logs=previous_med_logs,
+        reviews=medication_reviews,
+        links=medication_signal_links,
+        reports=reports,
+        period_start=period_start,
+        period_end=period_end,
     )
-    medication_total = confirmed + unclear
-    medication_analysis = {
-        "confirmed": confirmed,
-        "needs_check": unclear,
-        "confirmation_rate": round(confirmed / medication_total * 100) if medication_total else None,
-        "duplicate_suspected": sum(1 for log in med_logs if log["status"] == "DUPLICATE_SUSPECTED"),
-        "refused": sum(1 for log in med_logs if log["status"] == "REFUSED"),
-        "unclear": sum(1 for log in med_logs if log["status"] == "UNCLEAR"),
-        "needs_check_change": unclear - previous_unclear,
-        "by_day": list(medication_by_day.values()),
-        "by_medication": medication_rows,
-        "vulnerable": medication_rows[0] if medication_rows and medication_rows[0]["needs_check"] else None,
-    }
-    care_counts = {
-        key: sum(len((r.get("care_summary") or {}).get(key) or []) for r in reports)
-        for key in ("memory_orientation", "emotion", "daily_living")
-    }
+    confirmed = medication_analysis["confirmed"]
+    unclear = medication_analysis["needs_check"]
+    medication_rows = medication_analysis["by_medication"]
+    medication_analysis["vulnerable"] = next((
+        row for row in medication_rows
+        if row["UNCLEAR"] + row["REFUSED"] + row["DUPLICATE_SUSPECTED"]
+    ), None)
+    care_counts = {key: 0 for key in CARE_DOMAIN_LABEL}
+    for report_row in reports:
+        for supplied_domain, items in (report_row.get("care_summary") or {}).items():
+            if supplied_domain == "meaningful_moments":
+                continue
+            for item in items or []:
+                domain = canonical_domain(item.get("signal"), supplied_domain)
+                if domain in care_counts:
+                    care_counts[domain] += 1
     meaningful_total = sum(
         len(r.get("meaningful_moments") or []) for r in reports
     )
@@ -1748,29 +1709,33 @@ def period(
     this_w = _window(elder_id, since, until)
     prev_w = _window(elder_id, prev_since, prev_until)
     changes = [
-        c for c in (
-            _delta(this_w["calls"], prev_w["calls"], "번", True),
-            _delta(this_w["repeat_total"], prev_w["repeat_total"], "번", False),
-            _delta(this_w["med_confirmed"], prev_w["med_confirmed"], "번", True),
-            _delta(this_w["risks"], prev_w["risks"], "건", False),
-        ) if c
+        rate_metrics.compare(
+            this_w["rates"]["observation_per_100_utterances"],
+            prev_w["rates"]["observation_per_100_utterances"],
+            label="관찰 발화 빈도", unit="회/발화 100건",
+            current_sample=this_w["elder_utterances"], previous_sample=prev_w["elder_utterances"],
+            minimum_sample=rate_metrics.MIN_UTTERANCES_FOR_COMPARISON,
+        ),
+        rate_metrics.compare(
+            this_w["rates"]["repeat_per_call"], prev_w["rates"]["repeat_per_call"],
+            label="되묻기 빈도", unit="회/통화",
+            current_sample=this_w["calls"], previous_sample=prev_w["calls"],
+            minimum_sample=rate_metrics.MIN_CALLS_FOR_COMPARISON,
+        ),
+        rate_metrics.compare(
+            this_w["rates"]["risk_per_100_calls"], prev_w["rates"]["risk_per_100_calls"],
+            label="안전 신호 빈도", unit="회/통화 100건",
+            current_sample=this_w["calls"], previous_sample=prev_w["calls"],
+            minimum_sample=rate_metrics.MIN_CALLS_FOR_COMPARISON,
+        ),
     ]
-    labels = ["통화 횟수가", "되물으신 횟수가", "복약 확인이", "위험 신호가"]
-    for label, change in zip(
-        [l for l, c in zip(labels, (
-            _delta(this_w["calls"], prev_w["calls"], "번", True),
-            _delta(this_w["repeat_total"], prev_w["repeat_total"], "번", False),
-            _delta(this_w["med_confirmed"], prev_w["med_confirmed"], "번", True),
-            _delta(this_w["risks"], prev_w["risks"], "건", False),
-        )) if c], changes
-    ):
-        change["label"] = label
 
     return {
         "days": days,
         "since": since,
         "until": until,
         "changes": changes,
+        "normalized_rates": this_w["rates"],
         "repeat_total": this_w["repeat_total"],
         "calls": len(calls),
         "total_seconds": facts["총_통화시간_초"],

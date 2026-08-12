@@ -37,10 +37,10 @@ PATIENTS = [
             {"id": "med_sunja_levodopa", "name": "레보도파/카비도파 100/25mg", "dose": "1정", "time": "08:00", "indication": "파킨슨증의 느린 움직임과 경직 관리", "monitor": ["기립 시 어지럼", "갑작스러운 졸림", "환시·혼란 변화", "보행 동결"], "days": 7, "escalate": "새로운 환시, 실신, 반복 낙상 또는 급격한 움직임 악화는 의료진에게 신속히 보고"},
         ],
         "templates": [
-            {"title": "사람이 보인다는 호소", "text": "방 안에 모르는 아이가 서 있는 것 같아서 무섭다.", "reply": "무섭게 느껴지셨군요. 다가가지 말고 제가 듣고 있으니 보이는 곳을 천천히 말씀해 주세요.", "action": "환시로 인한 공포와 위험 행동 여부, 조명·소음 같은 환경 요인을 확인하세요."},
+            {"title": "사람이 보인다는 호소", "text": "방 안에 모르는 아이가 보여서 무섭다.", "reply": "무섭게 느껴지셨군요. 다가가지 말고 제가 듣고 있으니 보이는 곳을 천천히 말씀해 주세요.", "action": "환시로 인한 공포와 위험 행동 여부, 조명·소음 같은 환경 요인을 확인하세요."},
             {"title": "기립 어지럼", "text": "자리에서 일어나니까 어지럽고 넘어질 것 같다.", "reply": "어지러우시군요. 혼자 걷지 말고 앉아서 담당자가 올 때까지 기다려 주세요.", "action": "기립 전후 상태와 보행 안정성을 확인하고 반복되면 의료진에게 보고하세요."},
             {"title": "보행 시작 어려움", "text": "발이 잘 안 떨어져서 혼자 움직이기 힘들다. 어떻게 해야 하냐?", "reply": "혼자 서두르지 말고 도움을 요청해 주세요. 담당자가 함께 확인하도록 남길게요.", "action": "보행 동결, 경직, 낙상 위험과 투약 전후 차이를 기록하세요."},
-            {"title": "야간 꿈과 두려움", "text": "꿈에서 누가 쫓아오는 것 같아서 너무 무섭다.", "reply": "많이 무서우셨군요. 지금 안전한지 담당자가 확인하도록 남길게요.", "action": "수면 중 소리·움직임과 침상 주변 안전을 확인하세요."},
+            {"title": "야간 꿈과 두려움", "text": "밤새 자꾸 깨서 못 잤고 꿈에서 누가 쫓아오는 것 같아 무섭다.", "reply": "많이 무서우셨군요. 지금 안전한지 담당자가 확인하도록 남길게요.", "action": "수면 중 소리·움직임과 침상 주변 안전을 확인하세요."},
             {"title": "복약 여부 혼동", "text": "아침 약을 먹었나? 약을 먹었는지 기억이 안 난다.", "reply": "추가로 드시지 말고 약통과 기록을 담당자가 먼저 확인하도록 남길게요.", "action": "추가 투약을 보류하고 약포·투약 기록·담당자 서명을 대조하세요."},
             {"title": "외로움", "text": "딸이 보고 싶은데 혼자 있으니까 외롭다.", "reply": "보고 싶고 외로우셨군요. 그 말씀을 가족에게 전할 수 있게 남길게요.", "action": "오후의 반복 연락 시간 전에 짧은 안부 활동을 배치하세요."},
             {"title": "차분한 안부", "text": "오늘은 그냥 네 목소리가 듣고 싶어서 전화했다.", "reply": "목소리가 듣고 싶으셨군요. 오늘 이야기를 천천히 들려주세요.", "action": "추가 확인 없이 평소 상태와 비교 기록만 남기세요."},
@@ -69,9 +69,11 @@ PATIENTS = [
             {"title": "재산 걱정", "text": "누가 내 통장을 가져갔지? 내 돈이 없어질까 걱정된다.", "reply": "돈이 없어질까 걱정되셨군요. 담당자와 가족이 확인하도록 남길게요.", "action": "사실 논쟁 대신 보관 절차를 안내하고 불안 지속 시간을 기록하세요."},
             {"title": "식사 기억 혼동", "text": "점심을 먹었는지 모르겠다. 밥을 먹었던가?", "reply": "식사 기록을 담당자와 먼저 확인해 볼게요.", "action": "식사표·잔반·섭취량 기록을 대조하세요."},
             {"title": "차분한 안부", "text": "오늘은 그냥 아들 목소리가 듣고 싶어서 전화했다.", "reply": "목소리가 듣고 싶으셨군요. 오늘 있었던 일을 하나만 들려주세요.", "action": "추가 조치 없이 평소 상태와 비교하세요."},
+            {"title": "기립 어지럼", "text": "아침 약을 먹고 일어나니 어지럽고 휘청거린다.", "reply": "어지러우시군요. 혼자 걷지 말고 담당자가 확인할 때까지 앉아 계세요.", "action": "기립 전후 상태와 보행 안정성을 확인하고 투약 기록과 함께 남기세요."},
+            {"title": "출혈 확인 필요", "text": "아까부터 코피가 나고 피가 잘 멈추지 않는다.", "reply": "코피가 계속 나는군요. 담당자가 바로 확인하도록 남길 테니 혼자 움직이지 마세요.", "action": "출혈 시작 시각과 지속 여부를 확인하고 등록된 의료진 보고 기준을 따르세요."},
             {"title": "급성 말 변화", "text": "갑자기 말이 안 나오고 한쪽 팔에 힘이 없다.", "reply": "지금은 즉시 담당자의 확인이 필요합니다. 혼자 움직이지 말고 그대로 계세요.", "action": "발생 시각을 기록하고 기관의 뇌졸중 응급 대응 절차를 즉시 따르세요."},
         ],
-        "weights": [20, 22, 17, 12, 8, 10, 10, 1],
+        "weights": [18, 20, 15, 10, 7, 9, 9, 5, 5, 2],
         "peak_hours": [7, 8, 9, 13],
     },
 ]
@@ -96,6 +98,15 @@ def delete_demo(conn, elder_id: str) -> None:
         for table in ("heart_artworks", "reports", "call_events", "medication_logs", "utterances"):
             conn.execute(f"DELETE FROM {table} WHERE call_id = ?", (call_id,))
         conn.execute("DELETE FROM calls WHERE call_id = ?", (call_id,))
+    # 통화와 연결되지 않은 담당자 투약·경과 기록도 재실행 때 중복되지 않게 한다.
+    conn.execute(
+        "DELETE FROM medication_logs WHERE elder_id = ? AND evidence_text LIKE '데모 투약%'",
+        (elder_id,),
+    )
+    conn.execute(
+        "DELETE FROM medication_reviews WHERE elder_id = ? AND note = '데모 정기 경과 관찰'",
+        (elder_id,),
+    )
 
 
 def seed_patient(patient: dict, now: datetime) -> dict:
@@ -136,6 +147,27 @@ def seed_patient(patient: dict, now: datetime) -> dict:
                 "review_interval_days": medication["days"],
                 "escalation_criteria": medication["escalate"], "active": 1,
             })
+            # 데모 환자별 임상 기준은 약 이름에서 추론하지 않고 시드에 등록한다.
+            candidate_links = {
+                "어지럼": "dizziness", "낙상": "fall_reported",
+                "출혈": "bleeding_signal", "식욕": "appetite_change",
+                "수면": "sleep_disturbance", "기운": "weakness",
+                "흉통": "chest_pain", "호흡": "breathing_difficulty",
+                "환시": "hallucination_report",
+            }
+            for point in medication["monitor"]:
+                for keyword, signal in candidate_links.items():
+                    if keyword in point:
+                        db.insert(conn, "medication_signal_links", {
+                            "schedule_id": medication["id"], "signal": signal,
+                            "link_level": "monitoring", "criterion_text": point,
+                        })
+            for keyword, signal in candidate_links.items():
+                if keyword in medication["escalate"]:
+                    db.insert(conn, "medication_signal_links", {
+                        "schedule_id": medication["id"], "signal": signal,
+                        "link_level": "escalation", "criterion_text": medication["escalate"],
+                    })
         conn.commit()
         ctx = db.load_context(elder_id, persona["id"])
 
@@ -191,8 +223,37 @@ def seed_patient(patient: dict, now: datetime) -> dict:
                 db.insert(conn, "reports", {"call_id": call_id, "summary": template["title"], "repeated_questions": [], "medication_summary": {}, "new_recalls": [], "risk_summary": [], "care_summary": {}, "meaningful_moments": [], "family_mentions": [], "guardian_actions": [template["action"]]})
 
             for med_index, medication in enumerate(patient["medications"]):
-                if (days_ago + med_index) % 5 != 0:
-                    db.insert(conn, "medication_logs", {"elder_id": elder_id, "schedule_id": medication["id"], "call_id": None, "taken_date": (now - timedelta(days=days_ago)).date().isoformat(), "status": "USER_CONFIRMED", "evidence_text": "담당자 투약 기록 확인", "created_at": (now - timedelta(days=days_ago)).replace(hour=int(medication["time"][:2]), minute=int(medication["time"][3:])).isoformat(timespec="seconds")})
+                selector = (days_ago * 11 + med_index * 7 + len(elder_id)) % 29
+                status = (
+                    "DUPLICATE_SUSPECTED" if selector == 0 else
+                    "REFUSED" if selector in {4, 18} else
+                    "UNCLEAR" if selector in {7, 13, 23} else
+                    "USER_CONFIRMED"
+                )
+                db.insert(conn, "medication_logs", {
+                    "elder_id": elder_id, "schedule_id": medication["id"],
+                    "call_id": None,
+                    "taken_date": (now - timedelta(days=days_ago)).date().isoformat(),
+                    "status": status,
+                    "evidence_text": (
+                        "담당자 투약 기록 확인" if status == "USER_CONFIRMED"
+                        else "데모 투약 점검 기록"
+                    ),
+                    "created_at": (now - timedelta(days=days_ago)).replace(
+                        hour=int(medication["time"][:2]),
+                        minute=int(medication["time"][3:]),
+                    ).isoformat(timespec="seconds"),
+                })
+            # 담당자가 직접 남긴 경과 기록이 리포트의 검토 주기와 연결된다.
+            if days_ago in {21, 7}:
+                for med_index, medication in enumerate(patient["medications"]):
+                    db.insert(conn, "medication_reviews", {
+                        "elder_id": elder_id, "schedule_id": medication["id"],
+                        "review_date": (now - timedelta(days=days_ago)).date().isoformat(),
+                        "severity": (med_index + days_ago) % 3,
+                        "observed_flags": medication["monitor"][:1],
+                        "note": "데모 정기 경과 관찰",
+                    })
         conn.commit()
 
     for call_id in call_ids:

@@ -6,7 +6,7 @@
 
 두 가지 경로로 동작한다.
   1. 복약 시간이 되면 AI 가 먼저 전화를 건다
-  2. 이미 통화 중이면 대웅이가 먼저 약 이야기를 꺼낸다
+  2. 이미 통화 중이면 선택한 AI 가족이 먼저 약 이야기를 꺼낸다
 
 먼저 꺼내는 문장은 규칙으로 만든다. 복용량이나 시간을 모델이 지어내면
 그대로 위험이 되므로, 등록된 값만 그대로 읽어 준다.
@@ -157,4 +157,14 @@ def listing(elder_id: str = "elder_001") -> list[dict]:
             "ORDER BY scheduled_time, medication_name",
             (elder_id,),
         ).fetchall()]
+        links = [db._row(r) for r in conn.execute(
+            "SELECT l.* FROM medication_signal_links l JOIN medications m "
+            "ON m.schedule_id = l.schedule_id WHERE m.elder_id = ?",
+            (elder_id,),
+        ).fetchall()]
+    by_schedule = {}
+    for link in links:
+        by_schedule.setdefault(link["schedule_id"], []).append(link)
+    for row in rows:
+        row["signal_links"] = by_schedule.get(row["schedule_id"], [])
     return rows

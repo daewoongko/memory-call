@@ -172,7 +172,8 @@ class CareNormalizeTest(unittest.TestCase):
         result = care.normalize({}, user_text=text, ctx=context())
         signals = {row["signal"] for row in result["observations"]}
         categories = {row["category"] for row in result["meaningful_moments"]}
-        self.assertTrue({"longing", "gratitude"}.issubset(signals))
+        # 관계·정서 자산은 임상 관찰 8도메인과 분리한다.
+        self.assertFalse({"longing", "gratitude"} & signals)
         self.assertTrue({"longing", "gratitude", "life_story"}.issubset(categories))
 
     def test_family_worry_and_remembered_name_are_kept_separately(self):
