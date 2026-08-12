@@ -533,11 +533,13 @@ class MuseTalkEngine:
         ]
 
     def _release_gpu_cache(self) -> None:
-        """Hand the inference peak back so Chatterbox keeps its share of VRAM.
+        """Return the inference peak to the driver instead of hoarding it.
 
-        Both models live on one 16 GB GPU. PyTorch's caching allocator holds the
-        batch VAE decode peak indefinitely, which pushed Chatterbox into host
-        memory fallback and turned a 2.5 second synthesis into over 13 seconds.
+        MuseTalk now has the GPU to itself (TTS moved to the ElevenLabs API),
+        but PyTorch's caching allocator still holds the batch VAE decode peak
+        indefinitely if left alone. That used to starve a second local process
+        (Chatterbox) into host-memory fallback; releasing it here is now just
+        good hygiene for a long-running resident worker.
         """
         if self.torch is None:
             return

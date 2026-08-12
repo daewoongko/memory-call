@@ -1,4 +1,12 @@
-"""Proxy requests to a fixed TTS service or an authenticated dynamic bridge."""
+"""Proxy lip-sync render calls to the local MuseTalk bridge (or its Quick Tunnel).
+
+TTS synthesis itself no longer goes through this module — ``backend/api.py``
+calls ``elevenlabs_tts`` directly for audio, since ElevenLabs is a hosted API
+with no local GPU or tunnel dependency. This module now only forwards
+already-synthesized WAV audio to the local MuseTalk worker for lip-sync
+rendering, plus the bridge registration/health machinery that makes that
+worker reachable from a deployed backend.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +22,7 @@ from urllib import error, request
 from urllib.parse import urlsplit
 
 
-SERVICE_URL = os.getenv("TTS_SERVICE_URL", "http://127.0.0.1:8001").rstrip("/")
+SERVICE_URL = os.getenv("TTS_SERVICE_URL", "http://127.0.0.1:8002").rstrip("/")
 BRIDGE_TOKEN = os.getenv("TTS_BRIDGE_TOKEN", "").strip()
 TOKEN_PLACEHOLDER = "replace-with-a-long-random-token"
 
@@ -38,7 +46,6 @@ BRIDGE_ALLOWED_HOSTS = tuple(
 
 _MAX_LOCAL_TIMING_SECONDS = 60.0 * 60.0
 _MAX_UPSTREAM_BODY_BYTES = 64 * 1024 * 1024
-_ALLOWED_MEDIA_TYPES = frozenset({"audio/wav", "video/mp4"})
 _REQUEST_ID_PATTERN = re.compile(
     r"^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
     r"[89ab][0-9a-f]{3}-[0-9a-f]{12})$",
@@ -79,24 +86,6 @@ def _safe_request_id(value: object) -> str | None:
     return candidate.lower() if _REQUEST_ID_PATTERN.fullmatch(candidate) else None
 
 
-def _safe_tts_model(value: object) -> str | None:
-    candidate = str(value).strip().lower() if value is not None else ""
-    if candidate == "chatterbox-multilingual-v3":
-        return candidate
-    return None
-
-
-def _safe_media_type(value: object) -> str | None:
-    """Accept only the two response types in the public TTS contract."""
-    candidate = str(value).split(";", 1)[0].strip().lower() if value else ""
-    return candidate if candidate in _ALLOWED_MEDIA_TYPES else None
-
-
-def _safe_lipsync_fallback(value: object) -> str | None:
-    candidate = str(value).strip().lower() if value is not None else ""
-    return "audio" if candidate == "audio" else None
-
-
 def _header_value(headers: object, name: str) -> object | None:
     if headers is None:
         return None
@@ -111,10 +100,6 @@ def _header_value(headers: object, name: str) -> object | None:
             if str(key).lower() == name.lower():
                 return value
     return None
-
-
-def _duration_seconds_header(value: float) -> str:
-    return f"{value:.3f}"
 
 
 def _duration_ms_metric(value: float) -> str:
@@ -136,7 +121,7 @@ def _read_bounded(response: object) -> bytes:
 
 
 class TTSUnavailable(RuntimeError):
-    """The selected TTS service could not be reached or failed to synthesize."""
+    """The local MuseTalk lip-sync worker could not be reached or failed to render."""
 
 
 class TTSBridgeError(ValueError):
@@ -153,27 +138,18 @@ class TTSBridgeNotConfigured(RuntimeError):
 
 @dataclass(frozen=True)
 class ProxyCallResult:
-    """A buffered upstream response plus sanitized latency metadata."""
+    """A buffered MuseTalk render response plus sanitized latency metadata."""
 
     body: bytes
     # urllib returns only after response headers. Because the local service
-    # creates those headers after synthesis, this is upstream wait/TTFB rather
+    # creates those headers after rendering, this is upstream wait/TTFB rather
     # than a pure TCP/TLS connect measurement.
     upstream_wait_seconds: float
     proxy_read_seconds: float
     proxy_total_seconds: float
-    media_type: str = "audio/wav"
-    generation_seconds: float | None = None
-    audio_duration_seconds: float | None = None
+    media_type: str = "video/mp4"
     local_request_id: str | None = None
-    tts_request_seconds: float | None = None
-    tts_queue_seconds: float | None = None
-    tts_model_seconds: float | None = None
-    tts_time_stretch_seconds: float | None = None
-    tts_wav_encode_seconds: float | None = None
-    tts_model: str | None = None
     lipsync_seconds: float | None = None
-    lipsync_fallback: str | None = None
 
     def public_headers(self, *, request_id: str | None = None) -> dict[str, str]:
         """Build a small allowlisted header set safe for a public response."""
@@ -181,48 +157,10 @@ class ProxyCallResult:
         effective_request_id = _safe_request_id(request_id) or self.local_request_id
         if effective_request_id is not None:
             headers["X-Request-ID"] = effective_request_id
-        if self.audio_duration_seconds is not None:
-            headers["X-Audio-Duration"] = _duration_seconds_header(
-                self.audio_duration_seconds
-            )
-        if self.generation_seconds is not None:
-            headers["X-Generation-Seconds"] = _duration_seconds_header(
-                self.generation_seconds
-            )
-        detailed_headers = (
-            ("X-TTS-Request-Seconds", self.tts_request_seconds),
-            ("X-TTS-Queue-Seconds", self.tts_queue_seconds),
-            ("X-TTS-Generation-Seconds", self.tts_model_seconds),
-            ("X-TTS-Time-Stretch-Seconds", self.tts_time_stretch_seconds),
-            ("X-TTS-Wav-Encode-Seconds", self.tts_wav_encode_seconds),
-        )
-        for name, value in detailed_headers:
-            if value is not None:
-                headers[name] = _duration_seconds_header(value)
-        if self.tts_model is not None:
-            headers["X-TTS-Model"] = self.tts_model
         if self.lipsync_seconds is not None:
-            headers["X-Lipsync-Seconds"] = _duration_seconds_header(
-                self.lipsync_seconds
-            )
-        if self.lipsync_fallback is not None:
-            headers["X-Lipsync-Fallback"] = self.lipsync_fallback
+            headers["X-Lipsync-Seconds"] = f"{self.lipsync_seconds:.3f}"
 
         metrics: list[str] = []
-        if self.generation_seconds is not None:
-            metrics.append(
-                f"tts_total;dur={_duration_ms_metric(self.generation_seconds)}"
-            )
-        detailed_metrics = (
-            ("tts_request", self.tts_request_seconds),
-            ("tts_queue", self.tts_queue_seconds),
-            ("tts_model", self.tts_model_seconds),
-            ("tts_stretch", self.tts_time_stretch_seconds),
-            ("tts_wav", self.tts_wav_encode_seconds),
-        )
-        for name, value in detailed_metrics:
-            if value is not None:
-                metrics.append(f"{name};dur={_duration_ms_metric(value)}")
         if self.lipsync_seconds is not None:
             metrics.append(
                 f"lipsync;dur={_duration_ms_metric(self.lipsync_seconds)}"
@@ -365,18 +303,19 @@ def _target() -> tuple[str, bool]:
     return SERVICE_URL, False
 
 
-def _call_with_metadata(
+def _request_metadata(
     path: str,
-    payload: dict | None = None,
-    timeout: float = 120,
     *,
+    method: str = "GET",
+    data: bytes | None = None,
+    content_type: str | None = None,
+    timeout: float = 120,
     request_id: str | None = None,
-    allowed_media_types: frozenset[str] = frozenset({"audio/wav"}),
-    default_media_type: str | None = "audio/wav",
-    validate_media_body: bool = False,
-) -> ProxyCallResult:
-    body = json.dumps(payload).encode("utf-8") if payload is not None else None
-    headers = {"Content-Type": "application/json"} if body is not None else {}
+) -> tuple[bytes, object, float, float, float]:
+    """Low-level authenticated call. Returns (body, headers, wait, read, total)."""
+    headers: dict[str, str] = {}
+    if content_type is not None:
+        headers["Content-Type"] = content_type
     service_url, _is_dynamic_bridge = _target()
     if BRIDGE_TOKEN:
         headers["Authorization"] = f"Bearer {BRIDGE_TOKEN}"
@@ -385,9 +324,9 @@ def _call_with_metadata(
         headers["X-Request-ID"] = safe_request_id
     req = request.Request(
         f"{service_url}{path}",
-        data=body,
+        data=data,
         headers=headers,
-        method="POST" if body is not None else "GET",
+        method=method,
     )
     started = time.perf_counter()
     try:
@@ -405,86 +344,19 @@ def _call_with_metadata(
     except (error.URLError, TimeoutError, OSError) as exc:
         raise TTSUnavailable(f"Unable to connect to TTS service: {exc}") from exc
 
-    media_type = _safe_media_type(
-        _header_value(response_headers, "Content-Type")
-    ) or _safe_media_type(default_media_type)
-    if media_type is None or media_type not in allowed_media_types:
-        raise TTSUnavailable("TTS service returned an unsupported media type")
-
-    generation_seconds = _safe_seconds(
-        _header_value(response_headers, "X-Generation-Seconds")
+    return (
+        response_body,
+        response_headers,
+        max(0.0, connected - started),
+        max(0.0, finished - connected),
+        max(0.0, finished - started),
     )
-    audio_duration_seconds = _safe_seconds(
-        _header_value(response_headers, "X-Audio-Duration")
-    )
-    local_request_id = _safe_request_id(
-        _header_value(response_headers, "X-Request-ID")
-    )
-    tts_request_seconds = _safe_seconds(
-        _header_value(response_headers, "X-TTS-Request-Seconds")
-    )
-    tts_queue_seconds = _safe_seconds(
-        _header_value(response_headers, "X-TTS-Queue-Seconds")
-    )
-    tts_model_seconds = _safe_seconds(
-        _header_value(response_headers, "X-TTS-Generation-Seconds")
-    )
-    tts_time_stretch_seconds = _safe_seconds(
-        _header_value(response_headers, "X-TTS-Time-Stretch-Seconds")
-    )
-    tts_wav_encode_seconds = _safe_seconds(
-        _header_value(response_headers, "X-TTS-Wav-Encode-Seconds")
-    )
-    tts_model = _safe_tts_model(_header_value(response_headers, "X-TTS-Model"))
-    lipsync_seconds = _safe_seconds(
-        _header_value(response_headers, "X-Lipsync-Seconds")
-    )
-    lipsync_fallback = _safe_lipsync_fallback(
-        _header_value(response_headers, "X-Lipsync-Fallback")
-    )
-    if validate_media_body:
-        if media_type == "video/mp4":
-            if (
-                len(response_body) < 12
-                or response_body[4:8] != b"ftyp"
-                or lipsync_fallback is not None
-            ):
-                raise TTSUnavailable("TTS service returned an invalid MP4 response")
-        elif (
-            len(response_body) < 44
-            or response_body[:4] != b"RIFF"
-            or response_body[8:12] != b"WAVE"
-            or lipsync_fallback != "audio"
-        ):
-            raise TTSUnavailable("TTS service returned an invalid audio fallback")
-    return ProxyCallResult(
-        body=response_body,
-        upstream_wait_seconds=max(0.0, connected - started),
-        proxy_read_seconds=max(0.0, finished - connected),
-        proxy_total_seconds=max(0.0, finished - started),
-        media_type=media_type,
-        generation_seconds=generation_seconds,
-        audio_duration_seconds=audio_duration_seconds,
-        local_request_id=local_request_id,
-        tts_request_seconds=tts_request_seconds,
-        tts_queue_seconds=tts_queue_seconds,
-        tts_model_seconds=tts_model_seconds,
-        tts_time_stretch_seconds=tts_time_stretch_seconds,
-        tts_wav_encode_seconds=tts_wav_encode_seconds,
-        tts_model=tts_model,
-        lipsync_seconds=lipsync_seconds,
-        lipsync_fallback=lipsync_fallback,
-    )
-
-
-def _call(path: str, payload: dict | None = None, timeout: float = 120) -> bytes:
-    """Backward-compatible buffered call used by health and older callers."""
-    return _call_with_metadata(path, payload, timeout).body
 
 
 def health() -> dict:
+    body, _headers, _wait, _read, _total = _request_metadata("/health", timeout=5)
     try:
-        result = json.loads(_call("/health", timeout=2).decode("utf-8"))
+        result = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise TTSUnavailable("TTS service returned an invalid health response") from exc
     if not isinstance(result, dict):
@@ -492,39 +364,34 @@ def health() -> dict:
     return {**result, "proxy": bridge_status(include_service_url=False)}
 
 
-def synthesize(text: str, rate: float) -> bytes:
-    """Return WAV bytes for backward compatibility."""
-    return synthesize_with_metadata(text, rate).body
-
-
-def synthesize_with_metadata(
-    text: str,
-    rate: float,
+def render_lipsync_with_metadata(
+    audio: bytes,
     *,
     request_id: str | None = None,
 ) -> ProxyCallResult:
-    return _call_with_metadata(
-        "/synthesize",
-        {"text": text, "rate": rate},
+    """Forward already-synthesized WAV audio to the local MuseTalk worker."""
+    body, headers, upstream_wait, proxy_read, proxy_total = _request_metadata(
+        "/render",
+        method="POST",
+        data=audio,
+        content_type="audio/wav",
+        timeout=180,
         request_id=request_id,
     )
 
+    content_type = str(_header_value(headers, "Content-Type") or "").split(";", 1)[0].strip().lower()
+    if content_type != "video/mp4" or len(body) < 12 or body[4:8] != b"ftyp":
+        raise TTSUnavailable("MuseTalk service returned an unsupported response")
 
-def synthesize_video_with_metadata(
-    text: str,
-    rate: float,
-    *,
-    request_id: str | None = None,
-) -> ProxyCallResult:
-    """Return a MuseTalk MP4 or the local server's byte-identical WAV fallback."""
-    return _call_with_metadata(
-        "/synthesize-video",
-        {"text": text, "rate": rate},
-        timeout=180,
-        request_id=request_id,
-        allowed_media_types=_ALLOWED_MEDIA_TYPES,
-        # This endpoint has two valid representations, so a missing/invalid
-        # Content-Type must fail closed instead of being guessed.
-        default_media_type=None,
-        validate_media_body=True,
+    lipsync_seconds = _safe_seconds(_header_value(headers, "X-Lipsync-Seconds"))
+    local_request_id = _safe_request_id(_header_value(headers, "X-Request-ID"))
+
+    return ProxyCallResult(
+        body=body,
+        upstream_wait_seconds=upstream_wait,
+        proxy_read_seconds=proxy_read,
+        proxy_total_seconds=proxy_total,
+        media_type="video/mp4",
+        local_request_id=local_request_id,
+        lipsync_seconds=lipsync_seconds,
     )

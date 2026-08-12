@@ -15,9 +15,6 @@ import shutil
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 import wave
 from pathlib import Path
 
@@ -91,49 +88,25 @@ def ensure_ffmpeg_alias() -> tuple[Path, Path]:
     return destination, destination_dir
 
 
-def local_tts_url() -> str:
-    raw = os.getenv("TTS_SERVICE_URL", "http://127.0.0.1:8001").rstrip("/")
-    parsed = urllib.parse.urlsplit(raw)
-    if parsed.scheme != "http" or parsed.hostname not in {
-        "127.0.0.1",
-        "localhost",
-        "::1",
-    }:
-        raise RuntimeError("MuseTalk trial TTS must use a loopback HTTP service.")
-    return raw
-
-
 def synthesize_korean_trial_audio(destination: Path, sentence: str) -> None:
-    token = os.getenv("TTS_BRIDGE_TOKEN", "").strip()
-    if len(token) < 32:
-        raise RuntimeError("TTS_BRIDGE_TOKEN is missing or invalid in .env.")
-    payload = json.dumps(
-        {"text": sentence, "rate": 0.92}, ensure_ascii=False
-    ).encode("utf-8")
-    request = urllib.request.Request(
-        f"{local_tts_url()}/synthesize",
-        data=payload,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
-    )
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    """Use the same ElevenLabs client the live backend uses for TTS."""
+    sys.path.insert(0, str(ROOT / "backend"))
+    import elevenlabs_tts  # noqa: PLC0415 - optional dependency of this trial tool only
+
     try:
-        with opener.open(request, timeout=90) as response:
-            audio = response.read()
-    except urllib.error.URLError as exc:
-        raise RuntimeError(
-            "Local Chatterbox is unavailable. Start tools/tts_bridge.py first."
-        ) from exc
-    if len(audio) < 44 or not audio.startswith(b"RIFF"):
-        raise RuntimeError("Local Chatterbox returned an invalid WAV response.")
-    destination.write_bytes(audio)
+        result = elevenlabs_tts.synthesize_with_metadata(sentence, 0.92)
+    except (
+        elevenlabs_tts.ElevenLabsNotConfigured,
+        elevenlabs_tts.ElevenLabsUnavailable,
+    ) as exc:
+        raise RuntimeError(f"ElevenLabs TTS is unavailable: {exc}") from exc
+    if len(result.body) < 44 or not result.body.startswith(b"RIFF"):
+        raise RuntimeError("ElevenLabs returned an invalid WAV response.")
+    destination.write_bytes(result.body)
 
 
 def validate_trial_audio(path: Path) -> dict[str, float | int]:
-    """Validate a prepared local Chatterbox WAV before MuseTalk consumes it."""
+    """Validate a prepared trial WAV before MuseTalk consumes it."""
     if not path.is_file() or path.stat().st_size <= 44:
         raise RuntimeError(f"Prepared Korean WAV is missing or empty: {path}")
     try:

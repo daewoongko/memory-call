@@ -123,6 +123,15 @@ docs/
 **모든 LLM 호출은 `backend/llm.py`를 거친다.** 다른 파일에서 직접
 `OpenAI()`를 만들지 말 것. 모델 교체가 `.env` 세 줄로 끝나야 한다.
 
+**TTS는 ElevenLabs API, 립싱크(MuseTalk)만 로컬 GPU.** 처음엔 Chatterbox까지
+로컬에서 돌렸지만 Cloudflare 터널 왕복 + 같은 GPU를 MuseTalk과 나눠 쓰는
+경합 때문에 지연이 컸다(위 "부딪혀서 알아낸 것들" 참고). ElevenLabs로
+옮기면서 음성 합성 자체는 Render 백엔드에서 직접 API를 호출하는 걸로
+바뀌었고, 로컬 PC/GPU는 립싱크 영상(선택 기능)에만 필요하다.
+`backend/elevenlabs_tts.py`가 단일 창구이며, `backend/tts_proxy.py`는
+이제 이미 합성된 오디오를 로컬 MuseTalk의 `/render`로 전달하는 역할만
+한다. 음성 클론 등록은 `tools/elevenlabs_clone_voice.py`로 1회만 한다.
+
 **숫자는 규칙이 만들고 문장만 LLM 이 만든다.** 리포트의 반복 질문 횟수,
 복약 상태, 위험 건수는 전부 DB 집계다. LLM 에는 확정된 집계 결과만 넘기고
 읽기 좋은 문장으로 바꾸게 한다. 모델이 실패해도 리포트는 나온다.
@@ -268,6 +277,15 @@ MuseTalk 가 8GB 를 물고 있는 동안 여유 VRAM 이 959MiB 로 떨어졌�
 메모리가 실제로 있는데도 Chatterbox 가 호스트 메모리로 밀려 2.6초 합성이
 13.6초가 됐다. 렌더가 끝날 때마다 `empty_cache()` 로 반환해야 한다.
 **증상이 "느려짐"으로만 나타나서 OOM 처럼 보이지 않는다.**
+
+**(갱신) TTS를 ElevenLabs API로 옮기면서 이 항목은 해소됐다.** Chatterbox가
+로컬 GPU에서 완전히 빠지고 MuseTalk 혼자 GPU를 쓰므로 위 VRAM 경합은 더
+이상 일어나지 않는다. `empty_cache()` 반환 자체는 MuseTalk 내부에 여전히
+남아있고(다른 프로세스와 나눠 쓰지 않아도 손해가 없어 굳이 뺄 이유가 없었다),
+`tools/tts_bridge.py`는 이제 MuseTalk 하나만 관리한다. 립싱크(MuseTalk)도
+API로 옮기는 것은 별도 검토 사항이며, CLAUDE.md의 SadTalker/D-ID 관련 결정
+(위 "명시적으로 하지 않기로 한 것")은 그대로 유효하다 — 상용 실시간 립싱크
+API는 로컬 4초보다 느릴 위험이 커서 함부로 되돌리지 않는다.
 
 **프레임을 파일로 내렸다 다시 읽으면 추론보다 비싸다.** PNG 저장 + ffmpeg
 2패스가 GPU 추론(2.5초)보다 오래 걸려 립싱크가 8.7초였다. 원시 프레임을
