@@ -39,7 +39,7 @@ export function applyTheme(theme, size) {
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState(() => read(KEY_THEME, "dark"));
+  const [theme, setThemeState] = useState(() => read(KEY_THEME, "light"));
   const [size, setSizeState] = useState(() => read(KEY_SIZE, "normal"));
 
   useEffect(() => {

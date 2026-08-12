@@ -3,5 +3,14 @@
   "python.terminal.activateEnvironment": true,
   "python.analysis.extraPaths": ["${workspaceFolder}/backend"],
   "files.exclude": { "**/__pycache__": true },
+  "git.autoRepositoryDetection": "openEditors",
+  "git.ignoredRepositories": [
+    "${workspaceFolder}/.tools/portable-python-bjia56",
+    "${workspaceFolder}/.tools/portable-python-source"
+  ],
+  "git.repositoryScanIgnoredFolders": [
+    "node_modules",
+    ".tools"
+  ],
   "editor.formatOnSave": false
 }
