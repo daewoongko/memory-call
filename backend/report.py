@@ -1607,6 +1607,16 @@ def period(
             "AND taken_date >= ? AND taken_date <= ?",
             (elder_id, since, until),
         ).fetchall()]
+        previous_med_logs = [db._row(r) for r in conn.execute(
+            "SELECT * FROM medication_logs WHERE elder_id = ? "
+            "AND taken_date >= ? AND taken_date <= ?",
+            (elder_id, prev_since, prev_until),
+        ).fetchall()]
+        medications = [db._row(r) for r in conn.execute(
+            "SELECT * FROM medications WHERE elder_id = ? AND active = 1 "
+            "ORDER BY scheduled_time, medication_name",
+            (elder_id,),
+        ).fetchall()]
         reports = [db._row(r) for r in conn.execute(
             "SELECT r.* FROM reports r JOIN calls c ON c.call_id = r.call_id "
             "WHERE c.elder_id = ? AND substr(c.started_at, 1, 10) >= ? "
@@ -1638,6 +1648,71 @@ def period(
     confirmed = sum(1 for log in med_logs if log["status"] == "USER_CONFIRMED")
     unclear = sum(1 for log in med_logs
                   if log["status"] in ("UNCLEAR", "REFUSED", "DUPLICATE_SUSPECTED"))
+    medication_names = {row["schedule_id"]: row["medication_name"] for row in medications}
+    medication_times = {row["schedule_id"]: row.get("scheduled_time") for row in medications}
+    medication_by_day: dict[str, dict] = {
+        (period_start + timedelta(days=index)).isoformat(): {
+            "date": (period_start + timedelta(days=index)).isoformat(),
+            "confirmed": 0,
+            "needs_check": 0,
+        }
+        for index in range(days)
+    }
+    medication_by_schedule: dict[str, dict] = {
+        row["schedule_id"]: {
+            "schedule_id": row["schedule_id"],
+            "medication_name": row["medication_name"],
+            "scheduled_time": row.get("scheduled_time"),
+            "confirmed": 0,
+            "needs_check": 0,
+            "duplicate_suspected": 0,
+            "refused": 0,
+        }
+        for row in medications
+    }
+    for log in med_logs:
+        is_confirmed = log["status"] == "USER_CONFIRMED"
+        day_slot = medication_by_day.setdefault(log["taken_date"], {
+            "date": log["taken_date"], "confirmed": 0, "needs_check": 0,
+        })
+        day_slot["confirmed" if is_confirmed else "needs_check"] += 1
+        schedule_slot = medication_by_schedule.setdefault(log["schedule_id"], {
+            "schedule_id": log["schedule_id"],
+            "medication_name": medication_names.get(log["schedule_id"], "등록 약"),
+            "scheduled_time": medication_times.get(log["schedule_id"]),
+            "confirmed": 0, "needs_check": 0,
+            "duplicate_suspected": 0, "refused": 0,
+        })
+        schedule_slot["confirmed" if is_confirmed else "needs_check"] += 1
+        if log["status"] == "DUPLICATE_SUSPECTED":
+            schedule_slot["duplicate_suspected"] += 1
+        if log["status"] == "REFUSED":
+            schedule_slot["refused"] += 1
+    medication_rows = []
+    for row in medication_by_schedule.values():
+        total = row["confirmed"] + row["needs_check"]
+        medication_rows.append({
+            **row,
+            "confirmation_rate": round(row["confirmed"] / total * 100) if total else None,
+        })
+    medication_rows.sort(key=lambda row: (-row["needs_check"], row.get("scheduled_time") or ""))
+    previous_unclear = sum(
+        1 for log in previous_med_logs
+        if log["status"] in ("UNCLEAR", "REFUSED", "DUPLICATE_SUSPECTED")
+    )
+    medication_total = confirmed + unclear
+    medication_analysis = {
+        "confirmed": confirmed,
+        "needs_check": unclear,
+        "confirmation_rate": round(confirmed / medication_total * 100) if medication_total else None,
+        "duplicate_suspected": sum(1 for log in med_logs if log["status"] == "DUPLICATE_SUSPECTED"),
+        "refused": sum(1 for log in med_logs if log["status"] == "REFUSED"),
+        "unclear": sum(1 for log in med_logs if log["status"] == "UNCLEAR"),
+        "needs_check_change": unclear - previous_unclear,
+        "by_day": list(medication_by_day.values()),
+        "by_medication": medication_rows,
+        "vulnerable": medication_rows[0] if medication_rows and medication_rows[0]["needs_check"] else None,
+    }
     care_counts = {
         key: sum(len((r.get("care_summary") or {}).get(key) or []) for r in reports)
         for key in ("memory_orientation", "emotion", "daily_living")
@@ -1709,7 +1784,7 @@ def period(
         "care_counts": care_counts,
         "meaningful_total": meaningful_total,
         "rhythm": rhythm,
-        "medication": {"confirmed": confirmed, "needs_check": unclear},
+        "medication": medication_analysis,
         "risks": [
             {
                 "event_id": r["event_id"],

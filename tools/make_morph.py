@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the final 8 -> 32 memory-call morph with direct-timestep RIFE.
+"""Build a youngest-to-current memory-call morph with direct-timestep RIFE.
 
 The approved anchors are intentionally copied verbatim at each segment boundary.
 Only the frames strictly between adjacent anchors are synthesized by RIFE.  Frame
@@ -29,8 +29,7 @@ PROJECT = (
     if os.environ.get("MEMORY_CALL_ROOT")
     else Path(__file__).resolve().parents[1]
 )
-SEQUENCE_DIR = PROJECT / "data" / "faces" / "aligned" / "age_path_final"
-SEQUENCE_FILE = SEQUENCE_DIR / "rife_sequence.txt"
+DEFAULT_SEQUENCE_DIR = PROJECT / "data" / "faces" / "aligned" / "age_path_final"
 MODEL = PROJECT / "backend" / "models" / "rife" / "RIFE_fp32_timestep.onnx"
 OUTPUT = PROJECT / "data" / "faces" / "morph.next.mp4"
 
@@ -59,7 +58,7 @@ HEIGHT = 1024
 FPS = 30
 LEAD_HOLD_FRAMES = 18
 TAIL_HOLD_FRAMES = 36
-SEGMENTS: tuple[tuple[int, int, float], ...] = (
+LEGACY_SEGMENTS: tuple[tuple[int, int, float], ...] = (
     (8, 9, 2.4),
     (9, 11, 2.6),
     (11, 13, 2.6),
@@ -73,7 +72,7 @@ SEGMENTS: tuple[tuple[int, int, float], ...] = (
     (29, 31, 1.8),
     (31, 32, 1.6),
 )
-EXPECTED_FRAMES = LEAD_HOLD_FRAMES + TAIL_HOLD_FRAMES + sum(round(s * FPS) for _, _, s in SEGMENTS)
+LEGACY_SECONDS = {(start, end): seconds for start, end, seconds in LEGACY_SEGMENTS}
 
 
 def parse_age(path: Path) -> int:
@@ -83,15 +82,15 @@ def parse_age(path: Path) -> int:
     return int(match.group(1))
 
 
-def load_sequence() -> tuple[list[int], list[np.ndarray], list[Path]]:
-    if not SEQUENCE_FILE.is_file():
-        raise FileNotFoundError(SEQUENCE_FILE)
-    names = [line.strip() for line in SEQUENCE_FILE.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
-    paths = [SEQUENCE_DIR / name for name in names]
+def load_sequence(sequence_dir: Path) -> tuple[list[int], list[np.ndarray], list[Path]]:
+    sequence_file = sequence_dir / "rife_sequence.txt"
+    if not sequence_file.is_file():
+        raise FileNotFoundError(sequence_file)
+    names = [line.strip() for line in sequence_file.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
+    paths = [sequence_dir / name for name in names]
     ages = [parse_age(path) for path in paths]
-    expected_ages = [SEGMENTS[0][0], *(end for _, end, _ in SEGMENTS)]
-    if ages != expected_ages:
-        raise ValueError(f"Sequence ages {ages} do not match timing plan {expected_ages}")
+    if len(ages) < 2 or ages != sorted(set(ages)):
+        raise ValueError(f"Sequence ages must be unique and youngest-to-current: {ages}")
     frames: list[np.ndarray] = []
     for path in paths:
         image = cv2.imread(str(path), cv2.IMREAD_COLOR)
@@ -101,6 +100,24 @@ def load_sequence() -> tuple[list[int], list[np.ndarray], list[Path]]:
             raise ValueError(f"Unexpected image size for {path.name}: {image.shape[:2]}")
         frames.append(np.ascontiguousarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)))
     return ages, frames, paths
+
+
+def segment_seconds(start_age: int, end_age: int) -> float:
+    legacy = LEGACY_SECONDS.get((start_age, end_age))
+    if legacy is not None:
+        return legacy
+    gap = end_age - start_age
+    if gap <= 0:
+        raise ValueError(f"Invalid age segment: {start_age}->{end_age}")
+    base = 2.4 if end_age <= 18 else 2.2 if end_age <= 30 else 2.0 if end_age <= 50 else 1.8
+    return round(min(2.8, base + max(0, gap - 3) * 0.08), 2)
+
+
+def timing_for_ages(ages: list[int]) -> tuple[tuple[int, int, float], ...]:
+    return tuple(
+        (start, end, segment_seconds(start, end))
+        for start, end in zip(ages, ages[1:])
+    )
 
 
 def ffmpeg_command(part_path: Path) -> list[str]:
@@ -136,8 +153,14 @@ def ffmpeg_command(part_path: Path) -> list[str]:
     ]
 
 
-def build(output: Path, *, prefer_cuda: bool, segment_limit: int | None = None) -> None:
-    ages, anchors, paths = load_sequence()
+def build(
+    output: Path,
+    *,
+    sequence_dir: Path,
+    prefer_cuda: bool,
+    segment_limit: int | None = None,
+) -> None:
+    ages, anchors, paths = load_sequence(sequence_dir)
     output.parent.mkdir(parents=True, exist_ok=True)
     part = output.with_suffix(output.suffix + ".part.mp4")
     log_path = output.with_suffix(".ffmpeg.log")
@@ -149,7 +172,10 @@ def build(output: Path, *, prefer_cuda: bool, segment_limit: int | None = None) 
     engine = RifeOrt(MODEL, prefer_cuda=prefer_cuda)
     print(f"Execution provider: {engine.provider}", flush=True)
 
-    segments = SEGMENTS if segment_limit is None else SEGMENTS[:segment_limit]
+    all_segments = timing_for_ages(ages)
+    if segment_limit is not None and not 1 <= segment_limit <= len(all_segments):
+        raise ValueError(f"--segment-limit must be between 1 and {len(all_segments)}")
+    segments = all_segments if segment_limit is None else all_segments[:segment_limit]
     expected = LEAD_HOLD_FRAMES + sum(round(s * FPS) for _, _, s in segments)
     tail_frames = TAIL_HOLD_FRAMES if segment_limit is None else 0
     expected += tail_frames
@@ -201,8 +227,6 @@ def build(output: Path, *, prefer_cuda: bool, segment_limit: int | None = None) 
 
     if written != expected:
         raise RuntimeError(f"Frame-count bug: wrote {written}, expected {expected}")
-    if segment_limit is None and written != EXPECTED_FRAMES:
-        raise RuntimeError(f"Final frame-count bug: wrote {written}, expected {EXPECTED_FRAMES}")
     os.replace(part, output)
     elapsed = time.perf_counter() - started
     print(f"Saved: {output}", flush=True)
@@ -212,10 +236,16 @@ def build(output: Path, *, prefer_cuda: bool, segment_limit: int | None = None) 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=OUTPUT)
+    parser.add_argument("--sequence-dir", type=Path, default=DEFAULT_SEQUENCE_DIR)
     parser.add_argument("--cpu", action="store_true", help="Force CPU inference")
-    parser.add_argument("--segment-limit", type=int, choices=range(1, len(SEGMENTS) + 1))
+    parser.add_argument("--segment-limit", type=int)
     args = parser.parse_args()
-    build(args.output.resolve(), prefer_cuda=not args.cpu, segment_limit=args.segment_limit)
+    build(
+        args.output.resolve(),
+        sequence_dir=args.sequence_dir.resolve(),
+        prefer_cuda=not args.cpu,
+        segment_limit=args.segment_limit,
+    )
 
 
 if __name__ == "__main__":

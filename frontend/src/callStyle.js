@@ -128,3 +128,21 @@ export function callStylePersonaPatch(result, answers) {
     forbidden_phrases: ["왜 또 물어봐?", "아까 말했잖아.", "그것도 기억 안 나?", "몇 번을 말해야 해?"],
   };
 }
+
+// 질문을 건너뛸 때 사용하는 보수적인 기본값입니다.
+// 차분한 톤(C), 사실 중심(P), 현재 맥락(O), 한 번에 하나씩 안내(G)를 선택합니다.
+export const DEFAULT_CALL_STYLE_CODE = "CPOG";
+
+export function createDefaultCallStyleAnswers() {
+  const selected = { tone: "C", response: "P", topic: "O", lead: "G" };
+  return Object.fromEntries(
+    CALL_STYLE_DIMENSIONS.flatMap((dimension) =>
+      dimension.questions.map(([id]) => [id, selected[dimension.id]]),
+    ),
+  );
+}
+
+export function getDefaultCallStyle() {
+  const answers = createDefaultCallStyleAnswers();
+  return { answers, result: calculateCallStyle(answers) };
+}

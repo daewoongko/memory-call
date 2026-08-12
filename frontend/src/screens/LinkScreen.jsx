@@ -14,7 +14,7 @@ export default function LinkScreen({ role, onLinked, onSkip }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (role !== "guardian") return;
+    if (role !== "child" && role !== "care") return;
     api.issueLinkCode().then(setIssued).catch((e) => setError(e.message));
   }, [role]);
 
@@ -33,7 +33,7 @@ export default function LinkScreen({ role, onLinked, onSkip }) {
     }
   }
 
-  if (role === "guardian") {
+  if (role === "child" || role === "care") {
     return (
       <div className="screen link">
         <h1>어르신 기기에 이 번호를 넣어주세요</h1>

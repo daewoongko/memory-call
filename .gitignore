@@ -43,6 +43,9 @@ data/faces/*
 !data/faces/morph.json
 !data/faces/morph.validation.json
 !data/faces/morph_qc.png
+!data/personas/*/morph.mp4
+!data/personas/*/morph.json
+!data/personas/*/morph.qc.png
 
 !data/faces/source/
 !data/faces/source/**

@@ -71,12 +71,15 @@ function weekBars(week, medications, schedules, todayKey, confirmedToday) {
   return bars;
 }
 
-export default function CareCalendar({ elderId = "elder_001", refreshKey = 0 }) {
+export default function CareCalendar({ elderId = "elder_001", refreshKey = 0, onChanged }) {
   const [cursor, setCursor] = useState(() => new Date());
   const [schedules, setSchedules] = useState([]);
   const [medications, setMedications] = useState([]);
   const [todayMeds, setTodayMeds] = useState([]);
   const [error, setError] = useState("");
+  const [selectedKey, setSelectedKey] = useState(() => dateKey(new Date()));
+  const [draft, setDraft] = useState({ type: "hospital", time: "10:00", title: "", note: "" });
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     Promise.all([api.getSchedules(elderId), api.getMedications(elderId)])
@@ -94,9 +97,28 @@ export default function CareCalendar({ elderId = "elder_001", refreshKey = 0 }) 
   const confirmedToday = new Set(todayMeds.filter((item) => item.confirmed).map((item) => item.schedule_id));
   const moveMonth = (amount) => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + amount, 1));
   const todaySchedules = schedules.filter((item) => item.date === todayKey);
+  const selectedSchedules = schedules.filter((item) => item.date === selectedKey);
+  const selectedLabel = new Date(`${selectedKey}T00:00:00`).toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
   const nextWeek = new Date();
   nextWeek.setDate(nextWeek.getDate() + 7);
   const comingWeek = schedules.filter((item) => item.date >= todayKey && item.date <= dateKey(nextWeek));
+
+  async function addSelectedSchedule() {
+    if (!draft.title.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      const prefix = { hospital: "병원", visit: "방문", care: "케어" }[draft.type];
+      await api.addSchedule({
+        title: draft.title.trim(), date: selectedKey, time: draft.time,
+        note: `[${prefix}] ${draft.note}`.trim(), confirmed: true,
+      }, elderId);
+      const result = await api.getSchedules(elderId);
+      setSchedules([...(result.past || []), ...(result.upcoming || [])]);
+      setDraft((current) => ({ ...current, title: "", note: "" }));
+      onChanged?.();
+    } catch (reason) { setError(reason.message); } finally { setBusy(false); }
+  }
 
   return <section className="care-calendar dashboard-card">
     <header className="calendar-head">
@@ -121,7 +143,7 @@ export default function CareCalendar({ elderId = "elder_001", refreshKey = 0 }) 
       return <section className="calendar-week" key={`week-${weekIndex}`} style={{ "--calendar-lanes": lanes }}>
         <div className="calendar-week-days">{week.map((date) => {
           const key = dateKey(date);
-          return <article key={key} className={`${date.getMonth() === cursor.getMonth() ? "" : "outside"} ${key === todayKey ? "today" : ""}`}>
+          return <article key={key} role="button" tabIndex="0" onClick={() => setSelectedKey(key)} onKeyDown={(event) => event.key === "Enter" && setSelectedKey(key)} className={`${date.getMonth() === cursor.getMonth() ? "" : "outside"} ${key === todayKey ? "today" : ""} ${key === selectedKey ? "selected" : ""}`}>
             <time>{date.getDate()}</time>
           </article>;
         })}</div>
@@ -139,10 +161,17 @@ export default function CareCalendar({ elderId = "elder_001", refreshKey = 0 }) 
     })}</div>
     <div className="calendar-bottom-panels">
       <section>
-        <header><span className="calendar-panel-date">오늘</span><h3>오늘 일정</h3></header>
-        <div className="calendar-agenda-list">{todaySchedules.map((item) => <article key={item.schedule_id}>
+        <header><span className="calendar-panel-date">선택</span><h3>{selectedLabel} 일정</h3></header>
+        <div className="calendar-agenda-list">{selectedSchedules.map((item) => <article key={item.schedule_id}>
           <time>{item.time || "종일"}</time><div><b>{item.title}</b><small>{item.confirmed ? "확정 일정" : "미확정"}</small></div>
-        </article>)}{!todaySchedules.length && <p>오늘 등록된 가족·병원 일정이 없습니다.</p>}</div>
+        </article>)}{!selectedSchedules.length && <p>선택한 날짜에 등록된 일정이 없습니다.</p>}</div>
+        <div className="calendar-quick-add">
+          <select value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value })}><option value="hospital">병원</option><option value="visit">가족 방문</option><option value="care">케어 일정</option></select>
+          <input type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} />
+          <input placeholder="일정 내용" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} onKeyDown={(event) => event.key === "Enter" && addSelectedSchedule()} />
+          <input placeholder="담당자 메모(선택)" value={draft.note} onChange={(event) => setDraft({ ...draft, note: event.target.value })} />
+          <button disabled={busy || !draft.title.trim()} onClick={addSelectedSchedule}>{busy ? "저장 중" : "이 날짜에 추가"}</button>
+        </div>
       </section>
       <section>
         <header><span className="calendar-panel-date medication">약</span><h3>오늘 복약 루틴</h3></header>

@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS elder_profiles (
     -- 비어 있으면 프롬프트에 "미등록"으로 나가고 AI 는 거주지를 말하지 않는다.
     residence_type      TEXT,
     household_members   TEXT,   -- JSON 배열 [{"name": ..., "relation": ...}]
+    diagnosis_label     TEXT,   -- 등록된 진단명. 서비스가 추론하지 않는다.
+    care_baseline       TEXT,   -- JSON: 평소 관찰 기준
+    medical_cautions    TEXT,   -- JSON: 의료진에게 보고할 주요 변화
     speech_wait_time_ms INTEGER DEFAULT 2000,
     hearing_support     INTEGER DEFAULT 0,
     vision_support      INTEGER DEFAULT 0,
@@ -76,8 +79,25 @@ CREATE TABLE IF NOT EXISTS medications (
     scheduled_time  TEXT,        -- HH:MM
     meal_relation   TEXT CHECK (meal_relation IN ('before','after','none')),
     days_of_week    TEXT,        -- JSON 배열
+    indication      TEXT,        -- 처방 목적(보호자·담당자 입력, 진단 자동 추정 금지)
+    monitoring_points TEXT,      -- JSON 배열. 담당자가 관찰할 항목
+    review_interval_days INTEGER DEFAULT 14,
+    escalation_criteria TEXT,    -- 약 변경 지시가 아니라 의료진 보고 기준
     active          INTEGER DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS medication_reviews (
+    review_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    elder_id        TEXT NOT NULL REFERENCES elder_profiles(elder_id),
+    schedule_id     TEXT NOT NULL REFERENCES medications(schedule_id),
+    review_date     TEXT NOT NULL,
+    severity        INTEGER NOT NULL DEFAULT 0 CHECK (severity BETWEEN 0 AND 3),
+    observed_flags  TEXT,
+    note            TEXT,
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_medication_reviews
+    ON medication_reviews(elder_id, schedule_id, review_date);
 
 -- 복약 기록. 노인이 직접 입력하지 않고 통화 중 말로 확인한 결과가 쌓인다.
 CREATE TABLE IF NOT EXISTS medication_logs (
