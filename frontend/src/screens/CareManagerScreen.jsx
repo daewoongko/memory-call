@@ -89,6 +89,7 @@ export default function CareManagerScreen() {
   const [baselineSummary, setBaselineSummary] = useState(null);
   const [comparisonDay, setComparisonDay] = useState(null);
   const [error, setError] = useState("");
+  const [baselineLoading, setBaselineLoading] = useState(false);
 
   useEffect(() => { api.getElders().then(({ elders: rows }) => { setElders(rows); if (rows.length === 1) setPicked(rows[0]); }).catch((e) => setError(e.message)); }, []);
   useEffect(() => {
@@ -102,15 +103,29 @@ export default function CareManagerScreen() {
     const range = selectedRange(period);
     const comparisonDate = period.mode === "day" ? period.value : range.end;
     const monthRange = selectedRange({ mode: "month", value: comparisonDate.slice(0, 7) });
-    return Promise.all([
-      api.getPeriodSummary(range.days, picked.elder_id, range),
-      api.getPeriodSummary(monthRange.days, picked.elder_id, monthRange),
-      api.getPeriodSummary(1, picked.elder_id, { start: comparisonDate, end: comparisonDate }),
-    ]).then(([selected, baseline, day]) => {
+    setError("");
+    setSummary(null);
+    setBaselineSummary(null);
+    setComparisonDay(null);
+
+    // 선택 기간을 먼저 보여주고, 비교 기준선은 뒤에서 한 번만 계산한다.
+    // 일별 화면에서는 선택 요약 자체가 비교일이므로 같은 API를 중복 호출하지 않는다.
+    return api.getPeriodSummary(range.days, picked.elder_id, range).then((selected) => {
       setSummary(selected);
-      setBaselineSummary(baseline);
-      setComparisonDay(day);
-    }).catch((e) => setError(e.message));
+      setComparisonDay(period.mode === "day" ? selected : null);
+      setBaselineLoading(true);
+      return api.getPeriodSummary(monthRange.days, picked.elder_id, monthRange)
+        .then((baseline) => {
+          setBaselineSummary(baseline);
+          if (period.mode !== "day") {
+            return api.getPeriodSummary(1, picked.elder_id, { start: comparisonDate, end: comparisonDate })
+              .then(setComparisonDay);
+          }
+          return null;
+        })
+        .catch((e) => setError(`월 비교 기준은 잠시 뒤 다시 불러옵니다. (${e.message})`))
+        .finally(() => setBaselineLoading(false));
+    }).catch((e) => setError(`분석을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (${e.message})`));
   }, [period, picked]);
   useEffect(() => { loadSummary(); }, [loadSummary]);
 
@@ -129,7 +144,7 @@ export default function CareManagerScreen() {
       <section className="guardian-workspace">
         <header className="dashboard-heading manager-heading"><div><p className="eyebrow">{picked.name} 어르신 · {patientProfile?.diagnosis_label || picked.diagnosis_label || "진단 정보 미등록"}</p><h1>{new Date(`${period.value}T00:00:00`).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 분석 리포트</h1><span>{tab === "analysis" ? "발화 변화에서 오늘의 확인 우선순위를 정리합니다." : "담당자가 직접 확인해야 할 근거와 행동을 모았습니다."}</span></div><label className="manager-date-picker"><span>분석 날짜</span><input type="date" value={period.value} max={localDateKey()} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} /></label></header>
         {error && <p className="error">{error}</p>}
-        {!summary ? <p className="hint">분석 데이터를 불러오는 중…</p> : tab === "analysis" ? <ReportTabs elderId={picked.elder_id} elderName={picked.name} patientProfile={patientProfile} summary={summary} baselineSummary={baselineSummary} comparisonDay={comparisonDay} days={summary.days} period={period} onPeriod={setPeriod} onReload={loadSummary} /> : <SpecialNotes summary={summary} onReload={loadSummary} />}
+        {!summary ? <p className="hint">분석 데이터를 불러오는 중…</p> : tab === "analysis" ? <><ReportTabs elderId={picked.elder_id} elderName={picked.name} patientProfile={patientProfile} summary={summary} baselineSummary={baselineSummary || summary} comparisonDay={comparisonDay || summary} days={summary.days} period={period} onPeriod={setPeriod} onReload={loadSummary} />{baselineLoading && <p className="manager-baseline-loading">월 평균 비교를 이어서 계산하고 있습니다.</p>}</> : <SpecialNotes summary={summary} onReload={loadSummary} />}
       </section>
     </div>
   </main>;

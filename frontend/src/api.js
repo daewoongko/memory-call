@@ -1,10 +1,22 @@
 // FastAPI 호출부. Vite 프록시 덕분에 상대 경로만 쓴다.
 
+const TRANSIENT_STATUSES = new Set([502, 503, 504]);
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
+  let res;
+  const attempts = (options.method || "GET") === "GET" ? 3 : 1;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    res = await fetch(path, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    if (!TRANSIENT_STATUSES.has(res.status) || attempt === attempts - 1) break;
+    await wait(700 * (attempt + 1));
+  }
   if (!res.ok) {
     let detail = `${res.status}`;
     try {
