@@ -130,7 +130,7 @@ function callBubbleItems(report) {
   };
 
   Object.entries(CARE_LABEL).forEach(([domain, domainLabel]) => {
-    const color = domain === "memory_orientation" ? "#7f8cff" : domain === "emotion" ? "#b49bec" : "#51c4a0";
+    const color = domain === "memory_orientation" ? "#24744f" : domain === "emotion" ? "#d46b21" : "#859d29";
     (report.care_summary?.[domain] || []).forEach((item) =>
       add(`state:${domain}:${item.label}`, item.label, 1, color, "상태", `${domainLabel} · ${item.evidence || "직접 발화 근거"}`),
     );
@@ -149,10 +149,10 @@ function callBubbleItems(report) {
 
 function dailyBubbleItems(day) {
   const colors = {
-    memory_orientation: "#7f8cff", emotion: "#b49bec", daily_living: "#51c4a0",
+    memory_orientation: "#24744f", emotion: "#d46b21", daily_living: "#859d29",
   };
   const observations = (day.observations || []).map((item) => ({
-    label: item.label, value: item.count, color: colors[item.domain] || "#7f8cff",
+    label: item.label, value: item.count, color: colors[item.domain] || "#24744f",
     kind: "관찰 상태", detail: item.evidence?.[0] || "",
   }));
   const repeats = (day.repeated_phrases || []).slice(0, 3).map((item) => ({

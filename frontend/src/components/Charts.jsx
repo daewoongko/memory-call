@@ -160,7 +160,7 @@ export function BarRows({ items, unit = "번" }) {
 }
 
 /** 좁은 상태 행 안에서 날짜별 증감을 보여주는 미니 영역 그래프. */
-export function MiniTrend({ values = [], color = "#7f8cff", label = "추이" }) {
+export function MiniTrend({ values = [], color = "#24744f", label = "추이" }) {
   const width = 180;
   const height = 52;
   const peak = Math.max(1, ...values);
