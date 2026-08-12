@@ -35,6 +35,21 @@ def main() -> None:
                 check=True,
             )
 
+        # 비교 환자는 배포의 영구 SQLite가 이미 존재해도 추가되어야 한다.
+        # 둘 다 데모 전용 ID이므로 기존 실제 환자·통화는 건드리지 않는다.
+        with db.connect() as conn:
+            comparison_count = conn.execute(
+                "SELECT COUNT(*) FROM elder_profiles "
+                "WHERE elder_id IN ('elder_002', 'elder_003')"
+            ).fetchone()[0]
+        if comparison_count < 2:
+            print("공개 데모 DB에 담당자 비교 환자 2명을 적재합니다.")
+            subprocess.run(
+                [sys.executable, str(ROOT / "tools" / "seed_comparison_elders.py")],
+                cwd=ROOT,
+                check=True,
+            )
+
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(
         "api:app",
