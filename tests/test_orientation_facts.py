@@ -106,7 +106,13 @@ class ColumnMigrationTests(unittest.TestCase):
         self.assertIn("household_members", columns)
         self.assertCountEqual(
             added,
-            ["elder_profiles.residence_type", "elder_profiles.household_members"],
+            [
+                "elder_profiles.residence_type",
+                "elder_profiles.household_members",
+                "elder_profiles.diagnosis_label",
+                "elder_profiles.care_baseline",
+                "elder_profiles.medical_cautions",
+            ],
         )
 
         # 두 번 돌려도 실패하지 않아야 한다.

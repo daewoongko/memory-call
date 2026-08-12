@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../api.js";
-import { calculateCallStyle, callStylePersonaPatch } from "../callStyle.js";
+import { calculateCallStyle, callStylePersonaPatch, getDefaultCallStyle } from "../callStyle.js";
 import CallStyleQuiz from "../components/CallStyleQuiz.jsx";
 
 /**
@@ -120,6 +120,13 @@ export default function PersonaPanel() {
       ...stylePatch,
     });
     setNote(`${personaType.code} · ${personaType.name} 말투 초안을 적용했어요. 저장하면 실제 통화에 반영됩니다.`);
+  };
+
+  const applyDefaultPersonaType = () => {
+    const defaults = getDefaultCallStyle();
+    setQuizAnswers(defaults.answers);
+    setPersona({ ...persona, ...callStylePersonaPatch(defaults.result, defaults.answers) });
+    setNote("CPOG · 차분한 생활 안내형 기본 말투를 적용했습니다. 저장하면 실제 통화에 반영됩니다.");
   };
 
   const saveElder = () =>
@@ -298,7 +305,7 @@ export default function PersonaPanel() {
           </label>
         </div>
 
-        <CallStyleQuiz answers={quizAnswers} onAnswers={setQuizAnswers} onApply={applyPersonaType} />
+        <CallStyleQuiz answers={quizAnswers} onAnswers={setQuizAnswers} onApply={applyPersonaType} onUseDefault={applyDefaultPersonaType} />
 
         <details className="persona-advanced">
           <summary>적용된 말투와 문장 직접 조정</summary>

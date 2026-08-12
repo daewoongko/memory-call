@@ -58,7 +58,8 @@ def elders() -> list[dict]:
     """보호자가 돌보는 어르신 목록."""
     with db.connect() as conn:
         rows = conn.execute(
-            "SELECT elder_id, name, preferred_call_name, created_at "
+            "SELECT elder_id, name, preferred_call_name, diagnosis_label, "
+            "residence_type, created_at "
             "FROM elder_profiles ORDER BY created_at"
         ).fetchall()
     return [db._row(r) for r in rows]

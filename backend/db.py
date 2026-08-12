@@ -21,6 +21,8 @@ JSON_COLUMNS = {
     "unverified_recall", "care_data", "safety_flags", "payload", "repeated_questions",
     "medication_summary", "new_recalls", "risk_summary", "guardian_actions",
     "care_summary", "meaningful_moments", "family_mentions",
+    "care_baseline", "medical_cautions",
+    "monitoring_points", "observed_flags",
 }
 
 # CREATE TABLE IF NOT EXISTS 는 이미 있는 테이블에 새 컬럼을 붙이지 않는다.
@@ -29,6 +31,9 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "elder_profiles": {
         "residence_type": "TEXT",
         "household_members": "TEXT",
+        "diagnosis_label": "TEXT",
+        "care_baseline": "TEXT",
+        "medical_cautions": "TEXT",
     },
     "personas": {
         "call_style_code": "TEXT",
@@ -48,6 +53,12 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "care_summary": "TEXT",
         "meaningful_moments": "TEXT",
         "family_mentions": "TEXT",
+    },
+    "medications": {
+        "indication": "TEXT",
+        "monitoring_points": "TEXT",
+        "review_interval_days": "INTEGER DEFAULT 14",
+        "escalation_criteria": "TEXT",
     },
 }
 

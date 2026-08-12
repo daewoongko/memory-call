@@ -17,6 +17,10 @@ export default function MedicationForm({ elderId = "elder_001", onChanged }) {
     dosage_text: "1정",
     scheduled_time: "20:00",
     meal_relation: "after",
+    indication: "",
+    monitoring_text: "",
+    review_interval_days: 14,
+    escalation_criteria: "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -33,9 +37,11 @@ export default function MedicationForm({ elderId = "elder_001", onChanged }) {
     setBusy(true);
     setError("");
     try {
-      const r = await api.addMedication(form, elderId);
+      const payload = { ...form, monitoring_points: form.monitoring_text.split("\n").map((item) => item.trim()).filter(Boolean) };
+      delete payload.monitoring_text;
+      const r = await api.addMedication(payload, elderId);
       setToday(r.today);
-      setForm({ ...form, medication_name: "" });
+      setForm({ ...form, medication_name: "", indication: "", monitoring_text: "", escalation_criteria: "" });
       onChanged?.();
     } catch (e) {
       setError(e.message);
@@ -110,6 +116,12 @@ export default function MedicationForm({ elderId = "elder_001", onChanged }) {
         <button onClick={submit} disabled={busy || !form.medication_name.trim()}>
           추가
         </button>
+      </div>
+      <div className="med-clinical-form">
+        <input placeholder="복용 목적 (예: 고혈압 관리)" value={form.indication} onChange={(e) => setForm({ ...form, indication: e.target.value })} />
+        <input type="number" min="1" max="180" value={form.review_interval_days} onChange={(e) => setForm({ ...form, review_interval_days: Number(e.target.value) })} aria-label="재평가 간격(일)" />
+        <textarea placeholder={'담당자 관찰 항목을 한 줄에 하나씩 입력\n예: 어지럼\n예: 발목 부종'} value={form.monitoring_text} onChange={(e) => setForm({ ...form, monitoring_text: e.target.value })} />
+        <textarea placeholder="의료진에게 보고할 기준(약을 임의로 변경하는 기준이 아닙니다)" value={form.escalation_criteria} onChange={(e) => setForm({ ...form, escalation_criteria: e.target.value })} />
       </div>
 
       {error && <p className="error">{error}</p>}
