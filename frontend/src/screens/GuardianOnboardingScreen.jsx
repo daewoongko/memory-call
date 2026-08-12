@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../api.js";
-import { callStylePersonaPatch } from "../callStyle.js";
+import { callStylePersonaPatch, getDefaultCallStyle } from "../callStyle.js";
 import BrandMark from "../components/BrandMark.jsx";
 import CallStyleQuiz from "../components/CallStyleQuiz.jsx";
 
@@ -30,7 +30,7 @@ export default function GuardianOnboardingScreen({ onDone }) {
     }).catch((reason) => setError(reason.message));
   }
 
-  async function finish(result) {
+  async function finish(result, appliedAnswers = answers) {
     setBusy(true);
     setError("");
     try {
@@ -39,7 +39,7 @@ export default function GuardianOnboardingScreen({ onDone }) {
         relationship_type: form.relationship_type,
         elder_calls_family: form.elder_calls_family,
         family_calls_elder: form.family_calls_elder,
-        ...callStylePersonaPatch(result, answers),
+        ...callStylePersonaPatch(result, appliedAnswers),
       }, selectedId);
       onDone({ personaId: selectedId, code: result.code });
     } catch (reason) {
@@ -49,10 +49,16 @@ export default function GuardianOnboardingScreen({ onDone }) {
     }
   }
 
+  function useDefaultStyle() {
+    const defaults = getDefaultCallStyle();
+    setAnswers(defaults.answers);
+    finish(defaults.result, defaults.answers);
+  }
+
   return <main className="guardian-onboarding">
     <header className="onboarding-brand"><BrandMark size={35} /><div><b>다소니</b><span>처음 만나는 가족 케어 설정</span></div></header>
     <nav className="onboarding-steps" aria-label="최초 설정 단계">
-      <span className={step === "profile" ? "on" : "done"}><i>1</i>보호자 정보</span>
+      <span className={step === "profile" ? "on" : "done"}><i>1</i>가족 정보</span>
       <b />
       <span className={step === "quiz" ? "on" : ""}><i>2</i>통화 MBTI</span>
       <b />
@@ -60,7 +66,7 @@ export default function GuardianOnboardingScreen({ onDone }) {
     </nav>
 
     {step === "profile" ? <section className="onboarding-card profile-step">
-      <p className="eyebrow">보호자 정보</p>
+      <p className="eyebrow">가족 정보</p>
       <h1>어르신과 통화하는 나는 누구인가요?</h1>
       <p>본인 프로필을 선택하고 실제로 사용하는 이름과 호칭을 확인해 주세요.</p>
       <div className="onboarding-personas">
@@ -77,10 +83,13 @@ export default function GuardianOnboardingScreen({ onDone }) {
         <label>어르신이 나를 부르는 말<input value={form.elder_calls_family || ""} onChange={(event) => setForm({ ...form, elder_calls_family: event.target.value })} /></label>
       </div>
       {error && <p className="error">{error}</p>}
-      <button type="button" className="save onboarding-next" disabled={!selectedId || !form.display_name} onClick={() => setStep("quiz")}>통화 성향 알아보기</button>
+      <div className="onboarding-choice-actions">
+        <button type="button" className="onboarding-default-start" disabled={busy || !selectedId || !form.display_name} onClick={useDefaultStyle}>기본 말투로 바로 시작</button>
+        <button type="button" className="save onboarding-next" disabled={!selectedId || !form.display_name} onClick={() => setStep("quiz")}>28문항으로 맞춤 설정</button>
+      </div>
     </section> : <section className="onboarding-card quiz-step">
-      <button type="button" className="onboarding-back" onClick={() => setStep("profile")}>← 보호자 정보로</button>
-      <CallStyleQuiz answers={answers} onAnswers={setAnswers} onApply={finish} applyLabel={busy ? "저장하는 중…" : "저장하고 다소니 시작"} />
+      <button type="button" className="onboarding-back" onClick={() => setStep("profile")}>← 가족 정보로</button>
+      <CallStyleQuiz answers={answers} onAnswers={setAnswers} onApply={finish} onUseDefault={useDefaultStyle} applyLabel={busy ? "저장하는 중…" : "저장하고 다소니 시작"} />
       {error && <p className="error">{error}</p>}
     </section>}
   </main>;

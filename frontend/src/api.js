@@ -165,6 +165,12 @@ export const addMedication = (body, elderId = "elder_001") =>
     body: JSON.stringify(body),
   });
 
+export const addMedicationReview = (scheduleId, body, elderId = "elder_001") =>
+  request(`/api/elders/${elderId}/medications/${scheduleId}/reviews`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
 export const removeMedication = (scheduleId) =>
   request(`/api/medications/${scheduleId}`, { method: "DELETE" });
 

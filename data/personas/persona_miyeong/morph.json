@@ -1,0 +1,543 @@
+{
+  "version": 2,
+  "created_at": "2026-08-11T05:33:20.907533+00:00",
+  "purpose": "memory-call youngest-to-current RIFE morph",
+  "video": {
+    "path": "data/personas/persona_miyeong/morph.mp4",
+    "file": "morph.mp4",
+    "validated_staging_path": "data/personas/persona_miyeong/morph.next.mp4",
+    "sha256": "f11e2b07c3e5f2c0aab33033e38759836a23d980855d5628300d93c82b2ecff0",
+    "size_bytes": 5027902,
+    "codec_fourcc": "h264",
+    "width": 768,
+    "height": 1024,
+    "fps": 30.0,
+    "declared_frame_count": 680,
+    "decoded_frame_count": 680,
+    "duration_seconds": 22.666667,
+    "pixel_format_required": "yuv420p",
+    "audio_required": false
+  },
+  "generator": {
+    "name": "RIFE arbitrary-timestep interpolation",
+    "model": {
+      "path": "backend/models/rife/RIFE_fp32_timestep.onnx",
+      "sha256": "4da60c1f20d42dba4f21503140940aa48a488585ead977532bf22e95a0319327",
+      "size_bytes": 21604567
+    },
+    "direction": "youngest_to_current",
+    "direct_timestep_inference": true
+  },
+  "source_manifest": "data/personas/persona_miyeong/aligned/age_path_final/manifest.json",
+  "source_sequence": [
+    {
+      "age": 8,
+      "file": "01_age08.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/01_age08.png",
+      "sha256": "07744641416e2fab1e5c224e356dc027e6bb58caa44b6c6b0c27ba46668259d2"
+    },
+    {
+      "age": 11,
+      "file": "02_age11.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/02_age11.png",
+      "sha256": "f957eb4f3ceb33b1c164ca4cc6352512c1626d48fcc74bf816fe9320c904e256"
+    },
+    {
+      "age": 14,
+      "file": "03_age14.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/03_age14.png",
+      "sha256": "987b96b22d46ce031aafe2d4f7dba6a82fcf8f069d6dc9dab709953ec03a1b28"
+    },
+    {
+      "age": 18,
+      "file": "04_age18.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/04_age18.png",
+      "sha256": "483ad455f5fbb3cf85a781c34ed9a67199e671a0f23b596db08ed484498eec20"
+    },
+    {
+      "age": 24,
+      "file": "05_age24.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/05_age24.png",
+      "sha256": "eeca32013f53637c7fff2facd26d08ede5ecac777c8b0f303a8baefdbe863285"
+    },
+    {
+      "age": 30,
+      "file": "06_age30.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/06_age30.png",
+      "sha256": "ae32d1265d1c9bb94b0497058559afdfc7d20cad0f00c38891c287eeac0dc479"
+    },
+    {
+      "age": 36,
+      "file": "07_age36.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/07_age36.png",
+      "sha256": "b49e231e5ff61ce460e22003c39c1706ce5df65cbb6ff72514cda08320a4317f"
+    },
+    {
+      "age": 46,
+      "file": "08_age46.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/08_age46.png",
+      "sha256": "5041c407b58a978b3a24e4d657edd4c3c8cbf2aa5061baad93b5a9428953b0d3"
+    },
+    {
+      "age": 51,
+      "file": "09_age51.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/09_age51.png",
+      "sha256": "9822a3c22de82dd88fffe7d41911aae3024530033fa48278a1a4c79d36edb704"
+    },
+    {
+      "age": 56,
+      "file": "10_age56.png",
+      "path": "data/personas/persona_miyeong/aligned/age_path_final/10_age56.png",
+      "sha256": "7102caf50f14e77e912cd30bfb7e203ce31978b74bf6e7856a9b6e5e48ebb8d1"
+    }
+  ],
+  "timing": {
+    "fps": 30.0,
+    "lead_hold_seconds": 0.6,
+    "lead_hold_frames": 18,
+    "tail_hold_seconds": 1.2,
+    "tail_hold_frames": 36,
+    "segments": [
+      {
+        "from_age": 8,
+        "to_age": 11,
+        "duration_seconds": 2.4,
+        "interpolated_frame_count": 72,
+        "source_hit_frame": 0,
+        "first_output_frame": 18,
+        "target_hit_frame": 89,
+        "elapsed_at_target_seconds": 3.0
+      },
+      {
+        "from_age": 11,
+        "to_age": 14,
+        "duration_seconds": 2.4,
+        "interpolated_frame_count": 72,
+        "source_hit_frame": 89,
+        "first_output_frame": 90,
+        "target_hit_frame": 161,
+        "elapsed_at_target_seconds": 5.4
+      },
+      {
+        "from_age": 14,
+        "to_age": 18,
+        "duration_seconds": 2.48,
+        "interpolated_frame_count": 74,
+        "source_hit_frame": 161,
+        "first_output_frame": 162,
+        "target_hit_frame": 235,
+        "elapsed_at_target_seconds": 7.866667
+      },
+      {
+        "from_age": 18,
+        "to_age": 24,
+        "duration_seconds": 2.44,
+        "interpolated_frame_count": 73,
+        "source_hit_frame": 235,
+        "first_output_frame": 236,
+        "target_hit_frame": 308,
+        "elapsed_at_target_seconds": 10.3
+      },
+      {
+        "from_age": 24,
+        "to_age": 30,
+        "duration_seconds": 2.44,
+        "interpolated_frame_count": 73,
+        "source_hit_frame": 308,
+        "first_output_frame": 309,
+        "target_hit_frame": 381,
+        "elapsed_at_target_seconds": 12.733333
+      },
+      {
+        "from_age": 30,
+        "to_age": 36,
+        "duration_seconds": 2.24,
+        "interpolated_frame_count": 67,
+        "source_hit_frame": 381,
+        "first_output_frame": 382,
+        "target_hit_frame": 448,
+        "elapsed_at_target_seconds": 14.966667
+      },
+      {
+        "from_age": 36,
+        "to_age": 46,
+        "duration_seconds": 2.56,
+        "interpolated_frame_count": 77,
+        "source_hit_frame": 448,
+        "first_output_frame": 449,
+        "target_hit_frame": 525,
+        "elapsed_at_target_seconds": 17.533333
+      },
+      {
+        "from_age": 46,
+        "to_age": 51,
+        "duration_seconds": 1.96,
+        "interpolated_frame_count": 59,
+        "source_hit_frame": 525,
+        "first_output_frame": 526,
+        "target_hit_frame": 584,
+        "elapsed_at_target_seconds": 19.5
+      },
+      {
+        "from_age": 51,
+        "to_age": 56,
+        "duration_seconds": 1.96,
+        "interpolated_frame_count": 59,
+        "source_hit_frame": 584,
+        "first_output_frame": 585,
+        "target_hit_frame": 643,
+        "elapsed_at_target_seconds": 21.466667
+      }
+    ],
+    "anchors": [
+      {
+        "age": 8,
+        "hit_frame": 0,
+        "elapsed_seconds": 0.0
+      },
+      {
+        "age": 11,
+        "hit_frame": 89,
+        "elapsed_seconds": 3.0
+      },
+      {
+        "age": 14,
+        "hit_frame": 161,
+        "elapsed_seconds": 5.4
+      },
+      {
+        "age": 18,
+        "hit_frame": 235,
+        "elapsed_seconds": 7.866667
+      },
+      {
+        "age": 24,
+        "hit_frame": 308,
+        "elapsed_seconds": 10.3
+      },
+      {
+        "age": 30,
+        "hit_frame": 381,
+        "elapsed_seconds": 12.733333
+      },
+      {
+        "age": 36,
+        "hit_frame": 448,
+        "elapsed_seconds": 14.966667
+      },
+      {
+        "age": 46,
+        "hit_frame": 525,
+        "elapsed_seconds": 17.533333
+      },
+      {
+        "age": 51,
+        "hit_frame": 584,
+        "elapsed_seconds": 19.5
+      },
+      {
+        "age": 56,
+        "hit_frame": 643,
+        "elapsed_seconds": 21.466667
+      }
+    ],
+    "expected_frame_count": 680,
+    "expected_duration_seconds": 22.666666666666668,
+    "transition_end_frame": 643
+  },
+  "validation": {
+    "passed": true,
+    "format_checks": {
+      "codec_h264": true,
+      "width_768": true,
+      "height_1024": true,
+      "fps_30_cfr": true,
+      "declared_frame_count_matches_plan": true,
+      "decoded_frame_count_matches_plan": true,
+      "declared_and_decoded_counts_match": true
+    },
+    "content_checks": {
+      "no_black_frames": true,
+      "no_blank_frames": true,
+      "no_unexpected_frozen_frames": true,
+      "no_severe_pixel_jumps": true,
+      "no_severe_face_jumps": true,
+      "approved_endpoints_match": true,
+      "face_detected_in_every_frame": true
+    },
+    "thresholds": {
+      "black_mean_luma_below": 6.0,
+      "black_pixel_fraction_above": 0.98,
+      "blank_luma_std_below": 2.0,
+      "unexpected_frozen_mean_absdiff_below": 0.025,
+      "unexpected_frozen_minimum_continuous_frames": 8,
+      "pixel_jump_mean_absdiff_above": 12.0,
+      "severe_pixel_jump_mean_absdiff_above": 28.0,
+      "face_center_jump_normalized_above": 0.018,
+      "face_scale_log_jump_above": 0.055,
+      "endpoint_psnr_db_min": 30.0,
+      "endpoint_ssim_min": 0.97,
+      "yunet_score_min": 0.65
+    },
+    "statistics": {
+      "luma_mean_min": 143.76604,
+      "luma_mean_max": 152.751087,
+      "luma_std_min": 50.285492,
+      "pixel_diff_median": 0.177795,
+      "pixel_diff_mad": 0.083781,
+      "low_motion_frame_count": 4,
+      "longest_low_motion_run_frames": 1,
+      "face_center_jump_median": 0.00012215,
+      "face_center_jump_mad": 6.054e-05,
+      "face_scale_jump_median": 0.00080778,
+      "face_scale_jump_mad": 0.00056449
+    },
+    "flagged_frames": {
+      "black": [],
+      "blank": [],
+      "advisory_low_motion": [
+        383,
+        450,
+        586,
+        601
+      ],
+      "unexpected_frozen": [],
+      "pixel_jump": [],
+      "severe_pixel_jump": [],
+      "no_face": [],
+      "multiple_faces": [],
+      "low_face_confidence": [],
+      "face_center_jump": [],
+      "face_scale_jump": [],
+      "severe_face_jump": []
+    },
+    "endpoint_similarity": {
+      "youngest_age": 8,
+      "current_age": 56,
+      "first_frame_to_youngest": {
+        "mse": 7.514189,
+        "psnr_db": 39.372,
+        "ssim": 0.988306
+      },
+      "last_frame_to_current": {
+        "mse": 7.357378,
+        "psnr_db": 39.4636,
+        "ssim": 0.990337
+      }
+    },
+    "face_detector": {
+      "enabled": true,
+      "model": "backend/models/face_detection_yunet_2023mar.onnx",
+      "model_sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+      "detection_input_size": [
+        480,
+        640
+      ],
+      "observed_frames": 680,
+      "minimum_score": 0.942463,
+      "anchor_observations": [
+        {
+          "frame": 0,
+          "score": 0.942543,
+          "detections": 1,
+          "box": [
+            241.0615,
+            186.8729,
+            284.4797,
+            384.5695
+          ],
+          "center": [
+            383.3013,
+            379.1577
+          ],
+          "eye_midpoint": [
+            379.3887,
+            345.907
+          ],
+          "eye_span": 129.5779
+        },
+        {
+          "frame": 89,
+          "score": 0.945241,
+          "detections": 1,
+          "box": [
+            244.4182,
+            181.8096,
+            278.0417,
+            384.4
+          ],
+          "center": [
+            383.439,
+            374.0096
+          ],
+          "eye_midpoint": [
+            383.7231,
+            341.2405
+          ],
+          "eye_span": 129.831
+        },
+        {
+          "frame": 161,
+          "score": 0.945208,
+          "detections": 1,
+          "box": [
+            234.5239,
+            188.4832,
+            295.1256,
+            388.544
+          ],
+          "center": [
+            382.0867,
+            382.7552
+          ],
+          "eye_midpoint": [
+            379.6895,
+            343.4399
+          ],
+          "eye_span": 132.5819
+        },
+        {
+          "frame": 235,
+          "score": 0.94673,
+          "detections": 1,
+          "box": [
+            249.2894,
+            194.9484,
+            271.2942,
+            368.2565
+          ],
+          "center": [
+            384.9365,
+            379.0767
+          ],
+          "eye_midpoint": [
+            386.3256,
+            341.7891
+          ],
+          "eye_span": 127.0804
+        },
+        {
+          "frame": 308,
+          "score": 0.944099,
+          "detections": 1,
+          "box": [
+            237.3079,
+            186.9479,
+            296.1301,
+            397.9544
+          ],
+          "center": [
+            385.3729,
+            385.9251
+          ],
+          "eye_midpoint": [
+            388.5492,
+            347.4741
+          ],
+          "eye_span": 132.0943
+        },
+        {
+          "frame": 381,
+          "score": 0.943311,
+          "detections": 1,
+          "box": [
+            244.7327,
+            185.3272,
+            285.9077,
+            395.5283
+          ],
+          "center": [
+            387.6865,
+            383.0913
+          ],
+          "eye_midpoint": [
+            388.2264,
+            345.0902
+          ],
+          "eye_span": 130.1134
+        },
+        {
+          "frame": 448,
+          "score": 0.947184,
+          "detections": 1,
+          "box": [
+            237.6179,
+            190.5597,
+            287.1616,
+            391.623
+          ],
+          "center": [
+            381.1987,
+            386.3713
+          ],
+          "eye_midpoint": [
+            383.6875,
+            344.3231
+          ],
+          "eye_span": 132.4514
+        },
+        {
+          "frame": 525,
+          "score": 0.946526,
+          "detections": 1,
+          "box": [
+            242.8303,
+            188.7266,
+            288.7455,
+            394.7312
+          ],
+          "center": [
+            387.2031,
+            386.0922
+          ],
+          "eye_midpoint": [
+            387.0564,
+            343.4758
+          ],
+          "eye_span": 130.9068
+        },
+        {
+          "frame": 584,
+          "score": 0.944578,
+          "detections": 1,
+          "box": [
+            247.7154,
+            192.1454,
+            279.6557,
+            379.6799
+          ],
+          "center": [
+            387.5432,
+            381.9853
+          ],
+          "eye_midpoint": [
+            387.549,
+            340.9399
+          ],
+          "eye_span": 127.0322
+        },
+        {
+          "frame": 643,
+          "score": 0.944493,
+          "detections": 1,
+          "box": [
+            243.4645,
+            191.0349,
+            282.5941,
+            385.4177
+          ],
+          "center": [
+            384.7615,
+            383.7438
+          ],
+          "eye_midpoint": [
+            386.9854,
+            341.3451
+          ],
+          "eye_span": 128.7472
+        }
+      ]
+    },
+    "qc_contact_sheet": "data/personas/persona_miyeong/morph.next.qc.png"
+  }
+}

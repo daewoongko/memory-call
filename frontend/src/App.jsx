@@ -6,7 +6,8 @@ import FamilyScreen from "./screens/FamilyScreen.jsx";
 import CallingScreen from "./screens/CallingScreen.jsx";
 import CallScreen from "./screens/CallScreen.jsx";
 import SummaryScreen from "./screens/SummaryScreen.jsx";
-import GuardianScreen from "./screens/GuardianScreen.jsx";
+import CareManagerScreen from "./screens/CareManagerScreen.jsx";
+import ChildScreen from "./screens/ChildScreen.jsx";
 import IncomingScreen from "./screens/IncomingScreen.jsx";
 import SplashScreen from "./screens/SplashScreen.jsx";
 import RoleScreen from "./screens/RoleScreen.jsx";
@@ -54,7 +55,10 @@ export default function App() {
   // 앱을 처음 열면 스플래시 → 역할 선택 → 연동을 거친다.
   // 한 번 고른 역할은 기기에 남아 다음부터 바로 본 화면으로 간다.
   const [booted, setBooted] = useState(false);
-  const [role, setRole] = useState(() => readLocal(KEY_ROLE));
+  const [role, setRole] = useState(() => {
+    const saved = readLocal(KEY_ROLE);
+    return saved === "guardian" ? "care" : saved;
+  });
   const [linked, setLinked] = useState(() => readLocal(KEY_LINKED));
   const [guardianOnboarded, setGuardianOnboarded] = useState(
     () => readLocal(KEY_GUARDIAN_ONBOARDING) === "done"
@@ -152,9 +156,18 @@ export default function App() {
     setPhase("idle");
   }
 
-  const wrap = (node, { gear = false, wide = false } = {}) => (
+  const wrap = (node, { gear = false, wide = false, roleSwitch = false } = {}) => (
     <div className={`frame${wide ? " guardian-frame" : ""}`}>
       <div className={`device${wide ? " guardian-device" : ""}`}>
+        {roleSwitch && (
+          <button
+            className="role-switch"
+            onClick={() => { setRole(null); window.location.hash = ""; }}
+            aria-label="역할 선택 화면으로 돌아가기"
+          >
+            역할 선택
+          </button>
+        )}
         {gear && (
           <button
             className="gear"
@@ -181,6 +194,7 @@ export default function App() {
   const chooseRole = (picked) => {
     setRole(picked);
     writeLocal(KEY_ROLE, picked);
+    window.location.hash = picked === "child" ? "#family" : `#${picked}`;
   };
 
   const finishLink = (elderId) => {
@@ -193,12 +207,18 @@ export default function App() {
     writeLocal(KEY_GUARDIAN_ONBOARDING, "done");
   };
 
+  // 루트에서는 저장된 역할과 관계없이 항상 역할을 먼저 고른다.
+  if (!hash || hash === "#roles")
+    return wrap(<RoleScreen onPick={chooseRole} />, { wide: true });
+
   // 주소로 직접 들어온 경우는 입구를 건너뛴다.
   // #elder는 이 브라우저에 저장된 보호자 역할과 무관하게 어르신 화면을 연다.
   const directElder = hash === "#elder";
-  if (hash === "#guardian") {
-    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen onDone={finishGuardianOnboarding} />, { wide: true });
-    return wrap(<GuardianScreen />, { gear: true, wide: true });
+  if (hash === "#care" || hash === "#guardian")
+    return wrap(<CareManagerScreen />, { gear: true, wide: true, roleSwitch: true });
+  if (hash === "#child" || hash === "#family") {
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true });
+    return wrap(<ChildScreen />, { gear: true, wide: true, roleSwitch: true });
   }
 
   if (!directElder && !booted)
@@ -215,9 +235,13 @@ export default function App() {
       />
     );
 
-  if (!directElder && role === "guardian") {
+  if (!directElder && role === "care") {
+    return wrap(<CareManagerScreen />, { gear: true, wide: true });
+  }
+
+  if (!directElder && role === "child") {
     if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen onDone={finishGuardianOnboarding} />, { wide: true });
-    return wrap(<GuardianScreen />, { gear: true, wide: true });
+    return wrap(<ChildScreen />, { gear: true, wide: true });
   }
 
 
@@ -237,7 +261,7 @@ export default function App() {
   if (phase === "idle")
     return wrap(
       <FamilyScreen onPick={startCalling} error={error} />,
-      { gear: true }
+      { gear: true, roleSwitch: true }
     );
 
   if (phase === "connecting")

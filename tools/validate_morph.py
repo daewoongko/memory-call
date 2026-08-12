@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Validate the final memory-call RIFE morph and write reproducible QC metadata.
+"""Validate a youngest-to-current memory-call RIFE morph.
 
 The validator intentionally decodes every frame.  It checks the delivery contract
-(H.264, 768x1024, 30 fps, 852 frames), detects corrupt/black/frozen/jumping frames,
+(H.264, 768x1024, 30 fps), detects corrupt/black/frozen/jumping frames,
 runs YuNet on every decoded frame when the model is available, verifies that the
-video starts and ends on the approved age-8/age-32 anchors, and produces both a
+video starts and ends on its approved youngest/current anchors, and produces both a
 contact sheet and ``morph.json``.
 
 The staged ``morph.next`` artifacts stay beside the live media and are installed
@@ -50,7 +50,7 @@ LEAD_HOLD_SECONDS = 0.6
 TAIL_HOLD_SECONDS = 1.2
 
 # Deliberately slower childhood passages and slightly quicker adult passages.
-SEGMENT_SECONDS: tuple[tuple[int, int, float], ...] = (
+LEGACY_SEGMENTS: tuple[tuple[int, int, float], ...] = (
     (8, 9, 2.4),
     (9, 11, 2.6),
     (11, 13, 2.6),
@@ -64,6 +64,7 @@ SEGMENT_SECONDS: tuple[tuple[int, int, float], ...] = (
     (29, 31, 1.8),
     (31, 32, 1.6),
 )
+LEGACY_SECONDS = {(start, end): seconds for start, end, seconds in LEGACY_SEGMENTS}
 
 
 @dataclass
@@ -113,11 +114,23 @@ def load_sequence(sequence_dir: Path) -> list[tuple[int, Path]]:
     if missing:
         raise FileNotFoundError("Missing keyframes: " + ", ".join(missing))
     sequence = [(age_from_name(path), path) for path in paths]
-    expected_ages = [SEGMENT_SECONDS[0][0], *(end for _, end, _ in SEGMENT_SECONDS)]
     actual_ages = [age for age, _ in sequence]
-    if actual_ages != expected_ages:
-        raise ValueError(f"Unexpected keyframe ages: {actual_ages}; expected {expected_ages}")
+    if len(actual_ages) < 2 or actual_ages != sorted(set(actual_ages)):
+        raise ValueError(
+            f"Keyframe ages must be unique and youngest-to-current: {actual_ages}"
+        )
     return sequence
+
+
+def segment_seconds(start_age: int, end_age: int) -> float:
+    legacy = LEGACY_SECONDS.get((start_age, end_age))
+    if legacy is not None:
+        return legacy
+    gap = end_age - start_age
+    if gap <= 0:
+        raise ValueError(f"Invalid age segment: {start_age}->{end_age}")
+    base = 2.4 if end_age <= 18 else 2.2 if end_age <= 30 else 2.0 if end_age <= 50 else 1.8
+    return round(min(2.8, base + max(0, gap - 3) * 0.08), 2)
 
 
 def fourcc_text(value: float) -> str:
@@ -189,14 +202,15 @@ def consecutive_runs(frame_numbers: Iterable[int]) -> list[list[int]]:
     return runs
 
 
-def build_timing(fps: float = EXPECTED_FPS) -> dict[str, Any]:
+def build_timing(ages: list[int], fps: float = EXPECTED_FPS) -> dict[str, Any]:
     lead_frames = round(LEAD_HOLD_SECONDS * fps)
     tail_frames = round(TAIL_HOLD_SECONDS * fps)
     segments: list[dict[str, Any]] = []
     source_hit_frame = 0
     next_output_frame = lead_frames
-    anchors = [{"age": SEGMENT_SECONDS[0][0], "hit_frame": 0, "elapsed_seconds": 0.0}]
-    for from_age, to_age, seconds in SEGMENT_SECONDS:
+    anchors = [{"age": ages[0], "hit_frame": 0, "elapsed_seconds": 0.0}]
+    for from_age, to_age in zip(ages, ages[1:]):
+        seconds = segment_seconds(from_age, to_age)
         frame_count = round(seconds * fps)
         target_hit_frame = next_output_frame + frame_count - 1
         elapsed = (target_hit_frame + 1) / fps
@@ -317,7 +331,8 @@ def validate(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
     published_video = args.published_video_path.resolve() if args.published_video_path else video
     sequence_dir = args.sequence_dir.resolve()
     sequence = load_sequence(sequence_dir)
-    timing = build_timing(EXPECTED_FPS)
+    sequence_ages = [age for age, _ in sequence]
+    timing = build_timing(sequence_ages, EXPECTED_FPS)
     expected_count = timing["expected_frame_count"]
     anchor_frames = {item["hit_frame"]: item["age"] for item in timing["anchors"]}
 
@@ -483,8 +498,8 @@ def validate(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         "width_768": declared_width == EXPECTED_WIDTH,
         "height_1024": declared_height == EXPECTED_HEIGHT,
         "fps_30_cfr": abs(declared_fps - EXPECTED_FPS) <= 0.05,
-        "declared_frame_count_852": declared_count == expected_count,
-        "decoded_frame_count_852": decoded_count == expected_count,
+        "declared_frame_count_matches_plan": declared_count == expected_count,
+        "decoded_frame_count_matches_plan": decoded_count == expected_count,
         "declared_and_decoded_counts_match": declared_count == decoded_count,
     }
     content_checks = {
@@ -585,8 +600,10 @@ def validate(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
                 "severe_face_jump": severe_face_jump_frames,
             },
             "endpoint_similarity": {
-                "first_frame_to_age8": start_metrics,
-                "last_frame_to_age32": end_metrics,
+                "youngest_age": sequence_ages[0],
+                "current_age": sequence_ages[-1],
+                "first_frame_to_youngest": start_metrics,
+                "last_frame_to_current": end_metrics,
             },
             "face_detector": {
                 "enabled": detector is not None,
@@ -654,10 +671,12 @@ def main() -> int:
     )
     endpoints = validation["endpoint_similarity"]
     print(
-        f"Endpoints: age8 PSNR {endpoints['first_frame_to_age8']['psnr_db']:.2f} dB, "
-        f"SSIM {endpoints['first_frame_to_age8']['ssim']:.4f} | "
-        f"age32 PSNR {endpoints['last_frame_to_age32']['psnr_db']:.2f} dB, "
-        f"SSIM {endpoints['last_frame_to_age32']['ssim']:.4f}"
+        f"Endpoints: age{endpoints['youngest_age']} PSNR "
+        f"{endpoints['first_frame_to_youngest']['psnr_db']:.2f} dB, "
+        f"SSIM {endpoints['first_frame_to_youngest']['ssim']:.4f} | "
+        f"age{endpoints['current_age']} PSNR "
+        f"{endpoints['last_frame_to_current']['psnr_db']:.2f} dB, "
+        f"SSIM {endpoints['last_frame_to_current']['ssim']:.4f}"
     )
     print(f"Report: {args.out_json.resolve()}")
     print(f"QC sheet: {args.contact_sheet.resolve()}")

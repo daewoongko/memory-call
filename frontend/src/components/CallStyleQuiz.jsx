@@ -5,7 +5,13 @@ import {
   calculateCallStyle,
 } from "../callStyle.js";
 
-export default function CallStyleQuiz({ answers, onAnswers, onApply, applyLabel = "이 유형 적용" }) {
+export default function CallStyleQuiz({
+  answers,
+  onAnswers,
+  onApply,
+  onUseDefault,
+  applyLabel = "이 유형 적용",
+}) {
   const [dimensionIndex, setDimensionIndex] = useState(0);
   const dimension = CALL_STYLE_DIMENSIONS[dimensionIndex];
   const result = useMemo(() => calculateCallStyle(answers), [answers]);
@@ -22,6 +28,10 @@ export default function CallStyleQuiz({ answers, onAnswers, onApply, applyLabel 
       </div>
       <b>{answered}/{CALL_STYLE_TOTAL_QUESTIONS}</b>
     </header>
+    {onUseDefault && <div className="call-style-default">
+      <div><b>질문 없이 시작할 수도 있어요</b><span>차분하게 사실을 알려주고, 지금 할 일 하나를 안내하는 안전한 기본 말투를 사용합니다.</span></div>
+      <button type="button" onClick={onUseDefault}>기본 말투로 건너뛰기</button>
+    </div>}
     <div className="persona-progress"><i style={{ width: `${answered / CALL_STYLE_TOTAL_QUESTIONS * 100}%` }} /></div>
 
     <nav className="call-style-dimensions" aria-label="통화 성향 검사 단계">

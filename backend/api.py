@@ -275,6 +275,17 @@ class MedicationRequest(BaseModel):
     meal_relation: str = Field(default="none", pattern="^(before|after|none)$")
     days_of_week: list[str] = Field(
         default=["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"])
+    indication: str = Field(default="", max_length=120)
+    monitoring_points: list[str] = Field(default=[])
+    review_interval_days: int = Field(default=14, ge=1, le=180)
+    escalation_criteria: str = Field(default="", max_length=300)
+
+
+class MedicationReviewRequest(BaseModel):
+    review_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    severity: int = Field(ge=0, le=3)
+    observed_flags: list[str] = Field(default=[])
+    note: str = Field(default="", max_length=500)
 
 
 # ------------------------------------------------------------------ 헬퍼
@@ -876,10 +887,16 @@ def delete_schedule(schedule_id: str):
 @app.get("/api/elders/{elder_id}/medications")
 def list_medications(elder_id: str = "elder_001"):
     """보호자가 등록한 복약 일정과 오늘 현황."""
+    with db.connect() as conn:
+        reviews = conn.execute(
+            "SELECT * FROM medication_reviews WHERE elder_id = ? "
+            "ORDER BY review_date DESC, review_id DESC", (elder_id,),
+        ).fetchall()
     return {
         "elder_id": elder_id,
         "today": med_mod.today_status(elder_id),
         "medications": med_mod.listing(elder_id),
+        "reviews": [db._row(row) for row in reviews],
     }
 
 
@@ -895,10 +912,36 @@ def add_medication(elder_id: str, req: MedicationRequest):
             "scheduled_time": req.scheduled_time,
             "meal_relation": req.meal_relation,
             "days_of_week": req.days_of_week,
+            "indication": req.indication,
+            "monitoring_points": req.monitoring_points,
+            "review_interval_days": req.review_interval_days,
+            "escalation_criteria": req.escalation_criteria,
             "active": 1,
         })
         conn.commit()
     return {"schedule_id": schedule_id, "today": med_mod.today_status(elder_id)}
+
+
+@app.post("/api/elders/{elder_id}/medications/{schedule_id}/reviews")
+def add_medication_review(elder_id: str, schedule_id: str,
+                          req: MedicationReviewRequest):
+    with db.connect() as conn:
+        medication = conn.execute(
+            "SELECT schedule_id FROM medications WHERE schedule_id = ? AND elder_id = ?",
+            (schedule_id, elder_id),
+        ).fetchone()
+        if medication is None:
+            raise HTTPException(404, "해당 환자의 복약 일정을 찾을 수 없습니다.")
+        review_id = db.insert(conn, "medication_reviews", {
+            "elder_id": elder_id,
+            "schedule_id": schedule_id,
+            "review_date": req.review_date,
+            "severity": req.severity,
+            "observed_flags": req.observed_flags,
+            "note": req.note,
+        })
+        conn.commit()
+    return {"review_id": review_id, "ok": True}
 
 
 @app.delete("/api/medications/{schedule_id}")
