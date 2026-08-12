@@ -206,55 +206,111 @@ function signalCounts(source) {
   return counts;
 }
 
-function TimeComparisonChart({ daySummary, baselineSummary }) {
-  const dayBlocks = daySummary?.rhythm?.time_blocks || [];
-  const baselineBlocks = baselineSummary?.rhythm?.time_blocks || [];
-  const observedDays = Math.max(1, baselineSummary?.rhythm?.days_observed || baselineSummary?.days || 1);
-  const rows = dayBlocks.map((block, index) => ({
-    label: `${String(block.start_hour).padStart(2, "0")}시`,
-    today: block.calls || 0,
-    average: Number(((baselineBlocks[index]?.calls || 0) / observedDays).toFixed(1)),
+function domainCounts(source) {
+  const counts = new Map(Object.keys(CARE_LABEL).map((key) => [key, 0]));
+  (source?.daily_reports || []).forEach((day) => (day.observations || []).forEach((item) => {
+    if (counts.has(item.domain)) counts.set(item.domain, counts.get(item.domain) + (item.count || 0));
   }));
-  const width = 760, height = 240, left = 38, top = 20, bottom = 36, right = 18;
-  const innerWidth = width - left - right, innerHeight = height - top - bottom;
-  const peak = Math.max(1, ...rows.flatMap((row) => [row.today, row.average]));
-  const point = (value, index) => `${left + index * innerWidth / Math.max(1, rows.length - 1)},${top + innerHeight - value / peak * innerHeight}`;
-  const todayPoints = rows.map((row, index) => point(row.today, index)).join(" ");
-  const averagePoints = rows.map((row, index) => point(row.average, index)).join(" ");
-  const strongest = rows.slice().sort((a, b) => (b.today - b.average) - (a.today - a.average))[0];
-  return <figure className="time-comparison-chart">
-    <header><div><b>시간대별 통화량</b><span>{daySummary?.since} 하루와 해당 월의 일평균 비교</span></div><div className="comparison-legend"><span className="today">선택일</span><span className="average">월 일평균</span></div></header>
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="선택일과 월평균 시간대별 통화 비교">
-      {[0, .5, 1].map((ratio) => <g key={ratio}><line x1={left} x2={width - right} y1={top + ratio * innerHeight} y2={top + ratio * innerHeight} className="comparison-grid" /><text x={left - 7} y={top + ratio * innerHeight + 3} textAnchor="end">{Math.round(peak * (1 - ratio))}</text></g>)}
-      <polyline points={averagePoints} className="comparison-line average" />
-      <polyline points={todayPoints} className="comparison-line today" />
-      {rows.map((row, index) => <g key={row.label}><circle cx={left + index * innerWidth / Math.max(1, rows.length - 1)} cy={top + innerHeight - row.today / peak * innerHeight} r="4" className="comparison-dot"><title>{row.label} 선택일 {row.today}회 · 월평균 {row.average}회</title></circle>{index % 2 === 0 && <text x={left + index * innerWidth / Math.max(1, rows.length - 1)} y={height - 10} textAnchor="middle">{row.label}</text>}</g>)}
-    </svg>
-    <figcaption>{strongest ? `${strongest.label}에 월평균보다 ${Math.max(0, Number((strongest.today - strongest.average).toFixed(1)))}회 더 많은 연락이 확인됐습니다.` : "비교할 통화가 없습니다."}</figcaption>
-  </figure>;
+  return counts;
 }
 
-function SignalRadar({ daySummary, baselineSummary }) {
-  const todayCounts = signalCounts(daySummary);
-  const baselineCounts = signalCounts(baselineSummary);
-  const observedDays = Math.max(1, baselineSummary?.daily_reports?.length || baselineSummary?.days || 1);
-  const axes = SIGNAL_AXES.map(([signal, label]) => {
-    const today = todayCounts.get(signal) || 0;
-    const average = (baselineCounts.get(signal) || 0) / observedDays;
-    const index = average ? Math.min(100, today / average * 50) : (today ? 100 : 0);
-    return { signal, label, today, average, index, difference: today - average };
-  });
-  const size = 340, center = 170, radius = 108;
-  const xy = (index, ratio) => { const angle = -Math.PI / 2 + index * Math.PI * 2 / axes.length; return [center + Math.cos(angle) * radius * ratio, center + Math.sin(angle) * radius * ratio]; };
-  const polygon = (getter) => axes.map((axis, index) => xy(index, getter(axis) / 100).join(",")).join(" ");
-  return <figure className="signal-radar">
-    <header><div><b>발화 변화 육각형</b><span>월 일평균을 50으로 두고 선택일의 증감을 비교</span></div><div className="comparison-legend"><span className="today">선택일</span><span className="average">월평균</span></div></header>
-    <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label="선택일 발화 유형과 월평균 비교">
-      {[.25, .5, .75, 1].map((ratio) => <polygon key={ratio} points={axes.map((_, index) => xy(index, ratio).join(",")).join(" ")} className="radar-grid" />)}
-      {axes.map((axis, index) => { const [x, y] = xy(index, 1); const [lx, ly] = xy(index, 1.2); return <g key={axis.signal}><line x1={center} y1={center} x2={x} y2={y} className="radar-axis" /><text x={lx} y={ly} textAnchor="middle" className={axis.difference > 0 ? "radar-label up" : "radar-label"}>{axis.label}<tspan x={lx} dy="12">{axis.difference >= 0 ? "+" : ""}{axis.difference.toFixed(1)}</tspan></text></g>; })}
-      <polygon points={polygon(() => 50)} className="radar-average" />
-      <polygon points={polygon((axis) => axis.index)} className="radar-today" />
-    </svg>
+function Sparkline({ values = [], label = "추이", tone = "normal" }) {
+  const points = values.slice(-30).map(Number);
+  if (points.length < 2) return <span className="sparkline-empty" aria-label={`${label} 데이터 수집 중`}>—</span>;
+  const width = 90;
+  const height = 28;
+  const max = Math.max(...points, 1);
+  const min = Math.min(...points, 0);
+  const range = Math.max(1, max - min);
+  const path = points.map((value, index) => {
+    const x = index / (points.length - 1) * width;
+    const y = height - 3 - ((value - min) / range * (height - 6));
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return <svg className={`mini-sparkline ${tone}`} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${label}: ${points.join(", ")}`}>
+    <polyline points={path} fill="none" vectorEffect="non-scaling-stroke" />
+  </svg>;
+}
+
+function CareDomainRadar({ todayItems, averageItems }) {
+  const centerX = 260;
+  const centerY = 165;
+  const radius = 108;
+  const labelRadius = 145;
+  const maxValue = Math.max(1, ...todayItems.map((item) => item.value), ...averageItems.map((item) => item.value));
+  const point = (index, value, targetRadius = radius) => {
+    const angle = -Math.PI / 2 + index * Math.PI / 4;
+    const scaledRadius = targetRadius * (value / maxValue);
+    return [centerX + Math.cos(angle) * scaledRadius, centerY + Math.sin(angle) * scaledRadius];
+  };
+  const polygon = (items) => items.map((item, index) => point(index, item.value).map((value) => value.toFixed(1)).join(",")).join(" ");
+  const gridPolygon = (ratio) => todayItems.map((_, index) => point(index, ratio * maxValue).map((value) => value.toFixed(1)).join(",")).join(" ");
+  const total = todayItems.reduce((sum, item) => sum + item.value, 0);
+  return <section className="care-domain-radar" aria-label="오늘과 최근 30일 일평균의 8개 관찰영역 비교">
+    <header><div><h3>오늘 발화에서 확인된 8개 영역</h3><p>모든 영역을 같은 건수 축으로 비교합니다.</p></div><div className="radar-legend"><span className="today">오늘</span><span className="average">최근 30일 일평균</span></div></header>
+    <div className="radar-layout">
+      <svg viewBox="0 0 520 340" role="img" aria-label={`8개 영역 오늘 총 ${total}건, 최근 30일 하루 평균과 비교`}>
+        {[.25, .5, .75, 1].map((ratio) => <polygon key={ratio} className="radar-grid" points={gridPolygon(ratio)} />)}
+        {todayItems.map((_, index) => {
+          const [x, y] = point(index, maxValue);
+          return <line key={index} className="radar-axis" x1={centerX} y1={centerY} x2={x} y2={y} />;
+        })}
+        <polygon className="radar-average" points={polygon(averageItems)} />
+        <polygon className="radar-today" points={polygon(todayItems)} />
+        {todayItems.map((item, index) => {
+          const angle = -Math.PI / 2 + index * Math.PI / 4;
+          const x = centerX + Math.cos(angle) * labelRadius;
+          const y = centerY + Math.sin(angle) * labelRadius;
+          const anchor = Math.abs(Math.cos(angle)) < .2 ? "middle" : Math.cos(angle) > 0 ? "start" : "end";
+          return <text key={item.key} x={x} y={y} textAnchor={anchor} className="radar-label"><tspan x={x}>{item.label}</tspan><tspan x={x} dy="15">오늘 {item.value} · 평균 {averageItems[index].value.toFixed(1)}</tspan></text>;
+        })}
+      </svg>
+      <div className="radar-values" aria-label="영역별 비교 수치">{todayItems.map((item, index) => <div key={item.key}><span>{item.label}</span><b>{item.value}</b><small>평균 {averageItems[index].value.toFixed(1)}</small></div>)}</div>
+    </div>
+    <p className="care-domain-policy">진단 점수가 아니라 실제 발화 근거의 관찰 건수입니다. 축별 비율을 따로 키우지 않았습니다.</p>
+  </section>;
+}
+
+function WeekdayTimeHeatmap({ baselineSummary, selectedDate, onSelectDate }) {
+  const heatmap = baselineSummary?.rhythm?.weekday_time_heatmap;
+  const weekdays = heatmap?.weekdays || [];
+  const timeBlocks = heatmap?.time_blocks || [];
+  const cells = heatmap?.cells || [];
+  const maxAverage = Math.max(Number(heatmap?.max_average_per_day || 0), 0);
+  const cellMap = new Map(cells.map((cell) => [`${cell.weekday}-${cell.start_hour}`, cell]));
+  const selectedWeekday = selectedDate
+    ? (new Date(`${selectedDate}T12:00:00`).getDay() + 6) % 7
+    : -1;
+  const intensity = (value) => {
+    if (!value || !maxAverage) return 0;
+    return Math.max(1, Math.min(5, Math.ceil(value / maxAverage * 5)));
+  };
+  const peakCell = cells.slice().sort((a, b) => b.average_per_day - a.average_per_day)[0];
+  const selectWeekday = (weekday) => {
+    if (!selectedDate || !onSelectDate) return;
+    const target = new Date(`${selectedDate}T12:00:00`);
+    const currentWeekday = (target.getDay() + 6) % 7;
+    target.setDate(target.getDate() - ((currentWeekday - weekday + 7) % 7));
+    const localDate = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
+    onSelectDate(localDate);
+  };
+  return <figure className="weekday-time-heatmap">
+    <header><div><b>요일 × 시간대 통화 밀도</b><span>최근 {heatmap?.days || 30}일 · 같은 요일 하루당 평균 통화</span></div><div className="heatmap-legend"><span>적음</span>{[1, 2, 3, 4, 5].map((level) => <i key={level} className={`heat-${level}`} />)}<span>많음</span></div></header>
+    {weekdays.length && timeBlocks.length ? <div className="heatmap-scroll"><div className="heatmap-grid" aria-label="최근 30일 요일과 시간대별 평균 통화량 히트맵">
+      <span className="heatmap-corner">요일</span>
+      {timeBlocks.map((block) => <span className="heatmap-hour" key={block.start_hour}>{String(block.start_hour).padStart(2, "0")}</span>)}
+      {weekdays.map((weekday) => <div className={`heatmap-row ${weekday.weekday === selectedWeekday ? "selected" : ""}`} key={weekday.weekday}>
+        <button type="button" className="heatmap-weekday" onClick={() => selectWeekday(weekday.weekday)} aria-pressed={weekday.weekday === selectedWeekday}>{weekday.label}<small>{weekday.weekday === selectedWeekday ? "선택일" : `${weekday.days_observed}일`}</small></button>
+        {timeBlocks.map((block) => {
+          const cell = cellMap.get(`${weekday.weekday}-${block.start_hour}`) || { calls: 0, average_per_day: 0, days_observed: weekday.days_observed };
+          const average = Number(cell.average_per_day || 0);
+          return <button type="button" className={`heatmap-cell heat-${intensity(average)}`} key={block.start_hour} onClick={() => selectWeekday(weekday.weekday)} title={`${weekday.label}요일 ${block.label} · 총 ${cell.calls}통 / ${cell.days_observed}일 · 하루 평균 ${average.toFixed(1)}통`} aria-label={`${weekday.label}요일 ${block.label}, 하루 평균 ${average.toFixed(1)}통. 이 요일 선택`}>
+            {average ? average.toFixed(1) : "–"}
+          </button>;
+        })}
+      </div>)}
+    </div></div> : <p className="empty-state">요일별 통화 기록을 집계하고 있습니다.</p>}
+    <figcaption>{peakCell?.average_per_day > 0 ? `${peakCell.weekday_label}요일 ${String(peakCell.start_hour).padStart(2, "0")}~${String(peakCell.end_hour).padStart(2, "0")}시에 하루 평균 ${Number(peakCell.average_per_day).toFixed(1)}통으로 가장 많이 모였습니다.` : "최근 30일에 비교할 통화가 없습니다."}</figcaption>
   </figure>;
 }
 
@@ -267,8 +323,14 @@ function buildDeviations(daySummary, baselineSummary) {
     const today = todayCounts.get(signal) || 0;
     const average = (baselineCounts.get(signal) || 0) / observedDays;
     const observation = dayReport?.observations?.find((item) => item.signal === signal);
-    return { signal, label, today, average, difference: today - average, ratio: average ? today / average : (today ? 3 : 0), evidence: observation?.evidence?.[0], action: SIGNAL_ACTIONS[signal] };
-  }).filter((item) => item.today || item.average).sort((a, b) => b.difference - a.difference);
+    const trend = (baselineSummary?.daily_reports || []).slice(-30).map((day) =>
+      (day.observations || []).filter((item) => item.signal === signal).reduce((sum, item) => sum + (item.count || 0), 0));
+    return { signal, label, today, average, difference: today - average, ratio: average ? today / average : (today ? 3 : 0), evidence: observation?.evidence?.[0], action: SIGNAL_ACTIONS[signal], trend };
+  }).filter((item) => item.today || item.average).sort((a, b) => {
+    const aGroup = a.difference > 0 ? 0 : a.difference < 0 ? 1 : 2;
+    const bGroup = b.difference > 0 ? 0 : b.difference < 0 ? 1 : 2;
+    return aGroup - bGroup || Math.abs(b.difference) - Math.abs(a.difference);
+  });
 }
 
 function buildPriorityTasks(deviations, risks = [], medication = {}) {
@@ -289,16 +351,24 @@ function buildPriorityTasks(deviations, risks = [], medication = {}) {
   return tasks.sort((a, b) => a.level - b.level).slice(0, 5);
 }
 
-function SignalDetailModal({ signal, summary, onClose }) {
+function SignalDetailModal({ signal, summary, baselineNotes = [], medicalCautions = [], onClose }) {
   if (!signal) return null;
   const rows = (summary.time_reports || []).map((row) => {
     const observations = (row.observations || []).filter((item) => item.signal === signal.signal);
     return { ...row, count: observations.reduce((sum, item) => sum + item.count, 0), evidence: observations.flatMap((item) => item.evidence || []) };
   }).filter((row) => row.count > 0);
+  const scaleMax = Math.max(1, signal.scaleMax || Math.abs(signal.difference));
+  const width = Math.abs(signal.difference) / scaleMax * 50;
   return <div className="daily-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="signal-detail-modal" role="dialog" aria-modal="true">
-    <header><div><p className="eyebrow">발화 변화 상세</p><h2>{signal.label}</h2><p>월평균 {signal.average.toFixed(1)}회 · 선택일 {signal.today}회 · {signal.difference >= 0 ? "+" : ""}{signal.difference.toFixed(1)}회</p></div><button onClick={onClose}>×</button></header>
+    <header><div><h2>{signal.label} 상세</h2><p>오늘의 발화 근거와 최근 30일 하루 평균을 함께 봅니다.</p></div><button onClick={onClose} aria-label="상세 닫기">×</button></header>
+    <section className={`signal-detail-comparison ${signal.difference > 0 ? "up" : signal.difference < 0 ? "down" : "even"}`}>
+      <div className="signal-detail-values"><span>오늘 <b>{signal.today}회</b></span><span>30일 일평균 <b>{signal.average.toFixed(1)}회</b></span><strong>{signal.difference > 0 ? "증가" : signal.difference < 0 ? "감소" : "동일"} {signal.difference >= 0 ? "+" : ""}{signal.difference.toFixed(1)}</strong></div>
+      <div className="signal-detail-chart"><span className="signal-diverging-inline" aria-label={`평균 대비 ${signal.difference >= 0 ? "증가" : "감소"} ${Math.abs(signal.difference).toFixed(1)}회`}><i style={{ left: signal.difference < 0 ? `${50 - width}%` : "50%", width: `${Math.max(signal.difference ? 2 : 0, width)}%` }} /></span><Sparkline values={signal.trend} label={`${signal.label} 최근 30일 추이`} tone={signal.difference > 0 ? "alert" : "normal"} /></div>
+      <blockquote>“{signal.evidence || "선택일에 표시할 직접 발화 근거가 없습니다."}”</blockquote>
+    </section>
     <div className="signal-time-list">{rows.map((row) => <article key={row.key}><time>{row.time_label}</time><b>{row.count}회</b><blockquote>“{row.evidence[0]}”</blockquote></article>)}{!rows.length && <p className="empty-state">시간대별 직접 근거가 없습니다.</p>}</div>
     <div className="signal-solution"><small>담당자 확인 방법</small><p>{signal.action}</p></div>
+    <aside className="signal-baseline-note"><b>※ 평소 관찰 기준</b><p>{baselineNotes.length ? baselineNotes.join(" · ") : `최근 30일 하루 평균 ${signal.average.toFixed(1)}회를 비교 기준으로 사용했습니다.`}</p>{medicalCautions.length > 0 && <><b>※ 특히 보고할 변화</b><p>{medicalCautions.join(" · ")}</p></>}</aside>
   </section></div>;
 }
 
@@ -410,6 +480,7 @@ export default function ReportTabs({
   baselineSummary,
   comparisonDay,
   period,
+  onPeriod,
   onReload,
 }) {
   const [tab, setTab] = useState("insight");
@@ -418,6 +489,8 @@ export default function ReportTabs({
   const [showFamilyMoment, setShowFamilyMoment] = useState(false);
   const [selectedSignal, setSelectedSignal] = useState(null);
   const [showTimeDetails, setShowTimeDetails] = useState(false);
+  const [showDecreases, setShowDecreases] = useState(false);
+  const [showUnchanged, setShowUnchanged] = useState(false);
   const [planVersion, setPlanVersion] = useState(0);
   const profileBaselineNotes = textList(patientProfile?.care_baseline);
   const profileMedicalCautions = textList(patientProfile?.medical_cautions);
@@ -435,17 +508,34 @@ export default function ReportTabs({
   }
 
   const unread = summary.risks.filter((risk) => !risk.acknowledged);
-  const careItems = useMemo(() => Object.entries(CARE_LABEL).map(([key, label]) => ({
-    key, label, value: summary.care_counts?.[key] || 0,
-  })), [summary.care_counts]);
-  const careTotal = careItems.reduce((sum, item) => sum + item.value, 0);
   const periodReport = useMemo(() => mergeAnalysisRows(
     summary.daily_reports || [],
     `${summary.since} ~ ${summary.until} 전체 분석`,
   ), [summary.daily_reports, summary.since, summary.until]);
   const activeDaySummary = comparisonDay || (period.mode === "day" ? summary : null);
   const activeBaseline = baselineSummary || summary;
+  const activeDayDomainCounts = useMemo(() => domainCounts(activeDaySummary), [activeDaySummary]);
+  const careItems = useMemo(() => Object.entries(CARE_LABEL).map(([key, label]) => ({
+    key, label, value: activeDayDomainCounts.get(key) || 0,
+  })), [activeDayDomainCounts]);
+  const careTotal = careItems.reduce((sum, item) => sum + item.value, 0);
   const deviations = useMemo(() => buildDeviations(activeDaySummary, activeBaseline), [activeDaySummary, activeBaseline]);
+  const positiveDeviations = deviations.filter((item) => item.difference > .05);
+  const negativeDeviations = deviations.filter((item) => item.difference < -.05);
+  const unchangedDeviations = deviations.filter((item) => Math.abs(item.difference) <= .05);
+  const baselineDays = Math.max(1, activeBaseline?.daily_reports?.length || activeBaseline?.days || 1);
+  const baselineDomainCounts = useMemo(() => domainCounts(activeBaseline), [activeBaseline]);
+  const averageCareItems = useMemo(() => careItems.map((item) => ({
+    ...item, value: (baselineDomainCounts.get(item.key) || 0) / baselineDays,
+  })), [careItems, baselineDomainCounts, baselineDays]);
+  const dailyReports = activeBaseline?.daily_reports || [];
+  const kpis = [
+    { label: "AI 케어 통화", value: summary.calls, unit: "통", average: dailyReports.reduce((sum, day) => sum + (day.calls || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.calls || 0) },
+    { label: "통화 시간", value: Math.round(summary.total_seconds / 60), unit: "분", average: dailyReports.reduce((sum, day) => sum + (day.seconds || 0) / 60, 0) / baselineDays, trend: dailyReports.map((day) => Math.round((day.seconds || 0) / 60)) },
+    { label: "발화 기반 관찰", value: careTotal, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.observation_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.observation_count || 0) },
+    { label: "반복 발화", value: summary.repeat_total, unit: "회", average: dailyReports.reduce((sum, day) => sum + (day.repeated_total || day.repeat_total || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.repeated_total || day.repeat_total || 0) },
+    { label: "안전 신호", value: summary.risks.length, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.risk_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.risk_count || 0), status: unread.length ? `미확인 ${unread.length}건` : "모두 확인" },
+  ];
   const priorityTasks = useMemo(() => buildPriorityTasks(deviations, summary.risks, summary.medication), [deviations, summary.risks, summary.medication]);
   const operationalInsight = useMemo(() => buildOperationalInsight(activeDaySummary, activeBaseline), [activeDaySummary, activeBaseline]);
 
@@ -457,18 +547,16 @@ export default function ReportTabs({
     </div>
 
     {tab === "insight" && <>
-      <section className="dashboard-card manager-daily-summary">
-        <header><div><p className="eyebrow">오늘 한눈에 보기</p><h2>{elderName} 어르신의 발화 변화와 담당자 조치</h2><p>{patientProfile?.diagnosis_label || "등록된 진단 정보 없음"} · 월 {activeBaseline?.rhythm?.days_observed || 0}일 기준선과 비교</p></div><button className="family-moment-button" onClick={() => setShowFamilyMoment(true)}>가족에게 전할 순간 <b>{summary.meaningful_total || 0}</b><span>요점 보기 ›</span></button></header>
-        <div className="manager-summary-line"><span><b>{summary.calls}</b>통</span><span><b>{Math.round(summary.total_seconds / 60)}</b>분</span><span><b>{careTotal}</b>개 발화 신호</span><span><b>{summary.normalized_rates?.observation_per_100_utterances ?? "-"}</b>개/발화 100건</span><span className={unread.length ? "warn" : ""}><b>{unread.length}</b>개 안전 미확인</span><span><b>{summary.repeat_total}</b>회 반복</span></div>
-        {(profileBaselineNotes.length || profileMedicalCautions.length) > 0 && <div className="patient-baseline"><div><small>평소 관찰 기준</small><p>{profileBaselineNotes.join(" · ")}</p></div><div><small>특히 보고할 변화</small><p>{profileMedicalCautions.join(" · ")}</p></div></div>}
-      </section>
-
       <div className="manager-focus-layout">
-        <section className="dashboard-card signal-change-main"><header><div><p className="eyebrow">월평균 대비 발화 변화</p><h2>무엇이 달랐는지 먼저 봅니다</h2><p>항목을 누르면 발생 시간과 직접 발화를 확인할 수 있습니다.</p></div></header><div className="signal-change-list">{deviations.slice(0, 6).map((item) => <button key={item.signal} className={item.difference > 0 ? "up" : ""} onClick={() => setSelectedSignal(item)}><span className="signal-name"><b>{item.label}</b><small>월평균 {item.average.toFixed(1)}회</small></span><span className="signal-count"><b>{item.today}</b>회</span><span className={`signal-delta ${item.difference > 0 ? "up" : ""}`}>{item.difference >= 0 ? "+" : ""}{item.difference.toFixed(1)}</span><blockquote>“{item.evidence || "직접 발화 근거 없음"}”</blockquote><em>시간·근거 상세 ›</em></button>)}{!deviations.length && <p className="empty-state">월평균과 비교할 발화 신호가 없습니다.</p>}</div></section>
-        <aside className="dashboard-card daily-priority-panel"><header><div><p className="eyebrow">오늘의 담당자 할 일</p><h2>확인 우선순위</h2><p>이상 발화와 안전·복약 기록을 함께 반영했습니다.</p></div></header><ol>{priorityTasks.map((task, index) => <li key={task.key} className={`priority-${task.level}`}><span>{index + 1}</span><div><b>{task.title}</b><p>{task.reason}</p><ul>{task.steps.map((step) => <li key={step}>{step}</li>)}</ul></div></li>)}</ol></aside>
+        <section className="dashboard-card manager-combined-overview">
+          <header><div><h2>{elderName} 어르신의 오늘 관찰 요약</h2><p>{patientProfile?.diagnosis_label || "등록된 진단 정보 없음"} · 오늘과 최근 30일 하루 평균을 비교합니다.</p></div><button className="family-moment-button" onClick={() => setShowFamilyMoment(true)}>가족에게 전할 순간 <b>{summary.meaningful_total || 0}</b><span>요점 보기 ›</span></button></header>
+          <div className="manager-stat-grid">{kpis.map((item) => { const delta = item.value - item.average; return <article key={item.label}><span>{item.label}</span><strong>{item.value}<small>{item.unit}</small></strong><em>{item.status || `평균 대비 ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}`}</em><Sparkline values={item.trend} label={`${item.label} 최근 30일 추이`} tone={item.status && unread.length ? "alert" : "normal"} /></article>; })}</div>
+          <CareDomainRadar todayItems={careItems} averageItems={averageCareItems} />
+        </section>
+        <aside className="dashboard-card daily-priority-panel"><header><div><h2>확인 우선순위</h2><p>이상 발화와 안전·복약 기록을 함께 반영했습니다.</p></div></header><ol>{priorityTasks.map((task, index) => <li key={task.key} className={`priority-${task.level}`}><span>{index + 1}</span><div><b>{task.title}</b><p>{task.reason}</p><ul>{task.steps.map((step) => <li key={step}>{step}</li>)}</ul></div></li>)}</ol><section className="priority-signal-summary"><header><h3>평소와 달랐던 세부 발화</h3><p>증가한 항목부터 확인합니다.</p></header><div>{positiveDeviations.slice(0, 5).map((item) => <button key={item.signal} onClick={() => setSelectedSignal({ ...item, scaleMax: Math.max(1, ...deviations.map((row) => Math.abs(row.difference))) })}><span><b>{item.label}</b><small>오늘 {item.today}회 · 평균 {item.average.toFixed(1)}회</small></span><strong>증가 +{item.difference.toFixed(1)}</strong><em>자세히 보기 ›</em></button>)}{!positiveDeviations.length && <p className="empty-state">증가한 세부 발화가 없습니다.</p>}{negativeDeviations.length > 0 && <><button className="signal-group-toggle" onClick={() => setShowDecreases((value) => !value)}>감소한 변화 {negativeDeviations.length}개 <span>{showDecreases ? "접기" : "보기"}</span></button>{showDecreases && negativeDeviations.map((item) => <button key={item.signal} onClick={() => setSelectedSignal({ ...item, scaleMax: Math.max(1, ...deviations.map((row) => Math.abs(row.difference))) })}><span><b>{item.label}</b><small>오늘 {item.today}회 · 평균 {item.average.toFixed(1)}회</small></span><strong className="down">감소 {item.difference.toFixed(1)}</strong><em>자세히 보기 ›</em></button>)}</>}{unchangedDeviations.length > 0 && <><button className="signal-group-toggle quiet" onClick={() => setShowUnchanged((value) => !value)}>변화 없음 {unchangedDeviations.length}개 <span>{showUnchanged ? "접기" : "보기"}</span></button>{showUnchanged && unchangedDeviations.map((item) => <button key={item.signal} onClick={() => setSelectedSignal({ ...item, scaleMax: Math.max(1, ...deviations.map((row) => Math.abs(row.difference))) })}><span><b>{item.label}</b><small>오늘 {item.today}회 · 평균 {item.average.toFixed(1)}회</small></span><strong className="even">변화 없음</strong><em>자세히 보기 ›</em></button>)}</>}</div></section>{(profileBaselineNotes.length || profileMedicalCautions.length) > 0 && <div className="patient-baseline"><div><small>평소 관찰 기준</small><p>{profileBaselineNotes.join(" · ")}</p></div><div><small>특히 보고할 변화</small><p>{profileMedicalCautions.join(" · ")}</p></div></div>}</aside>
       </div>
 
-      <section className="dashboard-card compact-rhythm-report"><header><div><p className="eyebrow">시간대별 통화 리포트</p><h2>오늘과 월 일평균을 한눈에 비교합니다</h2><p>통화가 집중된 시간과 그 시간에 함께 나온 발화를 확인합니다.</p></div><button onClick={() => setShowTimeDetails(true)}>시간대 상세보기 ›</button></header><div className="rhythm-compare-grid"><TimeComparisonChart daySummary={activeDaySummary} baselineSummary={activeBaseline} /><SignalRadar daySummary={activeDaySummary} baselineSummary={activeBaseline} /></div></section>
+      <section className="dashboard-card compact-rhythm-report"><header><div><h2>최근 30일 통화 습관</h2><p>요일·시간대 통화 밀도를 선택해 해당 날짜의 발화를 확인합니다.</p></div><button onClick={() => setShowTimeDetails(true)}>선택일 상세보기 ›</button></header><WeekdayTimeHeatmap baselineSummary={activeBaseline} selectedDate={activeDaySummary?.since} onSelectDate={(value) => onPeriod?.({ mode: "day", value })} /></section>
 
       <SafetyChecklist elderId={elderId} date={summary.since} risks={summary.risks} priorityTasks={priorityTasks} />
     </>}
@@ -480,7 +568,7 @@ export default function ReportTabs({
         <div className="talk-brief-stats"><span>발화 관찰 <b>{careTotal}건</b></span><span>반복 발화 <b>{summary.repeat_total}회</b></span><span>안전 신호 <b>{summary.risks.length}건</b></span><span>가족 전달 <b>{summary.meaningful_total || 0}건</b></span></div>
         <section className="operational-forecast" aria-label="선택한 날의 패턴 기반 주의 예측"><header><div><span>월평균 대비 해석</span><h3>{operationalInsight.title}</h3></div><b>{operationalInsight.basis}</b></header><div className="forecast-grid"><article><small>오늘 확인된 의미</small><p>{operationalInsight.meaning}</p></article><article><small>다음 근무 주의점</small><p>{operationalInsight.next}</p></article><article><small>선제 행동</small><p>{operationalInsight.action || "추가 행동 근거가 없습니다."}</p></article></div></section>
       </section>
-      <section className="dashboard-card compact-time-report"><header><div><p className="eyebrow">시간대별 통화량</p><h2>그래프에서 집중 시간만 먼저 확인하세요</h2></div><button onClick={() => setShowTimeDetails(true)}>시간별 발화 보기 ›</button></header><TimeComparisonChart daySummary={activeDaySummary} baselineSummary={activeBaseline} /></section>
+      <section className="dashboard-card compact-time-report"><header><div><h2>요일과 시간대가 만나는 지점에서 집중 구간을 확인하세요</h2></div><button onClick={() => setShowTimeDetails(true)}>선택일 발화 보기 ›</button></header><WeekdayTimeHeatmap baselineSummary={activeBaseline} selectedDate={activeDaySummary?.since} onSelectDate={(value) => onPeriod?.({ mode: "day", value })} /></section>
       <section className="dashboard-card evidence-shortlist"><header><div><p className="eyebrow">발화 근거 바로가기</p><h2>변화가 큰 항목</h2></div></header><div>{deviations.slice(0, 5).map((item) => <button key={item.signal} onClick={() => setSelectedSignal(item)}><span>{item.label}</span><b>{item.today}회</b><small>{item.difference >= 0 ? "+" : ""}{item.difference.toFixed(1)} · 발생 시각 보기 ›</small></button>)}</div></section>
     </>}
 
@@ -499,7 +587,7 @@ export default function ReportTabs({
     />}
 
     {showFamilyMoment && <FamilyMomentModal report={periodReport.heart_report || {}} onClose={() => setShowFamilyMoment(false)} />}
-    {selectedSignal && <SignalDetailModal signal={selectedSignal} summary={summary} onClose={() => setSelectedSignal(null)} />}
+    {selectedSignal && <SignalDetailModal signal={selectedSignal} summary={summary} baselineNotes={profileBaselineNotes} medicalCautions={profileMedicalCautions} onClose={() => setSelectedSignal(null)} />}
     {showTimeDetails && <TimeDetailModal summary={summary} onClose={() => setShowTimeDetails(false)} onOpenRow={(row) => { setShowTimeDetails(false); setSelectedDay({ ...row, range_label: `${dateParts(row.date).date} ${row.time_label}`, analysis_title: "해당 시간대의 발화 근거와 담당자 행동" }); }} />}
 
   </div>;

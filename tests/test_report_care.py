@@ -244,6 +244,30 @@ class CareReportAggregationTest(unittest.TestCase):
         self.assertNotIn("외로움", rhythm["peak_window"]["summary"])
         self.assertIn("시간 혼동", rhythm["peak_window"]["summary"])
 
+    def test_rhythm_builds_weekday_time_heatmap_with_calendar_day_denominator(self):
+        calls = [
+            {"call_id": "m1", "started_at": "2026-08-03T18:10:00+09:00"},
+            {"call_id": "m2", "started_at": "2026-08-03T18:40:00+09:00"},
+            {"call_id": "m3", "started_at": "2026-08-10T18:20:00+09:00"},
+            {"call_id": "t1", "started_at": "2026-08-04T08:10:00+09:00"},
+        ]
+
+        rhythm = report._rhythm_analysis(
+            calls, [], calls, [], today=date(2026, 8, 12),
+            period_start=date(2026, 8, 1), period_end=date(2026, 8, 30),
+        )
+
+        heatmap = rhythm["weekday_time_heatmap"]
+        monday_evening = next(
+            cell for cell in heatmap["cells"]
+            if cell["weekday"] == 0 and cell["start_hour"] == 18
+        )
+        self.assertEqual(heatmap["days"], 30)
+        self.assertEqual(len(heatmap["cells"]), 84)
+        self.assertEqual(monday_evening["calls"], 3)
+        self.assertEqual(monday_evening["days_observed"], 4)
+        self.assertEqual(monday_evening["average_per_day"], 0.75)
+
     def test_daily_analysis_merges_calls_into_evidence_action_flow(self):
         calls = [
             {"call_id": "c1", "started_at": "2026-08-10T18:10:00+09:00", "duration_sec": 90},
