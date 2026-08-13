@@ -76,11 +76,12 @@ backend/
   llm.py                      LLM 호출 단일 창구. 429 백오프 + JSON 파싱 방어
   safety.py                   ★ 규칙 검사 계층. 2차 방어
   conversation.py             통화 세션. 발화를 DB에 기록
+  invites.py                  ★ 호출 상태. 받았는가·거절인가·무응답인가
   medication.py               복약 시간 판단, 선제 안내 문장
   memories.py                 기억 등록·수정, 미확인 회상 승인
   report.py                   통화 리포트. 집계는 규칙, 문장만 LLM
   api.py                      FastAPI. 노인용·보호자용 엔드포인트
-  db.py / schema.sql          SQLite 12테이블
+  db.py / schema.sql          SQLite 17테이블
 frontend/                     React 19 + Vite
   src/App.jsx                 상태머신. #guardian 이면 보호자 화면
   src/useSpeech.js            브라우저 음성 인식·합성
@@ -96,6 +97,7 @@ data/
 tools/
   eval.py + scenarios.json    ★ 안전 레이어 자동 평가 22개
   chat.py                     터미널 대화 테스트
+  call_flow.py                ★ 호출 흐름 확인 (받음/거절/무응답/기기없음)
   serve.py                    API 서버 실행
   init_db.py                  DB 생성·시드
   prep_faces.py               사진 크롭·정렬
@@ -105,6 +107,7 @@ tools/
   demo_reset.py               시연 준비 (기록 초기화 + 일정 재설정)
 docs/
   demo_script.md              시연 대본 5막 3분
+  call_transport_decision.md  ★ 사람↔사람 통화를 P2P 로 붙이는 근거
   voice_script.md             음성 녹음 대본 (미사용)
 ```
 
@@ -122,6 +125,24 @@ docs/
 
 **모든 LLM 호출은 `backend/llm.py`를 거친다.** 다른 파일에서 직접
 `OpenAI()`를 만들지 말 것. 모델 교체가 `.env` 세 줄로 끝나야 한다.
+
+**"받지 않았다"는 서버가 판정한다.** 벨은 `call_invites` 행이고 타임아웃은
+`invites.py`가 조회 시점에 확정한다(lazy expiry). 예전에는 어르신 기기의
+15초 카운트다운이 전부여서 보호자 기기에 신호가 가지 않았고, 그래서 AI
+대리통화는 대리가 아니라 **15초 늦게 시작하는 AI 통화**였다. 클라이언트
+타이머로 되돌리지 말 것. 상주 스케줄러도 두지 않는다 — Render 무료
+인스턴스는 유휴 상태에서 잠들어 백그라운드 타이머가 살아 있다고 가정할 수 없다.
+
+**AI 가 왜 대신 받았는지를 남긴다.** `takeover_reason` 은
+`declined / timeout / no_device / transport_failed` 넷이다. `state` 는
+`ai_takeover` 하나로 덮이므로 사유를 따로 보관해야 보호자 리포트가
+"거절 3건 / 무응답 5건"을 구분할 수 있다. 이 값은 §3의 논거
+(연결 실패 = 정상 동작)를 데이터로 증명하는 자리이기도 하다.
+
+**호출이 잘못되면 AI 쪽으로 떨어뜨린다.** 시각을 읽지 못하는 것 같은 예외
+상황에서 두 방향으로 실패할 수 있는데, "AI 가 대신 받는다"는 정상 동작이고
+"어르신이 벨 화면에 갇힌다"는 사고다. `invites._elapsed()` 가 파싱 실패에
+`inf` 를 돌려주는 이유가 이것이다.
 
 **사람↔사람 통화의 미디어 경로는 `frontend/src/callTransport.js`를 거친다.**
 같은 이유다. 통화 화면 여기저기에 `RTCPeerConnection`을 흩뿌리면 P2P 가
@@ -224,6 +245,7 @@ cd frontend && npm run dev               # 터미널 2: 화면
 python tools/eval.py --sleep 5           # 안전 평가 22개
 python tools/eval.py --raw --sleep 5     # safety 없이 (비교용)
 python tools/chat.py                     # 터미널 대화 테스트
+python tools/call_flow.py                # 호출 흐름 4가지 (서버가 켜져 있어야 함)
 python tools/demo_reset.py --med-in 6    # 시연 준비
 ```
 

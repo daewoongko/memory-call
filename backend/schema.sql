@@ -209,6 +209,59 @@ CREATE TABLE IF NOT EXISTS link_codes (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 통화를 걸거나 받을 수 있는 기기.
+-- 페르소나는 "AI 가 흉내낼 가족"이고, 이 표는 "그 가족의 실제 기기"다.
+-- 둘을 persona_id 로 이어야 어르신이 고른 사람에게 벨이 간다.
+-- last_seen_at 은 보호자 화면의 수신 폴링이 갱신한다. 별도 heartbeat 는 두지
+-- 않는다. 폴링하고 있다는 사실 자체가 살아 있다는 뜻이기 때문이다.
+CREATE TABLE IF NOT EXISTS devices (
+    device_id    TEXT PRIMARY KEY,
+    elder_id     TEXT NOT NULL REFERENCES elder_profiles(elder_id),
+    role         TEXT NOT NULL CHECK (role IN ('elder', 'guardian')),
+    persona_id   TEXT REFERENCES personas(persona_id),
+    label        TEXT,
+    last_seen_at TEXT,
+    created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_device_persona
+    ON devices(persona_id, last_seen_at);
+
+-- 호출 한 건. "누가 누구에게 걸었고, 받았는가"를 서버가 판정하기 위한 표.
+--
+-- 이 표가 없을 때 AI 대리통화는 대리가 아니었다. 어르신 기기 안의 15초
+-- 타이머가 끝나면 보호자가 받았든 말든 무조건 AI 로 넘어갔기 때문이다.
+-- 받지 않았다는 사실을 기록할 곳이 있어야 "대신 받았다"가 성립한다.
+--
+-- takeover_reason 은 AI 가 왜 대신 받았는지를 남긴다. 이 값이 있어야 보호자
+-- 리포트에서 "거절 3건 / 무응답 5건"을 구분할 수 있다. state 는 ai_takeover
+-- 하나로 덮이므로 사유를 따로 보관해야 한다.
+CREATE TABLE IF NOT EXISTS call_invites (
+    invite_id    TEXT PRIMARY KEY,
+    elder_id     TEXT NOT NULL REFERENCES elder_profiles(elder_id),
+    persona_id   TEXT REFERENCES personas(persona_id),
+    from_device  TEXT,   -- 건 기기 (어르신)
+    to_device    TEXT,   -- 실제로 받은 기기. answer 시점에 확정된다
+    state        TEXT NOT NULL CHECK (state IN
+                 ('ringing','answered','declined','timeout',
+                  'ai_takeover','ended','cancelled')),
+    -- 벨이 울릴 시간. 서버가 정해서 내려보낸다. 클라이언트에 15 를 박아 두면
+    -- 받을 기기가 없을 때도 똑같이 기다리게 된다.
+    ring_timeout_sec INTEGER NOT NULL DEFAULT 15,
+    -- 걸 때 살아 있는 보호자 기기가 하나도 없었는가.
+    -- 타임아웃 사유를 no_device 와 timeout 으로 가르는 데 쓴다.
+    no_live_device   INTEGER DEFAULT 0,
+    takeover_reason  TEXT CHECK (takeover_reason IN
+                     ('declined','timeout','no_device','transport_failed')),
+    ai_call_id   TEXT REFERENCES calls(call_id),
+    created_at   TEXT NOT NULL,
+    answered_at  TEXT,
+    ended_at     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_invite_ring
+    ON call_invites(persona_id, state, created_at);
+CREATE INDEX IF NOT EXISTS idx_invite_elder
+    ON call_invites(elder_id, created_at);
+
 CREATE TABLE IF NOT EXISTS recall_reviews (
     utterance_id INTEGER PRIMARY KEY REFERENCES utterances(utterance_id),
     decision     TEXT NOT NULL CHECK (decision IN ('approved', 'rejected')),

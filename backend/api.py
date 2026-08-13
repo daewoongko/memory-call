@@ -29,6 +29,7 @@ import admin as admin_mod
 import age_timeline
 import db
 import elevenlabs_tts
+import invites as inv_mod
 import linking as link_mod
 import llm
 import medication as med_mod
@@ -154,6 +155,36 @@ class StartCallRequest(BaseModel):
 
 class TurnRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
+
+
+class DeviceRegistration(BaseModel):
+    """통화를 걸거나 받을 기기. device_id 는 클라이언트가 만들어 보관한다."""
+
+    device_id: str = Field(min_length=8, max_length=64)
+    elder_id: str = "elder_001"
+    role: Literal["elder", "guardian"]
+    # 보호자 기기는 자기가 어느 가족인지 밝혀야 어르신이 고른 사람에게 벨이 간다.
+    persona_id: str | None = None
+    label: str | None = Field(default=None, max_length=40)
+
+
+class InviteRequest(BaseModel):
+    elder_id: str = "elder_001"
+    persona_id: str | None = None
+    from_device: str | None = Field(default=None, max_length=64)
+
+
+class InviteDeviceAction(BaseModel):
+    device_id: str | None = Field(default=None, max_length=64)
+
+
+class TakeOverRequest(BaseModel):
+    """벨이 울리는 중에 넘길 때만 사유를 받는다.
+
+    거절·무응답은 서버가 이미 알고 있으므로 덮어쓰지 않는다.
+    """
+
+    reason: Literal["transport_failed"] | None = None
 
 
 class TTSRequest(BaseModel):
@@ -1148,10 +1179,14 @@ def pending_call(elder_id: str = "elder_001"):
     }
 
 
-@app.post("/api/calls")
-def start_call(req: StartCallRequest):
-    """AI 인지·정서 케어 통화를 연다."""
-    session = Session(elder_id=req.elder_id, persona_id=req.persona_id)
+def _open_ai_session(elder_id: str, persona_id: str | None) -> dict:
+    """AI 통화 하나를 연다.
+
+    직접 거는 경우와 보호자가 받지 않아 인계되는 경우가 똑같은 응답을 써야
+    한다. 어르신 화면이 두 경로를 구분하지 않는 것이 이 서비스의 요점이라,
+    응답 형태가 갈리면 화면에 분기가 생기고 그 분기가 곧 어긋난다.
+    """
+    session = Session(elder_id=elder_id, persona_id=persona_id)
     SESSIONS[session.call_id] = session
     selected_persona_id = session.ctx["persona"].get("persona_id")
     persona_name = session.ctx["persona"].get("display_name", "가족")
@@ -1166,6 +1201,114 @@ def start_call(req: StartCallRequest):
         "morph_url": _morph_url(selected_persona_id),
         "loops": _loop_urls(selected_persona_id),
     }
+
+
+@app.post("/api/calls")
+def start_call(req: StartCallRequest):
+    """AI 인지·정서 케어 통화를 연다."""
+    return _open_ai_session(req.elder_id, req.persona_id)
+
+
+# ---------------------------------------------------------------- 기기와 호출
+#
+# 여기부터가 사람↔사람 통화 구간이다. 지금까지 "전화를 건다"는 어르신 기기
+# 안의 15초 타이머였고 보호자 기기에는 아무 신호도 가지 않았다. 그래서 받지
+# 않았다는 판정 자체가 불가능했고 AI 대리통화는 대리가 아니었다.
+#
+# 미디어(WebRTC)는 다음 단계다. 이 층은 호출 상태만 다룬다.
+# 근거와 뒤집는 조건은 docs/call_transport_decision.md.
+
+
+@app.post("/api/devices")
+def register_device(req: DeviceRegistration):
+    try:
+        return inv_mod.register_device(
+            device_id=req.device_id, elder_id=req.elder_id, role=req.role,
+            persona_id=req.persona_id, label=req.label,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/call-invites")
+def create_invite(req: InviteRequest):
+    """어르신이 가족에게 전화를 건다."""
+    return inv_mod.create(req.elder_id, req.persona_id, req.from_device)
+
+
+@app.get("/api/call-invites/{invite_id}")
+def read_invite(invite_id: str):
+    """어르신 기기의 폴링. 벨이 울리는 동안 남은 시간도 함께 준다."""
+    try:
+        return inv_mod.get(invite_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.get("/api/call-invites")
+def incoming_invite(device_id: str):
+    """보호자 기기의 수신 폴링.
+
+    이 호출이 heartbeat 를 겸한다. 보호자가 화면을 열어 두고 있다는 사실이
+    여기서 갱신되고, 그 값으로 "받을 기기가 있는가"를 판정한다.
+    """
+    try:
+        return {"invite": inv_mod.incoming_for(device_id)}
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.post("/api/call-invites/{invite_id}/answer")
+def answer_invite(invite_id: str, req: InviteDeviceAction):
+    try:
+        return inv_mod.answer(invite_id, req.device_id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/api/call-invites/{invite_id}/decline")
+def decline_invite(invite_id: str, req: InviteDeviceAction):
+    """거절은 실패가 아니다. 곧바로 AI 가 대신 받을 수 있는 상태로 간다."""
+    try:
+        return inv_mod.decline(invite_id, req.device_id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/api/call-invites/{invite_id}/cancel")
+def cancel_invite(invite_id: str):
+    """어르신이 먼저 끊었다. AI 로 넘기지 않는다."""
+    try:
+        return inv_mod.cancel(invite_id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/api/call-invites/{invite_id}/ai-takeover")
+def take_over_invite(invite_id: str, req: TakeOverRequest):
+    """AI 가 대신 받는다. 응답은 POST /api/calls 와 같은 형태다."""
+    try:
+        invite = inv_mod.get(invite_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    if invite["state"] not in inv_mod.TAKEOVER_SOURCES:
+        raise HTTPException(409, f"'{invite['state']}' 상태에서는 넘길 수 없습니다.")
+
+    call = _open_ai_session(invite["elder_id"], invite["persona_id"])
+    try:
+        invite = inv_mod.take_over(invite_id, call["call_id"], req.reason)
+    except ValueError as exc:
+        SESSIONS.pop(call["call_id"], None)
+        raise HTTPException(409, str(exc)) from exc
+    return {**call, "invite": invite}
+
+
+@app.post("/api/call-invites/{invite_id}/end")
+def end_invite(invite_id: str):
+    try:
+        return inv_mod.end(invite_id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @app.post("/api/calls/{call_id}/turn")
