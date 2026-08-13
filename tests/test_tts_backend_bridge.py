@@ -328,6 +328,30 @@ class TTSApiTests(unittest.TestCase):
         with tts_proxy._bridge_lock:
             tts_proxy._bridge_registration = None
 
+    def test_health_keeps_audio_available_when_optional_lipsync_is_down(self):
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "ELEVENLABS_API_KEY": "sk_test",
+                    "ELEVENLABS_VOICE_ID": "voice-test",
+                },
+                clear=False,
+            ),
+            patch.object(
+                tts_proxy,
+                "health",
+                side_effect=tts_proxy.TTSUnavailable("MuseTalk offline"),
+            ),
+        ):
+            response = self.client.get("/api/tts/health")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body["tts"]["configured"])
+        self.assertEqual(body["tts"]["engine"], "elevenlabs")
+        self.assertFalse(body["lipsync"]["available"])
+
     def test_register_endpoint_authenticates_and_returns_state(self):
         payload = {"service_url": "https://voice.trycloudflare.com"}
         with (

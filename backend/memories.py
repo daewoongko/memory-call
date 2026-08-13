@@ -9,10 +9,16 @@
 """
 
 import uuid
+from io import BytesIO
+from pathlib import Path
 
 import db
+from PIL import Image, ImageOps
+from storage import MEMORY_PHOTOS_ROOT
 
 STATUSES = ("verified", "partial", "unverified", "prohibited")
+PHOTO_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+PHOTO_MAX_BYTES = 12 * 1024 * 1024
 
 
 def _new_id() -> str:
@@ -65,6 +71,40 @@ def listing(elder_id: str = "elder_001", status: str | None = None) -> list[dict
     return memories
 
 
+def save_photo(elder_id: str, memory_id: str, filename: str, content: bytes) -> dict:
+    """가족이 올린 실제 추억 사진을 검증·회전 보정해 저장한다."""
+    suffix = Path(filename or "photo.jpg").suffix.lower()
+    if suffix not in PHOTO_SUFFIXES:
+        raise ValueError("jpg, png, webp 사진만 올릴 수 있습니다.")
+    if not content or len(content) > PHOTO_MAX_BYTES:
+        raise ValueError("사진은 12MB 이하로 올려주세요.")
+    with db.connect() as conn:
+        row = conn.execute(
+            "SELECT elder_id FROM memories WHERE memory_id = ?", (memory_id,)
+        ).fetchone()
+    if row is None or row["elder_id"] != elder_id:
+        raise ValueError("해당 어르신의 기억을 찾지 못했습니다.")
+    try:
+        with Image.open(BytesIO(content)) as source:
+            image = ImageOps.exif_transpose(source)
+            image.thumbnail((2400, 2400), Image.Resampling.LANCZOS)
+            if image.mode not in ("RGB", "RGBA"):
+                image = image.convert("RGB")
+            output_suffix = ".png" if image.mode == "RGBA" else ".jpg"
+            target_dir = MEMORY_PHOTOS_ROOT / elder_id
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target = target_dir / f"{memory_id}_{uuid.uuid4().hex[:8]}{output_suffix}"
+            if output_suffix == ".png":
+                image.save(target, "PNG", optimize=True)
+            else:
+                image.save(target, "JPEG", quality=88, optimize=True)
+    except (OSError, ValueError) as exc:
+        raise ValueError("열 수 있는 정상적인 이미지 파일이 아닙니다.") from exc
+    url = f"/memory-photos/{elder_id}/{target.name}"
+    updated = update(memory_id, {"photo_url": url})
+    return {"memory_id": memory_id, "photo_url": url, "memory": updated}
+
+
 def create(elder_id: str, data: dict) -> dict:
     memory = {
         "memory_id": data.get("memory_id") or _new_id(),
@@ -80,6 +120,8 @@ def create(elder_id: str, data: dict) -> dict:
                                  else int(bool(data.get("conversation_allowed", True))),
         "note": data.get("note"),
         "source_call_id": data.get("source_call_id"),
+        "photo_url": data.get("photo_url"),
+        "happened_year": data.get("happened_year"),
     }
     with db.connect() as conn:
         db.insert(conn, "memories", memory)
@@ -89,7 +131,8 @@ def create(elder_id: str, data: dict) -> dict:
 
 def update(memory_id: str, fields: dict) -> dict:
     allowed = {"title", "description", "date_text", "location", "participants",
-               "status", "conversation_allowed", "note"}
+               "status", "conversation_allowed", "note", "photo_url",
+               "happened_year"}
     patch = {k: v for k, v in fields.items() if k in allowed and v is not None}
     if patch.get("status") == "prohibited":
         patch["conversation_allowed"] = 0
@@ -134,6 +177,15 @@ def pending_recalls(elder_id: str = "elder_001") -> list[dict]:
             (elder_id,),
         ).fetchall()
 
+        candidate_rows = [db._row(r) for r in conn.execute(
+            "SELECT source_utterance_id, image_url, alt_text, caption, source_quote "
+            "FROM heart_artworks WHERE status = 'candidate' "
+            "AND source_utterance_id IS NOT NULL ORDER BY created_at DESC"
+        ).fetchall()]
+
+    candidate_by_utterance = {}
+    for artwork in candidate_rows:
+        candidate_by_utterance.setdefault(artwork["source_utterance_id"], artwork)
     out = []
     for r in rows:
         row = db._row(r)
@@ -146,6 +198,7 @@ def pending_recalls(elder_id: str = "elder_001") -> list[dict]:
             "created_at": row["created_at"],
             "summary": recall.get("summary"),
             "quote": recall.get("quote"),
+            "artwork": candidate_by_utterance.get(row["utterance_id"]),
         })
     return out
 

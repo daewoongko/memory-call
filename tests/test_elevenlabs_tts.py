@@ -44,9 +44,23 @@ class ElevenLabsConfigTests(unittest.TestCase):
 
     def test_missing_voice_id_fails_closed(self):
         with patch.dict(
-            "os.environ", {"ELEVENLABS_API_KEY": "key-value"}, clear=True
+            "os.environ", {"ELEVENLABS_API_KEY": "sk_key-value"}, clear=True
         ):
             with self.assertRaises(elevenlabs_tts.ElevenLabsNotConfigured):
+                elevenlabs_tts.synthesize_with_metadata("안녕하세요", 1.0)
+
+    def test_api_key_id_is_rejected_before_remote_call(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "ELEVENLABS_API_KEY": "00fdd4-key-id",
+                "ELEVENLABS_VOICE_ID": "voice-123",
+            },
+            clear=True,
+        ):
+            with self.assertRaisesRegex(
+                elevenlabs_tts.ElevenLabsNotConfigured, "API key ID",
+            ):
                 elevenlabs_tts.synthesize_with_metadata("안녕하세요", 1.0)
 
 
@@ -55,7 +69,7 @@ class ElevenLabsSynthesisTests(unittest.TestCase):
         self.env = patch.dict(
             "os.environ",
             {
-                "ELEVENLABS_API_KEY": "test-key",
+                "ELEVENLABS_API_KEY": "sk_test-key",
                 "ELEVENLABS_VOICE_ID": "voice-123",
             },
             clear=True,
@@ -95,7 +109,7 @@ class ElevenLabsSynthesisTests(unittest.TestCase):
 
         self.assertIn("/v1/text-to-speech/voice-123", captured["url"])
         self.assertIn("output_format=pcm_24000", captured["url"])
-        self.assertEqual(captured["api_key"], "test-key")
+        self.assertEqual(captured["api_key"], "sk_test-key")
         self.assertEqual(captured["payload"]["text"], "빠르게 말해줘")
         self.assertEqual(
             captured["payload"]["model_id"], elevenlabs_tts.DEFAULT_MODEL_ID

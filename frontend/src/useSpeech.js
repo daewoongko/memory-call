@@ -14,7 +14,7 @@ import {
 } from "./speechMedia.js";
 
 /**
- * 브라우저 음성 인식(STT)과 로컬 Chatterbox 음성 합성(TTS).
+ * 브라우저 음성 인식(STT)과 ElevenLabs API 음성 합성(TTS).
  *
  * 합성은 먼저 /api/tts 의 복제 음성을 시도한다. 브라우저 내장 음성 대체는
  * VITE_TTS_BROWSER_FALLBACK=true 로 명시한 개발 환경에서만 허용한다.
@@ -755,13 +755,13 @@ export function useSpeech({
         if (err.name === "AbortError" || runId !== speechRunRef.current) return;
         if (BROWSER_TTS_FALLBACK_ENABLED) {
           console.warn(
-            "[TTS] Chatterbox 실패, 명시적으로 허용된 브라우저 음성으로 전환:",
+            "[TTS] ElevenLabs 실패, 명시적으로 허용된 브라우저 음성으로 전환:",
             err
           );
           const remainingText = chunks.slice(completedChunks).join(" ") || text;
           await speakInBrowser(remainingText, runId);
         } else {
-          console.error("[TTS] Chatterbox 음성을 재생하지 못했습니다:", err);
+          console.error("[TTS] ElevenLabs 음성을 재생하지 못했습니다:", err);
           setError(TTS_UNAVAILABLE_MESSAGE);
         }
       } finally {

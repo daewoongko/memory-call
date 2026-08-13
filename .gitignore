@@ -28,6 +28,8 @@ token*.json
 db.sqlite
 *.sqlite
 *.sqlite3
+*.db
+.logs/
 
 # Media is private by default. Only the finalized, explicitly listed paths below
 # are published (large binaries are stored with Git LFS).

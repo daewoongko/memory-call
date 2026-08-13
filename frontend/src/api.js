@@ -29,8 +29,11 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-export const getProfile = (personaId) =>
-  request(`/api/profile${personaId ? `?persona_id=${personaId}` : ""}`);
+export const getProfile = (personaId, elderId = "elder_001") => {
+  const params = new URLSearchParams({ elder_id: elderId });
+  if (personaId) params.set("persona_id", personaId);
+  return request(`/api/profile?${params}`);
+};
 
 export const getPersonas = (elderId = "elder_001") =>
   request(`/api/personas?elder_id=${elderId}`);
@@ -49,10 +52,13 @@ export const verifyLinkCode = (code) =>
     body: JSON.stringify({ code }),
   });
 
-export const startCall = (personaId) =>
+export const startCall = (personaId, elderId = "elder_001") =>
   request("/api/calls", {
     method: "POST",
-    body: JSON.stringify(personaId ? { persona_id: personaId } : {}),
+    body: JSON.stringify({
+      elder_id: elderId,
+      ...(personaId ? { persona_id: personaId } : {}),
+    }),
   });
 
 export const sendTurn = (callId, text) =>
@@ -132,6 +138,21 @@ export const addMemory = (body, elderId = "elder_001") =>
     body: JSON.stringify(body),
   });
 
+export async function uploadMemoryPhoto(memoryId, file, elderId = "elder_001") {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`/api/elders/${encodeURIComponent(elderId)}/memories/${encodeURIComponent(memoryId)}/photo`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json()).detail || detail; } catch { /* keep status */ }
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 export const patchMemory = (memoryId, body) =>
   request(`/api/memories/${memoryId}`, {
     method: "PATCH",
@@ -168,8 +189,8 @@ export const patchSchedule = (scheduleId, body) =>
 export const deleteSchedule = (scheduleId) =>
   request(`/api/schedules/${scheduleId}`, { method: "DELETE" });
 
-export const getMedications = (elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/medications`);
+export const getMedications = (elderId = "elder_001", asOf = "") =>
+  request(`/api/elders/${elderId}/medications${asOf ? `?as_of=${encodeURIComponent(asOf)}` : ""}`);
 
 export const addMedication = (body, elderId = "elder_001") =>
   request(`/api/elders/${elderId}/medications`, {
@@ -204,6 +225,25 @@ export const getPeriodSummary = (days = 7, elderId = "elder_001", range = {}) =>
 
 export const acknowledgeRisk = (eventId) =>
   request(`/api/risk-events/${eventId}/acknowledge`, { method: "POST" });
+
+export const getCareTasks = (asOf = "") =>
+  request(`/api/care-tasks${asOf ? `?as_of=${encodeURIComponent(asOf)}` : ""}`);
+
+export const completeDoseTask = (scheduleId, asOf) =>
+  request(`/api/care-tasks/dose/${encodeURIComponent(scheduleId)}/complete`, {
+    method: "POST", body: JSON.stringify({ as_of: asOf }),
+  });
+
+export const setDoseTaskStatus = (scheduleId, asOf, status) =>
+  request(`/api/care-tasks/dose/${encodeURIComponent(scheduleId)}/status`, {
+    method: "POST", body: JSON.stringify({ as_of: asOf, status }),
+  });
+
+export const getHandovers = (limit = 10) => request(`/api/handovers?limit=${limit}`);
+
+export const closeHandover = (body) => request("/api/handovers", {
+  method: "POST", body: JSON.stringify(body),
+});
 
 export const endCall = (callId, reason = "user_ended") =>
   request(`/api/calls/${callId}/end`, {

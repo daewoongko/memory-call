@@ -14,6 +14,7 @@ STORAGE_DIR = Path(
 
 DB_PATH = STORAGE_DIR / "memory_call.sqlite"
 PERSONAS_ROOT = STORAGE_DIR / "personas"
+MEMORY_PHOTOS_ROOT = STORAGE_DIR / "memories"
 DEFAULT_FACE_PERSONA_ID = "persona_minjun"
 LEGACY_FACES_ROOT = STORAGE_DIR / "faces"
 
@@ -103,6 +104,7 @@ def ensure_directories() -> None:
     """StaticFiles 마운트와 업로드 전에 필요한 폴더를 만든다."""
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     PERSONAS_ROOT.mkdir(parents=True, exist_ok=True)
+    MEMORY_PHOTOS_ROOT.mkdir(parents=True, exist_ok=True)
     SOURCE_FACES_DIR.mkdir(parents=True, exist_ok=True)
     AGE_CANDIDATES_DIR.mkdir(parents=True, exist_ok=True)
     AGE_ANCHORS_DIR.mkdir(parents=True, exist_ok=True)

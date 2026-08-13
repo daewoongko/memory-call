@@ -63,6 +63,11 @@ def _require_api_key() -> str:
         raise ElevenLabsNotConfigured(
             "ELEVENLABS_API_KEY가 설정되지 않았습니다. .env에 발급받은 키를 넣으세요."
         )
+    if not key.startswith("sk_"):
+        raise ElevenLabsNotConfigured(
+            "ELEVENLABS_API_KEY에는 API key ID가 아니라 sk_로 시작하는 "
+            "실제 API 키를 넣어야 합니다. ElevenLabs에서 새 키를 발급받으세요."
+        )
     return key
 
 

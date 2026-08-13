@@ -242,6 +242,27 @@ TEMPLATES = [
         "summary": "최근 입맛이 없고 식사량이 줄었다고 말씀하셨습니다.",
         "actions": ["식사 섭취량과 체중 변화를 기록하고 지속되면 의료진에게 전달해 주세요."],
     },
+    {
+        "title": "돌봄 방식에 대한 분노", "repeat": 1,
+        "user": "거짓말 마! 왜 내 물건을 마음대로 치웠어. 정말 화가 난다.",
+        "reply": "물건이 달라져 화가 나셨구나. 자극을 줄이고 보관 위치를 확인하도록 남길게요.",
+        "summary": "물건 보관 방식에 대해 분노와 언어적 공격을 표현하셨습니다.",
+        "actions": ["맞서 설명하지 말고 자극을 줄인 뒤 보관 위치를 확인해 주세요."],
+    },
+    {
+        "title": "의욕 저하와 외로움", "repeat": 1,
+        "user": "오늘은 아무것도 하기 싫고 기운이 없다. 혼자 있으니 외롭다.",
+        "reply": "기운이 없고 외로우셨구나. 짧게 곁에서 이야기를 나눌 수 있게 남길게요.",
+        "summary": "의욕 저하와 외로움을 함께 표현하셨습니다.",
+        "actions": ["짧게 말을 걸고 식사·수면·활동 변화가 함께 있는지 확인해 주세요."],
+    },
+    {
+        "title": "생활 도움 요청", "repeat": 1,
+        "user": "옷을 어떻게 입어야 할지 모르겠다. 혼자 못 하겠으니 도와줘.",
+        "reply": "한 번에 하나씩 도와드릴게요. 먼저 앉아서 겉옷부터 찾아봐요.",
+        "summary": "옷 입기 순서에 대한 직접적인 도움을 요청하셨습니다.",
+        "actions": ["옷 입기를 한 단계씩 제시하고 어느 단계에서 막히는지 기록해 주세요."],
+    },
 ]
 
 
@@ -260,9 +281,9 @@ RARE_RISK_CALLS = {
     (2, 19): 24,   # 가스 누출 의심 1건
 }
 
-MORNING_ROTATION = [0, 3, 19, 17, 0, 4, 12, 5, 17, 25, 26, 19, 3, 0]
-DAY_ROTATION = [17, 1, 0, 5, 17, 7, 10, 3, 17, 11, 12, 8, 9, 16, 25, 26, 28]
-EVENING_ROTATION = [17, 6, 1, 17, 0, 6, 17, 16, 1, 17, 9, 6, 27]
+MORNING_ROTATION = [0, 3, 19, 17, 0, 4, 12, 5, 17, 25, 26, 19, 3, 0, 31]
+DAY_ROTATION = [17, 1, 0, 5, 17, 7, 10, 3, 17, 11, 12, 8, 9, 16, 25, 26, 28, 29, 31]
+EVENING_ROTATION = [17, 6, 1, 17, 0, 6, 17, 16, 1, 17, 9, 6, 27, 30, 29]
 
 
 def _delete_calls(conn, elder_id: str) -> None:
@@ -446,12 +467,21 @@ def seed(elder_id: str = "elder_001") -> dict:
                     78 + ((index * 37 + day_index * 19) % 260),
                     repeat_count * 34 + 30,
                 )
+                # 가족 통화 목록에서 실제 통화와 AI 대리 통화가 함께 보이도록
+                # 한 달 중 일부만 직접 통화/이어받기 기록으로 둔다. 대부분은
+                # 여전히 AI가 대신 받은 통화이며, 실제 기록은 이 시드가 건드리지 않는다.
+                type_bucket = index + day_index * 3
+                call_type = (
+                    "direct" if type_bucket % 17 == 0
+                    else "ai_to_direct" if type_bucket % 29 == 7
+                    else "ai"
+                )
 
                 db.insert(conn, "calls", {
                     "call_id": call_id, "elder_id": elder_id, "persona_id": persona_id,
                     "counterpart_name": name,
                     "counterpart_relation": DEMO_PERSONAS[name]["relationship_type"],
-                    "report_title": template["title"], "call_type": "ai",
+                    "report_title": template["title"], "call_type": call_type,
                     "started_at": started.isoformat(timespec="seconds"),
                     "ended_at": (started + timedelta(seconds=duration)).isoformat(timespec="seconds"),
                     "duration_sec": duration, "end_reason": "demo_seeded", "status": "ended",

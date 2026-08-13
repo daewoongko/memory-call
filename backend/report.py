@@ -983,7 +983,7 @@ def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
     """보호자 화면 목록용. 통화별 한 줄 요약."""
     with db.connect() as conn:
         rows = conn.execute(
-            "SELECT c.call_id, c.started_at, c.duration_sec, "
+            "SELECT c.call_id, c.started_at, c.duration_sec, c.call_type, "
             "       c.counterpart_name, c.counterpart_relation, c.report_title, "
             "       r.summary, r.repeated_questions, r.risk_summary, "
             "       r.meaningful_moments, r.care_summary "
@@ -1018,6 +1018,7 @@ def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
             "call_id": row["call_id"],
             "started_at": row["started_at"],
             "duration_sec": row["duration_sec"],
+            "call_type": row.get("call_type") or "ai",
             "summary": row.get("summary"),
             "counterpart_name": row.get("counterpart_name"),
             "counterpart_relation": row.get("counterpart_relation"),
@@ -1133,6 +1134,472 @@ def _merge_period_repeats(reports: list[dict]) -> list[dict]:
         {key: value for key, value in group.items() if key != "_norm"}
         for group in sorted(groups, key=lambda row: (-row["count"], -row["call_count"]))[:5]
     ]
+
+
+LIFE_STAGE_RULES = (
+    ("학창기", 15, 19, (r"학교", r"수업", r"교실", r"선생님", r"가방[^.!?]{0,12}(?:챙|어디)")),
+    ("육아기", 30, 39, (r"애들[^.!?]{0,14}(?:밥|챙|학교)", r"아이[^.!?]{0,14}(?:밥|챙|학교)", r"자식[^.!?]{0,14}(?:밥|챙|학교)")),
+    ("직장기", 45, 55, (r"회사", r"직장", r"출근", r"퇴근", r"회의", r"업무")),
+    ("가족부양기", 55, 64, (r"가족[^.!?]{0,14}(?:먹여|책임|챙)", r"돈 벌", r"생활비")),
+)
+
+TOPIC_RULES = (
+    ("재산·돈", (r"통장", r"돈", r"재산", r"계좌", r"빼돌리")),
+    ("가족", (r"가족", r"아들", r"딸", r"손자", r"손녀", r"정훈", r"미영", r"민준", r"유진", r"지영", r"성민")),
+    ("고향·추억", (r"고향", r"옛날", r"냇가", r"어릴 때", r"그때")),
+    ("일·학교", (r"회사", r"직장", r"출근", r"학교", r"수업", r"선생")),
+    ("식사·약", (r"밥", r"식사", r"점심", r"아침", r"저녁", r"약", r"복용")),
+    ("집·물건", (r"집", r"지갑", r"안경", r"리모컨", r"가방", r"열쇠")),
+    ("건강", (r"아프", r"어지", r"넘어", r"잠", r"피", r"기운")),
+)
+
+RESPONSE_EMOTION_GROUPS = (
+    ("의심·망상", {"distrust", "theft_delusion_signal"}),
+    ("초조·분노", {"agitation", "anger", "verbal_aggression"}),
+    ("불안·두려움", {"anxiety", "fear", "abandonment_fear"}),
+    ("가라앉음", {"sadness", "apathy", "hopelessness", "loneliness"}),
+    ("따뜻함", {"affection", "gratitude", "joy", "longing", "pride"}),
+)
+RESPONSE_CONTEXT_GROUPS = (
+    ("회상·역할", (
+        r"고향", r"옛날", r"그때", r"어릴 때", r"학교", r"수업",
+        r"회사", r"출근", r"애들[^.!?]{0,12}(?:밥|학교|챙)",
+    )),
+    ("도움 요청", (
+        r"어떻게 해야", r"도와", r"혼자[^.!?]{0,12}(?:힘들|못)",
+        r"(?:일어나|걷|움직|입|씻)[^.!?]{0,12}(?:힘들|못)",
+    )),
+    ("확인·탐색", (
+        r"어디", r"언제", r"몇 시", r"무슨 요일", r"먹었나",
+        r"먹었던가", r"기억이 안", r"모르겠", r"못 찾", r"궁금",
+    )),
+)
+RESPONSE_FALLBACK_GROUPS = tuple(label for label, _patterns in RESPONSE_CONTEXT_GROUPS)
+RESPONSE_EMOTION_SIGNAL_NAMES = set().union(*(
+    signals for _label, signals in RESPONSE_EMOTION_GROUPS
+))
+
+TENDENCY_CATEGORY_RULES = (
+    ("사람·관계", (r"가족", r"아들", r"딸", r"손자", r"손녀", r"엄마", r"아빠", r"정훈", r"미영", r"민준", r"유진", r"지영", r"성민")),
+    ("시간·장소", (r"오늘", r"내일", r"어제", r"몇 시", r"요일", r"날짜", r"어디", r"집", r"고향", r"학교", r"회사", r"출근")),
+    ("물건·재산", (r"통장", r"돈", r"재산", r"계좌", r"지갑", r"안경", r"리모컨", r"가방", r"열쇠", r"빼돌리")),
+    ("몸 상태", (r"아프", r"어지", r"넘어", r"잠", r"피곤", r"기운", r"밥", r"식사", r"약", r"복용")),
+)
+
+TENDENCY_INWARD_SIGNALS = {
+    "anxiety", "fear", "sadness", "apathy", "hopelessness",
+}
+TENDENCY_OUTWARD_SIGNALS = {
+    "agitation", "verbal_aggression", "anger", "distrust",
+}
+TENDENCY_BURDEN_SIGNALS = {
+    "anxiety", "fear", "sadness", "hopelessness", "worry_for_family", "guilt",
+}
+TENDENCY_ALL_SIGNALS = TENDENCY_INWARD_SIGNALS | TENDENCY_OUTWARD_SIGNALS
+TENDENCY_MIN_CALLS = 5
+
+
+def _topic_name(text: str) -> str:
+    scores = [(sum(bool(re.search(pattern, text)) for pattern in patterns), label) for label, patterns in TOPIC_RULES]
+    score, label = max(scores, default=(0, "일상"))
+    return label if score else "일상"
+
+
+def _emotion_name(text: str) -> str:
+    """직접 정서 신호가 없는 발화도 대응 목적에 따라 빠짐없이 분류한다."""
+    signal_names = _direct_response_signals(text)
+    for label, names in RESPONSE_EMOTION_GROUPS:
+        if signal_names & names:
+            return label
+    if re.search(r"(?:사랑|고맙|감사|반갑|행복|기쁘|좋았|그립|보고 싶|자랑|뿌듯)", text):
+        return "따뜻함"
+    if re.search(r"(?:슬프|서럽|외롭|아무것도 하기 싫|희망이 없|기운이 없)", text):
+        return "가라앉음"
+    for label, patterns in RESPONSE_CONTEXT_GROUPS:
+        if any(re.search(pattern, text) for pattern in patterns):
+            return label
+    # 단순 안부처럼 별도 정서가 없는 말도 누락하지 않는다. 담당자는 이를
+    # 정서가 있다고 오해하지 않고 평상시 상태를 확인하는 대화로 읽는다.
+    return "확인·탐색"
+
+
+def _direct_response_signals(text: str) -> set[str]:
+    """대응 분류에 필요한 Tier A 직접 발화 신호만 규칙으로 확인한다."""
+    found = set()
+    for signal, spec in SIGNALS.items():
+        if signal not in RESPONSE_EMOTION_SIGNAL_NAMES or spec.tier != "A" or not spec.patterns:
+            continue
+        if spec.negative_patterns and any(re.search(pattern, text) for pattern in spec.negative_patterns):
+            continue
+        if any(re.search(pattern, text) for pattern in spec.patterns):
+            found.add(signal)
+    return found
+
+
+def _response_emotion(
+    signals: Counter, warmth: Counter, fallback: Counter,
+) -> tuple[str, int]:
+    """정서 다섯 갈래를 우선하고, 없으면 대응 목적 세 갈래로 분류한다."""
+    candidates = []
+    for priority, (label, names) in enumerate(RESPONSE_EMOTION_GROUPS):
+        source = warmth if label == "따뜻함" else signals
+        count = sum(source.get(name, 0) for name in names)
+        candidates.append((count, -priority, label))
+    count, _priority, label = max(candidates)
+    if count:
+        return label, count
+    observed_count, observed_label = max(
+        ((fallback.get(name, 0), name) for name, _signals in RESPONSE_EMOTION_GROUPS),
+        default=(0, "따뜻함"),
+    )
+    if observed_count:
+        return observed_label, observed_count
+    fallback_count, fallback_label = max(
+        ((fallback.get(name, 0), name) for name in RESPONSE_FALLBACK_GROUPS),
+        default=(0, "확인·탐색"),
+    )
+    return fallback_label, max(1, fallback_count)
+
+
+def _has_behavior_agitation_signal(text: str) -> bool:
+    """D6 Tier A 직접 발화 규칙이 함께 나타나는지만 확인한다."""
+    for spec in SIGNALS.values():
+        if spec.domain != "behavior_agitation" or spec.tier != "A" or not spec.patterns:
+            continue
+        if spec.negative_patterns and any(re.search(pattern, text) for pattern in spec.negative_patterns):
+            continue
+        if any(re.search(pattern, text) for pattern in spec.patterns):
+            return True
+    # 활용형 때문에 카탈로그의 엄격한 근거 패턴이 놓칠 수 있는 D6 표현을
+    # 주제 차트의 각성도 보조 지표에서만 보완한다. 신호 저장·진단에는 쓰지 않는다.
+    if re.search(r"(?:사람|아이|동물)(?:이|가)\s*보(?:이|여)", text):
+        return True
+    if re.search(r"(?:나가|가야|갈래|출근|수업)[^.!?]{0,16}(?:늦|빨리|지금)", text):
+        return True
+    return False
+
+
+def _tendency_categories(text: str) -> list[str]:
+    """한 발화를 7.5의 네 범주에 중복 배정한다."""
+    return [
+        label for label, patterns in TENDENCY_CATEGORY_RULES
+        if any(re.search(pattern, text) for pattern in patterns)
+    ]
+
+
+def _tendency_summary(
+    calls: list[dict], elder_rows: list[dict], topics: list[dict],
+    signals_by_call: dict[str, Counter], period_start: date | None,
+    period_end: date | None,
+) -> dict:
+    """7.5 경향 요약을 추측이나 LLM 없이 고정 규칙으로 만든다."""
+    call_by_id = {row["call_id"]: row for row in calls}
+    if period_start and period_end:
+        observed_days = max(0, (period_end - period_start).days + 1)
+    else:
+        observed_dates = sorted({
+            str(row.get("started_at") or "")[:10] for row in calls
+            if str(row.get("started_at") or "")[:10]
+        })
+        observed_days = (
+            (date.fromisoformat(observed_dates[-1]) - date.fromisoformat(observed_dates[0])).days + 1
+            if observed_dates else 0
+        )
+
+    category_calls: dict[str, set[str]] = {
+        label: set() for label, _patterns in TENDENCY_CATEGORY_RULES
+    }
+    utterance_counts: Counter = Counter()
+    for row in elder_rows:
+        call_id = row["call_id"]
+        started = _started_datetime(call_by_id.get(call_id, {}).get("started_at"))
+        if started:
+            block = (started.hour // 2) * 2
+            utterance_counts[block] += 1
+        for label in _tendency_categories(row["transcript"]):
+            category_calls[label].add(call_id)
+
+    burden_rows = []
+    for label, call_ids in category_calls.items():
+        burden_call_ids = {
+            call_id for call_id in call_ids
+            if set(signals_by_call.get(call_id, {})) & TENDENCY_BURDEN_SIGNALS
+        }
+        burden_rows.append({
+            "category": label,
+            "calls": len(call_ids),
+            "burden_calls": len(burden_call_ids),
+            "burden_ratio": round(len(burden_call_ids) / max(1, len(call_ids)), 3),
+            "eligible": len(call_ids) >= TENDENCY_MIN_CALLS,
+        })
+    burden_ranking = sorted(
+        (row for row in burden_rows if row["eligible"] and row["burden_calls"] > 0),
+        key=lambda row: (row["burden_ratio"], row["burden_calls"], row["calls"]),
+        reverse=True,
+    )[:3]
+
+    inward_count = sum(
+        count for counts in signals_by_call.values()
+        for signal, count in counts.items() if signal in TENDENCY_INWARD_SIGNALS
+    )
+    outward_count = sum(
+        count for counts in signals_by_call.values()
+        for signal, count in counts.items() if signal in TENDENCY_OUTWARD_SIGNALS
+    )
+
+    eligible_topics = [row for row in topics if row["calls"] >= TENDENCY_MIN_CALLS]
+    calming_resource = None
+    if eligible_topics:
+        ordered = sorted(eligible_topics, key=lambda row: (row["burden_ratio"], -row["average_minutes"]))
+        lower_half = ordered[:max(1, (len(ordered) + 1) // 2)]
+        selected = max(lower_half, key=lambda row: (row["average_minutes"], row["calls"]))
+        calming_resource = {
+            "topic": selected["topic"],
+            "calls": selected["calls"],
+            "average_minutes": selected["average_minutes"],
+            "burden_ratio": selected["burden_ratio"],
+        }
+
+    signal_counts_by_block: Counter = Counter()
+    for call_id, counts in signals_by_call.items():
+        started = _started_datetime(call_by_id.get(call_id, {}).get("started_at"))
+        if not started:
+            continue
+        signal_counts_by_block[(started.hour // 2) * 2] += sum(
+            count for signal, count in counts.items() if signal in TENDENCY_ALL_SIGNALS
+        )
+    time_blocks = [{
+        "start_hour": block,
+        "end_hour": (block + 2) % 24,
+        "label": f"{block:02d}:00~{(block + 2) % 24:02d}:00",
+        "signals": signal_counts_by_block[block],
+        "utterances": utterance_counts[block],
+        "rate_per_100": round(signal_counts_by_block[block] / max(1, utterance_counts[block]) * 100, 1),
+    } for block in range(0, 24, 2) if utterance_counts[block]]
+    hardest_time = max(
+        time_blocks,
+        key=lambda row: (row["rate_per_100"], row["signals"], row["utterances"]),
+        default=None,
+    )
+
+    return {
+        "period_days": observed_days,
+        "sufficient_period": observed_days >= 30,
+        "minimum_calls": TENDENCY_MIN_CALLS,
+        "total_calls": len(calls),
+        "burden_categories": burden_rows,
+        "burden_ranking": burden_ranking,
+        "expression": {
+            "inward_count": inward_count,
+            "outward_count": outward_count,
+        },
+        "calming_resource": calming_resource,
+        "hardest_time": hardest_time,
+        "time_blocks": time_blocks,
+    }
+
+
+def _call_analytics(
+    calls: list[dict], utterances: list[dict], birth_date: str | None,
+    reports: list[dict] | None = None,
+    period_start: date | None = None, period_end: date | None = None,
+) -> dict:
+    """통화 시작 시각과 실제 발화만으로 통화 리포트의 세 지표를 만든다."""
+    call_by_id = {row["call_id"]: row for row in calls}
+    elder_rows = [row for row in utterances if row.get("speaker") == "elder" and row.get("transcript") and row.get("call_id") in call_by_id]
+
+    clusters: list[dict] = []
+    for row in sorted(elder_rows, key=lambda item: (call_by_id[item["call_id"]].get("started_at") or "", item.get("seq") or 0)):
+        norm = _normalize(row["transcript"])
+        if not norm:
+            continue
+        target = next((cluster for cluster in clusters if SequenceMatcher(None, cluster["norm"], norm).ratio() >= SIMILARITY), None)
+        if target is None:
+            target = {"norm": norm, "question": row["transcript"], "occurrences": []}
+            clusters.append(target)
+        started = _started_datetime(call_by_id[row["call_id"]].get("started_at"))
+        if started and (not target["occurrences"] or target["occurrences"][-1]["call_id"] != row["call_id"]):
+            target["occurrences"].append({"call_id": row["call_id"], "at": started, "quote": row["transcript"]})
+
+    intervals = []
+    for cluster in clusters:
+        for previous, current in zip(cluster["occurrences"], cluster["occurrences"][1:]):
+            minutes = max(0, (current["at"] - previous["at"]).total_seconds() / 60)
+            # 날짜가 바뀐 뒤의 재등장은 '답변 유지 시간'이 아니라 장기 반복
+            # 패턴에 가깝다. 한 근무일 안에서 비교 가능한 12시간 이내만 쓴다.
+            if minutes <= 12 * 60:
+                intervals.append({"minutes": minutes, "at": current["at"], "question": cluster["question"]})
+    intervals.sort(key=lambda row: row["at"])
+    recent_intervals = intervals[-8:]
+    current_pool = recent_intervals[-3:]
+    baseline_pool = intervals[:-3] or intervals
+    def median_minutes(rows: list[dict]) -> float | None:
+        values = sorted(row["minutes"] for row in rows)
+        if not values:
+            return None
+        middle = len(values) // 2
+        value = values[middle] if len(values) % 2 else (values[middle - 1] + values[middle]) / 2
+        return round(value, 1)
+    current_minutes = median_minutes(current_pool)
+    baseline_minutes = median_minutes(baseline_pool)
+
+    current_age = None
+    if birth_date:
+        try:
+            born = date.fromisoformat(birth_date)
+            current_age = date.today().year - born.year - ((date.today().month, date.today().day) < (born.month, born.day))
+        except ValueError:
+            pass
+    life_stages = []
+    for row in elder_rows:
+        for label, age_from, age_to, patterns in LIFE_STAGE_RULES:
+            if any(re.search(pattern, row["transcript"]) for pattern in patterns):
+                life_stages.append({"label": label, "age_from": age_from, "age_to": age_to, "age": round((age_from + age_to) / 2), "quote": row["transcript"], "at": call_by_id[row["call_id"]].get("started_at")})
+                break
+
+    topic_map: dict[str, dict] = {}
+    utterances_by_call: dict[str, list[dict]] = {}
+    for row in elder_rows:
+        utterances_by_call.setdefault(row["call_id"], []).append(row)
+    ordered_elder_rows = sorted(
+        elder_rows,
+        key=lambda item: (
+            call_by_id[item["call_id"]].get("started_at") or "",
+            item.get("seq") or 0,
+        ),
+    )
+    agitation_turns: set[tuple[str, int]] = set()
+    direct_agitation_turns: set[tuple[str, int]] = set()
+    signals_by_call: dict[str, Counter] = {
+        call_id: Counter() for call_id in call_by_id
+    }
+    report_signals_by_call: dict[str, Counter] = {
+        call_id: Counter() for call_id in call_by_id
+    }
+    warmth_by_call: dict[str, Counter] = {
+        call_id: Counter() for call_id in call_by_id
+    }
+    for row in elder_rows:
+        signals_by_call[row["call_id"]].update(_direct_response_signals(row["transcript"]))
+    for call_id, rows in utterances_by_call.items():
+        for row in rows:
+            if _has_behavior_agitation_signal(row["transcript"]):
+                key = (call_id, int(row.get("seq") or 0))
+                agitation_turns.add(key)
+                direct_agitation_turns.add(key)
+    # 보고서의 care_summary는 서버가 직접 발화 근거를 검증한 결과다. 같은
+    # 통화 전체가 아니라 근거 발화 주변(±1 어르신 턴)에만 D6 동반을 인정한다.
+    for report_row in reports or []:
+        call_id = report_row.get("call_id")
+        rows = utterances_by_call.get(call_id, [])
+        if call_id not in call_by_id:
+            continue
+        for moment in report_row.get("meaningful_moments") or []:
+            category = str(moment.get("category") or "").strip()
+            if category in RESPONSE_EMOTION_SIGNAL_NAMES:
+                warmth_by_call[call_id][category] += 1
+        for supplied_domain, items in (report_row.get("care_summary") or {}).items():
+            if supplied_domain == "meaningful_moments":
+                continue
+            for item in items or []:
+                signal = str(item.get("signal") or "").strip()
+                if signal:
+                    report_signals_by_call[call_id][signal] += 1
+                if canonical_domain(item.get("signal"), supplied_domain) != "behavior_agitation":
+                    continue
+                utterance_id = item.get("utterance_id")
+                matched = next((row for row in rows if row.get("utterance_id") == utterance_id), None)
+                if matched:
+                    agitation_turns.add((call_id, int(matched.get("seq") or 0)))
+    for call_id, report_counts in report_signals_by_call.items():
+        for signal, count in report_counts.items():
+            signals_by_call[call_id][signal] = max(
+                signals_by_call[call_id][signal], count,
+            )
+    for turn_index, row in enumerate(ordered_elder_rows):
+        topic = _topic_name(row["transcript"])
+        emotion = _emotion_name(row["transcript"])
+        slot = topic_map.setdefault(topic, {
+            "topic": topic,
+            "call_ids": set(),
+            "agitation_call_ids": set(),
+            "burden_call_ids": set(),
+            "agitation_turns": 0,
+            "turns": 0,
+            "seconds_by_call": {},
+            "emotions": Counter(),
+            "response_signals": Counter(),
+            "warmth_signals": Counter(),
+            "quotes": [],
+            "turn_positions": [],
+        })
+        first_topic_turn_in_call = row["call_id"] not in slot["call_ids"]
+        slot["call_ids"].add(row["call_id"])
+        if set(signals_by_call.get(row["call_id"], {})) & TENDENCY_BURDEN_SIGNALS:
+            slot["burden_call_ids"].add(row["call_id"])
+        seq = int(row.get("seq") or 0)
+        if (row["call_id"], seq) in direct_agitation_turns or any(
+            call_id == row["call_id"] and abs(signal_seq - seq) <= 2
+            for call_id, signal_seq in agitation_turns - direct_agitation_turns
+        ):
+            slot["agitation_call_ids"].add(row["call_id"])
+            slot["agitation_turns"] += 1
+        slot["turns"] += 1
+        slot["seconds_by_call"].setdefault(
+            row["call_id"], call_by_id[row["call_id"]].get("duration_sec") or 0
+        )
+        slot["emotions"][emotion] += 1
+        if first_topic_turn_in_call:
+            slot["response_signals"].update(signals_by_call.get(row["call_id"], {}))
+            slot["warmth_signals"].update(warmth_by_call.get(row["call_id"], {}))
+        slot["quotes"].append(row["transcript"])
+        slot["turn_positions"].append(turn_index)
+    topics = []
+    for slot in topic_map.values():
+        response_emotion, response_cases = _response_emotion(
+            slot["response_signals"], slot["warmth_signals"], slot["emotions"],
+        )
+        call_count = len(slot["call_ids"])
+        return_turns = [
+            current - previous
+            for previous, current in zip(slot["turn_positions"], slot["turn_positions"][1:])
+        ]
+        median_return_turns = median_minutes([
+            {"minutes": value} for value in return_turns
+        ])
+        agitation_calls = len(slot["agitation_call_ids"])
+        burden_calls = len(slot["burden_call_ids"])
+        topics.append({
+            "topic": slot["topic"],
+            "calls": call_count,
+            "turns": slot["turns"],
+            "average_minutes": round(sum(slot["seconds_by_call"].values()) / max(1, call_count) / 60, 1),
+            "engagement": round(slot["turns"] / max(1, call_count), 1),
+            "emotion": response_emotion,
+            "emotion_cases": response_cases,
+            "quote": slot["quotes"][0],
+            # 설계 문서 2.2/7.1: 저장 시각(초)이 아닌 어르신 발화 턴 간격을 쓴다.
+            # 값이 클수록 같은 주제가 다시 등장하기까지 더 많은 발화가 지났다.
+            "return_turns": median_return_turns,
+            "return_observations": len(return_turns),
+            # D6 직접 발화가 같은 통화 안에 동반된 비율. 진단 점수가 아니다.
+            "agitation_ratio": round(slot["agitation_turns"] / max(1, slot["turns"]), 3),
+            "agitation_turns": slot["agitation_turns"],
+            "agitation_calls": agitation_calls,
+            "burden_calls": burden_calls,
+            "burden_ratio": round(burden_calls / max(1, call_count), 3),
+        })
+    topics.sort(key=lambda row: (row["calls"], row["turns"]), reverse=True)
+
+    tendency = _tendency_summary(
+        calls, elder_rows, topics, signals_by_call, period_start, period_end,
+    )
+    return {
+        "response_retention": {"current_minutes": current_minutes, "baseline_minutes": baseline_minutes, "change_minutes": round(current_minutes - baseline_minutes, 1) if current_minutes is not None and baseline_minutes is not None else None, "samples": [{"minutes": round(row["minutes"], 1), "label": row["at"].strftime("%m/%d %H:%M"), "question": row["question"]} for row in recent_intervals], "basis": "같은 발화 군집이 서로 다른 통화에서 다시 등장한 통화 시작 시각 간격"},
+        "time_regression": {"current_age": current_age, "stages": life_stages[-12:], "dominant_stage": Counter(row["label"] for row in life_stages).most_common(1)[0][0] if life_stages else None},
+        "emotion_topics": topics[:8],
+        "tendency_summary": tendency,
+    }
 
 
 DAILY_HEART_PRIORITY = {
@@ -1643,7 +2110,7 @@ def period(
     prev_since = prev_since_date.isoformat()
     prev_until = prev_until_date.isoformat()
     rhythm_since = min(
-        since, (period_end - timedelta(days=13)).isoformat()
+        since, (period_end - timedelta(days=29)).isoformat()
     )
 
     with db.connect() as conn:
@@ -1704,6 +2171,16 @@ def period(
             "AND substr(c.started_at, 1, 10) <= ?",
             (elder_id, rhythm_since, until),
         ).fetchall()]
+        analytics_utterances = [db._row(r) for r in conn.execute(
+            "SELECT u.* FROM utterances u JOIN calls c ON c.call_id = u.call_id "
+            "WHERE c.elder_id = ? AND c.status = 'ended' "
+            "AND substr(c.started_at, 1, 10) >= ? AND substr(c.started_at, 1, 10) <= ? "
+            "ORDER BY c.started_at, u.seq",
+            (elder_id, rhythm_since, until),
+        ).fetchall()]
+        elder_profile = db._row(conn.execute(
+            "SELECT birth_date FROM elder_profiles WHERE elder_id = ?", (elder_id,)
+        ).fetchone())
 
     by_day: dict[str, dict] = {}
     for c in calls:
@@ -1753,6 +2230,10 @@ def period(
     time_reports = (
         _time_analyses(calls, reports, risks, period_start)
         if days == 1 else []
+    )
+    call_analytics = _call_analytics(
+        rhythm_calls, analytics_utterances, elder_profile.get("birth_date"),
+        rhythm_reports, date.fromisoformat(rhythm_since), period_end,
     )
 
     facts = {
@@ -1808,6 +2289,7 @@ def period(
         ],
         "daily_reports": daily_reports,
         "time_reports": time_reports,
+        "call_analytics": call_analytics,
         "top_repeats": top_repeats,
         "care_counts": care_counts,
         "meaningful_total": meaningful_total,
@@ -1844,7 +2326,8 @@ def _narrative_period(facts: dict) -> dict:
 def acknowledge(event_id: int) -> dict:
     with db.connect() as conn:
         conn.execute(
-            "UPDATE call_events SET acknowledged = 1 WHERE event_id = ?", (event_id,)
+            "UPDATE call_events SET acknowledged = 1, acknowledged_at = CURRENT_TIMESTAMP WHERE event_id = ?", (event_id,)
         )
+        row = conn.execute("SELECT acknowledged_at FROM call_events WHERE event_id = ?", (event_id,)).fetchone()
         conn.commit()
-    return {"event_id": event_id, "acknowledged": True}
+    return {"event_id": event_id, "acknowledged": True, "acknowledged_at": row["acknowledged_at"] if row else None}

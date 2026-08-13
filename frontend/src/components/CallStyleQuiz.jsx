@@ -1,86 +1,120 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CALL_STYLE_DIMENSIONS,
-  CALL_STYLE_TOTAL_QUESTIONS,
+  CALL_STYLE_SCENES,
+  CALL_STYLE_TOTAL_SCENES,
   calculateCallStyle,
+  cleanCallStyleAnswers,
 } from "../callStyle.js";
+
+const confidenceCopy = { strong: "강함", medium: "보통", weak: "약함" };
+
+function personalizedLine(line, elderCallName) {
+  return line.replaceAll("{elder}", elderCallName || "어르신");
+}
 
 export default function CallStyleQuiz({
   answers,
   onAnswers,
   onApply,
   onUseDefault,
-  applyLabel = "이 유형 적용",
+  elderCallName = "어르신",
+  applyLabel = "이 말투 적용",
 }) {
-  const [dimensionIndex, setDimensionIndex] = useState(0);
-  const dimension = CALL_STYLE_DIMENSIONS[dimensionIndex];
-  const result = useMemo(() => calculateCallStyle(answers), [answers]);
-  const answered = CALL_STYLE_DIMENSIONS.flatMap((item) => item.questions)
-    .filter(([id]) => answers[id]).length;
-  const dimensionDone = dimension.questions.every(([id]) => answers[id]);
+  const cleanedAnswers = useMemo(() => cleanCallStyleAnswers(answers), [answers]);
+  const firstIncomplete = CALL_STYLE_SCENES.findIndex((scene) => !cleanedAnswers[scene.id]);
+  const [sceneIndex, setSceneIndex] = useState(firstIncomplete >= 0 ? firstIncomplete : CALL_STYLE_TOTAL_SCENES);
+  const advanceTimer = useRef(null);
+  const result = useMemo(() => calculateCallStyle(cleanedAnswers), [cleanedAnswers]);
+  const answered = Object.keys(cleanedAnswers).length;
+  const scene = CALL_STYLE_SCENES[Math.min(sceneIndex, CALL_STYLE_TOTAL_SCENES - 1)];
 
-  return <section className="call-style-quiz">
+  useEffect(() => () => window.clearTimeout(advanceTimer.current), []);
+
+  function choose(choiceId) {
+    const next = { ...cleanedAnswers, [scene.id]: choiceId };
+    onAnswers(next);
+    window.clearTimeout(advanceTimer.current);
+    advanceTimer.current = window.setTimeout(() => {
+      setSceneIndex((current) => Math.min(current + 1, CALL_STYLE_TOTAL_SCENES));
+    }, 180);
+  }
+
+  function goBack() {
+    window.clearTimeout(advanceTimer.current);
+    setSceneIndex((current) => Math.max(0, current - 1));
+  }
+
+  const showingResult = sceneIndex >= CALL_STYLE_TOTAL_SCENES && result;
+
+  return <section className="call-style-quiz call-style-card-quiz">
     <header className="call-style-head">
       <div>
-        <span>통화 MBTI</span>
-        <h3>가족의 평소 통화 방식을 알려주세요</h3>
-        <p>정답은 없습니다. 실제 어르신과 통화할 때 더 자연스러운 쪽을 선택하세요.</p>
+        <span>말투 카드</span>
+        <h3>첫 말투 맞추기</h3>
+        <p>실제 통화에서 내가 더 자연스럽게 건넬 말을 골라주세요.</p>
       </div>
-      <b>{answered}/{CALL_STYLE_TOTAL_QUESTIONS}</b>
+      <b>{showingResult ? "완료" : `${Math.min(sceneIndex + 1, CALL_STYLE_TOTAL_SCENES)}/${CALL_STYLE_TOTAL_SCENES}`}</b>
     </header>
-    {onUseDefault && <div className="call-style-default">
-      <div><b>질문 없이 시작할 수도 있어요</b><span>차분하게 사실을 알려주고, 지금 할 일 하나를 안내하는 안전한 기본 말투를 사용합니다.</span></div>
-      <button type="button" onClick={onUseDefault}>기본 말투로 건너뛰기</button>
+
+    {onUseDefault && sceneIndex === 0 && answered === 0 && <div className="call-style-default">
+      <div><b>질문 없이 시작할 수도 있어요</b><span>차분하게 상황을 알려주고, 지금 할 일 하나를 안내하는 기본 말투를 사용합니다.</span></div>
+      <button type="button" onClick={onUseDefault}>기본 말투로 시작</button>
     </div>}
-    <div className="persona-progress"><i style={{ width: `${answered / CALL_STYLE_TOTAL_QUESTIONS * 100}%` }} /></div>
 
-    <nav className="call-style-dimensions" aria-label="통화 성향 검사 단계">
-      {CALL_STYLE_DIMENSIONS.map((item, index) => {
-        const count = item.questions.filter(([id]) => answers[id]).length;
-        return <button type="button" key={item.id} className={dimensionIndex === index ? "on" : count === item.questions.length ? "done" : ""} onClick={() => setDimensionIndex(index)}>
-          <span>{index + 1}</span><b>{item.short}</b><small>{item.left}/{item.right} · {count}/7</small>
-        </button>;
-      })}
-    </nav>
-
-    <div className="call-style-dimension-copy">
-      <div><span>{dimension.left}</span><b>{dimension.leftName}</b></div>
-      <p>{dimension.description}</p>
-      <div><span>{dimension.right}</span><b>{dimension.rightName}</b></div>
+    <div className="call-style-scene-progress" aria-label={`${answered}개 카드 선택 완료`}>
+      {CALL_STYLE_SCENES.map((item, index) => <i key={item.id} className={cleanedAnswers[item.id] ? "done" : index === sceneIndex ? "current" : ""} />)}
     </div>
 
-    <div className="call-style-question-list">
-      {dimension.questions.map(([id, question, leftLabel, rightLabel], index) => <fieldset key={id}>
-        <legend><span>{String(index + 1).padStart(2, "0")}</span>{question}</legend>
-        <div>
-          <button type="button" className={answers[id] === dimension.left ? "selected" : ""} onClick={() => onAnswers({ ...answers, [id]: dimension.left })}>
-            <i>{dimension.left}</i>{leftLabel}
-          </button>
-          <button type="button" className={answers[id] === dimension.right ? "selected" : ""} onClick={() => onAnswers({ ...answers, [id]: dimension.right })}>
-            <i>{dimension.right}</i>{rightLabel}
-          </button>
+    {!showingResult ? <>
+      <article className="call-style-scene">
+        <header>
+          <span>{String(sceneIndex + 1).padStart(2, "0")}</span>
+          <div><small>{scene.title}</small><h4>{scene.situation}</h4></div>
+        </header>
+        {scene.safety && <p className="call-style-scene-safety">{scene.safety}</p>}
+        <div className="call-style-scene-choices">
+          {scene.choices.map((choice) => <button
+            type="button"
+            key={choice.id}
+            className={cleanedAnswers[scene.id] === choice.id ? "selected" : ""}
+            onClick={() => choose(choice.id)}
+          >
+            <i>{choice.id.toUpperCase()}</i>
+            <span>{personalizedLine(choice.line, elderCallName)}</span>
+            <b aria-hidden="true">›</b>
+          </button>)}
         </div>
-      </fieldset>)}
-    </div>
-
-    <div className="call-style-nav">
-      <button type="button" disabled={dimensionIndex === 0} onClick={() => setDimensionIndex((index) => index - 1)}>이전</button>
-      {dimensionIndex < CALL_STYLE_DIMENSIONS.length - 1 && <button type="button" className="primary" disabled={!dimensionDone} onClick={() => setDimensionIndex((index) => index + 1)}>다음 영역</button>}
-    </div>
-
-    {result ? <article className="call-style-result">
-      <div className="call-style-code"><small>나의 통화 유형</small><b>{result.code}</b></div>
-      <div className="call-style-result-copy"><span>{result.name}</span><h3>{result.description}</h3><p>유형은 진단이 아니라 AI 말투의 시작점입니다. 실제 통화에서는 어르신 상태와 안전 규칙이 우선됩니다.</p></div>
+      </article>
+      <div className="call-style-nav">
+        <button type="button" disabled={sceneIndex === 0} onClick={goBack}>← 이전 장면</button>
+      </div>
+    </> : <article className="call-style-result">
+      <div className="call-style-result-main">
+        <small>말투 시작점</small>
+        <h3>{result.summary.join(" · ")}</h3>
+        <p>{result.description}</p>
+        {result.frequent[0] && <blockquote><span>첫마디는 이렇게 나갑니다</span>“{result.frequent[0]}”</blockquote>}
+        <em>통화에서는 어르신 상태와 안전 규칙이 언제나 이보다 우선합니다.</em>
+      </div>
+      <div className="call-style-code"><small>{result.name}</small><b>{result.code}</b></div>
       <div className="call-style-score-grid">
         {CALL_STYLE_DIMENSIONS.map((item) => {
           const score = result.scores[item.id];
           return <div key={item.id}>
-            <header><b>{score.left} {score.left_percent}%</b><span>{item.short}</span><b>{score.right_percent}% {score.right}</b></header>
+            <header>
+              <b>{item.leftName} {score.left_count}</b>
+              <span>{item.short} · {confidenceCopy[score.confidence]}</span>
+              <b>{score.right_count} {item.rightName}</b>
+            </header>
             <i><em style={{ width: `${score.left_percent}%` }} /></i>
           </div>;
         })}
       </div>
-      <button type="button" className="save" onClick={() => onApply?.(result)}>{applyLabel}</button>
-    </article> : <p className="persona-result-wait">네 영역의 28문항에 모두 답하면 통화 유형과 축별 비율이 나타납니다.</p>}
+      <div className="call-style-result-actions">
+        <button type="button" onClick={goBack}>선택 다시 보기</button>
+        <button type="button" className="save" onClick={() => onApply?.(result)}>{applyLabel}</button>
+      </div>
+    </article>}
   </section>;
 }

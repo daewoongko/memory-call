@@ -48,6 +48,7 @@
       "title": "부산 해운대 가족여행",
       "description": "2012년 여름 할아버지, 민준이, 부모님이 해운대에 갔다. 민준이가 모래성을 만들었고 할아버지가 옆에서 지켜봤다.",
       "date_text": "2012년 여름",
+      "happened_year": 2012,
       "location": "부산 해운대",
       "participants": [
         "할아버지",
@@ -75,6 +76,7 @@
       "title": "초등학교 입학식",
       "description": "2010년 민준이 초등학교 입학식에 할아버지가 직접 오셨다. 교문 앞에서 사진을 찍었다.",
       "date_text": "2010년 3월",
+      "happened_year": 2010,
       "location": "서울",
       "participants": [
         "할아버지",
@@ -89,6 +91,7 @@
       "title": "할아버지 텃밭",
       "description": "할아버지가 집 뒤에 상추와 고추를 심으셨다. 민준이가 방학마다 물을 줬다.",
       "date_text": "2008~2015년",
+      "happened_year": 2008,
       "location": "할아버지 댁",
       "participants": [
         "할아버지",
@@ -115,6 +118,7 @@
       "title": "민준이 첫 직장 취업",
       "description": "2018년 민준이가 첫 직장에 취업했을 때 할아버지가 제일 먼저 전화를 받고 기뻐하셨다.",
       "date_text": "2018년 겨울",
+      "happened_year": 2018,
       "location": "전화",
       "participants": [
         "할아버지",
@@ -141,6 +145,7 @@
       "title": "할아버지 생신 잔치",
       "description": "2019년 팔순 잔치를 가족들이 모여서 했다. 할아버지가 노래를 부르셨다.",
       "date_text": "2019년 3월",
+      "happened_year": 2019,
       "location": "식당",
       "participants": [
         "할아버지",
@@ -155,6 +160,7 @@
       "title": "자전거 배우기",
       "description": "할아버지가 민준이 자전거 뒤를 잡아주며 타는 법을 가르쳐 주셨다.",
       "date_text": "2011년경",
+      "happened_year": 2011,
       "location": "동네 공원",
       "participants": [
         "할아버지",
@@ -168,6 +174,7 @@
       "title": "할아버지의 옛 직업",
       "description": "할아버지는 오래 목공 일을 하셨다. 직접 만든 나무 의자가 아직 집에 있다.",
       "date_text": "1970~1990년대",
+      "happened_year": 1970,
       "location": "-",
       "participants": [
         "할아버지"
@@ -205,6 +212,7 @@
       "title": "할머니 별세",
       "description": "2021년 할머니가 돌아가셨다. 할아버지는 이를 자주 잊으시고 할머니를 찾으신다.",
       "date_text": "2021년",
+      "happened_year": 2021,
       "location": "-",
       "participants": [
         "할머니"
@@ -218,6 +226,7 @@
       "title": "가족 간 재산 문제",
       "description": "형제간 갈등이 있었던 사안.",
       "date_text": "2022년",
+      "happened_year": 2022,
       "location": "-",
       "participants": [
         "가족"

@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "../api.js";
 import BrandMark from "../components/BrandMark.jsx";
 import ReportTabs from "./ReportTabs.jsx";
+import CareTaskWorkspace from "./CareTaskWorkspace.jsx";
+import HandoverWorkspace from "./HandoverWorkspace.jsx";
 
 const MAIN_TABS = [
-  { id: "analysis", label: "분석 리포트", icon: "분" },
-  { id: "notes", label: "특이사항", icon: "특" },
+  { id: "analysis", label: "분석 리포트", icon: null },
+  { id: "checks", label: "체크사항", icon: null },
+  { id: "handover", label: "인계", icon: null },
 ];
 
 function localDateKey(date = new Date()) {
@@ -97,6 +100,9 @@ export default function CareManagerScreen() {
   const [comparisonDay, setComparisonDay] = useState(null);
   const [error, setError] = useState("");
   const [baselineLoading, setBaselineLoading] = useState(false);
+  const [taskProgress, setTaskProgress] = useState(null);
+  const [taskInitialSubtab, setTaskInitialSubtab] = useState("checklist");
+  const [taskActiveSubtab, setTaskActiveSubtab] = useState("checklist");
 
   useEffect(() => { api.getElders().then(({ elders: rows }) => { setElders(rows); if (rows.length === 1) setPicked(rows[0]); }).catch((e) => setError(e.message)); }, []);
   useEffect(() => {
@@ -135,22 +141,27 @@ export default function CareManagerScreen() {
     }).catch((e) => setError(`분석을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (${e.message})`));
   }, [period, picked]);
   useEffect(() => { loadSummary(); }, [loadSummary]);
+  useEffect(() => {
+    if (!picked) return;
+    api.getCareTasks(period.value)
+      .then((result) => setTaskProgress({ completed: result.completed || 0, total: result.total || 0 }))
+      .catch(() => setTaskProgress(null));
+  }, [picked, period.value]);
 
   if (!elders) return <main className="guardian"><p className={error ? "error" : "hint"}>{error || "어르신 정보를 불러오는 중…"}</p></main>;
   if (!picked) return <main className="guardian role-picker"><header className="g-head"><BrandMark size={34} /><b>요양원 담당자</b></header><h1 className="g-title">관리할 어르신을 선택하세요</h1><div className="elder-cards">{elders.map((elder) => <button className="elder-card" key={elder.elder_id} onClick={() => setPicked(elder)}><span className="elder-face">{elder.name?.slice(0, 1)}</span><span className="elder-info"><b>{elder.name}</b><small>{elder.diagnosis_label || elder.preferred_call_name}</small><em>{elder.residence_type || "생활 정보 미등록"}</em></span><span className="chev">›</span></button>)}</div></main>;
 
-  const current = MAIN_TABS.find((item) => item.id === tab);
   return <main className="guardian guardian-dashboard care-manager-dashboard">
     <div className="guardian-shell">
       <aside className="guardian-sidebar">
         <div className="sidebar-brand"><BrandMark size={32} /><div><b>다소니</b><span>요양원 케어 분석</span></div></div>
         <button className="sidebar-elder" onClick={() => elders.length > 1 && setPicked(null)}><span className="elder-face sm">{picked.name?.slice(0, 1)}</span><span><b>{picked.name}</b><small>{picked.preferred_call_name}</small></span><i>⌄</i></button>
-        <nav className="sidebar-nav" aria-label="담당자 메뉴">{MAIN_TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => setTab(item.id)}><span>{item.icon}</span>{item.label}</button>)}</nav>
+        <nav className="sidebar-nav" aria-label="담당자 메뉴">{MAIN_TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => { setTab(item.id); if (item.id === "checks") setTaskInitialSubtab("checklist"); }}>{item.icon && <span>{item.icon}</span>}{item.label}{item.id === "checks" && taskProgress && <em>{taskProgress.completed}/{taskProgress.total}</em>}</button>)}</nav>
       </aside>
       <section className="guardian-workspace">
-        <header className="dashboard-heading manager-heading"><div><p className="eyebrow">{picked.name} 어르신 · {patientProfile?.diagnosis_label || picked.diagnosis_label || "진단 정보 미등록"}</p><h1>{new Date(`${period.value}T00:00:00`).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 분석 리포트</h1><span>{tab === "analysis" ? "발화 변화에서 오늘의 확인 우선순위를 정리합니다." : "담당자가 직접 확인해야 할 근거와 행동을 모았습니다."}</span></div><label className="manager-date-picker"><span>분석 날짜</span><input type="date" value={period.value} max={localDateKey()} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} /></label></header>
+        <header className="dashboard-heading manager-heading"><div><p className="eyebrow">{picked.name} 어르신 · {patientProfile?.diagnosis_label || picked.diagnosis_label || "진단 정보 미등록"}</p><h1>{tab === "checks" && taskActiveSubtab === "medication" ? "오늘 복약" : `${new Date(`${period.value}T00:00:00`).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 분석 리포트`}</h1>{tab !== "analysis" && <span>담당자가 직접 확인해야 할 근거와 행동을 모았습니다.</span>}</div>{!(tab === "checks" && taskActiveSubtab === "medication") && <label className="manager-date-picker"><span>분석 날짜</span><input type="date" value={period.value} max={localDateKey()} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} /></label>}</header>
         {error && <p className="error">{error}</p>}
-        {!summary ? <p className="hint">분석 데이터를 불러오는 중…</p> : tab === "analysis" ? <><ReportTabs elderId={picked.elder_id} elderName={picked.name} patientProfile={patientProfile} summary={summary} baselineSummary={baselineSummary || summary} comparisonDay={comparisonDay || summary} days={summary.days} period={period} onPeriod={setPeriod} onReload={loadSummary} />{baselineLoading && <p className="manager-baseline-loading">최근 30일 비교 기준을 이어서 계산하고 있습니다.</p>}</> : <SpecialNotes summary={summary} onReload={loadSummary} />}
+        {!summary ? <p className="hint">분석 데이터를 불러오는 중…</p> : tab === "analysis" ? <><ReportTabs elderId={picked.elder_id} elderName={picked.name} patientProfile={patientProfile} summary={summary} baselineSummary={baselineSummary || summary} comparisonDay={comparisonDay || summary} days={summary.days} period={period} onPeriod={setPeriod} onReload={loadSummary} />{baselineLoading && <p className="manager-baseline-loading">최근 30일 비교 기준을 이어서 계산하고 있습니다.</p>}</> : tab === "checks" ? <CareTaskWorkspace elderId={picked.elder_id} summary={summary} baselineSummary={baselineSummary || summary} period={period} onReload={loadSummary} onOpenHandover={() => setTab("handover")} onOpenMedication={(item) => { setTaskInitialSubtab("medication"); const target = elders.find((elder) => elder.elder_id === item.elder_id); if (target && target.elder_id !== picked.elder_id) setPicked(target); }} onProgress={setTaskProgress} onSubtabChange={setTaskActiveSubtab} initialSubtab={taskInitialSubtab} /> : <HandoverWorkspace date={period.value} onProgress={setTaskProgress} />}
       </section>
     </div>
   </main>;

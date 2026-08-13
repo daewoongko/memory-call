@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as api from "../api.js";
 import { useSpeech } from "../useSpeech.js";
-
-const ALIAS = {
-  손자: ["손자", "손주"],
-  손녀: ["손녀", "손주"],
-  아들: ["아들", "아드님"],
-  딸: ["딸", "따님"],
-  며느리: ["며느리"],
-};
+import { familyMatchPrompt, matchFamily, readyFamilyHint } from "../familyMatch.js";
 
 const dateKey = (date) => [
   date.getFullYear(),
@@ -16,23 +9,13 @@ const dateKey = (date) => [
   String(date.getDate()).padStart(2, "0"),
 ].join("-");
 
-function match(text, personas) {
-  const said = text.replace(/\s/g, "");
-  return personas.find((persona) => {
-    if (!persona.ready) return false;
-    if (said.includes(persona.display_name)) return true;
-    return (ALIAS[persona.relationship] ?? [persona.relationship])
-      .some((word) => word && said.includes(word));
-  });
-}
-
 function greeting(hour) {
   if (hour < 11) return "좋은 아침이에요";
   if (hour < 17) return "편안한 오후예요";
   return "편안한 저녁이에요";
 }
 
-export default function FamilyScreen({ onPick, error }) {
+export default function FamilyScreen({ elderId = "elder_001", onPick, error }) {
   const [personas, setPersonas] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [medications, setMedications] = useState([]);
@@ -44,16 +27,20 @@ export default function FamilyScreen({ onPick, error }) {
   const speech = useSpeech({
     silenceMs: 1600,
     onFinal: (text) => {
-      const hit = match(text, personas);
-      if (hit) onPick(hit);
-      else setNotice(`“${text}” — 가족의 이름을 다시 말씀해 주세요.`);
+      const result = matchFamily(text, personas);
+      if (result.status === "one") onPick(result.persona);
+      else setNotice(result.status === "many"
+        ? familyMatchPrompt(result)
+        : `“${text}” — 가족의 이름을 다시 말씀해 주세요.`);
     },
   });
 
   useEffect(() => {
     let alive = true;
+    setLoadError("");
     Promise.all([
-      api.getPersonas(), api.getSchedules(), api.getMedications(), api.getMemories(),
+      api.getPersonas(elderId), api.getSchedules(elderId),
+      api.getMedications(elderId), api.getMemories(elderId),
     ]).then(([personaResult, scheduleResult, medicationResult, memoryResult]) => {
       if (!alive) return;
       setPersonas(personaResult.personas || []);
@@ -63,10 +50,9 @@ export default function FamilyScreen({ onPick, error }) {
     }).catch((reason) => alive && setLoadError(reason.message));
     const clock = setInterval(() => setNow(new Date()), 30000);
     return () => { alive = false; clearInterval(clock); };
-  }, []);
+  }, [elderId]);
 
   const ready = personas.filter((persona) => persona.ready);
-  const shown = ready.length ? ready : personas;
   const today = dateKey(now);
   const todaySchedules = schedules.filter((item) => item.date === today);
   const confirmedMedicationCount = medications.filter((item) =>
@@ -116,7 +102,7 @@ export default function FamilyScreen({ onPick, error }) {
       <section className="reassurance-family">
         <header><h2>누구와 이야기할까요?</h2><span>사진을 눌러 주세요</span></header>
         <div className="family-grid">
-          {shown.map((persona) => (
+          {personas.map((persona) => (
             <button
               key={persona.persona_id}
               className={`family-card${persona.ready ? "" : " waiting"}`}
@@ -130,6 +116,7 @@ export default function FamilyScreen({ onPick, error }) {
               <span><b>{persona.display_name}</b><small>{persona.ready ? persona.relationship : "등록 대기"}</small></span>
             </button>
           ))}
+          {!personas.length && <p className="family-empty">아직 등록된 가족이 없어요. 가족 앱에서 먼저 얼굴과 관계를 등록해 주세요.</p>}
         </div>
       </section>
 
@@ -140,7 +127,7 @@ export default function FamilyScreen({ onPick, error }) {
         {speech.listening ? "듣고 있어요" : "가족 이름을 말해도 돼요"}
       </button>}
 
-      {speech.listening && <p className="hint">{speech.interim || "정훈, 미영, 민준, 유진처럼 말씀해 주세요."}</p>}
+      {speech.listening && <p className="hint">{speech.interim || readyFamilyHint(personas)}</p>}
       {!speech.listening && notice && <p className="hint">{notice}</p>}
       {(error || loadError) && <p className="error">일부 정보를 불러오지 못했어요. 가족 통화는 계속 이용할 수 있어요. ({error || loadError})</p>}
     </div>

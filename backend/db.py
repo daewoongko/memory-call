@@ -6,6 +6,7 @@ load_context()의 반환 형태는 seed.json과 동일해서 persona.py는 그�
 """
 
 import json
+import re
 import sqlite3
 
 from storage import DB_PATH, ROOT, ensure_directories
@@ -48,6 +49,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "counterpart_name": "TEXT",
         "counterpart_relation": "TEXT",
         "report_title": "TEXT",
+        "call_type": "TEXT DEFAULT 'ai'",
     },
     "reports": {
         "care_summary": "TEXT",
@@ -59,6 +61,13 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "monitoring_points": "TEXT",
         "review_interval_days": "INTEGER DEFAULT 14",
         "escalation_criteria": "TEXT",
+    },
+    "call_events": {
+        "acknowledged_at": "TEXT",
+    },
+    "memories": {
+        "photo_url": "TEXT",
+        "happened_year": "INTEGER",
     },
 }
 
@@ -168,6 +177,27 @@ def insert(conn: sqlite3.Connection, table: str, data: dict) -> int:
         [_dump(v) for v in data.values()],
     )
     return cur.lastrowid
+
+
+def update(conn: sqlite3.Connection, table: str, id_column: str,
+           id_value, data: dict) -> None:
+    """한 행의 지정된 컬럼만 갱신한다.
+
+    백그라운드 LLM이 뒤늦게 리포트 메타데이터를 채울 때 사용한다.
+    ``INSERT OR REPLACE``와 달리 먼저 저장한 원문·근거·안전 필드를
+    지우지 않는다. 테이블명과 컬럼명은 내부 상수만 받도록 검증한다.
+    """
+    if not data:
+        return
+    identifiers = [table, id_column, *data]
+    if any(not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value)
+           for value in identifiers):
+        raise ValueError("invalid SQL identifier")
+    assignments = ", ".join(f"{column} = ?" for column in data)
+    conn.execute(
+        f"UPDATE {table} SET {assignments} WHERE {id_column} = ?",
+        [_dump(value) for value in data.values()] + [id_value],
+    )
 
 
 # ------------------------------------------------------------------ 조회

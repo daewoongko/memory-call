@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS memories (
     conversation_allowed INTEGER DEFAULT 1,
     note                 TEXT,
     source_call_id       TEXT,   -- 통화 중 새로 발견된 기억이면 그 통화
+    photo_url            TEXT,   -- 가족이 직접 올린 실제 사진
+    happened_year        INTEGER, -- 추억이 일어난 연도. 모르면 NULL
     created_at           TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_memories_elder ON memories(elder_id, status);
@@ -180,9 +182,20 @@ CREATE TABLE IF NOT EXISTS call_events (
                     ('risk','medication','morph','handoff','safety_block')),
     payload      TEXT,   -- JSON 객체
     acknowledged INTEGER DEFAULT 0,
+    acknowledged_at TEXT,
     created_at   TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_evt_call ON call_events(call_id, event_type);
+
+-- 담당자 개인 계정이 없는 현재 범위에서는 근무조와 마감 시각, 자유 메모만
+-- 저장한다. 체크 결과는 각 원천 테이블에서 마감 시각을 기준으로 다시 집계한다.
+CREATE TABLE IF NOT EXISTS handovers (
+    handover_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shift       TEXT NOT NULL CHECK (shift IN ('day','evening','night')),
+    closed_at   TEXT NOT NULL,
+    note        TEXT,
+    created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
 -- 통화 중 나온 미확인 회상에 대한 보호자의 판단.
 -- 한 번 처리한 것은 다시 묻지 않기 위해 결정을 남긴다 (명세 FR-05).

@@ -7,6 +7,8 @@
 D4에서 safety.py가 붙을 자리를 _apply_safety()로 비워뒀다.
 """
 
+import logging
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -19,6 +21,7 @@ import safety
 from persona import build_system_prompt, load_context
 
 MAX_HISTORY_TURNS = 12  # 최근 12턴만 모델에 보냄. 반복 질문이 많아 길어지기 쉽다.
+LOGGER = logging.getLogger(__name__)
 
 
 def _now() -> str:
@@ -38,6 +41,7 @@ class Session:
         self._started = time.time()
         # 지금 챙겨야 하는 약. 통화를 열 때 선택한 AI 가족이 먼저 꺼낸다 (명세 FR-08).
         self.due_meds = medication.due(elder_id)
+        self._medication_lock = threading.Lock()
 
         with db.connect() as conn:
             db.insert(conn, "calls", {
@@ -84,7 +88,11 @@ class Session:
     # -------------------------------------------------------------- 발화
 
     def turn(self, user_text: str) -> dict:
-        """할아버지 발화 하나를 받아 AI 응답 dict를 돌려준다."""
+        """빠른 답변과 안전 필드만 확정해 즉시 돌려준다.
+
+        보호자 리포트용 intent/care/복약 메타데이터는 API 응답 후
+        ``finish_turn_metadata``가 별도 생성해 같은 DB 행에 덧붙인다.
+        """
         self.seq += 1
         elder_uid = self._record({
             "seq": self.seq,
@@ -97,27 +105,10 @@ class Session:
         messages.append({"role": "user", "content": user_text})
 
         t0 = time.time()
-        result = llm.call_json(messages)
+        result = llm.call_json_fast(messages)
         latency_ms = int((time.time() - t0) * 1000)
 
         result = self._apply_safety(result, user_text)
-        care_data = care.normalize(
-            result.get("care"),
-            user_text=user_text,
-            ctx=self.ctx,
-            due_medications=self.due_meds,
-            response_rewritten=bool(result.get("_rewritten")),
-        )
-        # 보호자 리포트가 모델이 만든 인용문만 믿지 않고 실제 환자 발화와
-        # 그 시각을 다시 조회할 수 있도록 원본 행을 연결한다.
-        if (
-            care_data["observations"]
-            or care_data["context_support"]
-            or care_data["daily_action"] is not None
-            or care_data["meaningful_moments"]
-        ):
-            care_data["source_utterance_id"] = elder_uid
-        result["care"] = care_data
         reply = result.get("reply", "")
 
         self.seq += 1
@@ -125,27 +116,82 @@ class Session:
             "seq": self.seq,
             "speaker": "ai",
             "transcript": reply,
-            "intent": result.get("intent"),
             "certainty": result.get("certainty"),
             "used_memory_ids": result.get("used_memory_ids") or [],
             "used_schedule_ids": result.get("used_schedule_ids") or [],
             "unverified_recall": result.get("unverified_recall"),
-            "care_data": result.get("care"),
-            "grounding": result.get("grounding"),
             "safety_flags": result.get("_safety_flags") or [],
             "was_rewritten": 1 if result.get("_rewritten") else 0,
             "latency_ms": latency_ms,
         })
 
-        self._record_events(result, elder_uid, ai_uid)
-        self._record_medication(result, user_text, elder_uid)
+        self._record_risk_event(result, elder_uid, ai_uid)
 
         self.history += [
             {"role": "user", "content": user_text},
             {"role": "assistant", "content": reply},
         ]
         result["_latency_ms"] = latency_ms
+        result["_elder_uid"] = elder_uid
+        result["_ai_uid"] = ai_uid
+        result["_user_text"] = user_text
+        result["_due_meds"] = [dict(item) for item in self.due_meds]
+        # BackgroundTasks가 같은 요청 문맥을 재구성하지 않도록 호출용 복사본만
+        # 넘긴다. API 응답에는 밑줄 필드를 노출하지 않는다.
+        result["_messages"] = messages
         return result
+
+    def finish_turn_metadata(self, fast_result: dict) -> None:
+        """응답 후 리포트용 메타데이터를 보수적으로 저장한다.
+
+        실패하더라도 이미 안전검사를 거쳐 사용자에게 전달된 답변과 통화는
+        영향을 받지 않는다. 세션 종료와 경합해도 DB 행 ID로 직접 갱신한다.
+        """
+        reply = str(fast_result.get("reply") or "")
+        user_text = str(fast_result.get("_user_text") or "")
+        elder_uid = fast_result.get("_elder_uid")
+        ai_uid = fast_result.get("_ai_uid")
+        messages = fast_result.get("_messages") or [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": user_text},
+        ]
+        try:
+            meta = llm.call_json_metadata(
+                messages, reply, temperature=0.2, quiet=True,
+            )
+        except Exception as exc:  # noqa: BLE001 - 후처리 실패는 실시간 통화를 막지 않는다
+            LOGGER.warning("turn metadata generation failed for %s: %s", self.call_id, exc)
+            return
+
+        due_meds = fast_result.get("_due_meds") or []
+
+        care_data = care.normalize(
+            meta.get("care"),
+            user_text=user_text,
+            ctx=self.ctx,
+            due_medications=due_meds,
+            response_rewritten=bool(fast_result.get("_rewritten")),
+        )
+        if (
+            care_data["observations"]
+            or care_data["context_support"]
+            or care_data["daily_action"] is not None
+            or care_data["meaningful_moments"]
+        ):
+            care_data["source_utterance_id"] = elder_uid
+
+        if ai_uid is not None:
+            with db.connect() as conn:
+                db.update(conn, "utterances", "utterance_id", ai_uid, {
+                    "intent": meta.get("intent"),
+                    "care_data": care_data,
+                    "grounding": meta.get("grounding"),
+                })
+                conn.commit()
+
+        self._record_medication_metadata(
+            meta, user_text, elder_uid, ai_uid, due_meds=due_meds,
+        )
 
     def _apply_safety(self, result: dict, user_text: str = "") -> dict:
         """규칙 검사. 위반이면 안전 문장으로 교체하고 사유를 남긴다."""
@@ -159,29 +205,54 @@ class Session:
             conn.commit()
         return uid
 
-    def _record_medication(self, result: dict, user_text: str,
-                           elder_uid: int | None = None) -> None:
-        """통화에서 확인된 복약 상태를 기록한다.
+    def _record_medication_metadata(self, result: dict, user_text: str,
+                                    elder_uid: int | None = None,
+                                    ai_uid: int | None = None,
+                                    due_meds: list[dict] | None = None) -> None:
+        """백그라운드 분류에서 확인된 복약 상태를 기록한다.
 
         어떤 약인지는 지금 챙길 대상에서 고른다. 모델이 약을 지목하게 두지 않는다.
         """
-        status = (result.get("medication_status") or {}).get("status")
-        if not status or not self.due_meds:
-            return
-        medication.record(
-            elder_id=self.elder_id,
-            schedule_id=self.due_meds[0]["schedule_id"],
-            status=status,
-            call_id=self.call_id,
-            evidence=user_text[:200],
-            utterance_id=elder_uid,
-        )
-        if status == "USER_CONFIRMED":
-            self.due_meds = self.due_meds[1:]
+        medication_status = result.get("medication_status")
+        if medication_status:
+            with db.connect() as conn:
+                db.insert(conn, "call_events", {
+                    "call_id": self.call_id,
+                    "utterance_id": elder_uid,
+                    "ai_utterance_id": ai_uid,
+                    "event_type": "medication",
+                    "payload": medication_status,
+                })
+                conn.commit()
 
-    def _record_events(self, result: dict, elder_uid: int | None = None,
-                       ai_uid: int | None = None) -> None:
-        """이벤트를 "무엇 때문에 생겼는지"와 함께 남긴다.
+        status = (medication_status or {}).get("status")
+        due_snapshot = due_meds if due_meds is not None else self.due_meds
+        if not status or not due_snapshot:
+            return
+        target_id = due_snapshot[0]["schedule_id"]
+        lock = getattr(self, "_medication_lock", None) or threading.Lock()
+        with lock:
+            # 빠르게 연속 발화해 백그라운드 분류가 역순으로 끝나도 이미
+            # 처리한 약을 다음 약으로 잘못 기록하지 않는다.
+            if not any(row.get("schedule_id") == target_id for row in self.due_meds):
+                return
+            medication.record(
+                elder_id=self.elder_id,
+                schedule_id=target_id,
+                status=status,
+                call_id=self.call_id,
+                evidence=user_text[:200],
+                utterance_id=elder_uid,
+            )
+            if status == "USER_CONFIRMED":
+                self.due_meds = [
+                    row for row in self.due_meds
+                    if row.get("schedule_id") != target_id
+                ]
+
+    def _record_risk_event(self, result: dict, elder_uid: int | None = None,
+                           ai_uid: int | None = None) -> None:
+        """안전 계층이 확정한 위험 이벤트를 즉시 남긴다.
 
         utterance_id 는 할아버지 발화다. 보호자가 리포트에서 위험을 눌렀을 때
         보고 싶은 것은 AI 가 뭐라고 답했는지가 아니라 어르신이 무슨 말을
@@ -192,23 +263,16 @@ class Session:
         utterances.safety_flags 에 발화와 함께 저장되고, 리포트의 _safety() 도
         그쪽만 읽는다. 이벤트 쪽은 아무도 읽지 않는 중복이었다.
         """
-        events = []
-        if result.get("risk"):
-            events.append(("risk", result["risk"]))
-        if result.get("medication_status"):
-            events.append(("medication", result["medication_status"]))
-
-        if not events:
+        if not result.get("risk"):
             return
         with db.connect() as conn:
-            for event_type, payload in events:
-                db.insert(conn, "call_events", {
-                    "call_id": self.call_id,
-                    "utterance_id": elder_uid,
-                    "ai_utterance_id": ai_uid,
-                    "event_type": event_type,
-                    "payload": payload,
-                })
+            db.insert(conn, "call_events", {
+                "call_id": self.call_id,
+                "utterance_id": elder_uid,
+                "ai_utterance_id": ai_uid,
+                "event_type": "risk",
+                "payload": result["risk"],
+            })
             conn.commit()
 
     # -------------------------------------------------------------- 종료

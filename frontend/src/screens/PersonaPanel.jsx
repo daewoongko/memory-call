@@ -39,10 +39,10 @@ const validationStatusLabel = (status) => ({
   fail: "실패",
 }[status] ?? "검증 전");
 
-export default function PersonaPanel() {
+export default function PersonaPanel({ elderId = "elder_001", initialPersonaId = "", mode = "full" }) {
   const [data, setData] = useState(null);
   const [personaTargets, setPersonaTargets] = useState([]);
-  const [selectedPersonaId, setSelectedPersonaId] = useState("");
+  const [selectedPersonaId, setSelectedPersonaId] = useState(initialPersonaId);
   const [persona, setPersona] = useState({});
   const [elder, setElder] = useState({});
   const [agePlan, setAgePlan] = useState({
@@ -58,11 +58,12 @@ export default function PersonaPanel() {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [quizAnswers, setQuizAnswers] = useState({});
+  const [previewPhoto, setPreviewPhoto] = useState(null);
   const fileRef = useRef(null);
   const personaType = useMemo(() => calculateCallStyle(quizAnswers), [quizAnswers]);
 
   const load = (personaId = selectedPersonaId) =>
-    Promise.all([api.getPersonas(), api.getPersona(personaId || undefined)])
+    Promise.all([api.getPersonas(elderId), api.getPersona(personaId || undefined, elderId)])
       .then(([targetData, r]) => {
         setPersonaTargets(targetData.personas.filter((target) => target.ready));
         setData(r);
@@ -75,8 +76,8 @@ export default function PersonaPanel() {
       .catch((e) => setError(e.message));
 
   useEffect(() => {
-    load();
-  }, []);
+    load(initialPersonaId || undefined);
+  }, [elderId, initialPersonaId]);
 
   async function guard(fn, message) {
     setBusy(true);
@@ -108,7 +109,7 @@ export default function PersonaPanel() {
           call_style_name: persona.call_style_name,
           call_style_scores: persona.call_style_scores,
           call_style_answers: persona.call_style_answers,
-        }, selectedPersonaId),
+        }, selectedPersonaId, elderId),
       "페르소나를 저장했어요."
     );
 
@@ -119,14 +120,14 @@ export default function PersonaPanel() {
       ...persona,
       ...stylePatch,
     });
-    setNote(`${personaType.code} · ${personaType.name} 말투 초안을 적용했어요. 저장하면 실제 통화에 반영됩니다.`);
+    setNote(`${personaType.code} · ${personaType.name} 말투 시작점을 적용했어요. 저장하면 실제 통화에 반영됩니다.`);
   };
 
   const applyDefaultPersonaType = () => {
     const defaults = getDefaultCallStyle();
     setQuizAnswers(defaults.answers);
     setPersona({ ...persona, ...callStylePersonaPatch(defaults.result, defaults.answers) });
-    setNote("CPOG · 차분한 생활 안내형 기본 말투를 적용했습니다. 저장하면 실제 통화에 반영됩니다.");
+    setNote("CPOG · 든든한 나침반 기본 말투를 적용했습니다. 저장하면 실제 통화에 반영됩니다.");
   };
 
   const saveElder = () =>
@@ -139,7 +140,7 @@ export default function PersonaPanel() {
           hearing_support: Boolean(elder.hearing_support),
           anxiety_triggers: fromLines(toLines(elder.anxiety_triggers)),
           calming_phrases: fromLines(toLines(elder.calming_phrases)),
-        }),
+        }, elderId),
       "프로필을 저장했어요."
     );
 
@@ -233,10 +234,11 @@ export default function PersonaPanel() {
     warning: "확인 필요",
     rejected: "다시 선택",
   };
+  const photoOnly = mode === "photos";
 
   return (
     <>
-      <section className="meds">
+      {!photoOnly && <section className="meds">
         <h2>가족 페르소나</h2>
         <p className="hint">
           가족을 선택한 뒤 질문에 답하면, 각자의 말투와 호칭이 따로 통화에 쓰여요.
@@ -305,7 +307,7 @@ export default function PersonaPanel() {
           </label>
         </div>
 
-        <CallStyleQuiz answers={quizAnswers} onAnswers={setQuizAnswers} onApply={applyPersonaType} onUseDefault={applyDefaultPersonaType} />
+        <CallStyleQuiz answers={quizAnswers} onAnswers={setQuizAnswers} onApply={applyPersonaType} onUseDefault={applyDefaultPersonaType} elderCallName={persona.family_calls_elder || "어르신"} />
 
         <details className="persona-advanced">
           <summary>적용된 말투와 문장 직접 조정</summary>
@@ -343,15 +345,11 @@ export default function PersonaPanel() {
         <button className="save" onClick={savePersona} disabled={busy}>
           페르소나 저장
         </button>
-      </section>
+      </section>}
 
       <section className="meds">
         <h2>현재 얼굴 사진 준비</h2>
-        <p className="hint">
-          같은 사람의 현재 사진을 3~6장 올려주세요. 정면 사진을 중심으로
-          살짝 좌우를 본 사진과 미소 사진을 함께 올리면 얼굴을 더 안정적으로
-          유지할 수 있어요. 사진은 외부 서비스로 전송되지 않습니다.
-        </p>
+        <p className="hint">{photoOnly ? "현재 얼굴 사진을 확인하고 대표 사진을 선택하세요." : "같은 사람의 현재 사진을 3~6장 올려주세요. 정면 사진을 중심으로 살짝 좌우를 본 사진과 미소 사진을 함께 올리면 얼굴을 더 안정적으로 유지할 수 있어요. 사진은 외부 서비스로 전송되지 않습니다."}</p>
 
         <div className="build-status">
           <span className={identity.ready ? "tag ok" : "tag warn"}>
@@ -365,7 +363,9 @@ export default function PersonaPanel() {
           <div className="quality-grid">
             {identity.photos.map((photo) => (
               <article className="quality-card" key={photo.name}>
-                <img className="quality-thumb" src={photo.url} alt="업로드한 얼굴" />
+                <button type="button" className="quality-thumb-button" onClick={() => setPreviewPhoto({ url: photo.url, alt: "업로드한 얼굴" })} aria-label="사진 크게 보기">
+                  <img className="quality-thumb" src={photo.url} alt="업로드한 얼굴" />
+                </button>
                 <div className="quality-body">
                   <div className="quality-head">
                     <span className={`quality-status ${photo.quality.status}`}>
@@ -408,15 +408,20 @@ export default function PersonaPanel() {
           </div>
         )}
 
-        <div className="med-form">
+        <div className="med-form identity-upload-control">
           <input
             ref={fileRef}
             type="file"
             accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
             multiple
+            className="visually-hidden-file"
             disabled={busy || identity.count >= identity.maximum}
             onChange={(event) => uploadIdentity(event.target.files)}
           />
+          <button type="button" disabled={busy || identity.count >= identity.maximum} onClick={() => fileRef.current?.click()}>
+            {identity.count >= identity.maximum ? "사진 등록 완료" : "사진 추가하기"}
+          </button>
+          {identity.count >= identity.maximum && <span>최대 {identity.maximum}장입니다. 교체하려면 기존 사진을 먼저 지워주세요.</span>}
         </div>
         <p className="hint">
           한 사람만 나오고, 얼굴이 크고 선명하며, 밝은 곳에서 찍은 사진이 좋아요.
@@ -487,18 +492,18 @@ export default function PersonaPanel() {
           낮추지 않고 그 구간에 중간 나이를 추가합니다.
         </p>
 
-        {agePlan.stages?.length > 0 && (
+        {agePlan.stages?.some((stage) => stage.kind === "current" ? stage.url : stage.selected || stage.candidates?.length) && (
           <>
             <p className="hint">
               생성 사진 {Math.max(0, agePlan.stages.length - 1)}장 + 현재 원본 1장
             </p>
             <div className="age-anchor-grid" aria-label="과거에서 현재까지 선택된 얼굴 순서">
-              {agePlan.stages.map((stage) => {
+              {agePlan.stages.filter((stage) => stage.kind === "current" ? stage.url : stage.selected || stage.candidates?.length).map((stage) => {
                 const selectedCandidate = stage.candidates?.find((candidate) => candidate.name === stage.selected);
                 const preview = stage.kind === "current" ? stage.url : selectedCandidate?.url;
                 return <article className={`age-anchor ${stage.kind === "current" ? "current" : ""} ${preview ? "selected" : "empty"}`} key={`${stage.kind}-${stage.age}`}>
                   <div className="age-anchor-image">
-                    {preview ? <img src={preview} alt={`${stage.age}세 ${stage.kind === "current" ? "현재 얼굴" : "선택 얼굴"}`} /> : <span>?</span>}
+                    {preview && <button type="button" onClick={() => setPreviewPhoto({ url: preview, alt: `${stage.age}세 얼굴` })} aria-label={`${stage.age}세 사진 크게 보기`}><img src={preview} alt={`${stage.age}세 ${stage.kind === "current" ? "현재 얼굴" : "선택 얼굴"}`} /></button>}
                     <b>{stage.age}세</b>
                   </div>
                   <strong>{stage.kind === "current" ? "현재 원본" : stage.selected ? "선택 완료" : "선택 필요"}</strong>
@@ -517,13 +522,11 @@ export default function PersonaPanel() {
                   <h3>{stage.age}세 후보 — 과거의 나와 가장 닮은 사진을 선택하세요</h3>
                   <div className="candidate-grid">
                     {stage.candidates.map((candidate, candidateIndex) => (
-                      <button
+                      <article
                         className={stage.selected === candidate.name ? "candidate selected" : "candidate"}
-                        disabled={busy}
                         key={candidate.name}
-                        onClick={() => choosePastCandidate(stage, candidate)}
                       >
-                        <div className="candidate-image">
+                        <button type="button" className="candidate-image" onClick={() => setPreviewPhoto({ url: candidate.url, alt: `${stage.age}세 얼굴 후보 ${candidateIndex + 1}` })}>
                           <img
                             src={candidate.url}
                             alt={`${stage.age}세 얼굴 후보 ${candidateIndex + 1}`}
@@ -534,8 +537,8 @@ export default function PersonaPanel() {
                           />
                           <i>후보 {candidateIndex + 1}</i>
                           {stage.selected === candidate.name && <em>✓ 현재 선택</em>}
-                        </div>
-                        <span>{stage.selected === candidate.name ? "이 사진을 사용 중" : "이 사진 선택"}</span>
+                        </button>
+                        <button type="button" className="candidate-select" disabled={busy} onClick={() => choosePastCandidate(stage, candidate)}>{stage.selected === candidate.name ? "이 사진을 사용 중" : "이 사진 선택"}</button>
                         {candidate.validation && (
                           <small className={`candidate-metrics ${candidate.validation.review_status ?? "legacy"}`}>
                             외관 나이 {candidate.validation.estimated_age}세 · 신원 {candidate.validation.identity_pass ? "통과" : "실패"}
@@ -581,7 +584,7 @@ export default function PersonaPanel() {
                             )}
                           </small>
                         )}
-                      </button>
+                      </article>
                     ))}
                   </div>
                 </section>
@@ -651,14 +654,9 @@ export default function PersonaPanel() {
             표정 {faces.loops.length ? faces.loops.join(", ") : "없음"}
           </span>
         </div>
-        <p className="hint">
-          정렬까지 마쳤으면 터미널에서 영상을 만듭니다.
-          <br />
-          <code>python tools/make_morph.py --model wan-video/wan-2.7-i2v --seconds 5</code>
-        </p>
       </section>
 
-      <section className="meds">
+      {!photoOnly && <section className="meds">
         <h2>할아버지 프로필</h2>
         <div className="field-grid">
           <label>
@@ -729,10 +727,16 @@ export default function PersonaPanel() {
         <button className="save" onClick={saveElder} disabled={busy}>
           프로필 저장
         </button>
-      </section>
+      </section>}
 
       {note && <p className="note">{note}</p>}
       {error && <p className="error">{error}</p>}
+      {previewPhoto && <div className="photo-preview-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setPreviewPhoto(null)}>
+        <section className="photo-preview-dialog" role="dialog" aria-modal="true" aria-label="사진 크게 보기">
+          <button type="button" aria-label="큰 사진 닫기" onClick={() => setPreviewPhoto(null)}>×</button>
+          <img src={previewPhoto.url} alt={previewPhoto.alt} />
+        </section>
+      </div>}
     </>
   );
 }

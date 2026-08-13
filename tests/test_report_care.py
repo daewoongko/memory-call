@@ -195,6 +195,7 @@ class CareReportAggregationTest(unittest.TestCase):
         self.assertEqual(merged[0]["count"], 5)
         self.assertEqual(merged[0]["call_count"], 2)
 
+
     def test_rhythm_finds_peak_time_from_calls_and_grounded_signals(self):
         calls = [
             {"call_id": "c1", "started_at": "2026-08-10T18:10:00+09:00"},
@@ -348,6 +349,165 @@ class CareReportAggregationTest(unittest.TestCase):
         self.assertEqual(rows[4]["observations"][0]["label"], "복약 여부 불확실")
         self.assertTrue(rows[4]["has_calls"])
         self.assertEqual(rows[9]["observations"][0]["label"], "외로움")
+
+    def test_call_analytics_uses_call_times_and_direct_elder_quotes(self):
+        calls = [
+            {"call_id": "c1", "started_at": "2026-08-10T09:00:00+09:00", "duration_sec": 120},
+            {"call_id": "c2", "started_at": "2026-08-10T09:40:00+09:00", "duration_sec": 180},
+            {"call_id": "c3", "started_at": "2026-08-10T10:10:00+09:00", "duration_sec": 240},
+        ]
+        utterances = [
+            {"call_id": "c1", "seq": 1, "speaker": "elder", "transcript": "내 통장 어디 있지? 돈이 없어져서 무섭다."},
+            {"call_id": "c2", "seq": 1, "speaker": "elder", "transcript": "내 통장 어디 있지? 돈이 없어져서 무섭다."},
+            {"call_id": "c3", "seq": 1, "speaker": "elder", "transcript": "내 통장 어디 있지? 돈이 없어져서 무섭다."},
+            {"call_id": "c3", "seq": 2, "speaker": "elder", "transcript": "학교 수업에 늦겠다."},
+            {"call_id": "c3", "seq": 3, "speaker": "ai", "transcript": "오늘은 집에서 쉬는 날이에요."},
+        ]
+
+        result = report._call_analytics(calls, utterances, "1940-01-01")
+
+        self.assertEqual(result["response_retention"]["samples"][-1]["minutes"], 30.0)
+        self.assertEqual(result["time_regression"]["stages"][-1]["label"], "학창기")
+        self.assertEqual(result["time_regression"]["stages"][-1]["quote"], "학교 수업에 늦겠다.")
+        money = next(item for item in result["emotion_topics"] if item["topic"] == "재산·돈")
+        self.assertEqual(money["emotion"], "불안·두려움")
+        self.assertEqual(money["calls"], 3)
+        self.assertEqual(money["return_turns"], 1.0)
+        self.assertEqual(money["agitation_calls"], 0)
+        self.assertEqual(money["agitation_ratio"], 0.0)
+
+    def test_emotion_topics_use_elder_turn_return_and_d6_call_ratio(self):
+        calls = [
+            {"call_id": "c1", "started_at": "2026-08-10T09:00:00+09:00", "duration_sec": 120},
+            {"call_id": "c2", "started_at": "2026-08-10T10:00:00+09:00", "duration_sec": 120},
+        ]
+        utterances = [
+            {"call_id": "c1", "seq": 1, "speaker": "elder", "transcript": "통장을 누가 몰래 가져갔지?"},
+            {"call_id": "c1", "seq": 2, "speaker": "elder", "transcript": "오늘 밥은 먹었나?"},
+            {"call_id": "c2", "seq": 1, "speaker": "elder", "transcript": "우리 정훈이는 잘 있나?"},
+            {"call_id": "c2", "seq": 2, "speaker": "elder", "transcript": "내 통장은 어디 있지?"},
+        ]
+
+        reports = [{
+            "call_id": "c2",
+            "care_summary": {"behavior_agitation": [{
+                "signal": "agitation", "label": "초조", "evidence": "직접 발화",
+            }]},
+        }]
+        result = report._call_analytics(calls, utterances, "1940-01-01", reports)
+
+        money = next(item for item in result["emotion_topics"] if item["topic"] == "재산·돈")
+        family = next(item for item in result["emotion_topics"] if item["topic"] == "가족")
+        self.assertEqual(money["return_turns"], 3.0)
+        self.assertEqual(money["agitation_calls"], 2)
+        self.assertEqual(money["agitation_turns"], 2)
+        self.assertEqual(money["agitation_ratio"], 1.0)
+        self.assertIsNone(family["return_turns"])
+        self.assertEqual(family["return_observations"], 0)
+        self.assertEqual(family["agitation_ratio"], 1.0)
+
+    def test_call_analytics_does_not_use_ai_utterance_as_life_stage_evidence(self):
+        calls = [{"call_id": "c1", "started_at": "2026-08-10T09:00:00+09:00", "duration_sec": 60}]
+        utterances = [
+            {"call_id": "c1", "seq": 1, "speaker": "elder", "transcript": "오늘은 집에 있을래."},
+            {"call_id": "c1", "seq": 2, "speaker": "ai", "transcript": "학교에 가시려는 건가요?"},
+        ]
+
+        result = report._call_analytics(calls, utterances, "1940-01-01")
+
+        self.assertEqual(result["time_regression"]["stages"], [])
+
+    def test_tendency_summary_uses_30_day_rules_and_report_signals(self):
+        calls = []
+        utterances = []
+        reports = []
+        for index in range(6):
+            call_id = f"family-{index}"
+            day = index + 1
+            calls.append({
+                "call_id": call_id,
+                "started_at": f"2026-08-{day:02d}T16:00:00+09:00",
+                "duration_sec": 300,
+            })
+            utterances.append({
+                "call_id": call_id, "seq": 1, "speaker": "elder",
+                "transcript": "우리 정훈이는 언제 오니? 걱정된다.",
+            })
+            reports.append({
+                "call_id": call_id,
+                "care_summary": {"emotion": [{"signal": "anxiety"}]},
+            })
+        for index in range(6):
+            call_id = f"memory-{index}"
+            day = index + 10
+            calls.append({
+                "call_id": call_id,
+                "started_at": f"2026-08-{day:02d}T10:00:00+09:00",
+                "duration_sec": 600,
+            })
+            utterances.append({
+                "call_id": call_id, "seq": 1, "speaker": "elder",
+                "transcript": "옛날 고향 냇가에서 놀던 때가 좋았지.",
+            })
+            reports.append({"call_id": call_id, "care_summary": {}})
+
+        result = report._call_analytics(
+            calls, utterances, "1940-01-01", reports,
+            date(2026, 7, 14), date(2026, 8, 12),
+        )
+        tendency = result["tendency_summary"]
+
+        self.assertTrue(tendency["sufficient_period"])
+        self.assertEqual(tendency["period_days"], 30)
+        self.assertEqual(tendency["burden_ranking"][0]["category"], "사람·관계")
+        self.assertEqual(tendency["expression"]["inward_count"], 6)
+        self.assertEqual(tendency["expression"]["outward_count"], 0)
+        self.assertEqual(tendency["calming_resource"]["topic"], "고향·추억")
+        self.assertEqual(tendency["calming_resource"]["average_minutes"], 10.0)
+        self.assertEqual(tendency["hardest_time"]["label"], "16:00~18:00")
+
+        family = next(item for item in result["emotion_topics"] if item["topic"] == "가족")
+        self.assertEqual(family["burden_ratio"], 1.0)
+
+    def test_tendency_summary_does_not_fill_short_observation_period(self):
+        result = report._call_analytics(
+            [], [], "1940-01-01", [], date(2026, 8, 1), date(2026, 8, 12),
+        )
+
+        self.assertFalse(result["tendency_summary"]["sufficient_period"])
+        self.assertEqual(result["tendency_summary"]["burden_ranking"], [])
+
+    def test_topic_emotion_uses_caregiver_response_groups(self):
+        calls = [
+            {"call_id": "fear", "started_at": "2026-08-10T09:00:00+09:00", "duration_sec": 60},
+            {"call_id": "distrust", "started_at": "2026-08-10T10:00:00+09:00", "duration_sec": 60},
+            {"call_id": "warmth", "started_at": "2026-08-10T11:00:00+09:00", "duration_sec": 60},
+            {"call_id": "check", "started_at": "2026-08-10T12:00:00+09:00", "duration_sec": 60},
+        ]
+        utterances = [
+            {"call_id": "fear", "seq": 1, "speaker": "elder", "transcript": "혼자 있으니까 너무 무서워."},
+            {"call_id": "distrust", "seq": 1, "speaker": "elder", "transcript": "네가 내 통장을 몰래 가져갔지."},
+            {"call_id": "warmth", "seq": 1, "speaker": "elder", "transcript": "우리 정훈이 이름은 안 잊어버려."},
+            {"call_id": "check", "seq": 1, "speaker": "elder", "transcript": "오늘 창밖에 나무가 보이네."},
+        ]
+        reports = [{
+            "call_id": "warmth", "care_summary": {},
+            "meaningful_moments": [{"category": "affection"}],
+        }]
+
+        result = report._call_analytics(calls, utterances, "1940-01-01", reports)
+        emotions = {item["topic"]: item["emotion"] for item in result["emotion_topics"]}
+
+        self.assertEqual(emotions["일상"], "불안·두려움")
+        self.assertEqual(emotions["재산·돈"], "의심·망상")
+        self.assertEqual(emotions["가족"], "따뜻함")
+        self.assertNotIn("중립", emotions.values())
+
+    def test_topic_emotion_classifies_non_emotional_utterances_by_response_need(self):
+        self.assertEqual(report._emotion_name("오늘 몇 시인지 모르겠다."), "확인·탐색")
+        self.assertEqual(report._emotion_name("혼자 옷을 못 입겠으니 도와줘."), "도움 요청")
+        self.assertEqual(report._emotion_name("회사에 출근하던 옛날이 생각난다."), "회상·역할")
+        self.assertEqual(report._emotion_name("오늘은 그냥 창밖을 보고 있다."), "확인·탐색")
 
 
 if __name__ == "__main__":

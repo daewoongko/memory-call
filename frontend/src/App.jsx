@@ -22,6 +22,7 @@ const RING_COOLDOWN_MS = 300000; // 거절하거나 통화가 끝난 뒤 다시 
 const KEY_ROLE = "dasoni.role";
 const KEY_LINKED = "dasoni.linked";
 const KEY_GUARDIAN_ONBOARDING = "dasoni.guardianOnboarding.v1";
+const KEY_MY_PERSONA = "dasoni.myPersona";
 
 function readLocal(key) {
   try {
@@ -38,6 +39,14 @@ function writeLocal(key, value) {
     // 저장에 실패해도 이번 세션에는 동작한다
   }
 } // 가족 응답을 기다리는 시간 (명세 FR-01)
+
+function removeLocal(key) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // 저장소를 사용할 수 없어도 현재 세션은 계속 진행한다.
+  }
+}
 const ANNOUNCE_MS = 2600; // AI 통화 안내를 보여주는 시간 (명세 13.1)
 
 export default function App() {
@@ -64,6 +73,8 @@ export default function App() {
   const [guardianOnboarded, setGuardianOnboarded] = useState(
     () => readLocal(KEY_GUARDIAN_ONBOARDING) === "done"
   );
+  const [myPersonaId, setMyPersonaId] = useState(() => readLocal(KEY_MY_PERSONA));
+  const elderId = linked && linked !== "skipped" ? linked : "elder_001";
 
   const [phase, setPhase] = useState("idle"); // idle | calling | incall | ended
   const [profile, setProfile] = useState(null);
@@ -78,11 +89,11 @@ export default function App() {
   const timers = useRef([]);
 
   useEffect(() => {
-    api.getProfile(target?.persona_id).then(setProfile).catch((e) =>
+    api.getProfile(target?.persona_id, elderId).then(setProfile).catch((e) =>
       setError(`서버에 연결하지 못했어요. tools/serve.py 가 켜져 있는지 확인하세요. (${e.message})`)
     );
     return () => timers.current.forEach(clearTimeout);
-  }, [target]);
+  }, [target, elderId]);
 
   // 복약 시간이 되면 AI 쪽에서 전화를 건다.
   // 대기 화면일 때만 확인한다. 통화 중에는 세션이 알아서 약을 먼저 꺼낸다.
@@ -92,7 +103,7 @@ export default function App() {
     const check = () => {
       if (Date.now() < cooldownUntil.current) return;
       api
-        .getPendingCall()
+        .getPendingCall(elderId)
         .then((r) => alive && r.due && setIncomingReason(r.reason))
         .catch(() => {});
     };
@@ -102,7 +113,7 @@ export default function App() {
       alive = false;
       clearInterval(id);
     };
-  }, [phase]);
+  }, [phase, elderId]);
 
   // 가족이 받지 않는 동안의 카운트다운
   useEffect(() => {
@@ -113,14 +124,14 @@ export default function App() {
 
   const connectAI = useCallback(async () => {
     try {
-      const res = await api.startCall(target?.persona_id);
+      const res = await api.startCall(target?.persona_id, elderId);
       setCall(res);
       timers.current.push(setTimeout(() => setPhase("incall"), ANNOUNCE_MS));
     } catch (e) {
       setError(`통화를 열지 못했어요. (${e.message})`);
       setPhase("idle");
     }
-  }, [target]);
+  }, [target, elderId]);
 
   // 대기 시간이 끝나면 AI 대리통화로 넘어간다
   useEffect(() => {
@@ -205,14 +216,31 @@ export default function App() {
     window.location.hash = picked === "child" ? "#family" : `#${picked}`;
   };
 
-  const finishLink = (elderId) => {
-    setLinked(elderId || "skipped");
-    writeLocal(KEY_LINKED, elderId || "skipped");
+  const finishLink = (nextElderId) => {
+    const nextLinked = nextElderId || "skipped";
+    if (linked !== nextLinked) {
+      setGuardianOnboarded(false);
+      setMyPersonaId(null);
+      removeLocal(KEY_GUARDIAN_ONBOARDING);
+      removeLocal(KEY_MY_PERSONA);
+    }
+    setLinked(nextLinked);
+    writeLocal(KEY_LINKED, nextLinked);
   };
 
-  const finishGuardianOnboarding = () => {
+  const finishGuardianOnboarding = (payload) => {
     setGuardianOnboarded(true);
     writeLocal(KEY_GUARDIAN_ONBOARDING, "done");
+    if (payload?.personaId) {
+      setMyPersonaId(payload.personaId);
+      writeLocal(KEY_MY_PERSONA, payload.personaId);
+    }
+  };
+
+  const saveMyPersona = (personaId) => {
+    if (!personaId) return;
+    setMyPersonaId(personaId);
+    writeLocal(KEY_MY_PERSONA, personaId);
   };
 
   // 루트에서는 저장된 역할과 관계없이 항상 역할을 먼저 고른다.
@@ -224,9 +252,9 @@ export default function App() {
   const directElder = hash === "#elder";
   if (hash === "#care" || hash === "#guardian")
     return wrap(<CareManagerScreen />, { gear: true, wide: true, roleSwitch: true });
-  if (hash === "#child" || hash === "#family") {
-    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true });
-    return wrap(<ChildScreen />, { gear: true, wide: true, roleSwitch: true });
+  if ((hash === "#child" || hash === "#family") && role !== "child" && linked) {
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true });
+    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, roleSwitch: true });
   }
 
   if (!directElder && !booted)
@@ -248,8 +276,8 @@ export default function App() {
   }
 
   if (!directElder && role === "child") {
-    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen onDone={finishGuardianOnboarding} />, { wide: true });
-    return wrap(<ChildScreen />, { gear: true, wide: true });
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true });
+    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true });
   }
 
 
@@ -268,7 +296,7 @@ export default function App() {
 
   if (phase === "idle")
     return wrap(
-      <FamilyScreen onPick={startCalling} error={error} />,
+      <FamilyScreen elderId={elderId} onPick={startCalling} error={error} />,
       { gear: true, roleSwitch: true }
     );
 

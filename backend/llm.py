@@ -58,6 +58,60 @@ class QuotaExceeded(RuntimeError):
     """무료 사용량 소진."""
 
 
+FAST_REPLY_SCHEMA_OVERRIDE = """
+
+---
+
+# [이번 응답 전용 출력 형식 재정의]
+
+앞의 전체 출력 형식 대신 이번 호출에서는 아래 JSON 필드만 출력한다.
+intent, medication_status, care, grounding은 넣지 않는다. 다른 텍스트나
+코드펜스도 붙이지 않는다.
+
+{
+  "reply": "실제로 말할 문장. 2문장 이내.",
+  "used_memory_ids": [],
+  "used_schedule_ids": [],
+  "certainty": "verified | partial | unverified | none",
+  "risk": null,
+  "unverified_recall": null
+}
+
+risk는 위험 감지 시 기존 출력 규칙과 같은 객체를 사용한다. 기억·일정 ID는
+실제로 답변에 사용한 등록 ID만 넣는다. 안전에 필요한 필드는 생략하지 않는다.
+"""
+
+
+def metadata_schema_override(final_reply: str) -> str:
+    """이미 확정된 답변에 대한 리포트 메타데이터만 요청한다."""
+    reply_json = json.dumps(final_reply, ensure_ascii=False)
+    return f"""
+
+---
+
+# [백그라운드 리포트 메타데이터 전용]
+
+이번 턴에서 실제로 말한 문장은 {reply_json} 이다. 이 문장을 바꾸거나 새 답변을
+만들지 말고, 환자의 직전 발화와 이 답변을 근거로 아래 JSON만 출력한다.
+
+{{
+  "intent": "greeting | repeated_question | memory_recall | medication | schedule_question | emotional | risk | identity_question | closing | other",
+  "medication_status": null,
+  "care": {{
+    "observations": [],
+    "context_support": [],
+    "emotional_support": "none | acknowledge | validate_emotion | ground_and_redirect",
+    "daily_action": null,
+    "meaningful_moments": []
+  }},
+  "grounding": "이 응답의 근거를 한 문장으로."
+}}
+
+각 하위 필드와 허용 값은 앞의 care·복약 출력 규칙을 그대로 따른다. 환자 원문에
+없는 관찰 근거를 만들지 않는다. 다른 텍스트나 코드펜스는 붙이지 않는다.
+"""
+
+
 def _extract_json(text: str) -> dict:
     """모델이 코드펜스를 붙이거나 앞뒤로 말을 덧붙여도 JSON을 건져낸다."""
     text = text.strip()
@@ -144,6 +198,29 @@ def call_json(messages: list[dict], temperature: float = 0.7,
             raise
 
     raise RuntimeError(f"{MAX_RETRIES}회 재시도 실패: {last_err}")
+
+
+def _with_system_override(messages: list[dict], override: str) -> list[dict]:
+    """첫 system 메시지를 복사해 호출별 출력 형식만 덧붙인다."""
+    if not messages or messages[0].get("role") != "system":
+        raise ValueError("첫 메시지는 system이어야 합니다")
+    patched = [dict(messages[0]), *(dict(message) for message in messages[1:])]
+    patched[0]["content"] = str(patched[0].get("content") or "") + override
+    return patched
+
+
+def call_json_fast(messages: list[dict], **kwargs) -> dict:
+    """실시간 통화에 필요한 답변·안전 필드만 생성한다."""
+    return call_json(_with_system_override(messages, FAST_REPLY_SCHEMA_OVERRIDE),
+                     **kwargs)
+
+
+def call_json_metadata(messages: list[dict], final_reply: str, **kwargs) -> dict:
+    """사용자가 기다리지 않는 리포트용 필드를 별도 생성한다."""
+    return call_json(
+        _with_system_override(messages, metadata_schema_override(final_reply)),
+        **kwargs,
+    )
 
 
 def call_schema(messages: list[dict], model_cls: type[BaseModel],

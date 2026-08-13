@@ -108,10 +108,11 @@ def record(elder_id: str, schedule_id: str, status: str,
         conn.commit()
 
 
-def today_status(elder_id: str = "elder_001") -> list[dict]:
-    """보호자 화면에 보여줄 오늘의 복약 현황."""
-    today = date.today().isoformat()
-    weekday = WEEKDAY[datetime.now().weekday()]
+def status_on(elder_id: str = "elder_001", selected_day: date | None = None) -> list[dict]:
+    """선택 날짜의 복약 현황. 과거 기록도 같은 규칙으로 재현한다."""
+    selected_day = selected_day or date.today()
+    day_text = selected_day.isoformat()
+    weekday = WEEKDAY[selected_day.weekday()]
 
     with db.connect() as conn:
         meds = [db._row(r) for r in conn.execute(
@@ -121,7 +122,7 @@ def today_status(elder_id: str = "elder_001") -> list[dict]:
         ).fetchall()]
         logs = [db._row(r) for r in conn.execute(
             "SELECT * FROM medication_logs WHERE elder_id = ? AND taken_date = ?",
-            (elder_id, today),
+            (elder_id, day_text),
         ).fetchall()]
 
     by_schedule = {}
@@ -144,6 +145,11 @@ def today_status(elder_id: str = "elder_001") -> list[dict]:
             "last_status": entries[-1]["status"] if entries else None,
         })
     return out
+
+
+def today_status(elder_id: str = "elder_001") -> list[dict]:
+    """보호자 화면에 보여줄 오늘의 복약 현황."""
+    return status_on(elder_id, date.today())
 
 
 def listing(elder_id: str = "elder_001") -> list[dict]:
