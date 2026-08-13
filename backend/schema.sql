@@ -262,6 +262,39 @@ CREATE INDEX IF NOT EXISTS idx_invite_ring
 CREATE INDEX IF NOT EXISTS idx_invite_elder
     ON call_invites(elder_id, created_at);
 
+-- 두 기기가 P2P 를 붙이려고 주고받는 신호(SDP, ICE 후보).
+-- 서버는 내용을 해석하지 않고 방(room)별로 전달만 한다.
+--
+-- 지금은 #nettest 진단 화면만 쓴다. 통화에 P2P 를 붙일 때 room 을 invite_id
+-- 로 두면 같은 표를 그대로 쓸 수 있다. 통화 상태(call_invites)와 섞지 않는
+-- 이유는, 신호는 오갈 때마다 행이 쌓이고 호출 상태는 하나로 유지되어야 해서
+-- 수명이 다르기 때문이다.
+CREATE TABLE IF NOT EXISTS signal_messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    room       TEXT NOT NULL,
+    sender     TEXT NOT NULL,
+    kind       TEXT NOT NULL CHECK (kind IN ('offer', 'answer', 'ice')),
+    payload    TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_signal_room ON signal_messages(room, id);
+
+-- 어떤 망에서 P2P 가 붙었는지. 발표에서 "재보고 정했다"고 말하려면 기록이
+-- 남아야 한다 (docs/call_transport_decision.md §8).
+CREATE TABLE IF NOT EXISTS nettest_results (
+    result_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    room        TEXT,
+    label       TEXT,             -- "집 와이파이", "LTE ↔ 와이파이" 처럼 사람이 적는다
+    connected   INTEGER NOT NULL,
+    route       TEXT,             -- host | srflx | relay
+    symmetric   INTEGER,          -- 1 대칭, 0 아님, NULL 판별 못 함
+    stun_ok     INTEGER,
+    elapsed_ms  INTEGER,
+    round_trip_ms INTEGER,
+    user_agent  TEXT,
+    created_at  TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS recall_reviews (
     utterance_id INTEGER PRIMARY KEY REFERENCES utterances(utterance_id),
     decision     TEXT NOT NULL CHECK (decision IN ('approved', 'rejected')),

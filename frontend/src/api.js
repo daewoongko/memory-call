@@ -109,6 +109,28 @@ export const takeOverInvite = (inviteId, reason) =>
 export const endInvite = (inviteId) =>
   request(`/api/call-invites/${inviteId}/end`, { method: "POST" });
 
+// ── P2P 진단 ──────────────────────────────────────────────
+// 서버는 SDP·ICE 를 방 단위로 전달만 한다. 내용은 보지 않는다.
+
+export const createNetTestRoom = () =>
+  request("/api/nettest/room", { method: "POST" });
+
+export const sendSignal = (room, body) =>
+  request(`/api/nettest/${encodeURIComponent(room)}/signal`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const pollSignal = (room, sender, since = 0) =>
+  request(`/api/nettest/${encodeURIComponent(room)}/signal`
+    + `?sender=${encodeURIComponent(sender)}&since=${since}`);
+
+export const saveNetTestResult = (body) =>
+  request("/api/nettest/results", { method: "POST", body: JSON.stringify(body) });
+
+export const getNetTestResults = (limit = 20) =>
+  request(`/api/nettest/results?limit=${limit}`);
+
 export const getPersona = (personaId, elderId = "elder_001") =>
   request(`/api/elders/${elderId}/persona${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`);
 

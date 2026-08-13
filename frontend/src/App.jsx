@@ -16,6 +16,7 @@ import RoleScreen from "./screens/RoleScreen.jsx";
 import LinkScreen from "./screens/LinkScreen.jsx";
 import GuardianOnboardingScreen from "./screens/GuardianOnboardingScreen.jsx";
 import HumanCallScreen from "./screens/HumanCallScreen.jsx";
+import NetTestScreen from "./screens/NetTestScreen.jsx";
 
 // 벨이 몇 초 울리는지는 서버가 정해서 내려보낸다. 받을 기기가 없으면 짧게
 // 울려야 하는데, 그 판단에 필요한 정보가 화면에는 없기 때문이다.
@@ -383,6 +384,9 @@ export default function App() {
     setMyPersonaId(personaId);
     writeLocal(KEY_MY_PERSONA, personaId);
   };
+
+  // P2P 가 이 망에서 붙는지 재는 화면. 통화 흐름과 무관하게 따로 연다.
+  if (hash === "#nettest") return wrap(<NetTestScreen />, { wide: true });
 
   // 루트에서는 저장된 역할과 관계없이 항상 역할을 먼저 고른다.
   if (!hash || hash === "#roles")

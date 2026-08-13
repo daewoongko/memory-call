@@ -34,6 +34,7 @@ import linking as link_mod
 import llm
 import medication as med_mod
 import memories as mem_mod
+import nettest as nettest_mod
 import report as report_mod
 import schedules as sched_mod
 import tts_proxy
@@ -1228,6 +1229,60 @@ def register_device(req: DeviceRegistration):
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+# ------------------------------------------------------------ P2P 진단
+#
+# 사람↔사람 통화를 WebRTC P2P 로 붙이기로 했는데, 그 결정은 아직 실측이 아니라
+# 추론이다 (docs/call_transport_decision.md §8). 붙지 않는 망이면 TURN 을
+# 더하거나 관리형 SFU 로 갈아타야 하고, 발표 전에 알아야 갈아탈 시간이 있다.
+
+
+class SignalMessage(BaseModel):
+    sender: str = Field(min_length=1, max_length=64)
+    kind: Literal["offer", "answer", "ice"]
+    payload: dict
+
+
+class NetTestResult(BaseModel):
+    room: str | None = None
+    label: str | None = Field(default=None, max_length=60)
+    connected: bool
+    route: Literal["host", "srflx", "prflx", "relay"] | None = None
+    symmetric: bool | None = None
+    stun_ok: bool | None = None
+    elapsed_ms: int | None = None
+    round_trip_ms: int | None = None
+    user_agent: str | None = Field(default=None, max_length=120)
+
+
+@app.post("/api/nettest/room")
+def nettest_room():
+    return {"room": nettest_mod.new_room()}
+
+
+@app.post("/api/nettest/{room}/signal")
+def nettest_send(room: str, req: SignalMessage):
+    """SDP 와 ICE 후보를 상대에게 전달한다. 서버는 내용을 보지 않는다."""
+    try:
+        return nettest_mod.send(room, req.sender, req.kind, req.payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/nettest/{room}/signal")
+def nettest_poll(room: str, sender: str, since: int = 0):
+    return nettest_mod.poll(room, sender, since)
+
+
+@app.post("/api/nettest/results")
+def nettest_record(req: NetTestResult):
+    return nettest_mod.record(req.model_dump())
+
+
+@app.get("/api/nettest/results")
+def nettest_results(limit: int = 50):
+    return {"results": nettest_mod.results(limit)}
 
 
 @app.get("/api/devices")
