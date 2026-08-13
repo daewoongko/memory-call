@@ -123,6 +123,12 @@ docs/
 **모든 LLM 호출은 `backend/llm.py`를 거친다.** 다른 파일에서 직접
 `OpenAI()`를 만들지 말 것. 모델 교체가 `.env` 세 줄로 끝나야 한다.
 
+**사람↔사람 통화의 미디어 경로는 `frontend/src/callTransport.js`를 거친다.**
+같은 이유다. 통화 화면 여기저기에 `RTCPeerConnection`을 흩뿌리면 P2P 가
+발표장 네트워크에서 안 붙었을 때 갈아탈 수 없게 된다. 화면은
+`connect / disconnect / onStateChange` 세 가지만 본다. `failed` 가 오면
+화면은 조건 없이 AI 통화로 폴백한다.
+
 **TTS는 ElevenLabs API, 립싱크(MuseTalk)만 로컬 GPU.** 처음엔 Chatterbox까지
 로컬에서 돌렸지만 Cloudflare 터널 왕복 + 같은 GPU를 MuseTalk과 나눠 쓰는
 경합 때문에 지연이 컸다(위 "부딪혀서 알아낸 것들" 참고). ElevenLabs로
@@ -175,7 +181,13 @@ docs/
   ~~사진 2장(입 다문/벌린)을 오디오 볼륨으로 전환~~ →
   **되돌렸다.** MuseTalk 1.5 를 아바타 캐시 + 상주 워커로 붙여 발화당 4초에
   들어왔다. 다만 실패해도 같은 음성 WAV 로 넘어가는 선택 경로로만 둔다
-- WebRTC / LiveKit → 브라우저 `MediaRecorder` + REST, 반이중(누르고 말하기)
+- ~~WebRTC / LiveKit → 브라우저 `MediaRecorder` + REST, 반이중(누르고 말하기)~~ →
+  **부분적으로 되돌렸다.** AI 통화 구간은 그대로 반이중이다. 다만 보호자와
+  어르신 사이의 **사람↔사람 통화**는 이 구조로 성립하지 않는다(왕복 2~4초).
+  그래서 사람 통화 구간에만 **WebRTC P2P(STUN only)** 를 붙이고, 연결에 실패하면
+  AI 통화로 폴백한다. **관리형 SFU(LiveKit 등)는 여전히 쓰지 않는다** — 이 앱에서
+  연결 실패는 장애가 아니라 AI가 대신 받는 정상 동작이라, SFU 가 파는 가치를
+  살 이유가 없다. 근거와 뒤집는 조건은 `docs/call_transport_decision.md`
 - 실시간 얼굴 생성 → 모핑 인트로는 오프라인 스크립트로 mp4 1개 사전 생성
 - Docker / 클라우드 배포 → localhost 데모
 
