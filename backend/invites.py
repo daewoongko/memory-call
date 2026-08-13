@@ -119,6 +119,32 @@ def _touch(conn, device_id: str) -> None:
                  (_now(), device_id))
 
 
+def devices(elder_id: str = "elder_001") -> list[dict]:
+    """등록된 기기와 지금 벨을 받을 수 있는지.
+
+    폰으로 시연할 때 "왜 벨이 안 오지"를 눈으로 확인할 데가 필요하다.
+    개발자 도구를 열 수 없는 기기에서 서버의 판단을 그대로 보여준다.
+    """
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM devices WHERE elder_id = ? ORDER BY role, created_at",
+            (elder_id,),
+        ).fetchall()
+
+    out = []
+    for row in rows:
+        idle = _elapsed(row["last_seen_at"])
+        out.append({
+            **db._row(row),
+            "seconds_since_seen": None if idle == float("inf") else round(idle, 1),
+            # 보호자 기기만 벨을 받는다. 어르신 기기는 거는 쪽이다.
+            "listening": bool(
+                row["role"] == "guardian" and idle <= DEVICE_ALIVE_SEC
+            ),
+        })
+    return out
+
+
 def _live_guardian_count(conn, persona_id: str | None) -> int:
     """이 페르소나로 등록되어 최근까지 폴링한 보호자 기기 수."""
     if not persona_id:

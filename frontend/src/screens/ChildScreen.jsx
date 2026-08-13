@@ -151,7 +151,11 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     calls: filteredCalls.filter((call) => periodForCall(call) === period.id),
   })), [filteredCalls]);
 
-  const { invite: incomingInvite, error: ringError, answer, decline } = useIncomingCall({
+  // 통화 중에는 폴링을 멈춘다. 이미 받은 벨을 다시 물고 올 이유가 없다.
+  // listening 은 "지금 실제로 벨을 받을 수 있는가"다. 등록된 것과는 다르다.
+  const {
+    invite: incomingInvite, listening, error: ringError, answer, decline,
+  } = useIncomingCall({
     elderId: picked?.elder_id || elderId,
     personaId: myPersonaId,
     enabled: Boolean(picked) && Boolean(myPersonaId) && !connected,
@@ -306,6 +310,20 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
         </section>}
 
         {tab === "settings" && <section className="child-family-settings">
+          {/* 이 폰이 지금 벨을 받을 수 있는지. 폴링이 곧 신고이므로 화면이
+              꺼지면 함께 꺼진다. 보호자가 손에 든 폰을 두고 실제로 갖는
+              질문이라 설정 맨 위에 둔다. */}
+          <div className="family-reachable">
+            <b className={listening ? "device-live" : "device-idle"}>
+              {listening ? "지금 전화를 받을 수 있어요" : "지금은 AI 가 대신 받습니다"}
+            </b>
+            <p>
+              {listening
+                ? "화면을 켜 두면 어르신의 전화가 이 폰으로 옵니다."
+                : "화면이 꺼져 있거나 가족을 고르지 않으면 벨이 오지 않습니다."}
+            </p>
+          </div>
+
           {!myPersona && readyPersonas.length > 1 ? <div className="family-legacy-picker">
             <header><span>내 프로필 선택</span><h1>통화에서 사용할 나를 선택해 주세요</h1></header>
             <div>{readyPersonas.map((persona) => <button type="button" key={persona.persona_id} onClick={() => onMyPersonaChange?.(persona.persona_id)}>{persona.face ? <img src={persona.face} alt="" /> : <i>{persona.display_name?.slice(0, 1)}</i>}<b>{persona.display_name}</b><small>{persona.relationship}</small></button>)}</div>

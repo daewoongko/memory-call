@@ -154,6 +154,52 @@ try {
 
   await elder.screenshot({ path: "e2e/shot-elder-after-decline.png" });
   await guardian.screenshot({ path: "e2e/shot-guardian.png" });
+
+  // ── 4. 보호자 폰 화면이 꺼지면 짧게 운다 ────────────────
+  //
+  // 폴링이 곧 "지금 받을 수 있다"는 신고다. 화면이 꺼졌는데도 신고가 계속
+  // 나가면 서버는 받을 사람이 있다고 믿고 벨을 끝까지 울리고, 어르신은
+  // 아무도 받지 않을 전화를 15초 동안 들여다보게 된다. 실제로 그랬다.
+  //
+  // 브라우저를 잠글 수는 없으니 앱이 읽는 값을 그대로 가려서 흉내낸다.
+  log("\n4. 보호자 폰 화면이 꺼진다");
+  const setVisibility = (page, value) => page.evaluate((state) => {
+    Object.defineProperty(document, "visibilityState", {
+      get: () => state, configurable: true,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, value);
+
+  await setVisibility(guardian, "hidden");
+
+  const idleFor = 14000; // DEVICE_ALIVE_SEC 를 확실히 넘긴다
+  log(`    ${idleFor / 1000}초 기다렸다가 다시 겁니다`);
+  await elder.waitForTimeout(idleFor);
+
+  const askDevices = () => elder.evaluate(async (base) => {
+    const res = await fetch(`${base}/api/devices?elder_id=elder_001`);
+    return res.json();
+  }, BASE);
+
+  const asleep = await askDevices();
+  check(asleep.listening === 0,
+        `서버가 받을 기기 없음을 안다 (듣고 있는 기기 ${asleep.listening}대)`);
+
+  // 3번에서 AI 가 대신 받아 통화 중이다. 대기 화면으로 돌려놓는다.
+  await elder.reload({ waitUntil: "domcontentloaded" });
+  await elderIdle();
+  await ring().click();
+  const shortRing = (await elder.locator(".countdown").textContent()).trim();
+  check(shortRing === "6초", `받을 폰이 없으므로 짧게 운다 (${shortRing})`);
+  await elder.locator(".dev button").click().catch(() => {});
+
+  // ── 5. 다시 켜면 돌아온다 ───────────────────────────────
+  log("\n5. 보호자가 폰을 다시 켠다");
+  await setVisibility(guardian, "visible");
+  await guardian.waitForTimeout(3000);
+  const awake = await askDevices();
+  check(awake.listening === 1,
+        `폴링이 되살아나 다시 받을 수 있다 (듣고 있는 기기 ${awake.listening}대)`);
 } catch (reason) {
   problems.push(`흐름이 끊겼습니다: ${reason.message.split("\n")[0]}`);
 } finally {

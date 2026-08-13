@@ -1230,6 +1230,18 @@ def register_device(req: DeviceRegistration):
         raise HTTPException(400, str(exc)) from exc
 
 
+@app.get("/api/devices")
+def list_devices(elder_id: str = "elder_001"):
+    """지금 어느 기기가 벨을 받을 수 있는지. 폰에서 확인할 곳이 필요하다."""
+    rows = inv_mod.devices(elder_id)
+    return {
+        "elder_id": elder_id,
+        "devices": rows,
+        "alive_within_sec": inv_mod.DEVICE_ALIVE_SEC,
+        "listening": sum(1 for row in rows if row["listening"]),
+    }
+
+
 @app.post("/api/call-invites")
 def create_invite(req: InviteRequest):
     """어르신이 가족에게 전화를 건다."""

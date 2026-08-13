@@ -210,6 +210,31 @@ class CallInviteTest(unittest.TestCase):
         self.assertEqual(cancelled["state"], invites.CANCELLED)
         self.assertFalse(cancelled["should_take_over"])
 
+    # -------------------------------------------------------------- 진단
+
+    def test_device_list_reports_who_can_take_a_call_right_now(self):
+        """폰에서 "왜 벨이 안 오지"를 확인할 데가 있어야 한다."""
+        self._guardian()
+        invites.register_device(device_id="dev_elder", elder_id="elder_test",
+                                role="elder")
+
+        rows = {row["device_id"]: row for row in invites.devices("elder_test")}
+        self.assertTrue(rows["dev_guardian"]["listening"])
+        # 어르신 기기는 거는 쪽이지 받는 쪽이 아니다
+        self.assertFalse(rows["dev_elder"]["listening"])
+
+        stale = (datetime.now()
+                 - timedelta(seconds=invites.DEVICE_ALIVE_SEC + 5)).isoformat()
+        with db.connect() as conn:
+            conn.execute("UPDATE devices SET last_seen_at = ? WHERE device_id = ?",
+                         (stale, "dev_guardian"))
+            conn.commit()
+
+        after = {row["device_id"]: row for row in invites.devices("elder_test")}
+        self.assertFalse(after["dev_guardian"]["listening"])
+        self.assertGreater(after["dev_guardian"]["seconds_since_seen"],
+                           invites.DEVICE_ALIVE_SEC)
+
     # -------------------------------------------------------------- 인계
 
     def test_take_over_links_the_ai_call_and_keeps_the_original_reason(self):
