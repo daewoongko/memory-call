@@ -72,3 +72,6 @@ data/faces/lora_runs/pj02_identity_r16_300/*
 
 .DS_Store
 .claude/settings.local.json
+
+# e2e 실행 중 남는 화면 갈무리
+frontend/e2e/*.png

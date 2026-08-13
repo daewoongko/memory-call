@@ -67,6 +67,48 @@ export const sendTurn = (callId, text) =>
     body: JSON.stringify({ text }),
   });
 
+// ── 기기와 호출 ────────────────────────────────────────────
+// 벨은 서버의 상태다. 화면은 그 상태를 읽기만 하고 스스로 판정하지 않는다.
+
+export const registerDevice = (body) =>
+  request("/api/devices", { method: "POST", body: JSON.stringify(body) });
+
+export const ringFamily = (body) =>
+  request("/api/call-invites", { method: "POST", body: JSON.stringify(body) });
+
+/** 어르신 기기의 폴링. 벨이 끝났는지는 서버가 알려준다. */
+export const getInvite = (inviteId) =>
+  request(`/api/call-invites/${inviteId}`);
+
+/** 보호자 기기의 수신 폴링. 이 호출이 heartbeat 를 겸한다. */
+export const getIncomingInvite = (deviceId) =>
+  request(`/api/call-invites?device_id=${encodeURIComponent(deviceId)}`);
+
+export const answerInvite = (inviteId, deviceId) =>
+  request(`/api/call-invites/${inviteId}/answer`, {
+    method: "POST",
+    body: JSON.stringify({ device_id: deviceId }),
+  });
+
+export const declineInvite = (inviteId, deviceId) =>
+  request(`/api/call-invites/${inviteId}/decline`, {
+    method: "POST",
+    body: JSON.stringify({ device_id: deviceId }),
+  });
+
+export const cancelInvite = (inviteId) =>
+  request(`/api/call-invites/${inviteId}/cancel`, { method: "POST" });
+
+/** AI 가 대신 받는다. 응답은 startCall 과 같은 형태다. */
+export const takeOverInvite = (inviteId, reason) =>
+  request(`/api/call-invites/${inviteId}/ai-takeover`, {
+    method: "POST",
+    body: JSON.stringify(reason ? { reason } : {}),
+  });
+
+export const endInvite = (inviteId) =>
+  request(`/api/call-invites/${inviteId}/end`, { method: "POST" });
+
 export const getPersona = (personaId, elderId = "elder_001") =>
   request(`/api/elders/${elderId}/persona${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`);
 

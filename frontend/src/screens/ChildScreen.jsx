@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "../api.js";
 import BrandMark from "../components/BrandMark.jsx";
+import { useIncomingCall } from "../useIncomingCall.js";
+import GuardianCallOverlay from "./GuardianCallOverlay.jsx";
 import FamilyMemoryClothesline from "./FamilyMemoryClothesline.jsx";
 import FamilyPersonaSettings from "./FamilyPersonaSettings.jsx";
 import CallTranscriptModal from "./CallTranscriptModal.jsx";
@@ -69,6 +71,9 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const [callFilter, setCallFilter] = useState("all");
   const [expandedCallPeriods, setExpandedCallPeriods] = useState({});
   const [activeCall, setActiveCall] = useState(null);
+  const [connected, setConnected] = useState(null);
+  const [callBusy, setCallBusy] = useState(false);
+  const [callError, setCallError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const todayKey = localDateKey();
@@ -146,9 +151,88 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     calls: filteredCalls.filter((call) => periodForCall(call) === period.id),
   })), [filteredCalls]);
 
+  const { invite: incomingInvite, error: ringError, answer, decline } = useIncomingCall({
+    elderId: picked?.elder_id || elderId,
+    personaId: myPersonaId,
+    enabled: Boolean(picked) && Boolean(myPersonaId) && !connected,
+  });
+
+  const connectedId = connected?.invite_id;
+  useEffect(() => {
+    if (!connectedId) return undefined;
+    let alive = true;
+    let timer = null;
+    const tick = async () => {
+      if (!alive) return;
+      try {
+        const current = await api.getInvite(connectedId);
+        if (!alive) return;
+        if (current.state === "ended" || current.state === "cancelled") {
+          setConnected(null);
+          return;
+        }
+      } catch {
+        // 잠깐의 통신 오류로 진행 중인 통화 화면을 먼저 닫지 않는다.
+      }
+      if (alive) timer = setTimeout(tick, 2000);
+    };
+    timer = setTimeout(tick, 2000);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [connectedId]);
+
+  const handleAnswer = useCallback(async (inviteId) => {
+    setCallBusy(true);
+    setCallError("");
+    try {
+      setConnected(await answer(inviteId));
+    } catch (reason) {
+      setCallError(`전화를 받지 못했어요. (${reason.message})`);
+    } finally {
+      setCallBusy(false);
+    }
+  }, [answer]);
+
+  const handleDecline = useCallback(async (inviteId) => {
+    setCallBusy(true);
+    setCallError("");
+    try {
+      await decline(inviteId);
+    } catch (reason) {
+      setCallError(reason.message);
+    } finally {
+      setCallBusy(false);
+    }
+  }, [decline]);
+
+  const handleEnd = useCallback(async () => {
+    if (!connected) return;
+    setCallBusy(true);
+    try {
+      await api.endInvite(connected.invite_id);
+    } catch {
+      // 어르신 쪽에서 이미 종료했더라도 이 화면은 정상적으로 닫는다.
+    } finally {
+      setConnected(null);
+      setCallBusy(false);
+    }
+  }, [connected]);
+
   if (!picked) return <main className="child-screen child-loading"><BrandMark size={42} /><p className={error ? "error" : "hint"}>{error || "연결된 어르신의 가족 소식을 불러오는 중…"}</p></main>;
 
   return <main className="child-screen">
+    <GuardianCallOverlay
+      invite={incomingInvite}
+      connected={connected}
+      elderName={picked.name}
+      onAnswer={handleAnswer}
+      onDecline={handleDecline}
+      onEnd={handleEnd}
+      busy={callBusy}
+      error={callError || ringError}
+    />
     <header className="child-header child-family-header">
       <div className="child-brand"><BrandMark size={34} /><div><b>다소니</b><span>가족 안심 소식</span></div></div>
       <div className="child-header-context">

@@ -84,10 +84,14 @@ backend/
   db.py / schema.sql          SQLite 17테이블
 frontend/                     React 19 + Vite
   src/App.jsx                 상태머신. #guardian 이면 보호자 화면
+  src/device.js               ★ 이 기기가 누구인가. device_id 발급·보관
+  src/useIncomingCall.js      ★ 보호자 수신 폴링 (heartbeat 겸용)
   src/useSpeech.js            브라우저 음성 인식·합성
   src/components/             MorphStage, LoopStage, FaceStage, SelfView
   src/screens/                Idle, Calling, Incoming, Call, Summary,
-                              Guardian, MemoryPanel, MedicationForm
+                              Guardian, MemoryPanel, MedicationForm,
+                              GuardianCallOverlay(수신), HumanCall(사람 통화)
+  e2e/two_devices.mjs         ★ 브라우저 두 개로 폰 두 대 흐름 확인
 data/
   seed.json                   초기 데이터
   memory_call.sqlite          실제 데이터
@@ -246,6 +250,9 @@ python tools/eval.py --sleep 5           # 안전 평가 22개
 python tools/eval.py --raw --sleep 5     # safety 없이 (비교용)
 python tools/chat.py                     # 터미널 대화 테스트
 python tools/call_flow.py                # 호출 흐름 4가지 (서버가 켜져 있어야 함)
+
+cd frontend && npm run build && node e2e/two_devices.mjs http://127.0.0.1:8000
+                                         # 브라우저 두 개로 받음/끊음/거절 확인
 python tools/demo_reset.py --med-in 6    # 시연 준비
 ```
 
@@ -299,6 +306,20 @@ Wan 은 `enable_prompt_expansion` 이 기본 True 라 반드시 꺼야 한다.
 
 **`vite build` 는 실행 시점 오류를 못 잡는다.** `const` 함수를 정의 전에
 쓰는 것 같은 문제는 빌드가 통과하고 브라우저에서 터진다.
+`frontend/e2e/two_devices.mjs` 가 실제 브라우저 두 개로 이 구간을 본다.
+
+**떠 있는 버튼이 아래 버튼을 삼킨다.** `.wide-display-dock` 은
+`position: absolute` 로 콘텐츠 위에 떠 있는데, 412px(갤럭시 S24) 폭에서
+보호자 온보딩의 "기본 말투로 바로 시작"과 겹쳐 탭이 독으로 갔다. **버튼은
+멀쩡히 보이고 `disabled` 도 아니어서** 눌러도 아무 일이 없는 것으로만
+나타났다. `document.elementFromPoint()` 로 히트 타겟을 찍어야 보인다.
+여백을 주는 것으로는 부족했다 — 본문이 길면 스크롤 위치에 따라 버튼이
+다시 독 아래로 들어간다. 폰 폭에서는 독을 띄우지 말고 세로 흐름의 마지막
+칸으로 내려야 겹칠 자리 자체가 없어진다.
+
+**CSS 축약형은 뒤에서 조용히 덮는다.** `padding-bottom` 을 고쳤는데 뒤쪽
+미디어 쿼리의 `padding` 축약형이 되돌려 놓았다. 계산된 값을 직접 읽기
+전까지는 규칙이 적용된 줄 알았다.
 
 **브라우저 음성 합성은 세 가지를 방어해야 한다.** 목소리 목록이 늦게
 로드되면 엉뚱한 음성이 나가고, `cancel()` 직후 `speak()` 하면 무음이 되고,

@@ -4193,3 +4193,19 @@ label.checkbox { color: var(--text); }
   .child-call-modal-title h2 { font-size:calc(15px * var(--font-scale)); }
   .child-call-modal .transcript .line { max-width:90%; }
 }
+
+/* 보호자 화면 위에 도착하는 실제 가족 전화 */
+.guardian-call-scrim { position:fixed; inset:0; z-index:1600; display:grid; place-items:center; padding:24px; background:rgba(18,45,31,.72); backdrop-filter:blur(8px); }
+.guardian-call { width:min(420px,100%); padding:32px 26px 26px; border:1px solid var(--line); border-radius:26px; background:var(--surface); text-align:center; box-shadow:0 24px 70px rgba(0,0,0,.32); }
+.guardian-call-tag { display:inline-block; padding:6px 13px; border-radius:999px; color:var(--brand); background:#e7f4ed; font-size:calc(9px * var(--font-scale)); font-weight:800; }
+.guardian-call h2 { margin:14px 0 6px; color:var(--text); font-size:calc(22px * var(--font-scale)); }
+.guardian-call-note,.guardian-call-hint { margin:0; color:var(--muted); font-size:calc(9px * var(--font-scale)); line-height:1.6; }
+.guardian-call-hint { margin-top:14px; }
+.guardian-call-timer { margin:12px 0 0; color:var(--brand); font-size:calc(26px * var(--font-scale)); font-weight:850; font-variant-numeric:tabular-nums; }
+.guardian-call-actions { display:flex; gap:11px; margin-top:22px; }
+.guardian-call-actions button { flex:1; min-height:56px; border:0; border-radius:16px; color:#fff; font-size:calc(12px * var(--font-scale)); font-weight:850; }
+.guardian-call-actions button:disabled { opacity:.55; }
+.guardian-call-answer { background:#1b7654; }
+.guardian-call-decline { background:#5e6b63; }
+.guardian-call-end { background:#c43d32; }
+.guardian-call .error { margin:12px 0 0; }
