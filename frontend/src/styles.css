@@ -1249,6 +1249,20 @@ button.save:disabled { opacity: 0.4; cursor: default; }
 .reassurance-header p { color: var(--brand-soft); font-size: calc(16px * var(--font-scale)); font-weight: 700; }
 .reassurance-header h1 { margin-top: 6px; font-size: calc(30px * var(--font-scale)); }
 .reassurance-header span { display: block; margin-top: 6px; color: var(--muted); font-size: calc(16px * var(--font-scale)); }
+.media-readiness-panel {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 16px; border: 2px solid var(--brand); border-radius: 18px;
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+}
+.media-readiness-panel div { min-width: 0; }
+.media-readiness-panel b { display: block; color: var(--text); font-size: calc(17px * var(--font-scale)); }
+.media-readiness-panel p { margin: 3px 0 0; color: var(--muted); font-size: calc(13px * var(--font-scale)); line-height: 1.5; }
+.media-preflight-button {
+  flex: none; min-height: 48px; padding: 0 18px; border: 0; border-radius: 14px;
+  color: #fff; background: var(--brand); font: inherit; font-size: calc(14px * var(--font-scale)); font-weight: 850;
+}
+.media-preflight-button:disabled { opacity: .6; }
+.media-ready-note { margin: -4px 0 0; color: var(--brand); text-align: center; font-size: calc(12px * var(--font-scale)); font-weight: 750; }
 .today-reassurance { display: grid; gap: 8px; }
 .today-reassurance article {
   display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 11px;
@@ -3776,6 +3790,7 @@ label.checkbox { color: var(--text); }
   justify-content: flex-end;
   gap: 10px;
 }
+.child-media-readiness { margin: 14px 0 0; }
 .child-family-header .child-elder-name {
   display: flex;
   align-items: center;
@@ -3834,6 +3849,8 @@ label.checkbox { color: var(--text); }
 .child-heart-quote blockquote { max-width:820px; margin:9px auto 0; font-family:Georgia,"Times New Roman",serif; font-size:clamp(calc(18px * var(--font-scale)),calc(2.5vw * var(--font-scale)),calc(28px * var(--font-scale))); font-weight:600; line-height:1.55; letter-spacing:-.025em; }
 
 @media (max-width: 760px) {
+  .media-readiness-panel { align-items: stretch; flex-direction: column; }
+  .media-preflight-button { width: 100%; }
   .child-family-header { align-items: stretch; flex-direction: column; padding-right: 52px; }
   .child-family-header > .child-header-context { width: 100%; margin: 0; display: grid; grid-template-columns: 1fr 1.35fr; }
   .child-family-header .child-elder-name, .child-date-picker { min-width: 0; }

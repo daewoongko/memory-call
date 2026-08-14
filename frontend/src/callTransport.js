@@ -194,14 +194,34 @@ export function createTransport({ inviteId, role, localStream }) {
   };
 }
 
-export function openCallMedia() {
+const AUDIO_CONSTRAINTS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+};
+
+const VIDEO_CONSTRAINTS = {
+  facingMode: "user",
+  width: { ideal: 640 },
+  height: { ideal: 480 },
+};
+
+export async function openCallMedia() {
   if (!navigator.mediaDevices?.getUserMedia) {
-    return Promise.reject(new Error("이 브라우저에서는 카메라와 마이크를 사용할 수 없습니다."));
+    throw new Error("이 브라우저에서는 카메라와 마이크를 사용할 수 없습니다.");
   }
-  return navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-  });
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: AUDIO_CONSTRAINTS,
+      video: VIDEO_CONSTRAINTS,
+    });
+  } catch (videoError) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: false });
+    } catch {
+      throw videoError;
+    }
+  }
 }
 
 /** 벨이 울리기 전에 권한을 한 번 확보하고 즉시 장치를 놓는다. */
@@ -212,8 +232,8 @@ export async function preflightCallMedia() {
     video: stream.getVideoTracks().some((track) => track.readyState === "live"),
   };
   stream.getTracks().forEach((track) => track.stop());
-  if (!result.audio || !result.video) {
-    throw new DOMException("카메라 또는 마이크 권한을 확보하지 못했습니다.", "NotAllowedError");
+  if (!result.audio) {
+    throw new DOMException("마이크 권한을 확보하지 못했습니다.", "NotAllowedError");
   }
   return result;
 }

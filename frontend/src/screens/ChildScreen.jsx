@@ -6,7 +6,8 @@ import GuardianCallOverlay from "./GuardianCallOverlay.jsx";
 import FamilyMemoryClothesline from "./FamilyMemoryClothesline.jsx";
 import FamilyPersonaSettings from "./FamilyPersonaSettings.jsx";
 import CallTranscriptModal from "./CallTranscriptModal.jsx";
-import { preflightCallMedia } from "../callTransport.js";
+import { useCallMediaReadiness } from "../useCallMediaReadiness.js";
+import { useScreenWakeLock } from "../useScreenWakeLock.js";
 
 const TABS = [
   { id: "today", mark: "♥", label: "오늘" },
@@ -78,6 +79,9 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const todayKey = localDateKey();
+  const callMedia = useCallMediaReadiness();
+
+  useScreenWakeLock(Boolean(picked) && Boolean(myPersonaId) && callMedia.ready);
 
   useEffect(() => {
     let alive = true;
@@ -159,7 +163,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   } = useIncomingCall({
     elderId: picked?.elder_id || elderId,
     personaId: myPersonaId,
-    enabled: Boolean(picked) && Boolean(myPersonaId) && !connected,
+    enabled: Boolean(picked) && Boolean(myPersonaId) && callMedia.ready && !connected,
   });
 
   const connectedId = connected?.invite_id;
@@ -192,9 +196,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     setCallBusy(true);
     setCallError("");
     try {
-      try {
-        await preflightCallMedia();
-      } catch {
+      if (!callMedia.ready) {
         await decline(inviteId, "media_permission_denied");
         return;
       }
@@ -204,7 +206,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     } finally {
       setCallBusy(false);
     }
-  }, [answer, decline]);
+  }, [answer, decline, callMedia.ready]);
 
   const handleDecline = useCallback(async (inviteId) => {
     setCallBusy(true);
@@ -258,6 +260,15 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
         <label className="child-date-picker"><span>날짜</span><input type="date" value={selectedDate} max={todayKey} onChange={(event) => setSelectedDate(event.target.value)} /></label>
       </div>
     </header>
+
+    {!callMedia.ready && <section className="media-readiness-panel child-media-readiness" aria-live="polite">
+      <div><b>전화 받을 준비</b><p>{callMedia.message}</p></div>
+      <button
+        className="media-preflight-button"
+        onClick={() => callMedia.prepare().catch(() => {})}
+        disabled={callMedia.status === "checking"}
+      >{callMedia.status === "checking" ? "확인 중…" : "마이크·카메라 허용"}</button>
+    </section>}
 
     <div className="child-app-body">
       <nav className="child-tabs" aria-label="가족 화면 메뉴">{TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => setTab(item.id)}><span className="child-tab-mark" aria-hidden="true">{item.mark}</span><b>{item.label}</b></button>)}</nav>

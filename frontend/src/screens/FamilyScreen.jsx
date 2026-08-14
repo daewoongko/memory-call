@@ -15,7 +15,7 @@ function greeting(hour) {
   return "편안한 저녁이에요";
 }
 
-export default function FamilyScreen({ elderId = "elder_001", onPick, error }) {
+export default function FamilyScreen({ elderId = "elder_001", onPick, error, media }) {
   const [personas, setPersonas] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [medications, setMedications] = useState([]);
@@ -77,6 +77,16 @@ export default function FamilyScreen({ elderId = "elder_001", onPick, error }) {
         <span>오늘도 가족과 편안하게 이야기할 수 있어요.</span>
       </header>
 
+      {!media?.ready && <section className="media-readiness-panel" aria-live="polite">
+        <div><b>통화 준비</b><p>{media?.message || "마이크와 카메라를 먼저 준비해 주세요."}</p></div>
+        <button
+          className="media-preflight-button"
+          onClick={() => media?.prepare?.().catch(() => {})}
+          disabled={media?.status === "checking"}
+        >{media?.status === "checking" ? "확인 중…" : "마이크·카메라 허용"}</button>
+      </section>}
+      {media?.ready && <p className="media-ready-note">{media.message}</p>}
+
       <section className="today-reassurance" aria-label="오늘의 안심 정보">
         <article>
           <span className="today-icon schedule" aria-hidden="true">일정</span>
@@ -105,8 +115,8 @@ export default function FamilyScreen({ elderId = "elder_001", onPick, error }) {
           {personas.map((persona) => (
             <button
               key={persona.persona_id}
-              className={`family-card${persona.ready ? "" : " waiting"}`}
-              disabled={!persona.ready}
+              className={`family-card${persona.ready && media?.ready ? "" : " waiting"}`}
+              disabled={!persona.ready || !media?.ready}
               onClick={() => onPick(persona)}
               aria-label={`${persona.display_name} ${persona.relationship}에게 전화하기`}
             >

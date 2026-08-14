@@ -17,7 +17,9 @@ import LinkScreen from "./screens/LinkScreen.jsx";
 import GuardianOnboardingScreen from "./screens/GuardianOnboardingScreen.jsx";
 import HumanCallScreen from "./screens/HumanCallScreen.jsx";
 import NetTestScreen from "./screens/NetTestScreen.jsx";
-import { createTransport, openCallMedia, preflightCallMedia } from "./callTransport.js";
+import { createTransport, openCallMedia } from "./callTransport.js";
+import { useCallMediaReadiness } from "./useCallMediaReadiness.js";
+import { useScreenWakeLock } from "./useScreenWakeLock.js";
 
 // 벨이 몇 초 울리는지는 서버가 정해서 내려보낸다. 받을 기기가 없으면 짧게
 // 울려야 하는데, 그 판단에 필요한 정보가 화면에는 없기 때문이다.
@@ -106,6 +108,9 @@ export default function App() {
   const [humanLocalStream, setHumanLocalStream] = useState(null);
   const [humanRemoteStream, setHumanRemoteStream] = useState(null);
   const [humanTransportState, setHumanTransportState] = useState("idle");
+  const callMedia = useCallMediaReadiness(hash === "#elder" || role === "elder");
+
+  useScreenWakeLock(phase === "calling" || phase === "human" || phase === "connecting" || phase === "incall");
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { inviteRef.current = invite; }, [invite]);
@@ -327,6 +332,10 @@ export default function App() {
 
   async function startCalling(picked) {
     const person = picked ?? target;
+    if (!callMedia.ready) {
+      setError("먼저 ‘마이크·카메라 허용’을 눌러 통화를 준비해 주세요.");
+      return;
+    }
     if (picked) setTarget(picked);
     setError("");
     setCall(null);
@@ -336,12 +345,6 @@ export default function App() {
     setPhase("calling");
 
     try {
-      let mediaReady = true;
-      try {
-        await preflightCallMedia();
-      } catch {
-        mediaReady = false;
-      }
       const created = await api.ringFamily({
         elder_id: elderId,
         persona_id: person?.persona_id,
@@ -350,12 +353,6 @@ export default function App() {
       setInvite(created);
       inviteRef.current = created;
       setSecondsLeft(Math.ceil(created.seconds_left ?? created.ring_timeout_sec));
-      if (!mediaReady) {
-        const res = await api.takeOverInvite(created.invite_id, "media_permission_denied");
-        setInvite(res.invite);
-        enterCall(res);
-        return;
-      }
       // ICE 수집 시간을 벨 뒤에 숨긴다. 보호자가 받기 전부터 offer를 만든다.
       prepareHumanTransport(created.invite_id);
     } catch (e) {
@@ -493,7 +490,7 @@ export default function App() {
   if (hash === "#nettest") return wrap(<NetTestScreen />, { wide: true });
 
   // 루트에서는 저장된 역할과 관계없이 항상 역할을 먼저 고른다.
-  if (!hash || hash === "#roles")
+  if (hash === "#roles" || (!hash && !role))
     return wrap(<RoleScreen onPick={chooseRole} />, { wide: true });
 
   // 주소로 직접 들어온 경우는 입구를 건너뛴다.
@@ -545,7 +542,7 @@ export default function App() {
 
   if (phase === "idle")
     return wrap(
-      <FamilyScreen elderId={elderId} onPick={startCalling} error={error} />,
+      <FamilyScreen elderId={elderId} onPick={startCalling} error={error} media={callMedia} />,
       { gear: true, roleSwitch: true }
     );
 
