@@ -45,7 +45,7 @@ function watch(page, who) {
     // 폰트 CDN 차단과 음성 합성 키 부재는 이 환경의 사정이지 앱의 문제가
     // 아니다. 호출이 오가는지를 보는 시험이라 음성 없이도 결론이 선다.
     const noise =
-      /favicon|404|ERR_TUNNEL_CONNECTION_FAILED|cdn\.jsdelivr|TTS 503|음성을 재생하지 못했습니다|503 \(Service Unavailable\)/i;
+      /favicon|404|ERR_TUNNEL_CONNECTION_FAILED|cdn\.jsdelivr|TTS 503|음성을 재생하지 못했습니다|503 \(Service Unavailable\)|net::ERR_FAILED/i;
     if (m.type() === "error" && !noise.test(m.text()))
       problems.push(`[${who}] 콘솔 오류: ${m.text()}`);
   });
@@ -138,11 +138,25 @@ try {
   await overlay.waitFor({ state: "visible", timeout: 12000 });
   check(true, "보호자 폰에 벨이 도착한다");
 
+  const answeredAt = Date.now();
   await guardian.locator(".guardian-call-answer").click({ timeout: 10000 });
   await elder.locator(".human-call").waitFor({ timeout: 12000 });
   check(true, "어르신 화면이 사람 통화로 바뀐다");
   check(Boolean(await guardian.locator(".guardian-call-timer").count()),
         "보호자 화면이 통화 중으로 바뀐다");
+  await elder.waitForFunction(() => {
+    const video = document.querySelector(".human-remote-video");
+    return video?.srcObject?.getVideoTracks?.().length > 0
+      && video?.srcObject?.getAudioTracks?.().length > 0;
+  }, null, { timeout: 8000 });
+  await guardian.waitForFunction(() => {
+    const video = document.querySelector(".guardian-media-stage > video");
+    return video?.srcObject?.getVideoTracks?.().length > 0
+      && video?.srcObject?.getAudioTracks?.().length > 0;
+  }, null, { timeout: 8000 });
+  const connectedIn = Date.now() - answeredAt;
+  check(true, "양쪽에 상대 음성·영상 스트림이 실제로 연결된다");
+  check(connectedIn <= 3000, `받은 뒤 3초 안에 연결된다 (${connectedIn}ms)`);
 
   // ── 2. 어르신이 끊으면 보호자도 풀린다 ──────────────────
   log("\n2. 어르신이 끊는다");
@@ -171,14 +185,50 @@ try {
   await elder.screenshot({ path: "e2e/shot-elder-after-decline.png" });
   await guardian.screenshot({ path: "e2e/shot-guardian.png" });
 
-  // ── 4. 보호자 폰 화면이 꺼지면 짧게 운다 ────────────────
+  // ── 4. 보호자가 받았지만 미디어 신호가 붙지 않는다 ────────
+  log("\n4. 받은 뒤 미디어 연결이 실패한다");
+  // AI 화면도 자체 미리보기를 열 수 있으므로 현재 DOM의 video만 검사하면
+  // 새 스트림을 사람 통화 스트림으로 오인한다. 이 시나리오에서 열린 스트림을
+  // 기록해 두고, 마이크가 포함된 사람 통화 스트림이 실제로 종료됐는지 본다.
+  await elder.addInitScript(() => {
+    const original = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+    if (!original) return;
+    window.__e2eOpenedMedia = [];
+    navigator.mediaDevices.getUserMedia = async (...args) => {
+      const stream = await original(...args);
+      window.__e2eOpenedMedia.push(stream);
+      return stream;
+    };
+  });
+  await elder.reload({ waitUntil: "domcontentloaded" });
+  await elderIdle();
+  await ring().click();
+  await overlay.waitFor({ state: "visible", timeout: 12000 });
+  // answer 동작은 서버에 도달시키고, 이후 WebRTC signal만 양쪽에서 버린다.
+  await elder.route("**/api/call-invites/*/signal*", (route) => route.abort());
+  await guardian.route("**/api/call-invites/*/signal*", (route) => route.abort());
+  await guardian.locator(".guardian-call-answer").click({ timeout: 10000 });
+  await elder.locator(".human-call").waitFor({ timeout: 12000 });
+  await elder.locator(".call-screen").waitFor({ timeout: 20000 });
+  check(true, "미디어가 붙지 않으면 오류 문구 없이 AI 통화로 넘어간다");
+  const stopped = await elder.evaluate(() => {
+    const humanStreams = (window.__e2eOpenedMedia || [])
+      .filter((stream) => stream.getAudioTracks().length > 0);
+    return humanStreams.length > 0 && humanStreams.every((stream) =>
+      stream.getTracks().every((track) => track.readyState === "ended"));
+  });
+  check(stopped, "AI 인계 전에 사람 통화의 카메라·마이크 트랙을 정리한다");
+  await elder.unroute("**/api/call-invites/*/signal*");
+  await guardian.unroute("**/api/call-invites/*/signal*");
+
+  // ── 5. 보호자 폰 화면이 꺼지면 짧게 운다 ────────────────
   //
   // 폴링이 곧 "지금 받을 수 있다"는 신고다. 화면이 꺼졌는데도 신고가 계속
   // 나가면 서버는 받을 사람이 있다고 믿고 벨을 끝까지 울리고, 어르신은
   // 아무도 받지 않을 전화를 15초 동안 들여다보게 된다. 실제로 그랬다.
   //
   // 브라우저를 잠글 수는 없으니 앱이 읽는 값을 그대로 가려서 흉내낸다.
-  log("\n4. 보호자 폰 화면이 꺼진다");
+  log("\n5. 보호자 폰 화면이 꺼진다");
   const setVisibility = (page, value) => page.evaluate((state) => {
     Object.defineProperty(document, "visibilityState", {
       get: () => state, configurable: true,
@@ -209,8 +259,8 @@ try {
   check(shortRing === "6초", `받을 폰이 없으므로 짧게 운다 (${shortRing})`);
   await elder.locator(".dev button").click().catch(() => {});
 
-  // ── 5. 다시 켜면 돌아온다 ───────────────────────────────
-  log("\n5. 보호자가 폰을 다시 켠다");
+  // ── 6. 다시 켜면 돌아온다 ───────────────────────────────
+  log("\n6. 보호자가 폰을 다시 켠다");
   await setVisibility(guardian, "visible");
   await guardian.waitForTimeout(3000);
   const awake = await askDevices();

@@ -16,14 +16,11 @@ P2P 가 이 망에서 붙는지 재는 진단.
 인스턴스에서 백그라운드 작업이 살아 있다고 가정할 수 없다.
 """
 
-import json
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import db
-
-# 방 하나가 살아 있는 시간. 진단은 길어야 1~2분이면 끝난다.
-ROOM_TTL_MINUTES = 30
+import signaling
 
 KINDS = ("offer", "answer", "ice")
 
@@ -37,48 +34,14 @@ def new_room() -> str:
     return f"{random.randint(0, 999999):06d}"
 
 
-def _sweep(conn) -> None:
-    cutoff = (datetime.now() - timedelta(minutes=ROOM_TTL_MINUTES)).isoformat(
-        timespec="seconds")
-    conn.execute("DELETE FROM signal_messages WHERE created_at < ?", (cutoff,))
-
-
 def send(room: str, sender: str, kind: str, payload) -> dict:
     if kind not in KINDS:
         raise ValueError(f"kind 는 {KINDS} 중 하나여야 합니다.")
-    with db.connect() as conn:
-        _sweep(conn)
-        message_id = db.insert(conn, "signal_messages", {
-            "room": room.strip(),
-            "sender": sender.strip(),
-            "kind": kind,
-            "payload": json.dumps(payload, ensure_ascii=False),
-            "created_at": _now(),
-        })
-        conn.commit()
-    return {"id": message_id}
+    return signaling.send(room, sender, kind, payload)
 
 
 def poll(room: str, sender: str, since: int = 0) -> dict:
-    """상대가 보낸 것만 준다. 자기가 보낸 신호를 되받으면 연결이 꼬인다."""
-    with db.connect() as conn:
-        rows = conn.execute(
-            "SELECT * FROM signal_messages "
-            "WHERE room = ? AND sender != ? AND id > ? ORDER BY id",
-            (room.strip(), sender.strip(), since),
-        ).fetchall()
-
-    messages = []
-    for row in rows:
-        try:
-            payload = json.loads(row["payload"])
-        except json.JSONDecodeError:
-            continue  # 못 읽는 신호 하나로 진단을 멈추지 않는다
-        messages.append({
-            "id": row["id"], "kind": row["kind"], "payload": payload,
-        })
-    last = rows[-1]["id"] if rows else since
-    return {"messages": messages, "cursor": last}
+    return signaling.poll(room, sender, since)
 
 
 def record(result: dict) -> dict:

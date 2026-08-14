@@ -6,22 +6,32 @@ import { useEffect, useRef, useState } from "react";
  * 실제 영상통화처럼 자기 모습이 구석에 보여야 "통화 중"이라는 감각이 산다.
  * 카메라를 못 쓰면 조용히 안내만 남기고 통화는 그대로 진행한다.
  */
-export default function SelfView() {
+export default function SelfView({ stream: externalStream = undefined }) {
   const videoRef = useRef(null);
   const [denied, setDenied] = useState(false);
 
   useEffect(() => {
-    let stream;
+    let ownedStream;
+    if (externalStream !== undefined) {
+      if (videoRef.current) {
+        videoRef.current.srcObject = externalStream;
+        videoRef.current.play?.().catch(() => {});
+      }
+      setDenied(!externalStream);
+      return () => {
+        if (videoRef.current) videoRef.current.srcObject = null;
+      };
+    }
     navigator.mediaDevices
       ?.getUserMedia({ video: { facingMode: "user" }, audio: false })
       .then((s) => {
-        stream = s;
+        ownedStream = s;
         if (videoRef.current) videoRef.current.srcObject = s;
       })
       .catch(() => setDenied(true));
 
-    return () => stream?.getTracks().forEach((t) => t.stop());
-  }, []);
+    return () => ownedStream?.getTracks().forEach((t) => t.stop());
+  }, [externalStream]);
 
   return (
     <div className="selfview">

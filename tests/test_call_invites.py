@@ -249,8 +249,7 @@ class CallInviteTest(unittest.TestCase):
         # 거절이었다는 사실이 ai_takeover 로 덮여 사라지면 안 된다
         self.assertEqual(handed["takeover_reason"], "declined")
 
-    def test_take_over_while_still_ringing_is_recorded_as_transport_failure(self):
-        """WebRTC 가 붙지 않아 넘어온 경우. 2단계에서 쓰는 경로다."""
+    def test_answered_call_requires_transport_failure_reason_for_takeover(self):
         self._guardian()
         invite = invites.create("elder_test", "persona_minjun")
         invites.answer(invite["invite_id"], "dev_guardian")
@@ -258,6 +257,17 @@ class CallInviteTest(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             invites.take_over(invite["invite_id"], "call_ai_2")
+
+    def test_answered_call_can_fall_back_after_transport_failure(self):
+        self._guardian()
+        invite = invites.create("elder_test", "persona_minjun")
+        invites.answer(invite["invite_id"], "dev_guardian")
+        self._make_call("call_ai_transport")
+
+        handed = invites.take_over(
+            invite["invite_id"], "call_ai_transport", "transport_failed")
+        self.assertEqual(handed["state"], invites.AI_TAKEOVER)
+        self.assertEqual(handed["takeover_reason"], "transport_failed")
 
     def test_take_over_from_a_ringing_invite_defaults_to_transport_failed(self):
         self._guardian()

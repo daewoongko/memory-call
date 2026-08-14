@@ -171,7 +171,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       try {
         const current = await api.getInvite(connectedId);
         if (!alive) return;
-        if (current.state === "ended" || current.state === "cancelled") {
+        if (current.state !== "answered") {
           setConnected(null);
           return;
         }
@@ -224,6 +224,12 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     }
   }, [connected]);
 
+  const handleTransportFailed = useCallback(() => {
+    // 어르신 쪽이 AI 인계를 확정한다. 보호자 화면은 조용히 통화창만 닫는다.
+    setConnected(null);
+    setCallBusy(false);
+  }, []);
+
   if (!picked) return <main className="child-screen child-loading"><BrandMark size={42} /><p className={error ? "error" : "hint"}>{error || "연결된 어르신의 가족 소식을 불러오는 중…"}</p></main>;
 
   return <main className="child-screen">
@@ -234,6 +240,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       onAnswer={handleAnswer}
       onDecline={handleDecline}
       onEnd={handleEnd}
+      onTransportFailed={handleTransportFailed}
       busy={callBusy}
       error={callError || ringError}
     />

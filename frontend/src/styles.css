@@ -4209,6 +4209,13 @@ label.checkbox { color: var(--text); }
 .guardian-call-decline { background:#5e6b63; }
 .guardian-call-end { background:#c43d32; }
 .guardian-call .error { margin:12px 0 0; }
+.guardian-media-stage { position:relative; width:100%; aspect-ratio:4/3; margin:18px 0 8px; overflow:hidden; border-radius:20px; background:#173b2d; }
+.guardian-media-stage > video { width:100%; height:100%; object-fit:cover; background:#173b2d; }
+.guardian-media-stage .selfview { top:12px; right:12px; bottom:auto; width:84px; height:112px; }
+.human-call .human-remote-video { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; background:#122c23; }
+.human-call .human-remote-video:not(.live) { object-fit:cover; }
+.human-call > :not(.human-remote-video) { position:relative; z-index:1; }
+.human-call .who,.human-call .countdown { padding:8px 14px; border-radius:14px; color:#fff; background:rgba(7,31,23,.58); backdrop-filter:blur(8px); }
 
 /* 이 폰이 지금 벨을 받을 수 있는가. 수신 폴링이 곧 그 신고이므로 화면이
    꺼지면 함께 꺼진다. 보호자가 손에 든 폰을 두고 실제로 갖는 질문이다. */

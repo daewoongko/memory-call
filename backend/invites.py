@@ -54,7 +54,8 @@ AI_TAKEOVER = "ai_takeover"
 ENDED = "ended"
 CANCELLED = "cancelled"
 
-# AI 인계로 이어질 수 있는 상태. 이미 사람이 받았거나 끝난 통화는 넘기지 않는다.
+# AI 인계로 이어질 수 있는 일반 상태. ANSWERED 는 미디어 연결 실패라는 명시적
+# 사유가 있을 때만 예외적으로 허용한다.
 TAKEOVER_SOURCES = {RINGING, DECLINED, TIMEOUT}
 
 
@@ -319,14 +320,24 @@ def take_over(invite_id: str, call_id: str,
     """
     with db.connect() as conn:
         row = _expire_if_due(conn, _fetch(conn, invite_id))
-    if row["state"] not in TAKEOVER_SOURCES:
+    answered_transport_failure = (
+        row["state"] == ANSWERED and reason == "transport_failed"
+    )
+    if row["state"] not in TAKEOVER_SOURCES and not answered_transport_failure:
         raise ValueError(f"'{row['state']}' 상태에서는 AI 로 넘길 수 없습니다.")
 
     # 벨이 울리는 중에 넘긴 경우에만 사유가 비어 있다. 호출자가 준 값을 쓰되
     # 없으면 전송 실패로 본다 (WebRTC 가 붙지 않은 경우).
     resolved = row["takeover_reason"] or reason or "transport_failed"
-    return _transition(invite_id, AI_TAKEOVER, TAKEOVER_SOURCES,
+    allowed = TAKEOVER_SOURCES | ({ANSWERED} if answered_transport_failure else set())
+    return _transition(invite_id, AI_TAKEOVER, allowed,
                        ai_call_id=call_id, takeover_reason=resolved)
+
+
+def can_take_over(state: str, reason: str | None = None) -> bool:
+    return state in TAKEOVER_SOURCES or (
+        state == ANSWERED and reason == "transport_failed"
+    )
 
 
 def end(invite_id: str) -> dict:

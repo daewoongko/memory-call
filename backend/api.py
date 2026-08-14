@@ -37,6 +37,7 @@ import memories as mem_mod
 import nettest as nettest_mod
 import report as report_mod
 import schedules as sched_mod
+import signaling
 import tts_proxy
 from analysis.observation_catalog import SIGNALS
 from conversation import Session
@@ -1244,6 +1245,12 @@ class SignalMessage(BaseModel):
     payload: dict
 
 
+class CallSignalMessage(BaseModel):
+    sender: Literal["caller", "answerer"]
+    kind: Literal["offer", "answer", "ice"]
+    payload: dict
+
+
 class NetTestResult(BaseModel):
     room: str | None = None
     label: str | None = Field(default=None, max_length=60)
@@ -1325,6 +1332,27 @@ def incoming_invite(device_id: str):
         raise HTTPException(404, str(exc)) from exc
 
 
+@app.post("/api/call-invites/{invite_id}/signal")
+def call_invite_signal(invite_id: str, req: CallSignalMessage):
+    """실제 통화의 SDP·ICE를 전달한다. room은 invite_id와 같다."""
+    try:
+        inv_mod.get(invite_id)
+        return signaling.send(invite_id, req.sender, req.kind, req.payload)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.get("/api/call-invites/{invite_id}/signal")
+def poll_call_invite_signal(invite_id: str,
+                            sender: Literal["caller", "answerer"],
+                            since: int = 0):
+    try:
+        inv_mod.get(invite_id)
+        return signaling.poll(invite_id, sender, since)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
 @app.post("/api/call-invites/{invite_id}/answer")
 def answer_invite(invite_id: str, req: InviteDeviceAction):
     try:
@@ -1358,7 +1386,7 @@ def take_over_invite(invite_id: str, req: TakeOverRequest):
         invite = inv_mod.get(invite_id)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
-    if invite["state"] not in inv_mod.TAKEOVER_SOURCES:
+    if not inv_mod.can_take_over(invite["state"], req.reason):
         raise HTTPException(409, f"'{invite['state']}' 상태에서는 넘길 수 없습니다.")
 
     call = _open_ai_session(invite["elder_id"], invite["persona_id"])

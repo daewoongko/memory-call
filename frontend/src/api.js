@@ -109,6 +109,17 @@ export const takeOverInvite = (inviteId, reason) =>
 export const endInvite = (inviteId) =>
   request(`/api/call-invites/${inviteId}/end`, { method: "POST" });
 
+/** 실제 사람 통화의 SDP·ICE. 진단 신호와 URL을 분리해 운영 기록과 섞지 않는다. */
+export const sendCallSignal = (inviteId, body) =>
+  request(`/api/call-invites/${encodeURIComponent(inviteId)}/signal`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const pollCallSignal = (inviteId, sender, since = 0) =>
+  request(`/api/call-invites/${encodeURIComponent(inviteId)}/signal`
+    + `?sender=${encodeURIComponent(sender)}&since=${since}`);
+
 // ── P2P 진단 ──────────────────────────────────────────────
 // 서버는 SDP·ICE 를 방 단위로 전달만 한다. 내용은 보지 않는다.
 

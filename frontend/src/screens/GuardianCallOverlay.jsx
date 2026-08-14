@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createTransport, openCallMedia } from "../callTransport.js";
+import SelfView from "../components/SelfView.jsx";
 
 /**
  * 보호자에게 걸려온 전화.
@@ -26,10 +28,14 @@ function clock(seconds) {
 }
 
 export default function GuardianCallOverlay({
-  invite, connected, elderName, onAnswer, onDecline, onEnd, busy, error,
+  invite, connected, elderName, onAnswer, onDecline, onEnd,
+  onTransportFailed, busy, error,
 }) {
   const call = connected || invite;
   const [seconds, setSeconds] = useState(() => elapsed(connected?.answered_at));
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+  const remoteRef = useRef(null);
 
   useEffect(() => {
     if (!connected) return undefined;
@@ -37,6 +43,55 @@ export default function GuardianCallOverlay({
     const id = setInterval(() => setSeconds(elapsed(connected.answered_at)), 1000);
     return () => clearInterval(id);
   }, [connected]);
+
+  useEffect(() => {
+    if (!connected?.invite_id) return undefined;
+    let alive = true;
+    let transport = null;
+    let timeout = null;
+
+    const fail = async () => {
+      if (!alive) return;
+      alive = false;
+      clearTimeout(timeout);
+      await transport?.disconnect();
+      setLocalStream(null);
+      setRemoteStream(null);
+      onTransportFailed?.();
+    };
+
+    openCallMedia().then(async (stream) => {
+      if (!alive) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      setLocalStream(stream);
+      transport = createTransport({
+        inviteId: connected.invite_id,
+        role: "answerer",
+        localStream: stream,
+      });
+      transport.onRemoteStream((next) => alive && setRemoteStream(next));
+      transport.onStateChange((state) => {
+        if (state === "connected") clearTimeout(timeout);
+        if (state === "failed") fail();
+      });
+      timeout = setTimeout(fail, 12000);
+      await transport.connect();
+    }).catch(fail);
+
+    return () => {
+      alive = false;
+      clearTimeout(timeout);
+      transport?.disconnect().catch(() => {});
+    };
+  }, [connected?.invite_id, onTransportFailed]);
+
+  useEffect(() => {
+    if (!remoteRef.current) return;
+    remoteRef.current.srcObject = remoteStream || null;
+    remoteRef.current.play?.().catch(() => {});
+  }, [remoteStream]);
 
   if (!call) return null;
 
@@ -52,7 +107,13 @@ export default function GuardianCallOverlay({
         <h2>{who}</h2>
 
         {connected ? (
-          <p className="guardian-call-timer">{clock(seconds)}</p>
+          <>
+            <div className="guardian-media-stage">
+              <video ref={remoteRef} autoPlay playsInline />
+              <SelfView stream={localStream} />
+            </div>
+            <p className="guardian-call-timer">{clock(seconds)}</p>
+          </>
         ) : (
           <p className="guardian-call-note">
             받지 않으면 AI 가 대신 받아 통화를 이어갑니다.

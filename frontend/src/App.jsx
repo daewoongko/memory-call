@@ -17,6 +17,7 @@ import LinkScreen from "./screens/LinkScreen.jsx";
 import GuardianOnboardingScreen from "./screens/GuardianOnboardingScreen.jsx";
 import HumanCallScreen from "./screens/HumanCallScreen.jsx";
 import NetTestScreen from "./screens/NetTestScreen.jsx";
+import { createTransport, openCallMedia } from "./callTransport.js";
 
 // 벨이 몇 초 울리는지는 서버가 정해서 내려보낸다. 받을 기기가 없으면 짧게
 // 울려야 하는데, 그 판단에 필요한 정보가 화면에는 없기 때문이다.
@@ -97,6 +98,17 @@ export default function App() {
   const cooldownUntil = useRef(0);
   const [error, setError] = useState("");
   const timers = useRef([]);
+  const phaseRef = useRef(phase);
+  const inviteRef = useRef(invite);
+  const humanTransport = useRef(null);
+  const transportFailed = useRef(false);
+  const takeoverInFlight = useRef(false);
+  const [humanLocalStream, setHumanLocalStream] = useState(null);
+  const [humanRemoteStream, setHumanRemoteStream] = useState(null);
+  const [humanTransportState, setHumanTransportState] = useState("idle");
+
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { inviteRef.current = invite; }, [invite]);
 
   useEffect(() => {
     api.getProfile(target?.persona_id, elderId).then(setProfile).catch((e) =>
@@ -150,6 +162,62 @@ export default function App() {
     }
   }, [target, elderId, enterCall]);
 
+  const releaseHumanTransport = useCallback(async () => {
+    const current = humanTransport.current;
+    humanTransport.current = null;
+    if (current) await current.disconnect().catch(() => {});
+    setHumanLocalStream(null);
+    setHumanRemoteStream(null);
+    setHumanTransportState("idle");
+  }, []);
+
+  const fallBackFromHuman = useCallback(async (inviteId) => {
+    if (!inviteId || takeoverInFlight.current) return;
+    takeoverInFlight.current = true;
+    // 마이크 주인을 먼저 완전히 비운 뒤 Web Speech API가 있는 AI 화면을 연다.
+    await releaseHumanTransport(false);
+    try {
+      const res = await api.takeOverInvite(inviteId, "transport_failed");
+      setInvite(res.invite);
+      enterCall(res);
+    } catch {
+      // 연결 실패는 어르신에게 장애로 보이지 않는다. 상태 API까지 잠깐
+      // 불안정하면 새 AI 세션으로라도 대화를 이어 간다.
+      await connectAI();
+    } finally {
+      takeoverInFlight.current = false;
+    }
+  }, [connectAI, enterCall, releaseHumanTransport]);
+
+  const prepareHumanTransport = useCallback(async (inviteId) => {
+    transportFailed.current = false;
+    setHumanTransportState("connecting");
+    try {
+      const stream = await openCallMedia();
+      if (inviteRef.current?.invite_id !== inviteId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      setHumanLocalStream(stream);
+      const transport = createTransport({
+        inviteId, role: "caller", localStream: stream,
+      });
+      humanTransport.current = transport;
+      transport.onRemoteStream(setHumanRemoteStream);
+      transport.onStateChange((state) => {
+        setHumanTransportState(state);
+        if (state !== "failed") return;
+        transportFailed.current = true;
+        if (phaseRef.current === "human") fallBackFromHuman(inviteId);
+      });
+      await transport.connect();
+    } catch {
+      transportFailed.current = true;
+      setHumanTransportState("failed");
+      if (phaseRef.current === "human") fallBackFromHuman(inviteId);
+    }
+  }, [fallBackFromHuman]);
+
   /**
    * 벨이 울리는 동안 서버에 물어본다.
    *
@@ -173,10 +241,15 @@ export default function App() {
 
         if (current.state === "answered") {
           setInvite(current);
-          setPhase("human");
+          if (transportFailed.current) {
+            fallBackFromHuman(inviteId);
+          } else {
+            setPhase("human");
+          }
           return;
         }
         if (current.should_take_over) {
+          await releaseHumanTransport(false);
           const res = await api.takeOverInvite(inviteId);
           if (!alive) return;
           setInvite(res.invite);
@@ -184,6 +257,7 @@ export default function App() {
           return;
         }
         if (current.state === "cancelled" || current.state === "ended") {
+          await releaseHumanTransport(false);
           setPhase("idle");
           setInvite(null);
           return;
@@ -204,7 +278,18 @@ export default function App() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [phase, invite?.invite_id, connectAI, enterCall]);
+  }, [phase, invite?.invite_id, connectAI, enterCall, fallBackFromHuman, releaseHumanTransport]);
+
+  // 보호자가 받은 뒤 12초 안에 미디어가 붙지 않으면 조용히 AI로 넘긴다.
+  useEffect(() => {
+    if (phase !== "human" || !invite?.invite_id || humanTransportState === "connected") {
+      return undefined;
+    }
+    const id = setTimeout(
+      () => fallBackFromHuman(invite.invite_id), 12000,
+    );
+    return () => clearTimeout(id);
+  }, [phase, invite?.invite_id, humanTransportState, fallBackFromHuman]);
 
   // 가족이 먼저 끊었을 때. 어르신 화면이 통화 중에 갇히면 스스로 빠져나오기
   // 어렵다. 끊는 쪽은 어느 쪽이든 될 수 있으므로 양쪽 모두 상태를 확인한다.
@@ -220,6 +305,7 @@ export default function App() {
         const current = await api.getInvite(inviteId);
         if (!alive) return;
         if (current.state === "ended" || current.state === "cancelled") {
+          await releaseHumanTransport(false);
           setInvite(null);
           setTarget(null);
           cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
@@ -237,7 +323,7 @@ export default function App() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [phase, invite?.invite_id]);
+  }, [phase, invite?.invite_id, releaseHumanTransport]);
 
   async function startCalling(picked) {
     const person = picked ?? target;
@@ -256,7 +342,10 @@ export default function App() {
         from_device: deviceId(),
       });
       setInvite(created);
+      inviteRef.current = created;
       setSecondsLeft(Math.ceil(created.seconds_left ?? created.ring_timeout_sec));
+      // ICE 수집 시간을 벨 뒤에 숨긴다. 보호자가 받기 전부터 offer를 만든다.
+      prepareHumanTransport(created.invite_id);
     } catch (e) {
       // 호출을 만들지 못해도 통화는 이어져야 한다. 어르신에게는 전화가
       // 실패한 것이 아니라 가족이 받지 않은 것과 같아야 한다.
@@ -283,6 +372,7 @@ export default function App() {
     timers.current = [];
     // 호출 기록을 닫는다. 실패해도 화면은 대기로 돌아가야 한다.
     if (invite?.invite_id) api.endInvite(invite.invite_id).catch(() => {});
+    releaseHumanTransport(false);
     setInvite(null);
     setCall(null);
     setSummary(null);
@@ -292,13 +382,15 @@ export default function App() {
   /** 어르신이 벨이 울리는 중에 그만둔다. AI 로 넘기지 않는다. */
   function stopCalling() {
     if (invite?.invite_id) api.cancelInvite(invite.invite_id).catch(() => {});
+    releaseHumanTransport(false);
     setInvite(null);
     setPhase("idle");
   }
 
   /** 사람 통화를 끝낸다. 리포트가 없으므로 대기 화면으로 곧장 돌아간다. */
-  function endHumanCall() {
-    if (invite?.invite_id) api.endInvite(invite.invite_id).catch(() => {});
+  async function endHumanCall() {
+    if (invite?.invite_id) await api.endInvite(invite.invite_id).catch(() => {});
+    await releaseHumanTransport(false);
     cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
     setInvite(null);
     setTarget(null);
@@ -481,6 +573,8 @@ export default function App() {
         name={profile?.persona?.display_name ?? "가족"}
         face={profile?.faces?.at(-1)?.url}
         answeredAt={invite.answered_at}
+        localStream={humanLocalStream}
+        remoteStream={humanRemoteStream}
         onEnd={endHumanCall}
       />
     );
