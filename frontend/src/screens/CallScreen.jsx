@@ -42,7 +42,7 @@ function elapsedText(seconds) {
 }
 
 export default function CallScreen({
-  faces, morphUrl, loops, opening, name, callId, api, onEnded,
+  faces, morphUrl, loops, opening, name, personaId, callId, api, onEnded,
 }) {
   const [videoFailed, setVideoFailed] = useState(false);
   const useVideo = Boolean(morphUrl) && !videoFailed;
@@ -113,6 +113,7 @@ export default function CallScreen({
     // 모바일 AI 통화는 마지막 음성 뒤 1초를 한 발화의 끝으로 본다.
     // 기존 프로필별 2초 대기는 서버 STT와 직렬로 누적돼 체감 지연이 컸다.
     silenceMs: 1000,
+    personaId,
     // 오프닝의 나이 모핑을 끝낸 뒤에만 현재 얼굴 립싱크로 전환한다.
     preferLipSync: useVideo ? morphDone : progress >= 1,
     onFinal: async (text) => {

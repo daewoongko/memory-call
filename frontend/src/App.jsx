@@ -598,6 +598,7 @@ export default function App() {
         loops={call.loops ?? profile?.loops ?? {}}
         opening={call.opening ?? ""}
         name={profile?.persona?.display_name ?? "가족"}
+        personaId={call.persona_id ?? target?.persona_id ?? null}
         callId={call.call_id}
         api={api}
         onEnded={(s) => {

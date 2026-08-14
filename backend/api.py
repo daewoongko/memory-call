@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
@@ -36,6 +36,7 @@ import llm
 import medication as med_mod
 import memories as mem_mod
 import nettest as nettest_mod
+import persona_voice as voice_mod
 import report as report_mod
 import schedules as sched_mod
 import signaling
@@ -195,6 +196,22 @@ class TakeOverRequest(BaseModel):
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
     rate: float = Field(default=0.92, ge=0.75, le=1.15)
+    persona_id: str | None = Field(default=None, pattern=r"^persona_[a-z0-9_]+$")
+
+
+class VoiceConsentRequest(BaseModel):
+    elder_id: str = "elder_001"
+    accepted: bool
+
+
+class VoicePreviewRequest(BaseModel):
+    elder_id: str = "elder_001"
+    text: str = Field(min_length=1, max_length=180)
+    rate: float = Field(default=0.92, ge=0.75, le=1.15)
+
+
+class VoiceApproveRequest(BaseModel):
+    elder_id: str = "elder_001"
 
 
 class TTSBridgeRegistration(BaseModel):
@@ -636,10 +653,12 @@ def synthesize_speech(req: TTSRequest, request: Request):
     request_id = uuid.uuid4().hex
     try:
         try:
+            voice_id = voice_mod.active_voice_id(req.persona_id)
+            kwargs = {"request_id": request_id}
+            if voice_id:
+                kwargs["voice_id"] = voice_id
             result = elevenlabs_tts.synthesize_with_metadata(
-                req.text.strip(),
-                req.rate,
-                request_id=request_id,
+                req.text.strip(), req.rate, **kwargs,
             )
         except (
             elevenlabs_tts.ElevenLabsNotConfigured,
@@ -672,10 +691,12 @@ def synthesize_lipsync_video(req: TTSRequest, request: Request):
     request_id = uuid.uuid4().hex
     try:
         try:
+            voice_id = voice_mod.active_voice_id(req.persona_id)
+            kwargs = {"request_id": request_id}
+            if voice_id:
+                kwargs["voice_id"] = voice_id
             audio_result = elevenlabs_tts.synthesize_with_metadata(
-                req.text.strip(),
-                req.rate,
-                request_id=request_id,
+                req.text.strip(), req.rate, **kwargs,
             )
         except (
             elevenlabs_tts.ElevenLabsNotConfigured,
@@ -898,6 +919,110 @@ def put_age_plan(req: AgePlanRequest, persona_id: str | None = None):
             persona_id=persona_id,
         )
     except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/personas/{persona_id}/voice-profile")
+def get_voice_profile(persona_id: str, elder_id: str = "elder_001"):
+    try:
+        return voice_mod.public_profile(persona_id, elder_id)
+    except voice_mod.VoiceProfileError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.delete("/api/personas/{persona_id}/voice-profile")
+def delete_voice_profile(persona_id: str, elder_id: str = "elder_001"):
+    try:
+        return voice_mod.delete_profile(persona_id, elder_id)
+    except voice_mod.VoiceProfileError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except elevenlabs_tts.ElevenLabsNotConfigured as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except voice_mod.VoiceProviderUnavailable as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.post("/api/personas/{persona_id}/voice-consent")
+def save_voice_consent(persona_id: str, req: VoiceConsentRequest):
+    try:
+        return voice_mod.record_consent(persona_id, req.elder_id, req.accepted)
+    except voice_mod.VoiceProfileError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/personas/{persona_id}/voice-samples")
+async def upload_voice_sample(
+    persona_id: str,
+    audio: UploadFile = File(...),
+    elder_id: str = Form(default="elder_001"),
+    phase: Literal["ivc", "pvc"] = Form(...),
+    prompt_id: str = Form(..., max_length=80),
+    duration_seconds: float = Form(..., ge=1, le=360),
+    quality: str = Form(default="{}", max_length=2000),
+):
+    try:
+        quality_data = json.loads(quality)
+        if not isinstance(quality_data, dict):
+            raise ValueError
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(400, "음질 측정값이 올바르지 않습니다.") from exc
+    payload = await audio.read(voice_mod.MAX_SAMPLE_BYTES + 1)
+    try:
+        return voice_mod.save_sample(
+            persona_id, elder_id, phase=phase, prompt_id=prompt_id,
+            original_name=audio.filename or "recording",
+            mime_type=audio.content_type or "application/octet-stream",
+            payload=payload, duration_seconds=duration_seconds,
+            quality=quality_data,
+        )
+    except voice_mod.VoiceProfileError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/personas/{persona_id}/voice/ivc")
+def create_persona_ivc(persona_id: str, req: VoiceApproveRequest):
+    try:
+        return voice_mod.create_ivc(persona_id, req.elder_id)
+    except voice_mod.VoiceProfileError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except elevenlabs_tts.ElevenLabsNotConfigured as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except voice_mod.VoiceProviderUnavailable as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.post("/api/personas/{persona_id}/voice/preview")
+def preview_persona_voice(
+    persona_id: str, req: VoicePreviewRequest, request: Request,
+):
+    _enforce_tts_rate_limit(request)
+    _acquire_tts_capacity()
+    try:
+        voice_id = voice_mod.candidate_voice_id(persona_id, req.elder_id)
+        result = elevenlabs_tts.synthesize_with_metadata(
+            req.text.strip(), req.rate, request_id=uuid.uuid4().hex,
+            voice_id=voice_id,
+        )
+    except voice_mod.VoiceProfileError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except (
+        elevenlabs_tts.ElevenLabsNotConfigured,
+        elevenlabs_tts.ElevenLabsUnavailable,
+    ) as exc:
+        raise HTTPException(503, str(exc)) from exc
+    finally:
+        _tts_capacity.release()
+    return Response(
+        content=result.body, media_type="audio/wav",
+        headers={"Cache-Control": "no-store", **result.public_headers()},
+    )
+
+
+@app.post("/api/personas/{persona_id}/voice/approve")
+def approve_persona_voice(persona_id: str, req: VoiceApproveRequest):
+    try:
+        return voice_mod.approve_ivc(persona_id, req.elder_id)
+    except voice_mod.VoiceProfileError as exc:
         raise HTTPException(400, str(exc)) from exc
 
 
@@ -1228,6 +1353,7 @@ def _open_ai_session(elder_id: str, persona_id: str | None) -> dict:
     persona_name = session.ctx["persona"].get("display_name", "가족")
     return {
         "call_id": session.call_id,
+        "persona_id": selected_persona_id,
         "persona_name": persona_name,
         # 복약 시간대면 민준이가 먼저 건넬 말이 들어온다. 없으면 빈 문자열.
         "opening": session.opening(),

@@ -36,6 +36,8 @@ db.sqlite
 *.wav
 *.mp4
 data/voice/*
+data/personas/*/voice/
+data/private_voice/
 data/faces/*
 
 !data/voice/reference.wav

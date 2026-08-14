@@ -179,6 +179,70 @@ export const patchPersona = (body, personaId, elderId = "elder_001") =>
     body: JSON.stringify(body),
   });
 
+export const getVoiceProfile = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice-profile?elder_id=${encodeURIComponent(elderId)}`);
+
+export const deleteVoiceProfile = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice-profile?elder_id=${encodeURIComponent(elderId)}`, {
+    method: "DELETE",
+  });
+
+export const saveVoiceConsent = (personaId, accepted, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice-consent`, {
+    method: "POST",
+    body: JSON.stringify({ elder_id: elderId, accepted }),
+  });
+
+export async function uploadVoiceSample(personaId, {
+  blob, phase, promptId, durationSeconds, quality, elderId = "elder_001",
+}) {
+  const form = new FormData();
+  const extension = blob.type.includes("mp4") ? "m4a"
+    : blob.type.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", blob, `${phase}-${promptId}.${extension}`);
+  form.append("elder_id", elderId);
+  form.append("phase", phase);
+  form.append("prompt_id", promptId);
+  form.append("duration_seconds", String(durationSeconds));
+  form.append("quality", JSON.stringify(quality));
+  const res = await fetch(`/api/personas/${encodeURIComponent(personaId)}/voice-samples`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json()).detail || detail; } catch { /* keep status */ }
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export const createInstantVoice = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice/ivc`, {
+    method: "POST",
+    body: JSON.stringify({ elder_id: elderId }),
+  });
+
+export async function previewPersonaVoice(personaId, text, elderId = "elder_001") {
+  const res = await fetch(`/api/personas/${encodeURIComponent(personaId)}/voice/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ elder_id: elderId, text }),
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json()).detail || detail; } catch { /* keep status */ }
+    throw new Error(detail);
+  }
+  return res.blob();
+}
+
+export const approvePersonaVoice = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice/approve`, {
+    method: "POST",
+    body: JSON.stringify({ elder_id: elderId }),
+  });
+
 export const patchElder = (body, elderId = "elder_001") =>
   request(`/api/elders/${elderId}/profile`, {
     method: "PATCH",

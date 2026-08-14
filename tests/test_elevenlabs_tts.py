@@ -119,6 +119,20 @@ class ElevenLabsSynthesisTests(unittest.TestCase):
             captured["payload"]["voice_settings"]["speed"], elevenlabs_tts.MAX_SPEED
         )
 
+    def test_explicit_persona_voice_overrides_global_voice(self):
+        captured = {}
+
+        def fake_urlopen(req, timeout):
+            captured["url"] = req.full_url
+            return _Response(_pcm(0.1))
+
+        with patch.object(elevenlabs_tts.request, "urlopen", side_effect=fake_urlopen):
+            elevenlabs_tts.synthesize_with_metadata(
+                "개인 목소리", 1.0, voice_id="voice-persona",
+            )
+
+        self.assertIn("/v1/text-to-speech/voice-persona", captured["url"])
+
     def test_http_error_raises_unavailable(self):
         def fake_urlopen(req, timeout):
             raise error.HTTPError(

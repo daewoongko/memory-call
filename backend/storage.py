@@ -15,6 +15,7 @@ STORAGE_DIR = Path(
 DB_PATH = STORAGE_DIR / "memory_call.sqlite"
 PERSONAS_ROOT = STORAGE_DIR / "personas"
 MEMORY_PHOTOS_ROOT = STORAGE_DIR / "memories"
+PRIVATE_VOICE_ROOT = STORAGE_DIR / "private_voice"
 DEFAULT_FACE_PERSONA_ID = "persona_minjun"
 LEGACY_FACES_ROOT = STORAGE_DIR / "faces"
 
@@ -96,6 +97,15 @@ def ensure_persona_face_directories(persona_id: str | None = None) -> PersonaFac
         folder.mkdir(parents=True, exist_ok=True)
     return paths
 
+
+def persona_voice_storage(persona_id: str) -> Path:
+    """가족별 원본 음성을 정적 마운트 밖의 비공개 폴더에 둔다."""
+    if not re.fullmatch(r"persona_[a-z0-9_]+", persona_id):
+        raise ValueError("올바르지 않은 페르소나 ID입니다.")
+    path = PRIVATE_VOICE_ROOT / persona_id
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
 SEED_PATH = ROOT / "data" / "seed.json"
 FRONTEND_DIST = ROOT / "frontend" / "dist"
 
@@ -105,6 +115,7 @@ def ensure_directories() -> None:
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     PERSONAS_ROOT.mkdir(parents=True, exist_ok=True)
     MEMORY_PHOTOS_ROOT.mkdir(parents=True, exist_ok=True)
+    PRIVATE_VOICE_ROOT.mkdir(parents=True, exist_ok=True)
     SOURCE_FACES_DIR.mkdir(parents=True, exist_ok=True)
     AGE_CANDIDATES_DIR.mkdir(parents=True, exist_ok=True)
     AGE_ANCHORS_DIR.mkdir(parents=True, exist_ok=True)

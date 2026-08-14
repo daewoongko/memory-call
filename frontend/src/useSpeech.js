@@ -110,6 +110,7 @@ export function useSpeech({
   // 명세의 voice_profiles.pitch_adjustment 에 해당하는 값이다.
   fallbackPitch = 0.72,
   rate = 0.92,
+  personaId = null,
   preferLipSync = false,
   onFinal,
 } = {}) {
@@ -437,7 +438,7 @@ export function useSpeech({
           const response = await fetch("/api/tts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, rate }),
+            body: JSON.stringify({ text, rate, ...(personaId ? { persona_id: personaId } : {}) }),
             signal: controller.signal,
           });
           const headersAt = speechNow();
@@ -500,7 +501,7 @@ export function useSpeech({
       }
       throw abortError();
     },
-    [rate]
+    [rate, personaId]
   );
 
   const fetchLipSyncChunk = useCallback(
@@ -522,7 +523,7 @@ export function useSpeech({
           response = await fetch("/api/tts/video", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, rate }),
+            body: JSON.stringify({ text, rate, ...(personaId ? { persona_id: personaId } : {}) }),
             signal: controller.signal,
           });
         } catch (requestError) {
@@ -602,7 +603,7 @@ export function useSpeech({
         ttsRequestRefs.current.delete(controller);
       }
     },
-    [rate]
+    [rate, personaId]
   );
 
   const fetchSpeechChunk = useCallback(
