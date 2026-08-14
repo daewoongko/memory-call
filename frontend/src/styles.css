@@ -4268,3 +4268,5 @@ label.checkbox { color: var(--text); }
 .nettest-history em { color: var(--muted); font-style: normal; font-size: calc(11px * var(--font-scale)); }
 
 .nettest-foot { margin-top: 20px; color: var(--muted); font-size: calc(10px * var(--font-scale)); }
+.nettest details { margin-top: 12px; }
+.nettest details summary { color: var(--brand); cursor: pointer; font-size: calc(12px * var(--font-scale)); }
