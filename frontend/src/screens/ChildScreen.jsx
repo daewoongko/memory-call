@@ -6,6 +6,7 @@ import GuardianCallOverlay from "./GuardianCallOverlay.jsx";
 import FamilyMemoryClothesline from "./FamilyMemoryClothesline.jsx";
 import FamilyPersonaSettings from "./FamilyPersonaSettings.jsx";
 import CallTranscriptModal from "./CallTranscriptModal.jsx";
+import { preflightCallMedia } from "../callTransport.js";
 
 const TABS = [
   { id: "today", mark: "♥", label: "오늘" },
@@ -191,13 +192,19 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     setCallBusy(true);
     setCallError("");
     try {
+      try {
+        await preflightCallMedia();
+      } catch {
+        await decline(inviteId, "media_permission_denied");
+        return;
+      }
       setConnected(await answer(inviteId));
     } catch (reason) {
       setCallError(`전화를 받지 못했어요. (${reason.message})`);
     } finally {
       setCallBusy(false);
     }
-  }, [answer]);
+  }, [answer, decline]);
 
   const handleDecline = useCallback(async (inviteId) => {
     setCallBusy(true);

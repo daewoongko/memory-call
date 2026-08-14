@@ -12,6 +12,7 @@ import {
   normalizeSpeechMediaType,
   shouldFallbackFromLipSyncStatus,
 } from "./speechMedia.js";
+import { useRealtimeTranscription } from "./useRealtimeTranscription.js";
 
 /**
  * 브라우저 음성 인식(STT)과 ElevenLabs API 음성 합성(TTS).
@@ -39,6 +40,8 @@ const KEEPALIVE_MS = 8000;
 const Recognition =
   typeof window !== "undefined" &&
   (window.SpeechRecognition || window.webkitSpeechRecognition);
+const ANDROID_BROWSER =
+  typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
 
 export function koreanVoices() {
   if (typeof window === "undefined" || !window.speechSynthesis) return [];
@@ -102,7 +105,7 @@ function secondsHeaderMs(headers, name) {
 
 export function useSpeech({
   lang = "ko-KR",
-  silenceMs = 2000,
+  silenceMs = 1000,
   // 남성 음성을 찾지 못했을 때만 음높이를 낮춘다.
   // 명세의 voice_profiles.pitch_adjustment 에 해당하는 값이다.
   fallbackPitch = 0.72,
@@ -111,6 +114,7 @@ export function useSpeech({
   onFinal,
 } = {}) {
   const [listening, setListening] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [lipSyncActive, setLipSyncActive] = useState(false);
@@ -118,6 +122,9 @@ export function useSpeech({
   const [error, setError] = useState("");
 
   const recRef = useRef(null);
+  const recognitionWantedRef = useRef(false);
+  const recognitionRetryRef = useRef(null);
+  const recognitionStartRef = useRef(null);
   const finalRef = useRef("");
   const silenceRef = useRef(null);
   const audioRef = useRef(null);
@@ -132,7 +139,16 @@ export function useSpeech({
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
 
-  const supported = Boolean(Recognition);
+  // 브라우저가 지원하면 ElevenLabs 실시간 STT를 단일 경로로 사용한다.
+  // 기존 브라우저 STT는 실시간 스트리밍을 지원하지 않는 환경의 폴백이다.
+  const serverStt = useRealtimeTranscription({
+    enabled: true,
+    lang,
+    silenceMs,
+    onFinal: (text) => onFinalRef.current?.(text),
+  });
+  const usesServerStt = serverStt.supported;
+  const supported = Boolean(Recognition) || usesServerStt;
 
   const clearSilence = () => {
     if (silenceRef.current) {
@@ -141,14 +157,26 @@ export function useSpeech({
     }
   };
 
+  const clearRecognitionRetry = () => {
+    if (recognitionRetryRef.current) {
+      clearTimeout(recognitionRetryRef.current);
+      recognitionRetryRef.current = null;
+    }
+  };
+
   const stop = useCallback(() => {
     clearSilence();
+    clearRecognitionRetry();
+    recognitionWantedRef.current = false;
+    setStarting(false);
+    setListening(false);
     try {
-      recRef.current?.stop();
+      recRef.current?.abort();
     } catch {
       // 이미 멈춰 있으면 무시
     }
-  }, []);
+    serverStt.stop();
+  }, [serverStt.stop]);
 
   /** 두 영상에서 blob 을 뗀 뒤에만 해제한다. 순서가 뒤집히면 아직 읽는 중인
    *  쪽이 ERR_FILE_NOT_FOUND 로 죽는다. */
@@ -188,22 +216,37 @@ export function useSpeech({
 
   const start = useCallback(() => {
     if (!supported) return;
+    if (usesServerStt) {
+      serverStt.start();
+      return;
+    }
+    recognitionWantedRef.current = true;
+    clearRecognitionRetry();
+    // start()가 연속으로 호출되면 기존 인식을 stop한 직후 새 인식을 열어
+    // 모바일 브라우저의 마이크가 `audio-capture`로 실패할 수 있다. 현재 세션이
+    // 끝날 때까지는 그대로 두고 onend 이후 감시 루프가 다시 시작하게 한다.
+    if (recRef.current) return;
 
-    stop();
     setError("");
     setInterim("");
     finalRef.current = "";
+    setStarting(true);
 
     const rec = new Recognition();
     const recognitionId = ++recognitionRunRef.current;
     const recognitionStartedAt = speechNow();
     let lastResultAt = null;
+    let retryDelayMs = 300;
     rec.lang = lang;
     rec.interimResults = true;
-    rec.continuous = true;
+    // Android Chrome에서는 continuous 세션이 오디오 포커스 전환 뒤 조용히
+    // 멎는 경우가 많다. 한 발화씩 확정하고 onend에서 자동으로 다시 여는 쪽이
+    // 더 안정적이며 사용자에게는 계속 열린 마이크처럼 동작한다.
+    rec.continuous = !ANDROID_BROWSER;
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
+      setStarting(false);
       setListening(true);
       emitSpeechTiming("stt.start", { recognitionId });
     };
@@ -247,8 +290,20 @@ export function useSpeech({
     };
 
     rec.onerror = (event) => {
+      setStarting(false);
+      setListening(false);
       if (event.error === "not-allowed") {
+        recognitionWantedRef.current = false;
         setError("마이크 권한이 필요해요. 주소창 옆에서 허용해 주세요.");
+      } else if (event.error === "service-not-allowed") {
+        recognitionWantedRef.current = false;
+        setError("Chrome의 음성 인식 권한을 확인해 주세요.");
+      } else if (event.error === "audio-capture") {
+        retryDelayMs = 900;
+        setError("마이크 연결을 다시 준비하고 있어요.");
+      } else if (event.error === "network") {
+        retryDelayMs = 1200;
+        setError("음성 인식 연결을 다시 준비하고 있어요.");
       } else if (event.error !== "aborted" && event.error !== "no-speech") {
         setError("소리를 잘 못 들었어요. 다시 말씀해 주세요.");
       }
@@ -257,6 +312,7 @@ export function useSpeech({
     rec.onend = () => {
       const endedAt = speechNow();
       clearSilence();
+      setStarting(false);
       setListening(false);
       setInterim("");
       const text = finalRef.current.trim();
@@ -269,16 +325,37 @@ export function useSpeech({
           lastResultAt == null ? null : Math.round(endedAt - lastResultAt),
         textLength: text.length,
       });
-      if (text) onFinalRef.current?.(text);
+      if (text) {
+        // 답을 만드는 동안에는 STT가 스피커의 AI 음성을 다시 받아쓰지 않게 한다.
+        // AI 답변 재생이 끝나면 CallScreen이 start()로 다시 활성화한다.
+        recognitionWantedRef.current = false;
+        onFinalRef.current?.(text);
+      } else if (recognitionWantedRef.current) {
+        // Android Chrome은 침묵이나 오디오 포커스 전환 뒤에 continuous 인식을
+        // 자주 끝낸다. 사용자가 다시 누르게 하지 않고 짧게 쉬었다 자동 재연결한다.
+        clearRecognitionRetry();
+        recognitionRetryRef.current = setTimeout(() => {
+          recognitionRetryRef.current = null;
+          if (recognitionWantedRef.current) recognitionStartRef.current?.();
+        }, retryDelayMs);
+      }
     };
 
     recRef.current = rec;
     try {
       rec.start();
     } catch {
-      setError("음성 인식을 시작하지 못했어요.");
+      if (recRef.current === rec) recRef.current = null;
+      setStarting(false);
+      setListening(false);
+      setError("마이크 연결을 다시 준비하고 있어요.");
+      recognitionRetryRef.current = setTimeout(() => {
+        recognitionRetryRef.current = null;
+        if (recognitionWantedRef.current) recognitionStartRef.current?.();
+      }, 900);
     }
-  }, [lang, silenceMs, stop, supported]);
+  }, [lang, serverStt.start, silenceMs, supported, usesServerStt]);
+  recognitionStartRef.current = start;
 
   const speakInBrowser = useCallback(
     async (text, runId) => {
@@ -809,6 +886,8 @@ export function useSpeech({
   useEffect(
     () => () => {
       clearSilence();
+      clearRecognitionRetry();
+      recognitionWantedRef.current = false;
       try {
         recRef.current?.abort();
       } catch {
@@ -821,14 +900,19 @@ export function useSpeech({
 
   return {
     supported,
-    listening,
+    mode: usesServerStt ? "realtime" : "browser",
+    active: usesServerStt ? serverStt.active : recognitionWantedRef.current,
+    starting: usesServerStt ? serverStt.starting : starting,
+    listening: usesServerStt ? serverStt.listening : listening,
+    transcribing: usesServerStt ? serverStt.transcribing : false,
+    inputLevel: usesServerStt ? serverStt.level : null,
     speaking,
     playing,
     lipSyncActive,
     lipSyncVideoRef,
     lipSyncBlurRef,
-    interim,
-    error,
+    interim: usesServerStt ? serverStt.interim : interim,
+    error: usesServerStt ? serverStt.error : error,
     start,
     stop,
     speak,

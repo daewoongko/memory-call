@@ -17,7 +17,7 @@ import LinkScreen from "./screens/LinkScreen.jsx";
 import GuardianOnboardingScreen from "./screens/GuardianOnboardingScreen.jsx";
 import HumanCallScreen from "./screens/HumanCallScreen.jsx";
 import NetTestScreen from "./screens/NetTestScreen.jsx";
-import { createTransport, openCallMedia } from "./callTransport.js";
+import { createTransport, openCallMedia, preflightCallMedia } from "./callTransport.js";
 
 // 벨이 몇 초 울리는지는 서버가 정해서 내려보낸다. 받을 기기가 없으면 짧게
 // 울려야 하는데, 그 판단에 필요한 정보가 화면에는 없기 때문이다.
@@ -336,6 +336,12 @@ export default function App() {
     setPhase("calling");
 
     try {
+      let mediaReady = true;
+      try {
+        await preflightCallMedia();
+      } catch {
+        mediaReady = false;
+      }
       const created = await api.ringFamily({
         elder_id: elderId,
         persona_id: person?.persona_id,
@@ -344,6 +350,12 @@ export default function App() {
       setInvite(created);
       inviteRef.current = created;
       setSecondsLeft(Math.ceil(created.seconds_left ?? created.ring_timeout_sec));
+      if (!mediaReady) {
+        const res = await api.takeOverInvite(created.invite_id, "media_permission_denied");
+        setInvite(res.invite);
+        enterCall(res);
+        return;
+      }
       // ICE 수집 시간을 벨 뒤에 숨긴다. 보호자가 받기 전부터 offer를 만든다.
       prepareHumanTransport(created.invite_id);
     } catch (e) {
@@ -551,7 +563,6 @@ export default function App() {
     return wrap(
       <CallingScreen
         name={profile?.persona?.display_name ?? "가족"}
-        waitMs={profile?.elder?.speech_wait_time_ms ?? 2000}
         secondsLeft={secondsLeft}
         announcement={call?.announcement ?? "연결하고 있어요"}
         onSkip={() => {
@@ -587,7 +598,6 @@ export default function App() {
         loops={call.loops ?? profile?.loops ?? {}}
         opening={call.opening ?? ""}
         name={profile?.persona?.display_name ?? "가족"}
-        waitMs={profile?.elder?.speech_wait_time_ms ?? 2000}
         callId={call.call_id}
         api={api}
         onEnded={(s) => {

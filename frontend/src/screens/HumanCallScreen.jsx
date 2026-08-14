@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import SelfView from "../components/SelfView.jsx";
+import { useRemotePlayback } from "../useRemotePlayback.js";
 
 /**
  * 가족이 직접 받은 통화.
@@ -22,7 +23,9 @@ export default function HumanCallScreen({
   name, face, answeredAt, localStream, remoteStream, onEnd,
 }) {
   const [seconds, setSeconds] = useState(0);
-  const remoteRef = useRef(null);
+  const {
+    mediaRef: remoteRef, blocked, playing, rendered, play,
+  } = useRemotePlayback(remoteStream);
 
   useEffect(() => {
     const started = new Date(answeredAt).getTime();
@@ -34,15 +37,6 @@ export default function HumanCallScreen({
     return () => clearInterval(id);
   }, [answeredAt]);
 
-  useEffect(() => {
-    if (!remoteRef.current) return undefined;
-    remoteRef.current.srcObject = remoteStream || null;
-    remoteRef.current.play?.().catch(() => {});
-    return () => {
-      if (remoteRef.current) remoteRef.current.srcObject = null;
-    };
-  }, [remoteStream]);
-
   return (
     <div className="screen human-call">
       <video
@@ -52,6 +46,11 @@ export default function HumanCallScreen({
         playsInline
         poster={face || undefined}
       />
+      {remoteStream && (!playing || !rendered) && (
+        <button className="remote-sound-enable" onClick={play}>
+          {blocked ? "소리·영상 재생" : "통화 연결하기"}
+        </button>
+      )}
 
       <div className="who">
         {name}

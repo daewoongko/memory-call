@@ -153,6 +153,14 @@ class CallInviteTest(unittest.TestCase):
         self.assertEqual(declined["takeover_reason"], "declined")
         self.assertTrue(declined["should_take_over"])
 
+    def test_permission_denial_is_recorded_before_ai_takeover(self):
+        self._guardian()
+        invite = invites.create("elder_test", "persona_minjun")
+        declined = invites.decline(
+            invite["invite_id"], "dev_guardian", "media_permission_denied")
+        self.assertEqual(declined["takeover_reason"], "media_permission_denied")
+        self.assertTrue(declined["should_take_over"])
+
     def test_server_expires_the_ring_without_any_client_timer(self):
         """이 시험이 0단계의 전부다.
 
@@ -277,6 +285,14 @@ class CallInviteTest(unittest.TestCase):
         handed = invites.take_over(invite["invite_id"], "call_ai_3",
                                    reason="transport_failed")
         self.assertEqual(handed["takeover_reason"], "transport_failed")
+
+    def test_elder_permission_denial_is_kept_on_direct_takeover(self):
+        self._guardian()
+        invite = invites.create("elder_test", "persona_minjun")
+        self._make_call("call_ai_permission")
+        handed = invites.take_over(
+            invite["invite_id"], "call_ai_permission", "media_permission_denied")
+        self.assertEqual(handed["takeover_reason"], "media_permission_denied")
 
     def test_answered_human_call_cannot_be_handed_to_ai(self):
         self._guardian()

@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 import admin as admin_mod
 import age_timeline
 import db
+import elevenlabs_stt
 import elevenlabs_tts
 import invites as inv_mod
 import linking as link_mod
@@ -38,6 +39,7 @@ import nettest as nettest_mod
 import report as report_mod
 import schedules as sched_mod
 import signaling
+import stt as stt_mod
 import tts_proxy
 from analysis.observation_catalog import SIGNALS
 from conversation import Session
@@ -178,6 +180,7 @@ class InviteRequest(BaseModel):
 
 class InviteDeviceAction(BaseModel):
     device_id: str | None = Field(default=None, max_length=64)
+    reason: Literal["media_permission_denied"] | None = None
 
 
 class TakeOverRequest(BaseModel):
@@ -186,7 +189,7 @@ class TakeOverRequest(BaseModel):
     거절·무응답은 서버가 이미 알고 있으므로 덮어쓰지 않는다.
     """
 
-    reason: Literal["transport_failed"] | None = None
+    reason: Literal["transport_failed", "media_permission_denied"] | None = None
 
 
 class TTSRequest(BaseModel):
@@ -200,6 +203,37 @@ class TTSBridgeRegistration(BaseModel):
 
 class EndCallRequest(BaseModel):
     reason: str = "user_ended"
+
+
+@app.post("/api/stt")
+async def transcribe_speech(
+    audio: UploadFile = File(...),
+    lang: str = Query(default="ko-KR", max_length=16),
+):
+    """Android Chrome의 불안정한 Web Speech를 보완하는 짧은 음성 전사."""
+    mime_type = (audio.content_type or "application/octet-stream").lower()
+    if not mime_type.startswith("audio/") and mime_type != "video/webm":
+        raise HTTPException(415, "지원하지 않는 음성 형식입니다")
+    payload = await audio.read(stt_mod.MAX_AUDIO_BYTES + 1)
+    if len(payload) > stt_mod.MAX_AUDIO_BYTES:
+        raise HTTPException(413, "음성이 너무 깁니다")
+    try:
+        return stt_mod.transcribe(payload, mime_type, lang=lang)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except stt_mod.TranscriptionUnavailable as exc:
+        raise HTTPException(503, "음성 인식에 잠시 연결하지 못했습니다") from exc
+
+
+@app.post("/api/stt/realtime-token")
+def create_realtime_stt_token():
+    """Issue a short-lived Scribe token without exposing the permanent key."""
+    try:
+        return elevenlabs_stt.create_realtime_token()
+    except elevenlabs_stt.ElevenLabsSTTNotConfigured as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except elevenlabs_stt.ElevenLabsSTTUnavailable as exc:
+        raise HTTPException(502, str(exc)) from exc
 
 
 class NewElder(BaseModel):
@@ -1310,6 +1344,13 @@ def create_invite(req: InviteRequest):
     return inv_mod.create(req.elder_id, req.persona_id, req.from_device)
 
 
+@app.get("/api/call-invites/recent")
+def recent_invites(elder_id: str = "elder_001",
+                   limit: int = Query(default=20, ge=1, le=100)):
+    """방금 통화가 왜 끝났는지 폰 주소창에서도 확인하는 진단 경로."""
+    return {"invites": inv_mod.recent(elder_id, limit)}
+
+
 @app.get("/api/call-invites/{invite_id}")
 def read_invite(invite_id: str):
     """어르신 기기의 폴링. 벨이 울리는 동안 남은 시간도 함께 준다."""
@@ -1365,7 +1406,7 @@ def answer_invite(invite_id: str, req: InviteDeviceAction):
 def decline_invite(invite_id: str, req: InviteDeviceAction):
     """거절은 실패가 아니다. 곧바로 AI 가 대신 받을 수 있는 상태로 간다."""
     try:
-        return inv_mod.decline(invite_id, req.device_id)
+        return inv_mod.decline(invite_id, req.device_id, req.reason)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
 
@@ -1435,6 +1476,7 @@ def turn(call_id: str, req: TurnRequest, background_tasks: BackgroundTasks):
         "safety_flags": result.get("_safety_flags") or [],
         "rewritten": bool(result.get("_rewritten")),
         "latency_ms": result.get("_latency_ms", 0),
+        "llm_first_token_ms": result.get("_llm_first_token_ms"),
     }
 
 

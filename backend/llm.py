@@ -31,6 +31,8 @@ MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash")
 REPORT_MODEL = os.getenv("LLM_REPORT_MODEL", "") or MODEL
 MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "low")
+FAST_MAX_TOKENS = max(160, int(os.getenv("LLM_FAST_MAX_TOKENS", "384")))
+FAST_REASONING_EFFORT = os.getenv("LLM_FAST_REASONING_EFFORT", "").strip()
 LLM_REQUEST_TIMEOUT_SECONDS = max(
     5.0, float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "30"))
 )
@@ -79,6 +81,15 @@ intent, medication_status, care, grounding은 넣지 않는다. 다른 텍스트
 
 risk는 위험 감지 시 기존 출력 규칙과 같은 객체를 사용한다. 기억·일정 ID는
 실제로 답변에 사용한 등록 ID만 넣는다. 안전에 필요한 필드는 생략하지 않는다.
+"""
+
+
+FAST_REPLY_SCHEMA_OVERRIDE += """
+
+For this live voice turn, keep `reply` to at most two short Korean sentences
+and normally under 90 Korean characters. Lead with the answer or reassurance;
+do not add greetings, summaries, or follow-up explanations unless needed for
+safety. Return only the JSON object described above.
 """
 
 
@@ -145,7 +156,9 @@ def _extract_json(text: str) -> dict:
 
 
 def call_json(messages: list[dict], temperature: float = 0.7,
-              model: str | None = None, quiet: bool = False) -> dict:
+              model: str | None = None, quiet: bool = False,
+              *, stream: bool = False, max_tokens: int | None = None,
+              reasoning_effort: str | None = None) -> dict:
     """JSON 응답을 요구하고 dict로 돌려준다. 429는 백오프 재시도."""
     last_err = None
 
@@ -156,19 +169,45 @@ def call_json(messages: list[dict], temperature: float = 0.7,
                 "messages": messages,
                 "temperature": temperature,
                 "response_format": {"type": "json_object"},
-                "max_tokens": MAX_TOKENS,
+                "max_tokens": max_tokens or MAX_TOKENS,
             }
-            if REASONING_EFFORT:
-                kwargs["reasoning_effort"] = REASONING_EFFORT
-            resp = client.chat.completions.create(**kwargs)
-
-            choice = resp.choices[0]
-            content = choice.message.content or ""
+            effort = REASONING_EFFORT if reasoning_effort is None else reasoning_effort
+            if effort:
+                kwargs["reasoning_effort"] = effort
+            request_started = time.perf_counter()
+            if stream:
+                chunks = client.chat.completions.create(**kwargs, stream=True)
+                content_parts: list[str] = []
+                first_token_ms = None
+                finish_reason = None
+                for chunk in chunks:
+                    if not chunk.choices:
+                        continue
+                    choice = chunk.choices[0]
+                    piece = choice.delta.content or ""
+                    if piece:
+                        if first_token_ms is None:
+                            first_token_ms = int(
+                                (time.perf_counter() - request_started) * 1000
+                            )
+                        content_parts.append(piece)
+                    if choice.finish_reason:
+                        finish_reason = choice.finish_reason
+                content = "".join(content_parts)
+            else:
+                resp = client.chat.completions.create(**kwargs)
+                choice = resp.choices[0]
+                content = choice.message.content or ""
+                finish_reason = choice.finish_reason
+                first_token_ms = None
             try:
-                return _extract_json(content)
+                parsed = _extract_json(content)
+                if first_token_ms is not None:
+                    parsed["_stream_first_token_ms"] = first_token_ms
+                return parsed
             except ValueError:
                 raise ValueError(
-                    f"JSON 잘림 (finish_reason={choice.finish_reason}, "
+                    f"JSON 잘림 (finish_reason={finish_reason}, "
                     f"{len(content)}자). LLM_MAX_TOKENS를 늘리세요."
                 ) from None
 
@@ -211,8 +250,13 @@ def _with_system_override(messages: list[dict], override: str) -> list[dict]:
 
 def call_json_fast(messages: list[dict], **kwargs) -> dict:
     """실시간 통화에 필요한 답변·안전 필드만 생성한다."""
-    return call_json(_with_system_override(messages, FAST_REPLY_SCHEMA_OVERRIDE),
-                     **kwargs)
+    return call_json(
+        _with_system_override(messages, FAST_REPLY_SCHEMA_OVERRIDE),
+        stream=True,
+        max_tokens=FAST_MAX_TOKENS,
+        reasoning_effort=FAST_REASONING_EFFORT,
+        **kwargs,
+    )
 
 
 def call_json_metadata(messages: list[dict], final_reply: str, **kwargs) -> dict:

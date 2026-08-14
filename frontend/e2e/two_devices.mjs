@@ -157,6 +157,35 @@ try {
   const connectedIn = Date.now() - answeredAt;
   check(true, "양쪽에 상대 음성·영상 스트림이 실제로 연결된다");
   check(connectedIn <= 3000, `받은 뒤 3초 안에 연결된다 (${connectedIn}ms)`);
+  for (const [page, selector, who] of [
+    [elder, ".human-remote-video", "어르신"],
+    [guardian, ".guardian-media-stage > video", "보호자"],
+  ]) {
+    const retry = page.locator(".remote-sound-enable");
+    if (await retry.isVisible().catch(() => false)) await retry.click();
+    await page.waitForFunction((mediaSelector) => {
+      const media = document.querySelector(mediaSelector);
+      return media
+        && !media.paused
+        && !media.muted
+        && media.volume === 1
+        && media.videoWidth > 0
+        && media.videoHeight > 0;
+    }, selector, { timeout: 5000 });
+    const playback = await page.locator(selector).evaluate((media) => ({
+      paused: media.paused,
+      muted: media.muted,
+      volume: media.volume,
+      size: `${media.videoWidth}x${media.videoHeight}`,
+    }));
+    check(
+      !playback.paused
+        && !playback.muted
+        && playback.volume === 1
+        && playback.size !== "0x0",
+      `${who} 원격 소리·영상이 재생 상태다 (${JSON.stringify(playback)})`,
+    );
+  }
 
   // ── 2. 어르신이 끊으면 보호자도 풀린다 ──────────────────
   log("\n2. 어르신이 끊는다");

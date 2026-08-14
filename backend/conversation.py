@@ -107,6 +107,7 @@ class Session:
         t0 = time.time()
         result = llm.call_json_fast(messages)
         latency_ms = int((time.time() - t0) * 1000)
+        first_token_ms = result.pop("_stream_first_token_ms", None)
 
         result = self._apply_safety(result, user_text)
         reply = result.get("reply", "")
@@ -132,6 +133,7 @@ class Session:
             {"role": "assistant", "content": reply},
         ]
         result["_latency_ms"] = latency_ms
+        result["_llm_first_token_ms"] = first_token_ms
         result["_elder_uid"] = elder_uid
         result["_ai_uid"] = ai_uid
         result["_user_text"] = user_text

@@ -20,6 +20,8 @@ export function createTransport({ inviteId, role, localStream }) {
   const sender = role;
   const stateListeners = new Set();
   const streamListeners = new Set();
+  const diagnosticListeners = new Set();
+  const diagnostics = { sendFailures: 0, pollFailures: 0, signalFailures: 0, lastError: "" };
   const remoteStream = new MediaStream();
   const queuedIce = [];
   let cursor = 0;
@@ -31,6 +33,12 @@ export function createTransport({ inviteId, role, localStream }) {
 
   const emitState = (state) => stateListeners.forEach((cb) => cb(state));
   const emitStream = () => streamListeners.forEach((cb) => cb(remoteStream));
+  const recordFailure = (kind, reason) => {
+    const key = `${kind}Failures`;
+    diagnostics[key] = (diagnostics[key] || 0) + 1;
+    diagnostics.lastError = reason?.message ?? String(reason ?? "");
+    diagnosticListeners.forEach((cb) => cb({ ...diagnostics }));
+  };
 
   localStream?.getTracks().forEach((track) => pc.addTrack(track, localStream));
 
@@ -52,9 +60,7 @@ export function createTransport({ inviteId, role, localStream }) {
     if (!event.candidate || closed) return;
     api.sendCallSignal(inviteId, {
       sender, kind: "ice", payload: event.candidate.toJSON(),
-    }).catch(() => {
-      // 다음 연결 상태/폴링 실패가 최종 실패를 판정한다.
-    });
+    }).catch((reason) => recordFailure("send", reason));
   };
 
   pc.onconnectionstatechange = () => {
@@ -93,9 +99,14 @@ export function createTransport({ inviteId, role, localStream }) {
       await pc.setRemoteDescription(message.payload);
       await flushIce();
       await pc.setLocalDescription(await pc.createAnswer());
-      await api.sendCallSignal(inviteId, {
-        sender, kind: "answer", payload: pc.localDescription.toJSON(),
-      });
+      try {
+        await api.sendCallSignal(inviteId, {
+          sender, kind: "answer", payload: pc.localDescription.toJSON(),
+        });
+      } catch (reason) {
+        recordFailure("send", reason);
+        throw reason;
+      }
     } else if (message.kind === "answer" && role === "caller") {
       if (pc.remoteDescription) return;
       await pc.setRemoteDescription(message.payload);
@@ -112,10 +123,17 @@ export function createTransport({ inviteId, role, localStream }) {
     try {
       const result = await api.pollCallSignal(inviteId, sender, cursor);
       cursor = result.cursor ?? cursor;
-      for (const message of result.messages || []) await handleSignal(message);
-    } catch {
+      for (const message of result.messages || []) {
+        try {
+          await handleSignal(message);
+        } catch (reason) {
+          recordFailure("signal", reason);
+        }
+      }
+    } catch (reason) {
       // 잠깐의 HTTP 실패 한 번으로 통화를 끊지 않는다. 연결 제한 시간은
       // 호출 화면이 따로 판정한다.
+      recordFailure("poll", reason);
     }
     if (!closed && !connected) pollTimer = setTimeout(poll, SIGNAL_POLL_MS);
   }
@@ -126,9 +144,14 @@ export function createTransport({ inviteId, role, localStream }) {
     emitState("connecting");
     if (role === "caller") {
       await pc.setLocalDescription(await pc.createOffer());
-      await api.sendCallSignal(inviteId, {
-        sender, kind: "offer", payload: pc.localDescription.toJSON(),
-      });
+      try {
+        await api.sendCallSignal(inviteId, {
+          sender, kind: "offer", payload: pc.localDescription.toJSON(),
+        });
+      } catch (reason) {
+        recordFailure("send", reason);
+        throw reason;
+      }
     }
     poll();
   }
@@ -160,6 +183,14 @@ export function createTransport({ inviteId, role, localStream }) {
       stateListeners.add(cb);
       return () => stateListeners.delete(cb);
     },
+    onDiagnostic(cb) {
+      diagnosticListeners.add(cb);
+      cb({ ...diagnostics });
+      return () => diagnosticListeners.delete(cb);
+    },
+    getDiagnostics() {
+      return { ...diagnostics };
+    },
   };
 }
 
@@ -171,4 +202,18 @@ export function openCallMedia() {
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
   });
+}
+
+/** 벨이 울리기 전에 권한을 한 번 확보하고 즉시 장치를 놓는다. */
+export async function preflightCallMedia() {
+  const stream = await openCallMedia();
+  const result = {
+    audio: stream.getAudioTracks().some((track) => track.readyState === "live"),
+    video: stream.getVideoTracks().some((track) => track.readyState === "live"),
+  };
+  stream.getTracks().forEach((track) => track.stop());
+  if (!result.audio || !result.video) {
+    throw new DOMException("카메라 또는 마이크 권한을 확보하지 못했습니다.", "NotAllowedError");
+  }
+  return result;
 }

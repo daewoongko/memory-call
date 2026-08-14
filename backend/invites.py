@@ -296,14 +296,18 @@ def answer(invite_id: str, device_id: str) -> dict:
                        to_device=device_id, answered_at=_now())
 
 
-def decline(invite_id: str, device_id: str | None = None) -> dict:
+def decline(invite_id: str, device_id: str | None = None,
+            reason: str | None = None) -> dict:
     """보호자가 거절한다.
 
     거절은 실패가 아니다. 이 서비스에서 거절은 AI 가 대신 받으라는 뜻이고,
     15초를 기다리지 않고 곧바로 넘어간다.
     """
+    resolved = reason or "declined"
+    if resolved not in {"declined", "media_permission_denied"}:
+        raise ValueError("허용되지 않은 거절 사유입니다.")
     return _transition(invite_id, DECLINED, {RINGING},
-                       to_device=device_id, takeover_reason="declined")
+                       to_device=device_id, takeover_reason=resolved)
 
 
 def cancel(invite_id: str) -> dict:

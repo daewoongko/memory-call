@@ -251,7 +251,8 @@ CREATE TABLE IF NOT EXISTS call_invites (
     -- 타임아웃 사유를 no_device 와 timeout 으로 가르는 데 쓴다.
     no_live_device   INTEGER DEFAULT 0,
     takeover_reason  TEXT CHECK (takeover_reason IN
-                     ('declined','timeout','no_device','transport_failed')),
+                     ('declined','timeout','no_device','transport_failed',
+                      'media_permission_denied')),
     ai_call_id   TEXT REFERENCES calls(call_id),
     created_at   TEXT NOT NULL,
     answered_at  TEXT,

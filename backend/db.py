@@ -98,10 +98,43 @@ def _add_missing_columns(conn: sqlite3.Connection) -> list[str]:
 
 def init_schema(conn: sqlite3.Connection) -> list[str]:
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    _migrate_call_invite_reasons(conn)
     added = _add_missing_columns(conn)
     _migrate_demo_personas(conn)
     conn.commit()
     return added
+
+
+def _migrate_call_invite_reasons(conn: sqlite3.Connection) -> None:
+    """기존 DB의 CHECK 제약에 미디어 권한 거부 사유를 추가한다."""
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='call_invites'"
+    ).fetchone()
+    if not row or "media_permission_denied" in (row["sql"] or ""):
+        return
+    conn.executescript("""
+        CREATE TABLE call_invites_next (
+            invite_id TEXT PRIMARY KEY,
+            elder_id TEXT NOT NULL REFERENCES elder_profiles(elder_id),
+            persona_id TEXT REFERENCES personas(persona_id),
+            from_device TEXT, to_device TEXT,
+            state TEXT NOT NULL CHECK (state IN
+                ('ringing','answered','declined','timeout','ai_takeover','ended','cancelled')),
+            ring_timeout_sec INTEGER NOT NULL DEFAULT 15,
+            no_live_device INTEGER DEFAULT 0,
+            takeover_reason TEXT CHECK (takeover_reason IN
+                ('declined','timeout','no_device','transport_failed','media_permission_denied')),
+            ai_call_id TEXT REFERENCES calls(call_id),
+            created_at TEXT NOT NULL, answered_at TEXT, ended_at TEXT
+        );
+        INSERT INTO call_invites_next SELECT * FROM call_invites;
+        DROP TABLE call_invites;
+        ALTER TABLE call_invites_next RENAME TO call_invites;
+        CREATE INDEX IF NOT EXISTS idx_invite_ring
+            ON call_invites(persona_id, state, created_at);
+        CREATE INDEX IF NOT EXISTS idx_invite_elder
+            ON call_invites(elder_id, created_at);
+    """)
 
 
 def _migrate_demo_personas(conn: sqlite3.Connection) -> None:
