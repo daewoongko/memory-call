@@ -25,8 +25,11 @@ try {
 }
 
 const BASE = (process.argv[2] || "http://127.0.0.1:8021").replace(/\/$/, "");
-const PERSONA = "persona_minjun";
-const PERSONA_NAME = "민준";
+// 가족 온보딩의 현재 기본 프로필과 같은 사람에게 전화를 건다.
+// 데모 가족의 기본값이 바뀌었는데 테스트만 예전 민준을 고정하면,
+// 정상적으로 등록된 가족 폰을 두고도 "받을 기기 없음"으로 오판한다.
+const PERSONA = "persona_jeonghun";
+const PERSONA_NAME = "정훈";
 
 const problems = [];
 const log = (m) => console.log(m);
