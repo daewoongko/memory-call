@@ -109,8 +109,8 @@ export function useIncomingCall({ elderId = "elder_001", personaId, enabled = tr
     return result;
   }, [forget]);
 
-  const decline = useCallback(async (inviteId) => {
-    const result = await api.declineInvite(inviteId, deviceId());
+  const decline = useCallback(async (inviteId, reason) => {
+    const result = await api.declineInvite(inviteId, deviceId(), reason);
     forget(inviteId);
     return result;
   }, [forget]);

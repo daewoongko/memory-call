@@ -44,6 +44,46 @@ CREATE TABLE IF NOT EXISTS personas (
     created_at         TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 가족별 복제 음성 상태. ElevenLabs 식별자는 서버에서만 사용하고 화면에는
+-- 등록 단계와 누적 시간만 내보낸다. IVC를 먼저 활성화한 뒤 PVC 표본을
+-- 점진적으로 모으더라도 현재 통화 음성이 끊기지 않게 둘을 따로 보관한다.
+CREATE TABLE IF NOT EXISTS persona_voice_profiles (
+    persona_id          TEXT PRIMARY KEY REFERENCES personas(persona_id),
+    ivc_voice_id        TEXT,
+    pvc_voice_id        TEXT,
+    active_voice_type   TEXT CHECK (active_voice_type IN ('ivc','pvc')),
+    active_voice_id     TEXT,
+    voice_status        TEXT NOT NULL DEFAULT 'unregistered' CHECK (voice_status IN (
+        'unregistered','ivc_recording','ivc_ready','pvc_collecting',
+        'pvc_verification_required','pvc_training','pvc_ready','failed'
+    )),
+    recorded_seconds    REAL NOT NULL DEFAULT 0,
+    consent_at          TEXT,
+    approved_at         TEXT,
+    verification_status TEXT NOT NULL DEFAULT 'not_started',
+    pvc_training_status TEXT NOT NULL DEFAULT 'not_started',
+    voice_version       INTEGER NOT NULL DEFAULT 1,
+    script_version      TEXT NOT NULL DEFAULT 'ko-care-v1',
+    last_error          TEXT,
+    updated_at          TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS persona_voice_samples (
+    sample_id         TEXT PRIMARY KEY,
+    persona_id        TEXT NOT NULL REFERENCES personas(persona_id),
+    phase             TEXT NOT NULL CHECK (phase IN ('ivc','pvc')),
+    prompt_id         TEXT NOT NULL,
+    file_path         TEXT NOT NULL,
+    original_name     TEXT,
+    mime_type         TEXT,
+    duration_seconds  REAL NOT NULL,
+    quality           TEXT, -- JSON: 브라우저에서 측정한 무음·클리핑 지표
+    usable            INTEGER NOT NULL DEFAULT 1,
+    created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_persona_voice_samples
+    ON persona_voice_samples(persona_id, phase, created_at);
+
 CREATE TABLE IF NOT EXISTS memories (
     memory_id            TEXT PRIMARY KEY,
     elder_id             TEXT NOT NULL REFERENCES elder_profiles(elder_id),
@@ -251,7 +291,8 @@ CREATE TABLE IF NOT EXISTS call_invites (
     -- 타임아웃 사유를 no_device 와 timeout 으로 가르는 데 쓴다.
     no_live_device   INTEGER DEFAULT 0,
     takeover_reason  TEXT CHECK (takeover_reason IN
-                     ('declined','timeout','no_device','transport_failed')),
+                     ('declined','timeout','no_device','transport_failed',
+                      'media_permission_denied')),
     ai_call_id   TEXT REFERENCES calls(call_id),
     created_at   TEXT NOT NULL,
     answered_at  TEXT,

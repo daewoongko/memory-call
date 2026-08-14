@@ -497,6 +497,29 @@ class TTSApiTests(unittest.TestCase):
             "timed", 0.92, request_id=request_id
         )
 
+    def test_public_tts_uses_approved_persona_voice_when_present(self):
+        request_id = "d" * 32
+        fake_uuid = type("FakeUuid", (), {"hex": request_id})()
+        with (
+            patch.object(api.uuid, "uuid4", return_value=fake_uuid),
+            patch.object(api.voice_mod, "active_voice_id", return_value="voice-family") as active,
+            patch.object(
+                elevenlabs_tts,
+                "synthesize_with_metadata",
+                return_value=_speech_result(),
+            ) as synthesize,
+        ):
+            response = self.client.post(
+                "/api/tts",
+                json={"text": "가족 목소리", "persona_id": "persona_jeonghun"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        active.assert_called_once_with("persona_jeonghun")
+        synthesize.assert_called_once_with(
+            "가족 목소리", 0.92, request_id=request_id, voice_id="voice-family",
+        )
+
     def test_global_rate_limit_cannot_be_bypassed_by_changing_client_ip(self):
         def fake_request(host):
             return type(

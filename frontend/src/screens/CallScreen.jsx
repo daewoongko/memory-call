@@ -10,6 +10,7 @@ import { emitSpeechTiming, speechNow } from "../speechPipeline.js";
 // 사진이 늘어나면 구간당 시간이 짧아져 깜빡임처럼 보이므로 장당 시간을 보장한다.
 const MORPH_MIN_MS = 9000;
 const MORPH_PER_FACE_MS = 2200;
+const LISTEN_RESUME_MS = 350;
 
 const STAGE_LABEL = {
   child: "어릴 적", teen: "학생 때", college: "대학생 때", current: "지금",
@@ -41,7 +42,7 @@ function elapsedText(seconds) {
 }
 
 export default function CallScreen({
-  faces, morphUrl, loops, opening, name, waitMs, callId, api, onEnded,
+  faces, morphUrl, loops, opening, name, personaId, callId, api, onEnded,
 }) {
   const [videoFailed, setVideoFailed] = useState(false);
   const useVideo = Boolean(morphUrl) && !videoFailed;
@@ -59,6 +60,7 @@ export default function CallScreen({
   const [muted, setMuted] = useState(false);
   const inputRef = useRef(null);
   const speechRef = useRef(null);
+  const listenTimerRef = useRef(null);
   const turnRunRef = useRef(0);
   const mutedRef = useRef(false);
   const liveRef = useRef(true);
@@ -108,16 +110,29 @@ export default function CallScreen({
   // 말이 끝나면 자동으로 보내고, AI 가족 답을 읽어준 뒤 다시 듣기 시작한다.
   // AI 가 말하는 동안에는 마이크를 닫아 스피커 소리가 되돌아오는 것을 막는다.
   const speech = useSpeech({
-    silenceMs: waitMs ?? 2000,
+    // 모바일 AI 통화는 마지막 음성 뒤 1초를 한 발화의 끝으로 본다.
+    // 기존 프로필별 2초 대기는 서버 STT와 직렬로 누적돼 체감 지연이 컸다.
+    silenceMs: 1000,
+    personaId,
     // 오프닝의 나이 모핑을 끝낸 뒤에만 현재 얼굴 립싱크로 전환한다.
     preferLipSync: useVideo ? morphDone : progress >= 1,
     onFinal: async (text) => {
       const reply = await send(text);
       if (reply) await speechRef.current?.speak(reply);
-      if (liveRef.current && !mutedRef.current) speechRef.current?.start();
+      clearTimeout(listenTimerRef.current);
+      listenTimerRef.current = setTimeout(() => {
+        if (liveRef.current && !mutedRef.current) speechRef.current?.start();
+      }, LISTEN_RESUME_MS);
     },
   });
   speechRef.current = speech;
+
+  const resumeListening = useCallback(() => {
+    clearTimeout(listenTimerRef.current);
+    listenTimerRef.current = setTimeout(() => {
+      if (liveRef.current && !mutedRef.current) speechRef.current?.start();
+    }, LISTEN_RESUME_MS);
+  }, []);
 
   const morphMs = Math.max(MORPH_MIN_MS, faces.length * MORPH_PER_FACE_MS);
 
@@ -150,15 +165,16 @@ export default function CallScreen({
         setSpoken(opening);
         await speech.speak(opening);
       }
-      if (liveRef.current && !mutedRef.current) speech.start();
+      resumeListening();
     })();
     return () => {
       liveRef.current = false;
+      clearTimeout(listenTimerRef.current);
       speech.stop();
     };
     // 통화 시작 시 한 번만 실행한다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speech.supported]);
+  }, [speech.supported, resumeListening]);
 
   useEffect(() => {
     if (typing && !pending) inputRef.current?.focus();
@@ -173,13 +189,15 @@ export default function CallScreen({
       const idle =
         liveRef.current &&
         !mutedRef.current &&
+        !speech.active &&
+        !speech.starting &&
         !speech.listening &&
         !speech.speaking &&
         !pending;
-      if (idle) speech.start();
+      if (idle) resumeListening();
     }, 3000);
     return () => clearInterval(id);
-  }, [speech, pending]);
+  }, [speech, pending, resumeListening]);
 
   const last = faces.length - 1;
   const stageIndex = Math.min(Math.round(progress * last), last);
@@ -191,21 +209,25 @@ export default function CallScreen({
     setDraft("");
     const reply = await send(text);
     if (reply) await speech.speak(reply);
-    if (liveRef.current && !mutedRef.current) speech.start();
+    resumeListening();
   }
 
   function toggleMute() {
-    setMuted((was) => {
-      const next = !was;
-      mutedRef.current = next;
-      if (next) speech.stop();
-      else if (!pending && !speech.speaking) speech.start();
-      return next;
-    });
+    if (muted) {
+      mutedRef.current = false;
+      setMuted(false);
+      if (!pending && !speech.speaking) resumeListening();
+      return;
+    }
+    mutedRef.current = true;
+    setMuted(true);
+    clearTimeout(listenTimerRef.current);
+    speech.stop();
   }
 
   async function hangup() {
     liveRef.current = false;
+    clearTimeout(listenTimerRef.current);
     speech.stop();
     speech.cancel();
     try {
@@ -223,11 +245,17 @@ export default function CallScreen({
       ? `${name || "AI 가족"}이 말하는 중`
       : speech.speaking
         ? "목소리를 준비하는 중"
-        : pending
-          ? "잠시만요"
+        : speech.transcribing
+          ? "말씀을 확인하는 중"
+          : pending
+            ? "잠시만요"
           : speech.listening
             ? "듣고 있어요"
-            : "연결됨";
+            : speech.starting
+              ? "마이크 연결 중"
+              : speech.active
+                ? "듣기를 다시 연결하는 중"
+                : "마이크 꺼짐";
   const subtitle = speech.listening && speech.interim
     ? speech.interim
     : spoken || "편하게 말씀하세요";
@@ -283,6 +311,15 @@ export default function CallScreen({
         </p>
         {(error || speech.error) && <p className="error">{error || speech.error}</p>}
 
+        {(speech.mode === "server" || speech.mode === "realtime") && speech.listening && (
+          <div className="call-mic-meter" aria-label="마이크 입력 크기">
+            <span>마이크 입력</span>
+            <b>
+              <i style={{ width: `${Math.min(100, (speech.inputLevel || 0) * 1800)}%` }} />
+            </b>
+          </div>
+        )}
+
         {typing && (
           <div className="composer">
             <input
@@ -302,17 +339,19 @@ export default function CallScreen({
         <div className="controls">
           {speech.supported ? (
             <button
-              className={`round${muted ? "" : " listening"}`}
+              className={`round${speech.listening ? " listening" : ""}`}
               onClick={toggleMute}
             >
-              {muted ? "마이크 켜기" : "마이크 끄기"}
+              {muted
+                ? "마이크 켜기"
+                : "마이크 끄기"}
             </button>
           ) : (
             <button
               className={`round${typing ? " active" : ""}`}
               onClick={() => setTyping((t) => !t)}
             >
-              말하기
+              글자로 말하기
             </button>
           )}
           <button className="round danger" onClick={hangup}>끊기</button>

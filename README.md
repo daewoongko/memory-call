@@ -131,13 +131,17 @@ npm run dev
 
 배포된 앱의 복제 음성은 ElevenLabs API로 직접 만듭니다. 로컬 GPU나 터널이 필요 없으며, Render 백엔드가 `backend/elevenlabs_tts.py`를 통해 바로 호출합니다.
 
-최초 한 번 `data/voice/reference.wav`를 ElevenLabs Instant Voice Cloning에 등록합니다.
+가족 화면의 **설정 → 내 가족 프로필 → 목소리 등록**에서 본인이 직접 다음 순서로 등록합니다.
 
-```powershell
-.\.venv\Scripts\python.exe tools\elevenlabs_clone_voice.py --name "가족 목소리"
-```
+1. 본인 음성 사용에 동의하고 조용한 녹음 환경을 확인합니다.
+2. 안내된 약 1분 분량 문장 두 개를 녹음합니다. 브라우저가 길이·무음·클리핑을 검사하며, 서버는 자동 노이즈 제거로 원음을 변형하지 않습니다.
+3. 두 녹음으로 Instant Voice Clone을 만들고 처음 보는 문장으로 미리 듣습니다.
+4. 본인이 승인한 뒤부터 해당 가족의 AI 통화에만 그 목소리를 사용합니다.
+5. 원하면 추가 녹음을 모읍니다. 30분부터 PVC 신청 가능, 60분을 권장 준비선으로 표시하지만 본인 인증과 최종 승인 전에는 자동으로 전환하지 않습니다.
 
-출력된 `voice_id`를 `.env`의 `ELEVENLABS_VOICE_ID`에, 발급받은 키를 `ELEVENLABS_API_KEY`에 넣습니다. Render 대시보드의 환경변수에도 같은 값을 저장한 뒤 재배포하세요. **립싱크(MuseTalk) 없이 순수 음성 통화는 이 설정만으로 완전히 동작하며, 로컬 PC를 켜 둘 필요가 없습니다.**
+서버에는 `ELEVENLABS_API_KEY`가 필요합니다. 기존 `ELEVENLABS_VOICE_ID`는 아직 목소리를 등록하지 않은 가족에게만 쓰는 기본 폴백입니다. 원본 녹음은 정적 URL로 공개되지 않는 `data/private_voice/`에 저장되고 Git에서 제외됩니다. 설정 화면의 **목소리 등록 삭제**를 누르면 ElevenLabs 복제 음성과 서버 녹음이 함께 삭제됩니다. **립싱크(MuseTalk) 없이 순수 음성 통화는 이 설정만으로 완전히 동작하며, 로컬 PC를 켜 둘 필요가 없습니다.**
+
+기존 운영자가 단일 음성을 미리 등록하는 CLI(`tools/elevenlabs_clone_voice.py`)는 데모 초기화와 호환성을 위해 유지합니다.
 
 ## MuseTalk 립싱크 (선택, 로컬 GPU 필요)
 

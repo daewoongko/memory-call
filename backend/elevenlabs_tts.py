@@ -71,14 +71,14 @@ def _require_api_key() -> str:
     return key
 
 
-def _require_voice_id() -> str:
-    voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
-    if not voice_id:
+def _require_voice_id(voice_id: str | None = None) -> str:
+    selected = (voice_id or os.getenv("ELEVENLABS_VOICE_ID", "")).strip()
+    if not selected:
         raise ElevenLabsNotConfigured(
             "ELEVENLABS_VOICE_ID가 설정되지 않았습니다. "
             "tools/elevenlabs_clone_voice.py로 먼저 클론 음성을 등록하세요."
         )
-    return voice_id
+    return selected
 
 
 def _clamp_speed(rate: float) -> float:
@@ -127,10 +127,11 @@ def synthesize_with_metadata(
     rate: float,
     *,
     request_id: str | None = None,
+    voice_id: str | None = None,
 ) -> SpeechResult:
     """ElevenLabs로 24kHz mono PCM16 WAV를 합성한다."""
     api_key = _require_api_key()
-    voice_id = _require_voice_id()
+    voice_id = _require_voice_id(voice_id)
 
     payload = json.dumps(
         {

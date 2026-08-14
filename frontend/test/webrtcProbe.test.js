@@ -6,6 +6,8 @@ import {
   maskAddress,
   overallVerdict,
   parseCandidate,
+  readAudioStats,
+  readMediaStats,
 } from "../src/webrtcProbe.js";
 
 const srflx = (port, rport) => ({
@@ -92,4 +94,44 @@ test("대칭이 아닌데 실패하면 망이 막는 쪽을 의심한다", () =>
   });
   assert.equal(fail.level, "fail");
   assert.match(fail.detail, /격리/);
+});
+
+test("오디오 통계는 송신·수신 패킷과 양쪽 음량을 분리한다", async () => {
+  const reports = [
+    { type: "media-source", kind: "audio", audioLevel: 0.17 },
+    { type: "outbound-rtp", kind: "audio", packetsSent: 31 },
+    { type: "inbound-rtp", kind: "audio", packetsReceived: 27, audioLevel: 0.23 },
+    { type: "outbound-rtp", kind: "video", packetsSent: 999 },
+  ];
+  const values = await readAudioStats({
+    getStats: async () => ({ forEach: (callback) => reports.forEach(callback) }),
+  });
+  assert.deepEqual(values, {
+    localAudioLevel: 0.17,
+    packetsSent: 31,
+    packetsReceived: 27,
+    remoteAudioLevel: 0.23,
+  });
+});
+
+test("영상 통계는 송신·수신 프레임과 해상도를 분리한다", async () => {
+  const reports = [
+    {
+      type: "outbound-rtp", kind: "video", packetsSent: 81,
+      framesEncoded: 32, frameWidth: 640, frameHeight: 480,
+    },
+    {
+      type: "inbound-rtp", kind: "video", packetsReceived: 73,
+      framesDecoded: 29, frameWidth: 320, frameHeight: 240,
+    },
+  ];
+  const values = await readMediaStats({
+    getStats: async () => ({ forEach: (callback) => reports.forEach(callback) }),
+  });
+  assert.equal(values.videoPacketsSent, 81);
+  assert.equal(values.videoFramesEncoded, 32);
+  assert.equal(values.outboundVideoSize, "640×480");
+  assert.equal(values.videoPacketsReceived, 73);
+  assert.equal(values.videoFramesDecoded, 29);
+  assert.equal(values.inboundVideoSize, "320×240");
 });

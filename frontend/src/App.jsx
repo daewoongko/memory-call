@@ -18,6 +18,8 @@ import GuardianOnboardingScreen from "./screens/GuardianOnboardingScreen.jsx";
 import HumanCallScreen from "./screens/HumanCallScreen.jsx";
 import NetTestScreen from "./screens/NetTestScreen.jsx";
 import { createTransport, openCallMedia } from "./callTransport.js";
+import { useCallMediaReadiness } from "./useCallMediaReadiness.js";
+import { useScreenWakeLock } from "./useScreenWakeLock.js";
 
 // 벨이 몇 초 울리는지는 서버가 정해서 내려보낸다. 받을 기기가 없으면 짧게
 // 울려야 하는데, 그 판단에 필요한 정보가 화면에는 없기 때문이다.
@@ -106,6 +108,9 @@ export default function App() {
   const [humanLocalStream, setHumanLocalStream] = useState(null);
   const [humanRemoteStream, setHumanRemoteStream] = useState(null);
   const [humanTransportState, setHumanTransportState] = useState("idle");
+  const callMedia = useCallMediaReadiness(hash === "#elder" || role === "elder");
+
+  useScreenWakeLock(phase === "calling" || phase === "human" || phase === "connecting" || phase === "incall");
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { inviteRef.current = invite; }, [invite]);
@@ -327,6 +332,10 @@ export default function App() {
 
   async function startCalling(picked) {
     const person = picked ?? target;
+    if (!callMedia.ready) {
+      setError("먼저 ‘마이크·카메라 허용’을 눌러 통화를 준비해 주세요.");
+      return;
+    }
     if (picked) setTarget(picked);
     setError("");
     setCall(null);
@@ -481,7 +490,7 @@ export default function App() {
   if (hash === "#nettest") return wrap(<NetTestScreen />, { wide: true });
 
   // 루트에서는 저장된 역할과 관계없이 항상 역할을 먼저 고른다.
-  if (!hash || hash === "#roles")
+  if (hash === "#roles" || (!hash && !role))
     return wrap(<RoleScreen onPick={chooseRole} />, { wide: true });
 
   // 주소로 직접 들어온 경우는 입구를 건너뛴다.
@@ -533,7 +542,7 @@ export default function App() {
 
   if (phase === "idle")
     return wrap(
-      <FamilyScreen elderId={elderId} onPick={startCalling} error={error} />,
+      <FamilyScreen elderId={elderId} onPick={startCalling} error={error} media={callMedia} />,
       { gear: true, roleSwitch: true }
     );
 
@@ -551,7 +560,6 @@ export default function App() {
     return wrap(
       <CallingScreen
         name={profile?.persona?.display_name ?? "가족"}
-        waitMs={profile?.elder?.speech_wait_time_ms ?? 2000}
         secondsLeft={secondsLeft}
         announcement={call?.announcement ?? "연결하고 있어요"}
         onSkip={() => {
@@ -587,7 +595,7 @@ export default function App() {
         loops={call.loops ?? profile?.loops ?? {}}
         opening={call.opening ?? ""}
         name={profile?.persona?.display_name ?? "가족"}
-        waitMs={profile?.elder?.speech_wait_time_ms ?? 2000}
+        personaId={call.persona_id ?? target?.persona_id ?? null}
         callId={call.call_id}
         api={api}
         onEnded={(s) => {

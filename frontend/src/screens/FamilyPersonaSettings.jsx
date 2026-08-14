@@ -6,6 +6,7 @@ import {
   getDefaultCallStyle,
 } from "../callStyle.js";
 import CallStyleQuiz from "../components/CallStyleQuiz.jsx";
+import VoiceProfilePanel from "../components/VoiceProfilePanel.jsx";
 import PersonaPanel from "./PersonaPanel.jsx";
 
 const toLines = (value) => Array.isArray(value) ? value.join("\n") : String(value || "");
@@ -127,6 +128,8 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
         applyLabel={busy ? "저장하는 중…" : "말투 시작점 저장"}
       />
     </div>}
+
+    <VoiceProfilePanel elderId={elderId} personaId={personaId} persona={persona} />
 
     <section className="family-speech-settings">
       <header><span>말투 세부 조정</span><h2>우리 가족이 실제로 쓰는 표현을 알려주세요</h2></header>

@@ -67,6 +67,31 @@ export const sendTurn = (callId, text) =>
     body: JSON.stringify({ text }),
   });
 
+/** Android Chrome에서 Web Speech가 응답하지 않을 때 쓰는 짧은 음성 전사. */
+export const transcribeSpeech = async (blob, lang = "ko-KR") => {
+  const form = new FormData();
+  const extension = blob.type.includes("mp4") ? "m4a" : "webm";
+  form.append("audio", blob, `utterance.${extension}`);
+  const res = await fetch(`/api/stt?lang=${encodeURIComponent(lang)}`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      // JSON 응답이 아니면 상태 코드만 사용한다.
+    }
+    throw new Error(detail);
+  }
+  return res.json();
+};
+
+/** Permanent ElevenLabs credentials stay on the API server. */
+export const getRealtimeSTTToken = () =>
+  request("/api/stt/realtime-token", { method: "POST" });
+
 // ── 기기와 호출 ────────────────────────────────────────────
 // 벨은 서버의 상태다. 화면은 그 상태를 읽기만 하고 스스로 판정하지 않는다.
 
@@ -90,11 +115,14 @@ export const answerInvite = (inviteId, deviceId) =>
     body: JSON.stringify({ device_id: deviceId }),
   });
 
-export const declineInvite = (inviteId, deviceId) =>
+export const declineInvite = (inviteId, deviceId, reason) =>
   request(`/api/call-invites/${inviteId}/decline`, {
     method: "POST",
-    body: JSON.stringify({ device_id: deviceId }),
+    body: JSON.stringify({ device_id: deviceId, ...(reason ? { reason } : {}) }),
   });
+
+export const getRecentInvites = (elderId = "elder_001", limit = 20) =>
+  request(`/api/call-invites/recent?elder_id=${encodeURIComponent(elderId)}&limit=${limit}`);
 
 export const cancelInvite = (inviteId) =>
   request(`/api/call-invites/${inviteId}/cancel`, { method: "POST" });
@@ -149,6 +177,70 @@ export const patchPersona = (body, personaId, elderId = "elder_001") =>
   request(`/api/elders/${elderId}/persona${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, {
     method: "PATCH",
     body: JSON.stringify(body),
+  });
+
+export const getVoiceProfile = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice-profile?elder_id=${encodeURIComponent(elderId)}`);
+
+export const deleteVoiceProfile = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice-profile?elder_id=${encodeURIComponent(elderId)}`, {
+    method: "DELETE",
+  });
+
+export const saveVoiceConsent = (personaId, accepted, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice-consent`, {
+    method: "POST",
+    body: JSON.stringify({ elder_id: elderId, accepted }),
+  });
+
+export async function uploadVoiceSample(personaId, {
+  blob, phase, promptId, durationSeconds, quality, elderId = "elder_001",
+}) {
+  const form = new FormData();
+  const extension = blob.type.includes("mp4") ? "m4a"
+    : blob.type.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", blob, `${phase}-${promptId}.${extension}`);
+  form.append("elder_id", elderId);
+  form.append("phase", phase);
+  form.append("prompt_id", promptId);
+  form.append("duration_seconds", String(durationSeconds));
+  form.append("quality", JSON.stringify(quality));
+  const res = await fetch(`/api/personas/${encodeURIComponent(personaId)}/voice-samples`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json()).detail || detail; } catch { /* keep status */ }
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+export const createInstantVoice = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice/ivc`, {
+    method: "POST",
+    body: JSON.stringify({ elder_id: elderId }),
+  });
+
+export async function previewPersonaVoice(personaId, text, elderId = "elder_001") {
+  const res = await fetch(`/api/personas/${encodeURIComponent(personaId)}/voice/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ elder_id: elderId, text }),
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try { detail = (await res.json()).detail || detail; } catch { /* keep status */ }
+    throw new Error(detail);
+  }
+  return res.blob();
+}
+
+export const approvePersonaVoice = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/voice/approve`, {
+    method: "POST",
+    body: JSON.stringify({ elder_id: elderId }),
   });
 
 export const patchElder = (body, elderId = "elder_001") =>

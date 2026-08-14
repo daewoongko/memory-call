@@ -66,6 +66,23 @@ watch(guardian, "보호자");
 const ring = () => elder.locator("button.family-card", { hasText: PERSONA_NAME }).first();
 const overlay = guardian.locator(".guardian-call-scrim");
 
+async function prepareMedia(page, who) {
+  const button = page.locator(".media-preflight-button");
+  if (await button.isVisible().catch(() => false)) {
+    await page.waitForFunction(() => {
+      const control = document.querySelector(".media-preflight-button");
+      return !control || !control.disabled;
+    }, null, { timeout: 10000 });
+    if (!(await button.count())) {
+      check(true, `${who}가 벨이 울리기 전에 통화 권한을 준비한다`);
+      return;
+    }
+    await button.click();
+    await button.waitFor({ state: "detached", timeout: 10000 });
+  }
+  check(!(await button.count()), `${who}가 벨이 울리기 전에 통화 권한을 준비한다`);
+}
+
 /**
  * 어르신 화면이 대기 상태로 가라앉을 때까지 기다린다.
  *
@@ -82,10 +99,18 @@ async function elderIdle() {
       await later.click({ timeout: 5000 }).catch(() => {});
       continue;
     }
-    if (await ring().count()) return true;
+    if (await ring().count() && await ring().isEnabled().catch(() => false)) return true;
   }
   problems.push("어르신 대기 화면이 안정되지 않음");
   return false;
+}
+
+async function placeElderCall() {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await elderIdle();
+    if (await ring().click({ timeout: 3000 }).then(() => true).catch(() => false)) return;
+  }
+  throw new Error("어르신 가족 통화 버튼을 누르지 못했습니다.");
 }
 
 try {
@@ -120,6 +145,7 @@ try {
     await guardian.locator(".child-identity-setup button", { hasText: PERSONA_NAME })
       .first().click();
   }
+  await prepareMedia(guardian, "보호자 폰");
   await guardian.waitForTimeout(2500); // 기기 등록 + 폴링 한 바퀴
 
   const mine = await guardian.evaluate(() => localStorage.getItem("dasoni.guardianPersona"));
@@ -128,8 +154,8 @@ try {
   // ── 1. 가족이 받는다 ─────────────────────────────────────
   log("\n1. 가족이 받는다");
   await elder.goto(`${BASE}/#elder`, { waitUntil: "domcontentloaded" });
-  await elderIdle();
-  await ring().click();
+  await prepareMedia(elder, "어르신 폰");
+  await placeElderCall();
 
   const countdown = await elder.locator(".countdown").textContent();
   check(/^1[0-9]초$/.test(countdown.trim()),
@@ -157,6 +183,35 @@ try {
   const connectedIn = Date.now() - answeredAt;
   check(true, "양쪽에 상대 음성·영상 스트림이 실제로 연결된다");
   check(connectedIn <= 3000, `받은 뒤 3초 안에 연결된다 (${connectedIn}ms)`);
+  for (const [page, selector, who] of [
+    [elder, ".human-remote-video", "어르신"],
+    [guardian, ".guardian-media-stage > video", "보호자"],
+  ]) {
+    const retry = page.locator(".remote-sound-enable");
+    if (await retry.isVisible().catch(() => false)) await retry.click();
+    await page.waitForFunction((mediaSelector) => {
+      const media = document.querySelector(mediaSelector);
+      return media
+        && !media.paused
+        && !media.muted
+        && media.volume === 1
+        && media.videoWidth > 0
+        && media.videoHeight > 0;
+    }, selector, { timeout: 5000 });
+    const playback = await page.locator(selector).evaluate((media) => ({
+      paused: media.paused,
+      muted: media.muted,
+      volume: media.volume,
+      size: `${media.videoWidth}x${media.videoHeight}`,
+    }));
+    check(
+      !playback.paused
+        && !playback.muted
+        && playback.volume === 1
+        && playback.size !== "0x0",
+      `${who} 원격 소리·영상이 재생 상태다 (${JSON.stringify(playback)})`,
+    );
+  }
 
   // ── 2. 어르신이 끊으면 보호자도 풀린다 ──────────────────
   log("\n2. 어르신이 끊는다");
@@ -168,8 +223,7 @@ try {
 
   // ── 3. 거절하면 AI 가 대신 받는다 ───────────────────────
   log("\n3. 가족이 거절한다");
-  await elderIdle();
-  await ring().click();
+  await placeElderCall();
   await overlay.waitFor({ state: "visible", timeout: 12000 });
   await guardian.locator(".guardian-call-decline").click({ timeout: 10000 });
 
@@ -201,8 +255,8 @@ try {
     };
   });
   await elder.reload({ waitUntil: "domcontentloaded" });
-  await elderIdle();
-  await ring().click();
+  await prepareMedia(elder, "어르신 폰 재접속");
+  await placeElderCall();
   await overlay.waitFor({ state: "visible", timeout: 12000 });
   // answer 동작은 서버에 도달시키고, 이후 WebRTC signal만 양쪽에서 버린다.
   await elder.route("**/api/call-invites/*/signal*", (route) => route.abort());
@@ -253,8 +307,8 @@ try {
 
   // 3번에서 AI 가 대신 받아 통화 중이다. 대기 화면으로 돌려놓는다.
   await elder.reload({ waitUntil: "domcontentloaded" });
-  await elderIdle();
-  await ring().click();
+  await prepareMedia(elder, "어르신 폰 대기 복귀");
+  await placeElderCall();
   const shortRing = (await elder.locator(".countdown").textContent()).trim();
   check(shortRing === "6초", `받을 폰이 없으므로 짧게 운다 (${shortRing})`);
   await elder.locator(".dev button").click().catch(() => {});

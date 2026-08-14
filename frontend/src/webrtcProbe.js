@@ -215,17 +215,128 @@ async function selectedPair(pc) {
   }
 }
 
+/** 오디오·영상 경로의 송출·수신 수치를 한 번 읽는다. */
+export async function readMediaStats(pc) {
+  const values = {
+    localAudioLevel: null,
+    packetsSent: 0,
+    packetsReceived: 0,
+    remoteAudioLevel: null,
+    videoPacketsSent: 0,
+    videoFramesEncoded: 0,
+    videoPacketsReceived: 0,
+    videoFramesDecoded: 0,
+    outboundVideoSize: null,
+    inboundVideoSize: null,
+  };
+  const stats = await pc.getStats();
+  stats.forEach((report) => {
+    const kind = report.kind ?? report.mediaType;
+    if (report.type === "media-source" && kind === "audio" &&
+        Number.isFinite(report.audioLevel)) {
+      values.localAudioLevel = Math.max(values.localAudioLevel ?? 0, report.audioLevel);
+    }
+    if (report.type === "outbound-rtp" && kind === "audio" && !report.isRemote) {
+      values.packetsSent += Number(report.packetsSent ?? 0);
+    }
+    if (report.type === "inbound-rtp" && kind === "audio" && !report.isRemote) {
+      values.packetsReceived += Number(report.packetsReceived ?? 0);
+      if (Number.isFinite(report.audioLevel)) {
+        values.remoteAudioLevel = Math.max(
+          values.remoteAudioLevel ?? 0, report.audioLevel,
+        );
+      }
+    }
+    if (report.type === "outbound-rtp" && kind === "video" && !report.isRemote) {
+      values.videoPacketsSent += Number(report.packetsSent ?? 0);
+      values.videoFramesEncoded += Number(report.framesEncoded ?? 0);
+      if (Number.isFinite(report.frameWidth) && Number.isFinite(report.frameHeight)) {
+        values.outboundVideoSize = `${report.frameWidth}×${report.frameHeight}`;
+      }
+    }
+    if (report.type === "inbound-rtp" && kind === "video" && !report.isRemote) {
+      values.videoPacketsReceived += Number(report.packetsReceived ?? 0);
+      values.videoFramesDecoded += Number(report.framesDecoded ?? 0);
+      if (Number.isFinite(report.frameWidth) && Number.isFinite(report.frameHeight)) {
+        values.inboundVideoSize = `${report.frameWidth}×${report.frameHeight}`;
+      }
+    }
+  });
+  return values;
+}
+
+/** 기존 오디오 진단 호출부가 영상 항목에 영향받지 않도록 유지한다. */
+export async function readAudioStats(pc) {
+  const values = await readMediaStats(pc);
+  return {
+    localAudioLevel: values.localAudioLevel,
+    packetsSent: values.packetsSent,
+    packetsReceived: values.packetsReceived,
+    remoteAudioLevel: values.remoteAudioLevel,
+  };
+}
+
 /**
  * 두 기기를 실제로 붙여 본다.
  *
- * 미디어 대신 데이터 채널을 쓴다. ICE 경로는 똑같이 지나가면서 마이크·카메라
- * 권한을 묻지 않으므로, 붙는지만 보려는 목적에 군더더기가 없다.
+ * 기본값은 기존 데이터 채널 진단이다. media=true이면 마이크·카메라를 붙이고
+ * 연결을 유지한 session을 돌려준다. 화면은 session.stop() 전까지 1초마다
+ * 실제 송수신 수치를 받아 어느 단계가 0인지 확인할 수 있다.
  */
-export async function probePair({ role, room, signal, onStage }) {
+export async function probePair({
+  role, room, signal, onStage, media = false, localStream = null,
+  onLocalStream, onRemoteStream, onStats, onDiagnostic,
+}) {
   const pc = newConnection();
   const started = Date.now();
   const stage = (text) => onStage?.(text);
   let channel = null;
+  let statsTimer = null;
+  let stopSignal = null;
+  let ownedStream = null;
+  const remoteStream = new MediaStream();
+  const queuedIce = [];
+  const diagnostics = { sendFailures: 0, pollFailures: 0, signalFailures: 0 };
+  const reportDiagnostic = (kind, reason) => {
+    const key = `${kind}Failures`;
+    if (key in diagnostics) diagnostics[key] += 1;
+    onDiagnostic?.({
+      ...diagnostics,
+      lastError: reason?.message ?? String(reason ?? ""),
+    });
+  };
+
+  const close = () => {
+    clearInterval(statsTimer);
+    statsTimer = null;
+    stopSignal?.();
+    stopSignal = null;
+    try { channel?.close(); } catch { /* 이미 닫힌 채널 */ }
+    try { pc.close(); } catch { /* 이미 닫힌 연결 */ }
+    ownedStream?.getTracks().forEach((track) => track.stop());
+    remoteStream.getTracks().forEach((track) => track.stop());
+  };
+
+  if (media) {
+    if (!localStream) {
+      ownedStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+      });
+      localStream = ownedStream;
+    }
+    onLocalStream?.(localStream);
+    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+    pc.ontrack = (event) => {
+      const tracks = event.streams?.[0]?.getTracks?.() ?? [event.track];
+      tracks.filter(Boolean).forEach((track) => {
+        if (!remoteStream.getTracks().some((item) => item.id === track.id)) {
+          remoteStream.addTrack(track);
+        }
+      });
+      onRemoteStream?.(remoteStream);
+    };
+  }
 
   const finished = new Promise((resolve) => {
     const settle = (ok) => resolve(ok);
@@ -238,42 +349,76 @@ export async function probePair({ role, room, signal, onStage }) {
   });
 
   pc.onicecandidate = (event) => {
-    if (event.candidate) signal.send("ice", event.candidate.toJSON());
+    if (!event.candidate) return;
+    signal.send("ice", event.candidate.toJSON())
+      .catch((reason) => reportDiagnostic("send", reason));
   };
 
   if (role === "caller") {
-    channel = pc.createDataChannel("probe");
+    if (!media) channel = pc.createDataChannel("probe");
     stage("초대장을 만드는 중");
     await pc.setLocalDescription(await pc.createOffer());
-    await signal.send("offer", pc.localDescription);
-  } else {
+    try {
+      await signal.send("offer", pc.localDescription);
+    } catch (reason) {
+      reportDiagnostic("send", reason);
+      throw reason;
+    }
+  } else if (!media) {
     pc.ondatachannel = (event) => { channel = event.channel; };
   }
 
-  const stop = signal.listen(async (message) => {
+  stopSignal = signal.listen(async (message) => {
     try {
       if (message.kind === "offer" && role === "answerer") {
         stage("초대장을 받았습니다");
         await pc.setRemoteDescription(message.payload);
+        while (queuedIce.length) await pc.addIceCandidate(queuedIce.shift());
         await pc.setLocalDescription(await pc.createAnswer());
-        await signal.send("answer", pc.localDescription);
+        try {
+          await signal.send("answer", pc.localDescription);
+        } catch (reason) {
+          reportDiagnostic("send", reason);
+          throw reason;
+        }
       } else if (message.kind === "answer" && role === "caller") {
         stage("응답을 받았습니다");
         await pc.setRemoteDescription(message.payload);
+        while (queuedIce.length) await pc.addIceCandidate(queuedIce.shift());
       } else if (message.kind === "ice") {
-        await pc.addIceCandidate(message.payload).catch(() => {});
+        if (!pc.remoteDescription) queuedIce.push(message.payload);
+        else await pc.addIceCandidate(message.payload);
       }
-    } catch {
-      // 순서가 어긋난 신호 하나로 시험 전체를 중단하지 않는다.
+    } catch (reason) {
+      reportDiagnostic("signal", reason);
     }
   });
 
   const connected = await finished;
   const pair = await selectedPair(pc);
-  stop();
   const elapsedMs = Date.now() - started;
-  try { channel?.close(); } catch { /* 이미 닫혔을 수 있다 */ }
-  pc.close();
+  if (!connected || !media) {
+    close();
+    return { connected, pair, elapsedMs, diagnostics };
+  }
 
-  return { connected, pair, elapsedMs };
+  const sample = async () => {
+    try {
+      onStats?.({ ...(await readMediaStats(pc)), sampledAt: Date.now() });
+    } catch (reason) {
+      reportDiagnostic("signal", reason);
+    }
+  };
+  await sample();
+  statsTimer = setInterval(sample, 1000);
+
+  return {
+    connected,
+    pair,
+    elapsedMs,
+    diagnostics,
+    localStream,
+    remoteStream,
+    stop: close,
+  };
 }

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createTransport, openCallMedia } from "../callTransport.js";
 import SelfView from "../components/SelfView.jsx";
+import { useRemotePlayback } from "../useRemotePlayback.js";
 
 /**
  * 보호자에게 걸려온 전화.
@@ -35,7 +36,9 @@ export default function GuardianCallOverlay({
   const [seconds, setSeconds] = useState(() => elapsed(connected?.answered_at));
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  const remoteRef = useRef(null);
+  const {
+    mediaRef: remoteRef, blocked, playing, rendered, play,
+  } = useRemotePlayback(remoteStream);
 
   useEffect(() => {
     if (!connected) return undefined;
@@ -87,12 +90,6 @@ export default function GuardianCallOverlay({
     };
   }, [connected?.invite_id, onTransportFailed]);
 
-  useEffect(() => {
-    if (!remoteRef.current) return;
-    remoteRef.current.srcObject = remoteStream || null;
-    remoteRef.current.play?.().catch(() => {});
-  }, [remoteStream]);
-
   if (!call) return null;
 
   const who = `${elderName || "어르신"} 어르신`;
@@ -110,6 +107,11 @@ export default function GuardianCallOverlay({
           <>
             <div className="guardian-media-stage">
               <video ref={remoteRef} autoPlay playsInline />
+              {remoteStream && (!playing || !rendered) && (
+                <button className="remote-sound-enable" onClick={play}>
+                  {blocked ? "소리·영상 재생" : "통화 연결하기"}
+                </button>
+              )}
               <SelfView stream={localStream} />
             </div>
             <p className="guardian-call-timer">{clock(seconds)}</p>

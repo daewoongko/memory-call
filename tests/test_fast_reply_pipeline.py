@@ -33,6 +33,8 @@ class FastReplySchemaTests(unittest.TestCase):
         self.assertIn("이번 응답 전용 출력 형식", patched_messages[0]["content"])
         self.assertIn('"reply"', patched_messages[0]["content"])
         self.assertEqual(call.call_args.kwargs["temperature"], 0.1)
+        self.assertTrue(call.call_args.kwargs["stream"])
+        self.assertEqual(call.call_args.kwargs["max_tokens"], llm.FAST_MAX_TOKENS)
 
     def test_metadata_prompt_json_escapes_final_reply(self):
         prompt = llm.metadata_schema_override('그분이 "곧 온다"고 했어요.\\')
