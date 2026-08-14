@@ -96,6 +96,19 @@ try {
     // 페르소나가 자동 선택되고 이름이 채워져야 버튼이 열린다.
     await guardian.locator("button.onboarding-default-start:not([disabled])")
       .waitFor({ timeout: 20000 });
+
+    // 떠 있는 설정 독이 이 버튼을 덮은 적이 두 번 있다. 버튼은 멀쩡히 보이고
+    // disabled 도 아니어서 "눌러도 아무 일이 없다"로만 나타난다. 클릭이
+    // 우연히 통과할 수도 있으므로 히트 타겟을 직접 찍어 둔다.
+    const hit = await guardian.evaluate(() => {
+      const el = document.querySelector("button.onboarding-default-start");
+      const box = el.getBoundingClientRect();
+      const top = document.elementFromPoint(
+        box.x + box.width / 2, box.y + box.height / 2);
+      return { own: top === el, covered: String(top?.className ?? "").slice(0, 40) };
+    });
+    check(hit.own, `시작 버튼을 무엇도 덮지 않는다${hit.own ? "" : ` (${hit.covered} 가 덮음)`}`);
+
     await guardian.locator("button.onboarding-default-start").click();
   }
   await guardian.locator(".child-screen").waitFor({ timeout: 20000 });

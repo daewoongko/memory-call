@@ -4270,3 +4270,43 @@ label.checkbox { color: var(--text); }
 .nettest-foot { margin-top: 20px; color: var(--muted); font-size: calc(10px * var(--font-scale)); }
 .nettest details { margin-top: 12px; }
 .nettest details summary { color: var(--brand); cursor: pointer; font-size: calc(12px * var(--font-scale)); }
+
+/* ── 떠 있는 설정 독과 겹치지 않게 ─────────────────────
+   .wide-display-dock 은 position:absolute 로 콘텐츠 위에 떠 있다. 폰 폭에서
+   독은 왼쪽 아래를 덮는데, 그 자리에 눌러야 할 버튼이 오면 탭이 독으로 가
+   버린다. 보호자 온보딩의 "기본 말투로 바로 시작"이 412px(갤럭시 S24)에서
+   실제로 눌리지 않았다. 눈으로는 버튼이 멀쩡히 보이고 disabled 도 아니어서
+   찾기 어려웠고, 한 번 고친 뒤 화면 재설계 때 다시 사라졌다.
+
+   여백을 주는 것으로는 부족하다. 본문이 길면 스크롤 위치에 따라 버튼이 다시
+   독 아래로 들어간다. 폰 폭에서는 독을 띄우지 말고 세로 흐름의 마지막 칸으로
+   내려야 겹칠 자리 자체가 없어진다.
+
+   앞선 미디어 쿼리들이 padding 축약형으로 아래 여백을 다시 정하므로 이 규칙은
+   파일 끝에 둔다. 순서가 곧 우선순위다. */
+
+@media (max-width: 760px) {
+  .guardian-device { display: flex; flex-direction: column; }
+  .guardian-device > .wide-display-dock {
+    position: static;
+    order: 2;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .guardian-device > .wide-display-dock .dock-icon-row { grid-template-columns: repeat(3, 64px); }
+  .guardian-device > .wide-display-dock .dock-popover { bottom: 78px; left: 12px; }
+  /* 본문이 남은 높이를 전부 쓰고 그 안에서만 스크롤한다. */
+  .guardian-device > .guardian-onboarding,
+  .guardian-device > .child-screen,
+  .guardian-device > .guardian,
+  .guardian-device > .nettest {
+    order: 1;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
