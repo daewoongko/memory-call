@@ -111,6 +111,7 @@ tools/
   demo_reset.py               시연 준비 (기록 초기화 + 일정 재설정)
 docs/
   demo_script.md              시연 대본 5막 3분
+  conversation_scripts.md     흩어진 어르신·가족 대사를 모은 스크립트 인덱스
   call_transport_decision.md  ★ 사람↔사람 통화를 P2P 로 붙이는 근거
   voice_script.md             음성 녹음 대본 (미사용)
 ```
