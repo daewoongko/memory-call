@@ -94,5 +94,8 @@ test("가족 사진 관리는 기존 연령 후보와 모핑 기능을 팝업으
   assert.doesNotMatch(familySettings, /안심 케어 내비게이터/);
   assert.match(personaPanel, /사진 크게 보기/);
   assert.match(personaPanel, /사진 추가하기/);
+  assert.match(personaPanel, /AI 영상 얼굴/);
+  assert.match(personaPanel, /다시 생성/);
+  assert.match(personaPanel, /syncAvatarProfile/);
   assert.doesNotMatch(personaPanel, /python tools\/make_morph\.py/);
 });

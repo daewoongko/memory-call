@@ -237,6 +237,22 @@ button:focus-visible {
   transition: opacity 0.18s ease;
 }
 
+.lipsync-stage .anam-media {
+  opacity: 0;
+  visibility: hidden;
+  object-fit: cover;
+}
+
+.lipsync-stage.anam-active .anam-media {
+  opacity: 1;
+  visibility: visible;
+}
+
+.lipsync-stage.anam-active .musetalk-media {
+  opacity: 0;
+  visibility: hidden;
+}
+
 /* 정사각형 사진을 세로 화면에 넣으면 잘려나가므로,
    같은 사진을 흐리게 깔아 배경을 채우고 원본은 잘리지 않게 얹는다. */
 .stage video.blur,
@@ -728,6 +744,23 @@ button:focus-visible {
   border-radius: 10px;
 }
 .age-plan-box input[type="number"] { width: 120px; min-width: 120px; }
+.avatar-profile-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(23, 107, 72, .34);
+  border-radius: 14px;
+  background: rgba(23, 107, 72, .06);
+}
+.avatar-profile-status > div { display: grid; gap: 3px; }
+.avatar-profile-status small,
+.avatar-profile-status span { color: var(--muted); font-size: calc(11px * var(--font-scale)); }
+.avatar-profile-status strong { font-size: calc(14px * var(--font-scale)); }
+.avatar-profile-status.failed { border-color: rgba(211, 62, 50, .45); background: rgba(211, 62, 50, .06); }
+.avatar-profile-status button { min-height: 38px; padding: 8px 14px; }
 .candidate-metrics {
   display: block;
   margin-top: 6px;

@@ -204,6 +204,12 @@ export default function PersonaPanel({ elderId = "elder_001", initialPersonaId =
     );
   };
 
+  const retryAvatar = () =>
+    guard(
+      () => api.syncAvatarProfile(selectedPersonaId, elderId),
+      "선택한 사진으로 AI 영상 얼굴을 다시 생성했습니다."
+    );
+
   const choosePastCandidate = (stage, candidate) => {
     if (
       candidate.validation
@@ -484,6 +490,31 @@ export default function PersonaPanel({ elderId = "elder_001", initialPersonaId =
             과거 얼굴 순서 저장
           </button>
         </div>
+
+        {data.avatar_profile && (
+          <div className={`avatar-profile-status ${data.avatar_profile.avatar_status || "unregistered"}`}>
+            <div>
+              <small>AI 영상 얼굴</small>
+              <strong>
+                {data.avatar_profile.ready
+                  ? "생성 완료"
+                  : data.avatar_profile.avatar_status === "creating"
+                    ? "생성 중"
+                    : data.avatar_profile.avatar_status === "failed"
+                      ? "생성 실패"
+                      : data.avatar_profile.provider_configured
+                        ? "기준 사진 확정 필요"
+                        : "Anam API 연결 필요"}
+              </strong>
+              {data.avatar_profile.source_photo_name && (
+                <span>기준 사진 · {data.avatar_profile.source_photo_name}</span>
+              )}
+            </div>
+            {data.avatar_profile.avatar_status === "failed" && (
+              <button type="button" disabled={busy} onClick={retryAvatar}>다시 생성</button>
+            )}
+          </div>
+        )}
 
         <p className="hint">
           생년월일과 촬영일이 있으면 실제 촬영 당시 나이를 계산합니다. 입력한 현재 나이부터

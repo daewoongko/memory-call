@@ -311,6 +311,10 @@ class TTSProxyBridgeTests(unittest.TestCase):
 class TTSApiTests(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(api.app)
+        self.voice_patch = patch.object(
+            api.voice_mod, "active_voice_id", return_value="voice-test"
+        )
+        self.voice_patch.start()
         with api._tts_rate_lock:
             api._tts_rate_events.clear()
             api._tts_global_rate_events.clear()
@@ -320,6 +324,7 @@ class TTSApiTests(unittest.TestCase):
             tts_proxy._bridge_registration = None
 
     def tearDown(self):
+        self.voice_patch.stop()
         with api._tts_rate_lock:
             api._tts_rate_events.clear()
             api._tts_global_rate_events.clear()
@@ -334,7 +339,6 @@ class TTSApiTests(unittest.TestCase):
                 "os.environ",
                 {
                     "ELEVENLABS_API_KEY": "sk_test",
-                    "ELEVENLABS_VOICE_ID": "voice-test",
                 },
                 clear=False,
             ),
@@ -408,9 +412,9 @@ class TTSApiTests(unittest.TestCase):
                 return_value=_speech_result(),
             ),
         ):
-            first = self.client.post("/api/tts", json={"text": "one"})
-            second = self.client.post("/api/tts", json={"text": "two"})
-            blocked = self.client.post("/api/tts", json={"text": "three"})
+            first = self.client.post("/api/tts", json={"text": "one", "persona_id": "persona_jeonghun"})
+            second = self.client.post("/api/tts", json={"text": "two", "persona_id": "persona_jeonghun"})
+            blocked = self.client.post("/api/tts", json={"text": "three", "persona_id": "persona_jeonghun"})
 
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 200)
@@ -438,7 +442,7 @@ class TTSApiTests(unittest.TestCase):
                 return_value=video,
             ) as render,
         ):
-            response = self.client.post("/api/tts/video", json={"text": "video"})
+            response = self.client.post("/api/tts/video", json={"text": "video", "persona_id": "persona_jeonghun"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["content-type"], "video/mp4")
@@ -459,7 +463,7 @@ class TTSApiTests(unittest.TestCase):
                 side_effect=tts_proxy.TTSUnavailable("MuseTalk busy"),
             ),
         ):
-            response = self.client.post("/api/tts/video", json={"text": "video"})
+            response = self.client.post("/api/tts/video", json={"text": "video", "persona_id": "persona_jeonghun"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers["content-type"], "audio/wav")
@@ -483,7 +487,7 @@ class TTSApiTests(unittest.TestCase):
                 return_value=result,
             ) as synthesize,
         ):
-            response = self.client.post("/api/tts", json={"text": "timed"})
+            response = self.client.post("/api/tts", json={"text": "timed", "persona_id": "persona_jeonghun"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"RIFF-timed")
@@ -494,7 +498,7 @@ class TTSApiTests(unittest.TestCase):
         self.assertEqual(response.headers["x-generation-seconds"], "1.500")
         self.assertNotIn("authorization", response.headers)
         synthesize.assert_called_once_with(
-            "timed", 0.92, request_id=request_id
+            "timed", 0.92, request_id=request_id, voice_id="voice-test"
         )
 
     def test_public_tts_uses_approved_persona_voice_when_present(self):
@@ -571,7 +575,7 @@ class TTSApiTests(unittest.TestCase):
                 side_effect=elevenlabs_tts.ElevenLabsUnavailable("offline"),
             ),
         ):
-            response = self.client.post("/api/tts", json={"text": "failure"})
+            response = self.client.post("/api/tts", json={"text": "failure", "persona_id": "persona_jeonghun"})
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(capacity.released, 1)
