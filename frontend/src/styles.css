@@ -4465,3 +4465,247 @@ label.checkbox { color: var(--text); }
   .nettest-media-grid,.nettest-media-previews { grid-template-columns:1fr; }
   .nettest-playback-state { grid-template-columns:1fr; }
 }
+
+/* Mobile app shell ---------------------------------------------------------
+   The desktop dashboard remains unchanged.  On phone-sized screens every
+   role uses the full safe viewport, one scroll owner and app-like navigation. */
+@media (max-width: 760px) {
+  :root { --mobile-safe-bottom: env(safe-area-inset-bottom, 0px); --mobile-safe-top: env(safe-area-inset-top, 0px); }
+  html, body, #root { width: 100%; height: 100%; min-height: 100%; }
+  body { min-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+  button, [role="button"], input, select, textarea { touch-action: manipulation; }
+  input, select, textarea { font-size: max(16px, 1em); }
+
+  .app-shell,
+  .app-shell.guardian-frame {
+    width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    display: block;
+    padding: 0;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .app-device,
+  .app-device.guardian-device {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    aspect-ratio: auto;
+    overflow: hidden;
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--bg);
+  }
+
+  /* Entry: a compact, scroll-safe role chooser rather than a scaled desktop. */
+  .app-device-roles { overflow-y: auto; }
+  .app-device-roles .role-gateway {
+    min-height: 100dvh;
+    height: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas: "brand" "intro" "roles" "footer";
+    align-content: start;
+    gap: 22px;
+    padding: calc(22px + var(--mobile-safe-top)) 18px calc(28px + var(--mobile-safe-bottom));
+    overflow: visible;
+  }
+  .app-device-roles .role-gateway::before { inset: 8px; border-radius: 24px; }
+  .app-device-roles .role-gateway-intro { align-self: start; }
+  .app-device-roles .role-gateway-badge { min-height: 30px; font-size: calc(10px * var(--font-scale)); }
+  .app-device-roles .role-gateway-intro h1 { margin: 13px 0 8px; font-size: clamp(34px, 10vw, 44px); line-height: 1.04; }
+  .app-device-roles .role-gateway-intro > p { font-size: calc(13px * var(--font-scale)); line-height: 1.55; }
+  .app-device-roles .role-gateway-promise { display: none; }
+  .app-device-roles .role-gateway-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .app-device-roles .role-gateway-card {
+    min-height: 108px;
+    display: grid;
+    grid-template-columns: 54px minmax(0,1fr) 34px;
+    align-items: center;
+    gap: 13px;
+    padding: 15px;
+    border-radius: 19px;
+  }
+  .app-device-roles .role-card-mark { width: 54px; height: 54px; margin: 0; border-radius: 17px 17px 17px 6px; }
+  .app-device-roles .role-card-body p,
+  .app-device-roles .role-card-tags,
+  .app-device-roles .role-card-number { display: none; }
+  .app-device-roles .role-card-body > b { font-size: calc(18px * var(--font-scale)); }
+  .app-device-roles .role-card-enter { width: 34px; min-width: 34px; height: 34px; margin: 0; padding: 0; font-size: 0; border-radius: 50%; }
+  .app-device-roles .role-card-enter i { margin: 0; font-size: 18px; }
+  .app-device-roles .role-gateway-footer { justify-content: center; padding-top: 2px; font-size: calc(9px * var(--font-scale)); }
+
+  /* Elder: large targets, two-column family cards and a reachable voice CTA. */
+  .app-device-default .reassurance-home {
+    height: 100dvh;
+    gap: 14px;
+    padding: calc(22px + var(--mobile-safe-top)) 16px calc(26px + var(--mobile-safe-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .app-device-default .reassurance-header h1 { font-size: clamp(28px, 8vw, 36px); }
+  .app-device-default .reassurance-header span { font-size: calc(14px * var(--font-scale)); }
+  .app-device-default .today-reassurance { grid-template-columns: 1fr 1fr; gap: 9px; }
+  .app-device-default .today-reassurance article { min-height: 118px; align-content: start; padding: 14px 12px; border-radius: 18px; }
+  .app-device-default .today-reassurance article > span { width: 42px; height: 42px; }
+  .app-device-default .reassurance-memory { padding: 11px; border-radius: 17px; }
+  .app-device-default .reassurance-memory img,
+  .app-device-default .reassurance-memory > span { width: 72px; height: 64px; }
+  .app-device-default .family-grid { grid-template-columns: 1fr 1fr; gap: 9px; }
+  .app-device-default .family-card { min-width: 0; min-height: 104px; grid-template-columns: 1fr; justify-items: center; gap: 6px; padding: 12px 8px; text-align: center; border-radius: 18px; }
+  .app-device-default .reassurance-home .family-face { width: 60px; height: 60px; }
+  .app-device-default .reassurance-home .family-card b { font-size: calc(17px * var(--font-scale)); }
+  .app-device-default .reassurance-voice { position: sticky; z-index: 12; bottom: 4px; width: 100%; min-height: 58px; box-shadow: 0 12px 30px rgba(15,76,49,.2); }
+
+  /* Family: one scroll area and a persistent native-style bottom tab bar. */
+  .app-device-family { position: relative; display: block; }
+  .app-device-family > .child-screen {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: calc(12px + var(--mobile-safe-top)) 12px 0;
+    overflow: hidden;
+  }
+  .app-device-family .child-header { min-height: 58px; padding: 0 0 10px; }
+  .app-device-family .child-brand span { display: none; }
+  .app-device-family .child-family-header { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 10px; }
+  .app-device-family .child-family-header > .child-header-context { width: auto; min-width: 0; display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .app-device-family .child-family-header .child-elder-name { display: none; }
+  .app-device-family .child-date-picker { min-width: 0; padding: 6px 9px; border-radius: 12px; }
+  .app-device-family .child-date-picker > span { display: none; }
+  .app-device-family .child-app-body { flex: 1; min-height: 0; height: auto; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto; gap: 0; padding-top: 9px; }
+  .app-device-family .child-view { grid-column: 1; grid-row: 1; min-height: 0; padding: 0 0 72px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+  .app-device-family .child-tabs {
+    grid-column: 1;
+    grid-row: 2;
+    position: relative;
+    z-index: 40;
+    width: calc(100% + 24px);
+    margin: 0 -12px;
+    padding: 7px 8px calc(7px + var(--mobile-safe-bottom));
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 20px 20px 0 0;
+    background: color-mix(in srgb,var(--surface) 96%,transparent);
+    box-shadow: 0 -10px 28px rgba(24,70,47,.09);
+    backdrop-filter: blur(18px);
+  }
+  .app-device-family .child-tabs button { min-height: 54px; border-radius: 13px; }
+  .app-device-family .child-tabs button.on { box-shadow: none; }
+  .app-device-family .child-heart-story { padding: 18px 10px 22px; border-radius: 22px; }
+  .app-device-family .child-heart-collage { min-height: 300px; }
+  .app-device-family .child-call-filters { position: sticky; z-index: 5; top: 0; grid-template-columns: 1fr 1fr; padding: 7px 0; background: var(--bg); }
+  .app-device-family .child-call-period { padding: 12px; border-radius: 18px; }
+  .app-device-family .child-call-card { min-height: 148px; }
+  .app-device-family .family-self-card,
+  .app-device-family .family-style-scores { grid-template-columns: 1fr; }
+  .app-device-family .family-style-scores > div { border-right: 0; border-bottom: 1px solid var(--line); }
+
+  /* The three accessibility controls stay available as a compact floating
+     tool strip without competing with the family app's primary navigation. */
+  .app-device-family > .wide-display-dock,
+  .app-device-care > .wide-display-dock {
+    position: absolute;
+    z-index: 90;
+    left: 12px;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .app-device-family > .wide-display-dock { bottom: calc(72px + var(--mobile-safe-bottom)); }
+  .app-device-care > .wide-display-dock { bottom: calc(12px + var(--mobile-safe-bottom)); }
+  .app-device-family .dock-icon-row,
+  .app-device-care .dock-icon-row { grid-template-columns: repeat(3,42px); gap: 5px; }
+  .app-device-family .dock-icon-button,
+  .app-device-care .dock-icon-button { width: 42px; min-height: 42px; padding: 4px; border-radius: 13px; box-shadow: 0 8px 24px rgba(18,57,38,.16); }
+  .app-device-family .dock-icon-button span,
+  .app-device-care .dock-icon-button span { display: none; }
+  .app-device-family .dock-popover,
+  .app-device-care .dock-popover { bottom: 54px; left: 0; width: min(286px,calc(100vw - 24px)); }
+
+  /* Care manager: patient context + section tabs become an app header. */
+  .app-device-care > .guardian { height: 100dvh; overflow: hidden; }
+  .app-device-care .guardian-shell { height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); }
+  .app-device-care .guardian-sidebar {
+    position: relative;
+    top: auto;
+    z-index: 45;
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 8px;
+    padding: calc(10px + var(--mobile-safe-top)) 12px 9px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb,var(--surface) 96%,transparent);
+    box-shadow: 0 7px 22px rgba(20,62,41,.07);
+    backdrop-filter: blur(18px);
+  }
+  .app-device-care .sidebar-brand,
+  .app-device-care .sidebar-foot { display: none; }
+  .app-device-care .sidebar-elder { width: 100%; min-height: 48px; padding: 7px 10px; border-radius: 14px; }
+  .app-device-care .sidebar-nav { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; overflow: visible; }
+  .app-device-care .sidebar-nav button { width: 100%; min-height: 44px; justify-content: center; gap: 5px; padding: 6px 5px; border-radius: 11px; font-size: calc(10px * var(--font-scale)); text-align: center; }
+  .app-device-care .sidebar-nav button > span { width: auto; }
+  .app-device-care .sidebar-nav button > em { min-width: 0; padding: 2px 5px; font-size: 9px; }
+  .app-device-care .guardian-workspace { height: auto; min-height: 0; padding: 15px 12px calc(78px + var(--mobile-safe-bottom)); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+  .app-device-care .dashboard-heading { align-items: stretch; flex-direction: column; gap: 11px; margin-bottom: 15px; padding: 0; }
+  .app-device-care .dashboard-heading h1 { font-size: calc(22px * var(--font-scale)); }
+  .app-device-care .dashboard-heading > div > span { display: none; }
+  .app-device-care .manager-date-picker { width: 100%; min-width: 0; grid-template-columns: auto 1fr; align-items: center; padding: 8px 11px; }
+  .app-device-care .manager-date-picker input { text-align: right; }
+  .app-device-care .report-dashboard { gap: 12px; }
+  .app-device-care .report-toolbar { position: sticky; z-index: 18; top: -15px; padding: 8px 0; background: var(--bg); }
+  .app-device-care .manager-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .app-device-care .manager-stat-grid article { border-bottom: 1px solid var(--line); }
+  .app-device-care .manager-stat-grid article:last-child { grid-column: 1 / -1; }
+  .app-device-care .manager-focus-layout,
+  .app-device-care .manager-daily-summary > header,
+  .app-device-care .manager-combined-overview > header,
+  .app-device-care .compact-rhythm-report > header,
+  .app-device-care .talk-brief > header,
+  .app-device-care .compact-time-report > header,
+  .app-device-care .evidence-shortlist > header,
+  .app-device-care .medication-workspace > header,
+  .app-device-care .safety-checklist > header { grid-template-columns: 1fr; align-items: stretch; flex-direction: column; }
+  .app-device-care .family-moment-button { width: 100%; min-width: 0; }
+  .app-device-care .care-domain-radar { overflow-x: auto; }
+  .app-device-care .radar-layout { min-width: 560px; }
+  .app-device-care .signal-change-row { grid-template-columns: minmax(105px,1fr) 60px 58px; gap: 7px; }
+  .app-device-care .signal-diverging-inline,
+  .app-device-care .signal-change-list blockquote,
+  .app-device-care .signal-change-row .mini-sparkline { display: none; }
+  .app-device-care .task-subtabs { width: 100%; max-width: none; }
+
+  /* Dialogs behave like bottom sheets on phones. */
+  .memory-modal-backdrop,
+  .child-call-modal-backdrop,
+  .guardian-call-scrim { align-items: end; padding: 0; }
+  .memory-review-modal,
+  .memory-detail-modal,
+  .child-call-modal,
+  .guardian-call {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    margin: 0;
+    padding-bottom: calc(18px + var(--mobile-safe-bottom));
+    border-radius: 24px 24px 0 0;
+  }
+}
+
+@media (max-width: 390px) {
+  .app-device-roles .role-gateway { gap: 17px; padding-inline: 14px; }
+  .app-device-roles .role-gateway-intro h1 { font-size: 33px; }
+  .app-device-default .today-reassurance { grid-template-columns: 1fr; }
+  .app-device-family .child-heart-collage { min-height: 274px; }
+  .app-device-care .sidebar-nav button { font-size: calc(9px * var(--font-scale)); }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  button, a, summary, input, select { min-height: 44px; }
+  button:active, [role="button"]:active { transform: scale(.985); }
+}
