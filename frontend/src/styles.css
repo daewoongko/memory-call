@@ -4433,10 +4433,10 @@ label.checkbox { color: var(--text); }
   .nettest-playback-state { grid-template-columns:1fr; }
 }
 
-/* Mobile app shell ---------------------------------------------------------
-   The desktop dashboard remains unchanged.  On phone-sized screens every
-   role uses the full safe viewport, one scroll owner and app-like navigation. */
-@media (max-width: 760px) {
+/* App shell ----------------------------------------------------------------
+   All roles share the same app information architecture in local desktop
+   previews and on installed phones. Desktop shows the real app in a framed
+   viewport; phones remove that frame and occupy the safe viewport. */
   :root { --mobile-safe-bottom: env(safe-area-inset-bottom, 0px); --mobile-safe-top: env(safe-area-inset-top, 0px); }
   html, body, #root { width: 100%; height: 100%; min-height: 100%; }
   body { min-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
@@ -4448,27 +4448,34 @@ label.checkbox { color: var(--text); }
     width: 100%;
     height: 100dvh;
     min-height: 100dvh;
-    display: block;
-    padding: 0;
+    display: grid;
+    place-items: center;
+    padding: clamp(14px, 2vw, 24px);
     overflow: hidden;
-    background: var(--bg);
+    background: var(--frame-bg);
   }
   .app-device,
   .app-device.guardian-device {
-    width: 100%;
-    height: 100dvh;
-    max-height: none;
+    --app-preview-width: 430px;
+    width: min(var(--app-preview-width), 100%);
+    height: min(940px, calc(100dvh - clamp(28px, 4vw, 48px)));
+    max-height: 940px;
     aspect-ratio: auto;
     overflow: hidden;
-    border-radius: 0;
-    box-shadow: none;
+    border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
+    border-radius: 30px;
+    box-shadow: 0 24px 64px rgba(18, 56, 38, .2);
     background: var(--bg);
   }
+  .app-device-roles { --app-preview-width: 760px; }
+  .app-device-family { --app-preview-width: 780px; }
+  .app-device-care,
+  .app-device-nettest { --app-preview-width: 1440px; }
 
   /* Entry: a compact, scroll-safe role chooser rather than a scaled desktop. */
   .app-device-roles { overflow-y: auto; }
   .app-device-roles .role-gateway {
-    min-height: 100dvh;
+    min-height: 100%;
     height: auto;
     display: grid;
     grid-template-columns: 1fr;
@@ -4505,7 +4512,7 @@ label.checkbox { color: var(--text); }
 
   /* Elder: large targets, two-column family cards and a reachable voice CTA. */
   .app-device-default .reassurance-home {
-    height: 100dvh;
+    height: 100%;
     gap: 14px;
     padding: calc(22px + var(--mobile-safe-top)) 16px calc(26px + var(--mobile-safe-bottom));
     overflow-y: auto;
@@ -4529,7 +4536,7 @@ label.checkbox { color: var(--text); }
   .app-device-family { position: relative; display: block; }
   .app-device-family > .child-screen {
     width: 100%;
-    height: 100dvh;
+    height: 100%;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -4595,8 +4602,8 @@ label.checkbox { color: var(--text); }
   .app-device-care .dock-popover { bottom: 54px; left: 0; width: min(286px,calc(100vw - 24px)); }
 
   /* Care manager: patient context + section tabs become an app header. */
-  .app-device-care > .guardian { height: 100dvh; overflow: hidden; }
-  .app-device-care .guardian-shell { height: 100dvh; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); }
+  .app-device-care > .guardian { height: 100%; overflow: hidden; }
+  .app-device-care .guardian-shell { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); }
   .app-device-care .guardian-sidebar {
     position: relative;
     top: auto;
@@ -4661,6 +4668,23 @@ label.checkbox { color: var(--text); }
     margin: 0;
     padding-bottom: calc(18px + var(--mobile-safe-bottom));
     border-radius: 24px 24px 0 0;
+  }
+
+@media (max-width: 760px) {
+  .app-shell,
+  .app-shell.guardian-frame {
+    display: block;
+    padding: 0;
+    background: var(--bg);
+  }
+  .app-device,
+  .app-device.guardian-device {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 
