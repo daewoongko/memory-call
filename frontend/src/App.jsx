@@ -406,9 +406,9 @@ export default function App() {
     setPhase("idle");
   }
 
-  const wrap = (node, { gear = false, wide = false, roleSwitch = false } = {}) => (
-    <div className={`frame${wide ? " guardian-frame" : ""}`}>
-      <div className={`device${wide ? " guardian-device" : ""}`}>
+  const wrap = (node, { gear = false, wide = false, roleSwitch = false, shell = "default" } = {}) => (
+    <div className={`frame app-shell app-shell-${shell}${wide ? " guardian-frame" : ""}`}>
+      <div className={`device app-device app-device-${shell}${wide ? " guardian-device" : ""}`}>
         {wide && (roleSwitch || gear) && <WideDisplayDock
           theme={theme}
           size={size}
@@ -487,26 +487,27 @@ export default function App() {
   };
 
   // P2P 가 이 망에서 붙는지 재는 화면. 통화 흐름과 무관하게 따로 연다.
-  if (hash === "#nettest") return wrap(<NetTestScreen />, { wide: true });
+  if (hash === "#nettest") return wrap(<NetTestScreen />, { wide: true, shell: "nettest" });
 
   // 루트에서는 저장된 역할과 관계없이 항상 역할을 먼저 고른다.
   if (hash === "#roles" || (!hash && !role))
-    return wrap(<RoleScreen onPick={chooseRole} />, { wide: true });
+    return wrap(<RoleScreen onPick={chooseRole} />, { wide: true, shell: "roles" });
 
   // 주소로 직접 들어온 경우는 입구를 건너뛴다.
   // #elder는 이 브라우저에 저장된 보호자 역할과 무관하게 어르신 화면을 연다.
   const directElder = hash === "#elder";
   if (hash === "#care" || hash === "#guardian")
-    return wrap(<CareManagerScreen />, { gear: true, wide: true, roleSwitch: true });
+    return wrap(<CareManagerScreen />, { gear: true, wide: true, roleSwitch: true, shell: "care" });
   if (hash === "#child" || hash === "#family") {
-    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true });
-    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, roleSwitch: true });
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true, shell: "family" });
+    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, roleSwitch: true, shell: "family" });
   }
 
   if (!directElder && !booted)
     return wrap(<SplashScreen onDone={() => setBooted(true)} />);
 
-  if (!directElder && !role) return wrap(<RoleScreen onPick={chooseRole} />);
+  if (!directElder && !role)
+    return wrap(<RoleScreen onPick={chooseRole} />, { wide: true, shell: "roles" });
 
   if (!directElder && !linked)
     return wrap(
@@ -514,16 +515,17 @@ export default function App() {
         role={role}
         onLinked={finishLink}
         onSkip={() => finishLink("skipped")}
-      />
+      />,
+      { wide: true, roleSwitch: true, shell: role === "care" ? "care" : "family" }
     );
 
   if (!directElder && role === "care") {
-    return wrap(<CareManagerScreen />, { gear: true, wide: true });
+    return wrap(<CareManagerScreen />, { gear: true, wide: true, shell: "care" });
   }
 
   if (!directElder && role === "child") {
-    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true });
-    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true });
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, shell: "family" });
+    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, shell: "family" });
   }
 
 
