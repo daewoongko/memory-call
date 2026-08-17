@@ -31,6 +31,12 @@ db.sqlite
 *.db
 .logs/
 
+# Licensed face datasets and derived experiment artefacts are local-only.
+data/external/
+data/experiments/aihub*/
+data/experiments/aihub_download_probe/
+data/models/age_prior/
+
 # Media is private by default. Only the finalized, explicitly listed paths below
 # are published (large binaries are stored with Git LFS).
 *.wav
