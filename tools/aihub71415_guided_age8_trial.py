@@ -134,13 +134,19 @@ def fit_age_calibration(model, device: torch.device, limit: int = 1200) -> dict:
     }
 
 
-def fran_structure_guide(source_path: Path, output_dir: Path, device: torch.device) -> dict:
+def fran_structure_guide(
+    source_path: Path,
+    output_dir: Path,
+    device: torch.device,
+    source_age: int = 11,
+    target_age: int = 8,
+) -> dict:
     source = image_read(source_path)
     source = cv2.resize(source, (512, 512), interpolation=cv2.INTER_AREA)
     rgb = cv2.cvtColor(source, cv2.COLOR_BGR2RGB)
     image = torch.from_numpy(rgb.copy()).permute(2, 0, 1).float().div(255.0)
-    source_map = torch.full((1, 512, 512), 0.11)
-    target_map = torch.full((1, 512, 512), 0.08)
+    source_map = torch.full((1, 512, 512), float(source_age) / 100.0)
+    target_map = torch.full((1, 512, 512), float(target_age) / 100.0)
     model_input = torch.cat([image, source_map, target_map], dim=0).unsqueeze(0).to(device)
     model = UNet().to(device)
     model.load_state_dict(torch.load(FRAN_CHECKPOINT, map_location=device, weights_only=True), strict=True)
@@ -169,8 +175,8 @@ def fran_structure_guide(source_path: Path, output_dir: Path, device: torch.devi
     image_write(guide_path, guide)
     return {
         "checkpoint": str(FRAN_CHECKPOINT),
-        "source_age": 11,
-        "target_age": 8,
+        "source_age": int(source_age),
+        "target_age": int(target_age),
         "raw_output": str(raw_path),
         "structure_guide": str(guide_path),
         "warning": "FRAN raw output is not eligible for candidate selection",

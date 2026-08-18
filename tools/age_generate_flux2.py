@@ -128,23 +128,70 @@ def parse_args() -> argparse.Namespace:
         default="pj02person",
         help="Trigger token used in the identity LoRA training prompt.",
     )
+    parser.add_argument(
+        "--child-lora-path",
+        type=Path,
+        default=None,
+        help=(
+            "Optional childhood-evidence LoRA. It is kept separate from the "
+            "adult identity LoRA so adult-only and assisted modes cannot leak."
+        ),
+    )
+    parser.add_argument(
+        "--child-lora-scale",
+        type=float,
+        default=0.35,
+        help="Child-evidence adapter strength; identity remains the primary adapter.",
+    )
+    parser.add_argument("--plan-path", type=Path, default=PLAN_PATH)
+    parser.add_argument("--source-dir", type=Path, default=SOURCE_DIR)
+    parser.add_argument("--candidate-dir", type=Path, default=CANDIDATE_DIR)
+    parser.add_argument("--debug-dir", type=Path, default=DEBUG_DIR)
     return parser.parse_args()
 
 
-def load_plan() -> dict:
-    if not PLAN_PATH.is_file():
-        raise FileNotFoundError(f"Age plan not found: {PLAN_PATH}")
-    return json.loads(PLAN_PATH.read_text(encoding="utf-8"))
+def load_plan(plan_path: Path = PLAN_PATH) -> dict:
+    if not plan_path.is_file():
+        raise FileNotFoundError(f"Age plan not found: {plan_path}")
+    return json.loads(plan_path.read_text(encoding="utf-8"))
 
 
-def resolve_current_reference_paths(plan: dict) -> list[Path]:
+def generation_path_for_plan(plan: dict) -> list[int]:
+    """Return the saved adaptive path or an isolated experiment override.
+
+    Production plans continue to use ``path_with_refinements``.  The override
+    exists only so a leakage-safe experiment can compare a direct 26->8 edit
+    with the unchanged adaptive sequential path without copying production
+    photos into ``data/faces``.
+    """
+    current_age = int(plan.get("current_age", 0))
+    override = plan.get("generation_path_override")
+    if override is None:
+        return path_with_refinements(current_age, plan.get("extra_ages") or [])
+    if not isinstance(override, list) or len(override) < 2:
+        raise ValueError("generation_path_override must contain at least two ages")
+    path = [int(age) for age in override]
+    if path[0] != current_age or path[-1] != 8:
+        raise ValueError(
+            "generation_path_override must start at current_age and end at age 8"
+        )
+    if any(younger >= older for older, younger in zip(path, path[1:])):
+        raise ValueError("generation_path_override must be strictly descending")
+    if len(path) != len(set(path)):
+        raise ValueError("generation_path_override must not repeat an age")
+    return path
+
+
+def resolve_current_reference_paths(
+    plan: dict, source_dir: Path = SOURCE_DIR
+) -> list[Path]:
     paths = sorted(
         path
-        for path in SOURCE_DIR.iterdir()
+        for path in source_dir.iterdir()
         if path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES
     )
     if not paths:
-        raise FileNotFoundError(f"No current photos found: {SOURCE_DIR}")
+        raise FileNotFoundError(f"No current photos found: {source_dir}")
 
     current_name = str(plan.get("current_photo", ""))
     primary = next((path for path in paths if path.name == current_name), None)
@@ -158,7 +205,11 @@ def resolve_current_reference_paths(plan: dict) -> list[Path]:
 
 
 def resolve_stage_reference_paths(
-    plan: dict, target_age: int, reference_count: int
+    plan: dict,
+    target_age: int,
+    reference_count: int,
+    source_dir: Path = SOURCE_DIR,
+    candidate_dir: Path = CANDIDATE_DIR,
 ) -> tuple[int, list[Path]]:
     """Use the accepted adjacent older anchor as composition reference.
 
@@ -167,17 +218,14 @@ def resolve_stage_reference_paths(
     selected adjacent anchor may become the next stage's base image.
     """
     current_age = int(plan.get("current_age", 0))
-    generation_path = path_with_refinements(
-        current_age,
-        plan.get("extra_ages") or [],
-    )
+    generation_path = generation_path_for_plan(plan)
     if target_age not in generation_path[1:]:
         allowed = ", ".join(str(age) for age in generation_path[1:])
         raise ValueError(f"Target age must be in the saved path: {allowed}")
 
     target_index = generation_path.index(target_age)
     parent_age = generation_path[target_index - 1]
-    current_paths = resolve_current_reference_paths(plan)
+    current_paths = resolve_current_reference_paths(plan, source_dir)
     if parent_age == current_age:
         references = current_paths
     else:
@@ -190,7 +238,7 @@ def resolve_stage_reference_paths(
         safe_name = Path(str(selected_name)).name
         if safe_name != selected_name:
             raise ValueError("Invalid selected parent filename")
-        parent_path = CANDIDATE_DIR / safe_name
+        parent_path = candidate_dir / safe_name
         if not parent_path.is_file():
             raise FileNotFoundError(f"Selected parent anchor not found: {parent_path}")
         references = [parent_path, *current_paths]
@@ -369,7 +417,10 @@ def build_prompt(
 
 
 def build_pipeline(
-    lora_path: Path | None = None, lora_scale: float = 1.0
+    lora_path: Path | None = None,
+    lora_scale: float = 1.0,
+    child_lora_path: Path | None = None,
+    child_lora_scale: float = 0.35,
 ) -> Flux2KleinInpaintPipeline:
     if not CHECKPOINT.is_file():
         raise FileNotFoundError(CHECKPOINT)
@@ -395,6 +446,8 @@ def build_pipeline(
         dtype=torch.bfloat16,
         local_files_only=True,
     )
+    adapter_names: list[str] = []
+    adapter_weights: list[float] = []
     if lora_path is not None:
         pipeline.load_lora_weights(
             str(lora_path.parent),
@@ -402,11 +455,28 @@ def build_pipeline(
             adapter_name="identity",
             local_files_only=True,
         )
-        pipeline.set_adapters("identity", adapter_weights=lora_scale)
+        adapter_names.append("identity")
+        adapter_weights.append(lora_scale)
         print(
             f"Identity LoRA loaded: {lora_path} (scale={lora_scale:.2f})",
             flush=True,
         )
+    if child_lora_path is not None:
+        pipeline.load_lora_weights(
+            str(child_lora_path.parent),
+            weight_name=child_lora_path.name,
+            adapter_name="child_evidence",
+            local_files_only=True,
+        )
+        adapter_names.append("child_evidence")
+        adapter_weights.append(child_lora_scale)
+        print(
+            "Child-evidence LoRA loaded: "
+            f"{child_lora_path} (scale={child_lora_scale:.2f})",
+            flush=True,
+        )
+    if adapter_names:
+        pipeline.set_adapters(adapter_names, adapter_weights=adapter_weights)
     pipeline.enable_model_cpu_offload()
     print("3/3 Pipeline ready with CPU/GPU offload", flush=True)
     return pipeline
@@ -414,7 +484,11 @@ def build_pipeline(
 
 def main() -> None:
     args = parse_args()
-    plan = load_plan()
+    plan_path = args.plan_path.resolve()
+    source_dir = args.source_dir.resolve()
+    candidate_dir = args.candidate_dir.resolve()
+    debug_dir = args.debug_dir.resolve()
+    plan = load_plan(plan_path)
     current_age = int(plan.get("current_age", 0))
     if args.relative_passage_mode and args.structure_guide is None:
         raise ValueError("--relative-passage-mode requires --structure-guide")
@@ -447,12 +521,21 @@ def main() -> None:
         raise ValueError("--width and --height must be divisible by 16")
     if not 0 < args.lora_scale <= 2.0:
         raise ValueError("--lora-scale must be greater than 0 and at most 2.0")
+    if not 0 < args.child_lora_scale <= 2.0:
+        raise ValueError("--child-lora-scale must be greater than 0 and at most 2.0")
     if args.edit_strength is not None and not 0 < args.edit_strength <= 1.0:
         raise ValueError("--edit-strength must be greater than 0 and at most 1.0")
 
     lora_path = args.lora_path.resolve() if args.lora_path is not None else None
     if lora_path is not None and not lora_path.is_file():
         raise FileNotFoundError(f"Identity LoRA not found: {lora_path}")
+    child_lora_path = (
+        args.child_lora_path.resolve()
+        if args.child_lora_path is not None
+        else None
+    )
+    if child_lora_path is not None and not child_lora_path.is_file():
+        raise FileNotFoundError(f"Child-evidence LoRA not found: {child_lora_path}")
     structure_guide_path = (
         args.structure_guide.resolve() if args.structure_guide is not None else None
     )
@@ -465,6 +548,8 @@ def main() -> None:
         plan,
         args.age,
         args.reference_count,
+        source_dir,
+        candidate_dir,
     )
     if not 8 <= control_age < parent_age:
         raise ValueError(
@@ -514,8 +599,8 @@ def main() -> None:
     else:
         auxiliary_references = reference_images[1:] or None
 
-    CANDIDATE_DIR.mkdir(parents=True, exist_ok=True)
-    DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+    candidate_dir.mkdir(parents=True, exist_ok=True)
+    debug_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"GPU: {torch.cuda.get_device_name(0)}", flush=True)
     print(
@@ -568,8 +653,19 @@ def main() -> None:
     if lora_path is not None:
         print(f"Identity LoRA: {lora_path}", flush=True)
         print(f"Identity LoRA scale: {args.lora_scale:.2f}", flush=True)
+    if child_lora_path is not None:
+        print(f"Child-evidence LoRA: {child_lora_path}", flush=True)
+        print(
+            f"Child-evidence LoRA scale: {args.child_lora_scale:.2f}",
+            flush=True,
+        )
 
-    pipeline = build_pipeline(lora_path=lora_path, lora_scale=args.lora_scale)
+    pipeline = build_pipeline(
+        lora_path=lora_path,
+        lora_scale=args.lora_scale,
+        child_lora_path=child_lora_path,
+        child_lora_scale=args.child_lora_scale,
+    )
     torch.cuda.reset_peak_memory_stats()
     started = time.perf_counter()
     outputs: list[dict] = []
@@ -601,7 +697,7 @@ def main() -> None:
             if structure_guide_path is not None
             else ""
         )
-        output_path = CANDIDATE_DIR / (
+        output_path = candidate_dir / (
             f"age{args.age:02d}_flux2_seed{seed}_"
             f"ctrl{control_age:02d}_refs{len(reference_paths)}"
             f"{lora_suffix}{strength_suffix}{guide_suffix}.png"
@@ -671,13 +767,19 @@ def main() -> None:
         "edit_strength": edit_strength,
         "mask_path": str(mask_path),
         "identity_lora": str(lora_path) if lora_path is not None else None,
+        "child_evidence_lora": (
+            str(child_lora_path) if child_lora_path is not None else None
+        ),
         "identity_token": args.identity_token if lora_path is not None else None,
         "lora_scale": args.lora_scale if lora_path is not None else None,
+        "child_lora_scale": (
+            args.child_lora_scale if child_lora_path is not None else None
+        ),
         "outputs": outputs,
         "total_seconds": round(total_seconds, 2),
         "peak_cuda_gib": round(peak_gib, 2),
     }
-    summary_path = DEBUG_DIR / f"age{args.age:02d}_flux2_summary.json"
+    summary_path = debug_dir / f"age{args.age:02d}_flux2_summary.json"
     summary_path.write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
     )
