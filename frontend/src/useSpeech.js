@@ -13,6 +13,7 @@ import {
   shouldFallbackFromLipSyncStatus,
 } from "./speechMedia.js";
 import { useRealtimeTranscription } from "./useRealtimeTranscription.js";
+import { createAnamTransport } from "./anamTransport.js";
 
 /**
  * 브라우저 음성 인식(STT)과 ElevenLabs API 음성 합성(TTS).
@@ -26,6 +27,8 @@ const BROWSER_TTS_FALLBACK_ENABLED =
 
 // 립싱크는 기본으로 켜고, 긴급 롤백이 필요할 때만 명시적으로 끈다.
 const LIPSYNC_ENABLED = import.meta.env.VITE_MUSETALK_LIPSYNC !== "false";
+const ANAM_ENABLED = import.meta.env.VITE_ANAM_LIPSYNC !== "false";
+const ANAM_VIDEO_ELEMENT_ID = "anam-persona-video";
 
 const TTS_UNAVAILABLE_MESSAGE =
   "복제 음성에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -111,6 +114,7 @@ export function useSpeech({
   fallbackPitch = 0.72,
   rate = 0.92,
   personaId = null,
+  callId = null,
   preferLipSync = false,
   onFinal,
 } = {}) {
@@ -119,6 +123,7 @@ export function useSpeech({
   const [speaking, setSpeaking] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [lipSyncActive, setLipSyncActive] = useState(false);
+  const [anamActive, setAnamActive] = useState(false);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState("");
 
@@ -133,6 +138,8 @@ export function useSpeech({
   const audioCancelRef = useRef(null);
   const lipSyncVideoRef = useRef(null);
   const lipSyncBlurRef = useRef(null);
+  const anamVideoRef = useRef(null);
+  const anamTransportRef = useRef(null);
   const lipSyncUrlRef = useRef(null);
   const ttsRequestRefs = useRef(new Set());
   const speechRunRef = useRef(0);
@@ -192,6 +199,21 @@ export function useSpeech({
     lipSyncUrlRef.current = null;
   }, []);
 
+  const getAnamTransport = useCallback(() => {
+    if (!ANAM_ENABLED || !callId || !personaId) return null;
+    if (!anamTransportRef.current) {
+      anamTransportRef.current = createAnamTransport({
+        callId,
+        personaId,
+        videoElementId: ANAM_VIDEO_ELEMENT_ID,
+        onStateChange: (next) => {
+          setAnamActive(next === "connected");
+        },
+      });
+    }
+    return anamTransportRef.current;
+  }, [callId, personaId]);
+
   const cancelSpeech = useCallback(() => {
     speechRunRef.current += 1;
     for (const controller of ttsRequestRefs.current) controller.abort();
@@ -209,6 +231,7 @@ export function useSpeech({
       audioUrlRef.current = null;
     }
     releaseLipSyncUrl();
+    anamTransportRef.current?.interrupt();
     setLipSyncActive(false);
     window.speechSynthesis?.cancel();
     setPlaying(false);
@@ -620,6 +643,89 @@ export function useSpeech({
     [fetchAudioChunk, fetchLipSyncChunk, preferLipSync]
   );
 
+  const speakWithAnam = useCallback(
+    async (text, runId) => {
+      const transport = getAnamTransport();
+      if (!transport) return false;
+
+      const controller = new AbortController();
+      ttsRequestRefs.current.add(controller);
+      const requestStartedAt = speechNow();
+      emitSpeechTiming("anam.request", {
+        runId,
+        textLength: text.length,
+      });
+
+      try {
+        // Do not start a paid TTS request until this family's avatar session is
+        // ready. A missing avatar must fall back without leaving an unread PCM
+        // stream (and the backend concurrency slot) behind.
+        await transport.connect();
+        const response = await fetch("/api/tts/pcm-stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            rate,
+            ...(personaId ? { persona_id: personaId } : {}),
+          }),
+          signal: controller.signal,
+        });
+        const headersAt = speechNow();
+        emitSpeechTiming("anam.headers", {
+          runId,
+          status: response.status,
+          durationMs: Math.round(headersAt - requestStartedAt),
+          requestId: response.headers.get("X-Request-ID") ?? undefined,
+          serverTotalMs: secondsHeaderMs(
+            response.headers,
+            "X-Generation-Seconds"
+          ),
+        });
+        if (!response.ok) throw new Error(`Anam PCM ${response.status}`);
+        if (runId !== speechRunRef.current) throw abortError();
+
+        let firstChunkAt = null;
+        const result = await transport.speakPcmResponse(response, {
+          signal: controller.signal,
+          onFirstChunk: () => {
+            if (runId !== speechRunRef.current) return;
+            firstChunkAt = speechNow();
+            setAnamActive(true);
+            setPlaying(true);
+            emitSpeechTiming("anam.onplaying", {
+              runId,
+              durationMs: Math.round(firstChunkAt - requestStartedAt),
+            });
+          },
+        });
+        emitSpeechTiming("anam.onended", {
+          runId,
+          bytes: result.bytes,
+          audioDurationMs: Math.round(result.durationMs),
+          durationMs:
+            firstChunkAt == null
+              ? null
+              : Math.round(speechNow() - firstChunkAt),
+        });
+        return true;
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          emitSpeechTiming("anam.fallback", {
+            runId,
+            reason: error.message || "unavailable",
+          });
+          await transport.disconnect();
+          setAnamActive(false);
+        }
+        throw error;
+      } finally {
+        ttsRequestRefs.current.delete(controller);
+      }
+    },
+    [getAnamTransport, personaId, rate]
+  );
+
   const playAudioChunk = useCallback(async (blob, chunkIndex, runId, onPlaying) => {
     if (runId !== speechRunRef.current) throw abortError();
     setLipSyncActive(false);
@@ -812,6 +918,24 @@ export function useSpeech({
       let completedChunks = 0;
 
       try {
+        if (ANAM_ENABLED && preferLipSync && callId && personaId) {
+          try {
+            const handled = await speakWithAnam(text, runId);
+            if (handled) return;
+          } catch (anamError) {
+            if (
+              anamError.name === "AbortError" ||
+              runId !== speechRunRef.current
+            ) {
+              return;
+            }
+            console.warn(
+              "[Anam] 실시간 립싱크를 사용할 수 없어 기존 재생으로 전환합니다.",
+              anamError
+            );
+          }
+        }
+
         await runSequentialAudioQueue(chunks, {
           fetchChunk: (chunk, chunkIndex) =>
             fetchSpeechChunk(chunk, chunkIndex, runId, retryBudget),
@@ -861,12 +985,38 @@ export function useSpeech({
     },
     [
       cancelSpeech,
+      callId,
       fetchSpeechChunk,
+      personaId,
       playSpeechChunk,
+      preferLipSync,
       releaseLipSyncUrl,
+      speakWithAnam,
       speakInBrowser,
       stop,
     ]
+  );
+
+  // The avatar connection is hidden behind the age morph so the first spoken
+  // answer does not pay the WebRTC setup cost. Failure is intentionally quiet;
+  // speak() will use the existing MuseTalk/audio path.
+  useEffect(() => {
+    if (!ANAM_ENABLED || !preferLipSync) return undefined;
+    const transport = getAnamTransport();
+    if (!transport) return undefined;
+    transport.connect().catch(() => {
+      setAnamActive(false);
+    });
+    return undefined;
+  }, [getAnamTransport, preferLipSync]);
+
+  useEffect(
+    () => () => {
+      const transport = anamTransportRef.current;
+      anamTransportRef.current = null;
+      transport?.disconnect();
+    },
+    [callId, personaId]
   );
 
   // 명시적인 폴백 환경에서만 브라우저 목소리를 미리 불러온다.
@@ -909,7 +1059,10 @@ export function useSpeech({
     inputLevel: usesServerStt ? serverStt.level : null,
     speaking,
     playing,
-    lipSyncActive,
+    lipSyncActive: lipSyncActive || anamActive,
+    anamActive,
+    anamVideoRef,
+    anamVideoElementId: ANAM_VIDEO_ELEMENT_ID,
     lipSyncVideoRef,
     lipSyncBlurRef,
     interim: usesServerStt ? serverStt.interim : interim,

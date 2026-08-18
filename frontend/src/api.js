@@ -278,6 +278,14 @@ export const saveAgePlan = (body, personaId) =>
     body: JSON.stringify(body),
   });
 
+export const getAvatarProfile = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/avatar-profile?elder_id=${encodeURIComponent(elderId)}`);
+
+export const syncAvatarProfile = (personaId, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/avatar/sync?elder_id=${encodeURIComponent(elderId)}`, {
+    method: "POST",
+  });
+
 export const selectAgeCandidate = (age, filename, personaId) =>
   request(`/api/age-plan/selection${personaId ? `?persona_id=${encodeURIComponent(personaId)}` : ""}`, {
     method: "PUT",
