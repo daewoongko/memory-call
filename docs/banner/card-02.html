@@ -2,15 +2,10 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>다소니 케어</title>
-</head>
-<body>
-<title>다소니 케어</title>
+<title>다소니 — 어르신 통화 홈</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@300;500;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
-
 <style>
 /* ─────────────────────────────────────────────────────────────
    다소니 데모 배너
@@ -603,10 +598,47 @@ h1 em {
 .sc-d .fold { margin-bottom: 0; }
 </style>
 
-<div class="field">
-<div class="wrap">
+<style>
+/* 낱장 카드 — 배너와 같은 토큰을 쓰되 화면 하나를 원래 크기로 세운다.
+   1080×1350 (4:5). 슬라이드에도 SNS 카드에도 그대로 들어가는 비율. */
+:root { --scale: 1; }
+body { margin: 0; }
+.card-page {
+  width: 1080px; height: 1350px;
+  display: flex; flex-direction: column;
+  padding: 48px 64px 52px;
+}
+.card-top { display: flex; align-items: center; justify-content: space-between; flex: none; }
+.card-top .lockup b { font-size: 24px; }
+.card-top .lockup .mark { width: 38px; height: 38px; }
+.card-top .lockup span { font-size: 12px; }
+.card-top .build { font-size: 13px; padding: 9px 17px; }
 
-  <header class="topbar rise">
+.stage { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+
+/* 배너에서 쓰던 아치 기울기와 hover 는 낱장에서 필요 없다 */
+.card-page .shot { gap: 36px; }
+.card-page .shot .phone {
+  transform: none;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 40px 70px -26px rgba(0,0,0,.75),
+    0 90px 130px -60px rgba(0,0,0,.6);
+}
+.card-page .shot .step { font-size: 13px; letter-spacing: .18em; margin-bottom: 12px; }
+.card-page .shot .name { font-size: 36px; letter-spacing: -.035em; margin-bottom: 12px; }
+.card-page .shot .desc { font-size: 17px; line-height: 1.7; max-width: 30ch; display: block; }
+.card-page .foot { flex: none; margin-top: 0; padding-top: 22px; font-size: 13.5px; }
+.card-page .foot .meta {
+  font-family: var(--mono); font-size: 14px; letter-spacing: .12em;
+  color: var(--brand-lit); font-variant-numeric: tabular-nums;
+}
+</style>
+
+</head>
+<body>
+<div class="field card-page">
+  <header class="card-top">
     <div class="lockup">
       <svg class="mark" viewBox="0 0 46 40" aria-hidden="true">
         <path d="M6 2 15 11H7Z" fill="currentColor"/>
@@ -618,85 +650,9 @@ h1 em {
       <b>다소니</b>
       <span>DASONI CARE</span>
     </div>
-    <div class="build"><i class="dot"></i>데모 빌드 · 2026.08 · 로컬 구동 중</div>
+    <div class="build"><i class="dot"></i>데모 빌드 · 2026.08</div>
   </header>
-
-  <section class="main">
-    <div class="copy rise">
-      <p class="eyebrow"><i></i>SKT FLY AI · 2주 MVP · 1인 개발</p>
-      <h1>기억은 흐려져도<br><em>오늘</em>은 이어집니다</h1>
-      <p class="lead">가족의 얼굴과 목소리로 AI가 전화를 받고, 어르신이 놓친 오늘의 맥락을
-        <b>등록된 사실 안에서만</b> 이어 붙입니다. 하루의 변화는 보호자 리포트로 남습니다.</p>
-      <div class="thesis">
-        <p>확인되지 않은 것은 맥락으로도 말하지 않는다.</p>
-        <small>SAFETY LAYER · 규칙 8개 · EVAL 시나리오 22개</small>
-      </div>
-    </div>
-
-    <div class="stateblock rise">
-      <h2>지금 상태</h2>
-      <dl class="state">
-        <div class="hot">
-          <dt>SAFETY EVAL</dt>
-          <dd>91%<u>/ 22개</u></dd>
-          <p>규칙 검사까지 포함한 통과율. 프롬프트 단독은 82%.</p>
-        </div>
-        <div>
-          <dt>ROLE FLOWS</dt>
-          <dd>4개 역할</dd>
-          <p>어르신 · 가족 · 요양원 담당자 · 통화 화면까지 실제 구동.</p>
-        </div>
-        <div>
-          <dt>AI 대리 수신</dt>
-          <dd>서버 판정</dd>
-          <p>거절 · 무응답 · 기기 없음 · 전송 실패 4가지 사유를 남긴다.</p>
-        </div>
-        <div>
-          <dt>AVATAR</dt>
-          <dd>28.4초<u>모핑</u></dd>
-          <p>8→32세 연령 타임라인. 립싱크는 발화당 4초.</p>
-        </div>
-      </dl>
-    </div>
-  </section>
-
-  <section class="rack">
-
-    <!-- 01 역할 선택 ─────────────────────────────────── -->
-    <figure class="shot rise">
-      <div class="phone"><div class="glass">
-        <div class="screen sc-a">
-          <div class="card">
-            <div class="head">
-              <svg class="mark" viewBox="0 0 46 40" style="width:42px;height:36px" aria-hidden="true">
-                <path d="M6 2 15 11H7Z" fill="currentColor"/>
-                <rect x="2" y="8" width="30" height="28" rx="11" fill="currentColor"/>
-                <circle class="eye" cx="12" cy="21" r="3.2"/>
-                <circle class="eye" cx="23" cy="21" r="3.2"/>
-                <circle cx="40" cy="32" r="4" fill="currentColor"/>
-              </svg>
-              <div><b>다소니</b><small>기억과 오늘을 잇는 AI 케어</small></div>
-            </div>
-            <span class="tag">DASONI CARE</span>
-            <h2>어떤 도움이<br>필요하신가요?</h2>
-            <p class="sub">사용하시는 분에게 필요한 화면만 쉽고 분명하게 보여드려요.<br>선택한 뒤에도 언제든 역할을 바꿀 수 있습니다.</p>
-            <ul class="roles">
-              <li class="r r1"><span class="bdg">통화</span><div><em>어르신</em><strong>가족과 이야기할게요</strong></div><span class="arw">↗</span></li>
-              <li class="r r2"><span class="bdg">소식</span><div><em>가족</em><strong>어르신의 오늘을 볼게요</strong></div><span class="arw">↗</span></li>
-              <li class="r r3"><span class="bdg">관리</span><div><em>요양원 담당자</em><strong>돌봄 기록을 관리할게요</strong></div><span class="arw">↗</span></li>
-            </ul>
-            <p class="fin">가족의 기억<i></i>오늘의 맥락<i></i>안전한 돌봄</p>
-          </div>
-        </div>
-      </div></div>
-      <figcaption>
-        <span class="step">STEP 01</span>
-        <span class="name">역할 선택</span>
-        <span class="desc">어르신·가족·요양원 담당자. 쓰는 사람에게 필요한 화면만 연다.</span>
-      </figcaption>
-    </figure>
-
-    <!-- 02 어르신 통화 홈 ─────────────────────────────── -->
+  <div class="stage">
     <figure class="shot rise">
       <div class="phone"><div class="glass">
         <div class="screen sc-b">
@@ -738,139 +694,11 @@ h1 em {
         <span class="desc">오늘 날짜·복약·확인된 기억을 먼저 보여준다.</span>
       </figcaption>
     </figure>
-
-    <!-- 03 오늘의 기록 ────────────────────────────────── -->
-    <figure class="shot rise">
-      <div class="phone"><div class="glass">
-        <div class="screen sc-c">
-          <div class="bar">
-            <span class="lg">
-              <svg class="mark" viewBox="0 0 46 40" style="width:32px;height:28px" aria-hidden="true">
-                <path d="M6 2 15 11H7Z" fill="currentColor"/>
-                <rect x="2" y="8" width="30" height="28" rx="11" fill="currentColor"/>
-                <circle class="eye" cx="12" cy="21" r="3.2"/>
-                <circle class="eye" cx="23" cy="21" r="3.2"/>
-                <circle cx="40" cy="32" r="4" fill="currentColor"/>
-              </svg>다소니
-            </span>
-            <span class="date">2026-08-20</span>
-          </div>
-          <div class="sheet">
-            <p class="d">8월 20일 (목)</p>
-            <h2>오늘, 마음에<br>남은 순간</h2>
-            <div class="stack">
-              <figure class="f1"><svg class="face" viewBox="0 0 100 128" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="128" fill="#e3dee9"/><circle cx="50" cy="48" r="21" fill="#918aa4"/><path d="M50 74c21 0 36 16 38 54H12c2-38 17-54 38-54Z" fill="#918aa4"/></svg></figure>
-              <figure class="f2"><svg class="face" viewBox="0 0 100 128" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="128" fill="#e7dcd5"/><circle cx="50" cy="48" r="21" fill="#a08a7d"/><path d="M50 74c21 0 36 16 38 54H12c2-38 17-54 38-54Z" fill="#a08a7d"/></svg></figure>
-              <figure class="f4"><svg class="face" viewBox="0 0 100 128" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="128" fill="#dbe1d6"/><circle cx="50" cy="48" r="21" fill="#8b9a83"/><path d="M50 74c21 0 36 16 38 54H12c2-38 17-54 38-54Z" fill="#8b9a83"/></svg></figure>
-              <figure class="f3"><svg class="face" viewBox="0 0 100 128" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="128" fill="#d6dde4"/><circle cx="50" cy="46" r="22" fill="#6f8394"/><path d="M50 73c22 0 37 17 39 55H11c2-38 17-55 39-55Z" fill="#6f8394"/></svg></figure>
-            </div>
-            <p class="heart">♥</p>
-            <p class="one">오늘의 한마디</p>
-          </div>
-          <nav class="nav">
-            <span class="row on">♥ 오늘</span>
-            <span class="row">◇ 가족 추억함</span>
-            <span class="gap"></span>
-            <span class="row">⚙ 설정</span>
-          </nav>
-          <div class="dock"><span>◔</span><span>Aa</span><span>◐</span></div>
-        </div>
-      </div></div>
-      <figcaption>
-        <span class="step">STEP 03</span>
-        <span class="name">오늘의 기록</span>
-        <span class="desc">통화에서 남은 순간을 가족이 함께 본다.</span>
-      </figcaption>
-    </figure>
-
-    <!-- 04 보호자 분석 리포트 ─────────────────────────── -->
-    <figure class="shot rise">
-      <div class="phone"><div class="glass">
-        <div class="screen sc-d">
-          <div class="top">
-            <span class="av">박</span>
-            <div><b>박순자</b><small>어머니</small></div>
-            <span class="cv">⌄</span>
-          </div>
-          <div class="tabs">
-            <span class="on">분석 리포트</span>
-            <span>체크사항</span>
-            <span class="cnt">0/17</span>
-            <span>인계</span>
-          </div>
-          <div class="segs"><span class="on">종합 현황</span><span>통화 리포트</span></div>
-
-          <div class="panel">
-            <div class="lgd">
-              <b>8개 영역</b>
-              <span><i></i>오늘 &nbsp; <i class="dash"></i>최근 30일 일일평균</span>
-            </div>
-            <svg class="radar" viewBox="0 80 400 240" aria-label="8개 영역 레이더 차트. 오늘 값과 최근 30일 평균이 모두 0">
-              <g fill="none" stroke="#cbc6b2" stroke-width="1">
-                <polygon points="200,118 250.9,139.1 272,190 250.9,240.9 200,262 149.1,240.9 128,190 149.1,139.1"/>
-                <polygon points="200,136 238.2,151.8 254,190 238.2,228.2 200,244 161.8,228.2 146,190 161.8,151.8"/>
-                <polygon points="200,154 225.5,164.5 236,190 225.5,215.5 200,226 174.5,215.5 164,190 174.5,164.5"/>
-                <polygon points="200,172 212.7,177.3 218,190 212.7,202.7 200,208 187.3,202.7 182,190 187.3,177.3"/>
-                <path d="M200 190 200 118M200 190 250.9 139.1M200 190 272 190M200 190 250.9 240.9M200 190 200 262M200 190 149.1 240.9M200 190 128 190M200 190 149.1 139.1"/>
-              </g>
-              <circle cx="200" cy="190" r="6.5" fill="#f4f1e6" stroke="#176b48" stroke-width="3.4"/>
-              <g font-family="IBM Plex Sans KR, sans-serif" text-anchor="middle" fill="#16342a">
-                <text x="200" y="96"  font-size="14" font-weight="700">지남력</text>
-                <text x="200" y="108" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
-                <text x="300" y="118" font-size="14" font-weight="700">기억</text>
-                <text x="300" y="130" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
-                <text x="344" y="186" font-size="14" font-weight="700">언어</text>
-                <text x="344" y="198" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
-                <text x="302" y="272" font-size="14" font-weight="700">실행기능·판단</text>
-                <text x="302" y="284" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
-                <text x="200" y="292" font-size="14" font-weight="700">정서</text>
-                <text x="200" y="304" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
-                <text x="98"  y="272" font-size="14" font-weight="700">행동·초조</text>
-                <text x="98"  y="284" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
-                <text x="56"  y="186" font-size="14" font-weight="700">일상 수행</text>
-                <text x="56"  y="198" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
-                <text x="100" y="118" font-size="14" font-weight="700">안전·신체</text>
-                <text x="100" y="130" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
-              </g>
-            </svg>
-          </div>
-
-          <div class="prio">
-            <h3>확인 우선순위</h3>
-            <div class="item">
-              <span class="n">1</span>
-              <div>
-                <b>평소 루틴 유지</b>
-                <p>월평균에서 크게 벗어난 발화가 없습니다.</p>
-                <ul><li>정해진 일정 유지</li><li>식사·수분·활동 상태 기록</li><li>갑작스러운 변화만 인계</li></ul>
-              </div>
-            </div>
-            <p class="fold">전체 접기 ∧</p>
-          </div>
-          <div class="dock"><span>◔</span><span>Aa</span><span>◐</span></div>
-        </div>
-      </div></div>
-      <figcaption>
-        <span class="step">STEP 04</span>
-        <span class="name">보호자 분석 리포트</span>
-        <span class="desc">8개 영역을 월평균과 나란히. 숫자는 규칙이 만든다.</span>
-      </figcaption>
-    </figure>
-
-  </section>
-
+  </div>
   <footer class="foot">
-    <div class="rules">
-      <span>없는 약속 만들지 않기</span>
-      <span>미확인 기억은 회상만</span>
-      <span>복약 지시 금지</span>
-      <span>정서적 독점 금지</span>
-    </div>
-    <p class="meta">다소니 — 기억과 오늘을 잇는 AI 인지·정서 케어 통화</p>
+    <div class="rules"><span>확인되지 않은 것은 맥락으로도 말하지 않는다</span></div>
+    <p class="meta">02 / 04</p>
   </footer>
-
 </div>
-</div>
-
 </body>
 </html>
