@@ -44,7 +44,7 @@ export default function RoleScreen({ onPick }) {
     <header className="role-gateway-brand">
       {/* 캐릭터가 이 화면의 주인공이다. public/logo.png 가 있으면 그것을,
           없으면 BrandMark 가 같은 형태의 도형으로 대신 그린다. */}
-      <span className="role-gateway-avatar"><BrandMark size={132} /></span>
+      <span className="role-gateway-avatar"><BrandMark size={146} /></span>
       <b>다소니</b>
       <span>누구로 시작할까요?</span>
     </header>

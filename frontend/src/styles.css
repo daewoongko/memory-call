@@ -4299,8 +4299,8 @@ label.checkbox { color: var(--text); }
 
 /* 캐릭터 뒤의 빛. 이미지가 정사각 투명 PNG 라 그냥 두면 바탕에서 떠 보인다. */
 .role-gateway-avatar {
-  width: 168px;
-  height: 168px;
+  width: 176px;
+  height: 176px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -4312,8 +4312,8 @@ label.checkbox { color: var(--text); }
   );
 }
 .role-gateway-avatar .brandmark {
-  width: 132px;
-  height: 132px;
+  width: 146px;
+  height: 146px;
   object-fit: contain;
 }
 

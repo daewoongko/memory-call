@@ -18,3 +18,8 @@ frontend/public/**/*.webp filter=lfs diff=lfs merge=lfs -text
 frontend/public/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
 data/voice/reference.wav filter=lfs diff=lfs merge=lfs -text
 backend/models/rife/*.onnx filter=lfs diff=lfs merge=lfs -text
+
+# 캐릭터 마크만 예외로 일반 파일로 둔다. 79KB 라 LFS 가 필요 없고, 배포
+# 이미지가 LFS 를 거치지 않고 빌드되면 포인터 텍스트가 그대로 실려 로고가
+# 깨진다. UI 자산은 위 주석이 말하는 '생체 정보 원본·모델 가중치' 도 아니다.
+frontend/public/logo.png -filter -diff -merge -text
