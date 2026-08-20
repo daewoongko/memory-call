@@ -7,7 +7,7 @@ const svg = (paths) => (
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="1.8"
+    strokeWidth="1.9"
     strokeLinecap="round"
     strokeLinejoin="round"
     aria-hidden="true"
@@ -40,13 +40,16 @@ const ROLES = [
   },
 ];
 
-const ARROW = svg(<path d="M5.5 12h13M13 6.5l5.5 5.5L13 17.5" />);
+const CHEVRON = svg(<path d="M9.5 5.5 16 12l-6.5 6.5" />);
 
 export default function RoleScreen({ onPick }) {
   return <main className="role-gateway">
     <header className="role-gateway-brand">
-      <BrandMark size={46} />
+      {/* 캐릭터가 이 화면의 주인공이다. public/logo.png 가 있으면 그것을,
+          없으면 BrandMark 가 같은 형태의 도형으로 대신 그린다. */}
+      <span className="role-gateway-avatar"><BrandMark size={132} /></span>
       <b>다소니</b>
+      <span>누구로 시작할까요?</span>
     </header>
 
     <section className="role-gateway-grid" aria-label="사용 역할 선택">
@@ -60,7 +63,7 @@ export default function RoleScreen({ onPick }) {
           <small>{role.eyebrow}</small>
           <b>{role.title}</b>
         </span>
-        <span className="role-card-enter">{ARROW}</span>
+        <span className="role-card-enter">{CHEVRON}</span>
       </button>)}
     </section>
   </main>;
