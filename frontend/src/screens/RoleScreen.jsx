@@ -19,20 +19,17 @@ const svg = (paths) => (
 const ROLES = [
   {
     id: "elder",
-    eyebrow: "어르신",
-    title: "가족과 이야기할게요",
+    label: "어르신",
     icon: svg(<path d="M6.2 3.5h3.1l1.5 4-2.1 1.4a12.6 12.6 0 0 0 6.4 6.4l1.4-2.1 4 1.5v3.1a2 2 0 0 1-2.2 2A17.2 17.2 0 0 1 4.2 5.7a2 2 0 0 1 2-2.2Z" />),
   },
   {
     id: "child",
-    eyebrow: "가족",
-    title: "어르신의 오늘을 볼게요",
+    label: "가족",
     icon: svg(<path d="M12 20.2s-7.4-4.6-7.4-9.6a4.2 4.2 0 0 1 7.4-2.7 4.2 4.2 0 0 1 7.4 2.7c0 5-7.4 9.6-7.4 9.6Z" />),
   },
   {
     id: "care",
-    eyebrow: "요양원 담당자",
-    title: "돌봄 기록을 관리할게요",
+    label: "요양원 담당자",
     icon: svg(<>
       <path d="M9 4.5h6M8.4 4.5H6.6a1.6 1.6 0 0 0-1.6 1.6v12.3a1.6 1.6 0 0 0 1.6 1.6h10.8a1.6 1.6 0 0 0 1.6-1.6V6.1a1.6 1.6 0 0 0-1.6-1.6h-1.8" />
       <path d="M9 3.2h6v2.6H9zM9 12.4l2 2 4-4" />
@@ -57,12 +54,10 @@ export default function RoleScreen({ onPick }) {
         key={role.id}
         className={`role-gateway-card ${role.id}`}
         onClick={() => onPick(role.id)}
+        aria-label={`${role.label}(으)로 시작하기`}
       >
         <span className="role-card-mark">{role.icon}</span>
-        <span className="role-card-body">
-          <small>{role.eyebrow}</small>
-          <b>{role.title}</b>
-        </span>
+        <span className="role-card-body"><b>{role.label}</b></span>
         <span className="role-card-enter">{CHEVRON}</span>
       </button>)}
     </section>
