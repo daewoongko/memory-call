@@ -30,14 +30,12 @@ const ROLES = [
 export default function RoleScreen({ onPick }) {
   return <main className="role-gateway">
     <header className="role-gateway-brand">
-      <BrandMark size={38} />
-      <div><b>다소니</b><span>기억과 오늘을 잇는 AI 케어</span></div>
+      <BrandMark size={46} />
+      <b>다소니</b>
     </header>
 
     <section className="role-gateway-intro">
       <span className="role-gateway-badge">DASONI CARE</span>
-      <h1>어떤 도움이<br />필요하신가요?</h1>
-      <p>사용하시는 분에게 필요한 화면만 쉽고 분명하게 보여드려요.<br />선택한 뒤에도 언제든 역할을 바꿀 수 있습니다.</p>
       <div className="role-gateway-promise">
         <span>가족 기반 대화</span><span>근거가 있는 관찰</span><span>안전한 돌봄 연결</span>
       </div>
@@ -61,6 +59,5 @@ export default function RoleScreen({ onPick }) {
       </button>)}
     </section>
 
-    <footer className="role-gateway-footer"><span>가족의 기억</span><i /> <span>오늘의 맥락</span><i /> <span>안전한 돌봄</span></footer>
   </main>;
 }
