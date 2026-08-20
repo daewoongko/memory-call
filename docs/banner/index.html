@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다소니 케어</title>
+</head>
+<body>
+<title>다소니 케어</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@300;500;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
+
+<style>
+/* ─────────────────────────────────────────────────────────────
+   다소니 데모 배너
+   바닥은 브랜드 딥그린 하나로 고정한다. 화면 4장이 전부 아이보리라
+   밝은 바탕에 올리면 제품이 배경에 묻힌다. 단일 테마를 의도적으로
+   선택했으므로 모든 색을 :root 에서 직접 칠한다.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* 바탕 */
+  --ground:      #06291b;
+  --ground-2:    #08341f;
+  --panel:       #0d4530;
+  --panel-line:  #1d5f43;
+
+  /* 브랜드 (frontend/src/styles.css 와 동일) */
+  --brand:       #176b48;
+  --brand-lit:   #57b184;
+  --amber:       #f6cf62;
+  --clay:        #e97832;
+
+  /* 글자 */
+  --ivory:       #f3ede0;
+  --ivory-dim:   #c3cfc2;
+  --ivory-faint: #8ea394;
+
+  /* 앱 화면 안쪽 토큰 */
+  --a-bg:      #eae5d5;
+  --a-card:    #f2eee1;
+  --a-white:   #fbf9f2;
+  --a-line:    #d8d3c0;
+  --a-text:    #16342a;
+  --a-muted:   #63705f;
+  --a-brand:   #176b48;
+  --a-deep:    #0b422c;
+
+  --ui: "IBM Plex Sans KR", "Pretendard Variable", Pretendard, system-ui, -apple-system, sans-serif;
+  --display: "Hahmlet", "Nanum Myeongjo", Georgia, serif;
+  --mono: "IBM Plex Mono", "IBM Plex Sans KR", ui-monospace, monospace;
+
+  --scale: 0.66;            /* 430px 논리 화면 → 284px 목업 */
+  --shot-w: calc(430px * var(--scale));
+  --shot-h: calc(932px * var(--scale));
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  background: var(--ground);
+  color: var(--ivory);
+  font-family: var(--ui);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 바닥 연출 — 폰 뒤쪽에서 올라오는 온기 한 겹, 그 위에 미세 그레인 */
+.field {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 78% 14%, rgba(87,177,132,.28) 0%, rgba(87,177,132,0) 58%),
+    radial-gradient(90% 70% at 88% 82%, rgba(246,207,98,.16) 0%, rgba(246,207,98,0) 62%),
+    radial-gradient(80% 60% at 6% 6%, rgba(23,107,72,.45) 0%, rgba(23,107,72,0) 70%),
+    linear-gradient(168deg, var(--ground-2) 0%, var(--ground) 62%, #05231704 100%);
+}
+.field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: .5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E");
+}
+
+.wrap {
+  position: relative;
+  z-index: 2;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 36px 56px 38px;
+}
+
+/* ── 상단 바 ───────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid rgba(87,177,132,.24);
+}
+.lockup { display: flex; align-items: center; gap: 12px; }
+.lockup .mark { width: 34px; height: 34px; display: block; }
+.lockup b {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: -.02em;
+  color: var(--ivory);
+}
+.lockup span {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: var(--brand-lit);
+  padding-left: 12px;
+  margin-left: 12px;
+  border-left: 1px solid rgba(87,177,132,.35);
+}
+.build {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 15px;
+  border: 1px solid rgba(246,207,98,.42);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  color: var(--amber);
+  background: rgba(246,207,98,.07);
+}
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 0 rgba(246,207,98,.6);
+  animation: pulse 2.6s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(246,207,98,.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(246,207,98,0); }
+  100% { box-shadow: 0 0 0 0 rgba(246,207,98,0); }
+}
+
+/* ── 헤드 카피 + 상태판 ────────────────────────────────── */
+.main {
+  display: grid;
+  grid-template-columns: 1.04fr .96fr;
+  gap: 64px;
+  align-items: start;
+  padding: 40px 0 34px;
+}
+.stateblock { padding-top: 6px; }
+.stateblock > h2 {
+  margin: 0 0 14px;
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  color: var(--ivory-faint);
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  color: var(--brand-lit);
+  margin-bottom: 22px;
+}
+.eyebrow i {
+  display: block;
+  width: 26px; height: 1px;
+  background: var(--brand-lit);
+  opacity: .6;
+}
+
+h1 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(38px, 3.6vw, 54px);
+  line-height: 1.18;
+  letter-spacing: -.035em;
+  margin: 0 0 20px;
+  text-wrap: balance;
+  color: #fbf7ec;
+}
+h1 em {
+  font-style: normal;
+  color: var(--amber);
+}
+
+.lead {
+  font-size: 15.5px;
+  line-height: 1.72;
+  color: var(--ivory-dim);
+  font-weight: 300;
+  margin: 0 0 26px;
+  max-width: 34ch;
+}
+.lead b { font-weight: 600; color: var(--ivory); }
+
+/* 이 서비스의 논점 한 줄 — 배너에서 색을 쓰는 유일한 자리 */
+.thesis {
+  border-left: 2px solid var(--amber);
+  padding: 2px 0 2px 16px;
+}
+.thesis p {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 17px;
+  line-height: 1.6;
+  letter-spacing: -.02em;
+  color: #fbf7ec;
+}
+.thesis small {
+  display: block;
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--ivory-faint);
+}
+
+/* ── 폰 4대 ────────────────────────────────────────────── */
+.rack {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 36px;
+  align-items: end;
+  padding: 6px 0 4px;
+}
+
+.shot {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.phone {
+  position: relative;
+  width: var(--shot-w);
+  padding: 5px;
+  border-radius: 30px;
+  background: linear-gradient(155deg, #2c4c3d 0%, #0c2a1d 46%, #33553f 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.16) inset,
+    0 26px 44px -18px rgba(0,0,0,.72),
+    0 60px 90px -40px rgba(0,0,0,.6);
+  transition: transform .45s cubic-bezier(.2,.8,.25,1), box-shadow .45s ease;
+}
+.phone::before {           /* 다이내믹 아일랜드 */
+  content: "";
+  position: absolute;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  width: 42px; height: 8px;
+  border-radius: 999px;
+  background: #071c13;
+  z-index: 2;
+}
+.glass {
+  width: var(--shot-w);
+  height: var(--shot-h);
+  border-radius: 26px;
+  overflow: hidden;
+  background: var(--a-bg);
+  position: relative;
+}
+
+/* 아치 배열 — 바깥 두 대가 살짝 눕고 아래로 내려간다 */
+.shot:nth-child(1) .phone { transform: rotate(-4deg)   translateY(16px); }
+.shot:nth-child(2) .phone { transform: rotate(-1.4deg) translateY(0); }
+.shot:nth-child(3) .phone { transform: rotate(1.4deg)  translateY(0); }
+.shot:nth-child(4) .phone { transform: rotate(4deg)    translateY(16px); }
+
+.shot:hover .phone,
+.shot:focus-within .phone {
+  transform: rotate(0deg) translateY(-10px) scale(1.045);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.2) inset,
+    0 34px 60px -20px rgba(0,0,0,.78),
+    0 0 0 1px rgba(87,177,132,.35);
+  z-index: 4;
+}
+.shot:nth-child(1), .shot:nth-child(4) { z-index: 1; }
+.shot:nth-child(2), .shot:nth-child(3) { z-index: 2; }
+.shot:hover, .shot:focus-within { z-index: 5; }
+
+.shot figcaption { text-align: center; }
+.shot .step {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  color: var(--brand-lit);
+  margin-bottom: 6px;
+}
+.shot .name {
+  display: block;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -.02em;
+  color: #f7f3e7;
+  margin-bottom: 5px;
+}
+.shot .desc {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.55;
+  font-weight: 300;
+  color: var(--ivory-faint);
+  max-width: 24ch;
+  margin: 0 auto;
+}
+
+/* ── 상태 스트립 ───────────────────────────────────────── */
+.state {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: rgba(87,177,132,.22);
+  border: 1px solid rgba(87,177,132,.22);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.state > div {
+  background: linear-gradient(180deg, rgba(13,69,48,.72) 0%, rgba(8,52,35,.72) 100%);
+  padding: 20px 22px 21px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.state dt {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  color: var(--ivory-faint);
+}
+.state dd {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: -.03em;
+  color: #f7f3e7;
+  font-variant-numeric: tabular-nums;
+}
+.state dd u {
+  text-decoration: none;
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--brand-lit);
+  padding-left: 6px;
+}
+.state p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  font-weight: 300;
+  color: var(--ivory-dim);
+}
+.state .hot dd { color: var(--amber); }
+
+/* ── 바닥 ──────────────────────────────────────────────── */
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(87,177,132,.2);
+  font-size: 11.5px;
+  color: var(--ivory-faint);
+  font-weight: 300;
+}
+.rules { display: flex; flex-wrap: wrap; gap: 8px; }
+.rules span {
+  padding: 5px 11px;
+  border: 1px solid rgba(87,177,132,.3);
+  border-radius: 999px;
+  color: var(--ivory-dim);
+}
+.foot .meta { font-family: var(--ui); font-weight: 300; letter-spacing: -.01em; color: var(--ivory-dim); }
+
+/* ── 등장 ──────────────────────────────────────────────── */
+.rise { animation: rise .8s cubic-bezier(.2,.8,.25,1) both; }
+.shot:nth-child(1) { animation-delay: .06s; }
+.shot:nth-child(2) { animation-delay: .14s; }
+.shot:nth-child(3) { animation-delay: .22s; }
+.shot:nth-child(4) { animation-delay: .30s; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+  .dot { animation: none; }
+  .phone, .shot:hover .phone { transition: none; }
+}
+
+/* ── 좁은 화면 ─────────────────────────────────────────── */
+@media (max-width: 1180px) {
+  .wrap { padding: 32px 28px 36px; }
+  .main { grid-template-columns: 1fr; gap: 36px; padding: 34px 0 32px; }
+  :root { --scale: 0.58; }
+  .lead { max-width: 52ch; }
+  .rack { gap: 18px; }
+  .shot .desc { display: none; }
+}
+@media (max-width: 860px) {
+  :root { --scale: 0.52; }
+}
+@media (max-width: 620px) {
+  :root { --scale: 0.44; }
+  .state { grid-template-columns: 1fr; }
+  .rack { grid-template-columns: repeat(2, 1fr); row-gap: 30px; }
+  .shot:nth-child(n) .phone { transform: none; }
+  .topbar { flex-direction: column; align-items: flex-start; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   앱 화면 — 실제 화면을 430×932 논리 크기로 다시 그린 것.
+   목업 폭에 맞춰 통째로 scale 한다. 스크린샷을 축소하면
+   글자가 뭉개져서 화면이 실제보다 낡아 보인다.
+   ═══════════════════════════════════════════════════════════ */
+.screen {
+  width: 430px;
+  height: 932px;
+  transform: scale(var(--scale));
+  transform-origin: top left;
+  background: var(--a-bg);
+  color: var(--a-text);
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: -.012em;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.screen .face { display: block; }
+.screen .dock {
+  position: absolute;
+  left: 14px; bottom: 16px;
+  display: flex; gap: 8px; z-index: 5;
+}
+.screen .dock span {
+  width: 52px; height: 52px;
+  border-radius: 17px;
+  background: #f6f3e8;
+  border: 1px solid #d9d4c0;
+  display: grid; place-items: center;
+  font-size: 17px; font-weight: 700;
+  color: var(--a-deep);
+  box-shadow: 0 6px 14px -8px rgba(0,0,0,.35);
+}
+
+/* ── A. 역할 선택 ──────────────────────────────────────── */
+.sc-a { padding: 18px; background: linear-gradient(180deg,#efebdb 0%,#edf0de 100%); }
+.sc-a .card {
+  flex: 1; border-radius: 30px; border: 1px solid #e1dcc8; padding: 28px 26px;
+  background: linear-gradient(168deg,#f9f6ea 0%,#f4f2e3 44%,#e9f0d9 100%);
+  display: flex; flex-direction: column;
+}
+.sc-a .head { display: flex; align-items: center; gap: 12px; }
+.sc-a .head b { display:block; font-size:21px; font-weight:700; color:var(--a-deep); letter-spacing:-.035em; }
+.sc-a .head small { display:block; font-size:13px; color:var(--a-muted); margin-top:2px; }
+.sc-a .tag {
+  align-self: flex-start; margin: 20px 0 24px; padding: 8px 16px;
+  border: 1.5px solid rgba(23,107,72,.38); border-radius: 999px;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .16em; color: var(--a-brand);
+}
+.sc-a h2 { margin:0 0 16px; font-size:41px; line-height:1.2; font-weight:800; letter-spacing:-.05em; color:var(--a-deep); }
+.sc-a .sub { margin:0 0 26px; font-size:14px; line-height:1.7; color:var(--a-muted); font-weight:300; }
+.sc-a .roles { display:flex; flex-direction:column; gap:12px; list-style:none; margin:0; padding:0; }
+.sc-a .r { display:flex; align-items:center; gap:12px; padding:15px 14px; border-radius:22px; border:1.5px solid; }
+.sc-a .r .bdg { width:47px; height:47px; border-radius:14px; display:grid; place-items:center; font-size:15px; font-weight:700; color:#fff; flex:none; }
+.sc-a .r em { display:block; font-style:normal; font-size:12.5px; font-weight:700; margin-bottom:3px; }
+.sc-a .r strong { display:block; font-size:17.5px; font-weight:700; letter-spacing:-.035em; color:var(--a-deep); }
+.sc-a .r .arw { margin-left:auto; width:33px; height:33px; border-radius:50%; display:grid; place-items:center; color:#fff; font-size:15px; flex:none; }
+.sc-a .r1 { background:#e5efe2; border-color:#c9dfc4; }
+.sc-a .r1 .bdg, .sc-a .r1 .arw { background:#176b48; } .sc-a .r1 em { color:#2f7d4f; }
+.sc-a .r2 { background:#fbeecb; border-color:#efd699; }
+.sc-a .r2 .bdg, .sc-a .r2 .arw { background:#c2551f; } .sc-a .r2 em { color:#b8501d; }
+.sc-a .r3 { background:#eef3d7; border-color:#d6dfae; }
+.sc-a .r3 .bdg, .sc-a .r3 .arw { background:#48651f; } .sc-a .r3 em { color:#4a6b22; }
+.sc-a .fin { margin-top:32px; display:flex; align-items:center; justify-content:center; gap:10px; font-size:11.5px; color:var(--a-muted); }
+.sc-a .fin i { display:block; width:34px; height:1px; background:#c7c7b1; }
+
+/* ── B. 어르신 통화 홈 ─────────────────────────────────── */
+.sc-b { padding: 20px 18px 22px; background:#eae5d5; position:relative; }
+.sc-b .float { position:absolute; top:16px; right:16px; display:flex; gap:8px; z-index:3; }
+.sc-b .float span { padding:9px 15px; border-radius:999px; background:#f6f3e8; border:1px solid #ddd8c4; font-size:12.5px; font-weight:600; }
+.sc-b .when { text-align:center; font-size:14px; font-weight:700; color:var(--a-brand); margin-bottom:6px; }
+.sc-b h2 { text-align:center; font-size:38px; font-weight:800; letter-spacing:-.05em; margin:0 0 8px; }
+.sc-b .say { text-align:center; font-size:14.5px; color:var(--a-muted); margin:0 0 10px; font-weight:300; }
+.sc-b .mic { text-align:center; font-size:13.5px; font-weight:700; color:var(--a-brand); margin:0 0 18px; }
+.sc-b .duo { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.sc-b .tile { background:#f1ede0; border:1px solid #ded9c6; border-radius:20px; padding:14px 12px; display:flex; gap:10px; }
+.sc-b .tile .ic { width:38px; height:38px; border-radius:12px; flex:none; display:grid; place-items:center; font-size:12px; font-weight:700; }
+.sc-b .ic.sch { background:#dcd7f0; color:#4a4380; }
+.sc-b .ic.med { background:#d3e9d9; color:#22664a; }
+.sc-b .ic.mem { background:#eae3d2; color:#7a6a4c; font-size:16px; }
+.sc-b .tile em { display:block; font-style:normal; font-size:12px; color:var(--a-muted); margin-bottom:3px; }
+.sc-b .tile strong { display:block; font-size:15.5px; font-weight:700; letter-spacing:-.035em; line-height:1.32; }
+.sc-b .tile small { display:block; margin-top:4px; font-size:11.5px; color:var(--a-muted); }
+.sc-b .ask { display:flex; align-items:baseline; justify-content:space-between; margin:20px 0 12px; }
+.sc-b .ask h3 { margin:0; font-size:22px; font-weight:800; letter-spacing:-.045em; }
+.sc-b .ask span { font-size:12.5px; color:var(--a-muted); }
+.sc-b .fam { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.sc-b .who { background:#f1ede0; border:1px solid #ded9c6; border-radius:20px; padding:14px 10px 13px; text-align:center; }
+.sc-b .who .face { width:72px; height:72px; margin:0 auto 9px; }
+.sc-b .who b { display:block; font-size:18px; font-weight:700; letter-spacing:-.035em; }
+.sc-b .who small { display:block; font-size:12.5px; color:var(--a-muted); margin-top:2px; }
+.sc-b .cta { margin-top:14px; padding:20px; border-radius:22px; border:1.5px solid #cfc9b3; background:#f1ede0; text-align:center; font-size:19px; font-weight:600; letter-spacing:-.035em; }
+
+/* ── C. 오늘의 기록 ────────────────────────────────────── */
+.sc-c { background:#eae5d5; padding:16px 14px 14px; position:relative; }
+.sc-c .bar { display:flex; align-items:center; justify-content:space-between; padding:0 4px 14px; }
+.sc-c .bar .lg { display:flex; align-items:center; gap:9px; font-size:19px; font-weight:700; color:var(--a-deep); letter-spacing:-.035em; }
+.sc-c .bar .date { padding:9px 14px; border-radius:14px; border:1px solid #d5d0bb; background:#f6f3e8; font-family:var(--mono); font-size:13px; }
+.sc-c .sheet { flex:1; border-radius:26px; background:#fbfaf3; border:1px solid #e3dfcd; padding:22px 20px; display:flex; flex-direction:column; align-items:center; overflow:hidden; }
+.sc-c .sheet .d { font-size:13px; font-weight:700; color:var(--a-brand); }
+.sc-c .sheet h2 { margin:14px 0 0; font-size:35px; font-weight:800; letter-spacing:-.055em; text-align:center; }
+.sc-c .stack { position:relative; width:100%; height:236px; margin:24px 0 4px; }
+.sc-c .stack figure { position:absolute; margin:0; border-radius:8px; overflow:hidden; border:4px solid #fff; box-shadow:0 10px 20px -10px rgba(0,0,0,.34); background:#ded9c9; }
+.sc-c .stack .f1 { left:15%;  top:-2px; width:84px;  height:106px; transform:rotate(-4deg); z-index:1; }
+.sc-c .stack .f2 { left:1%;   top:64px; width:98px;  height:122px; transform:rotate(-1deg); z-index:2; }
+.sc-c .stack .f4 { right:1%;  top:64px; width:98px;  height:122px; transform:rotate(1.5deg); z-index:2; }
+.sc-c .stack .f3 { left:50%;  top:44px; width:140px; height:178px; transform:translateX(-50%); z-index:3; }
+.sc-c .stack .face { width:100%; height:100%; }
+.sc-c .heart { font-size:24px; color:var(--clay); margin-top:14px; }
+.sc-c .one { font-size:13px; font-weight:700; color:var(--a-brand); margin-top:12px; }
+.sc-c .nav { display:flex; flex-direction:column; gap:9px; margin-top:12px; }
+.sc-c .nav .row { display:flex; align-items:center; gap:13px; padding:17px 20px; border-radius:19px; font-size:17px; font-weight:600; letter-spacing:-.035em; text-decoration:none; color:var(--a-text); }
+.sc-c .nav .row.on { background:linear-gradient(100deg,#1a6f4b,#2b8259); color:#fff; }
+.sc-c .nav .gap { height:34px; }
+
+/* ── D. 보호자 분석 리포트 ─────────────────────────────── */
+.sc-d { background:#eae5d5; padding:14px; position:relative; }
+.sc-d .top { display:flex; align-items:center; gap:12px; padding:14px; border-radius:20px; background:#f2eee1; border:1px solid #ded9c6; }
+.sc-d .top .av { width:46px; height:46px; border-radius:50%; background:#176b48; color:#fff; display:grid; place-items:center; font-size:19px; font-weight:700; flex:none; }
+.sc-d .top b { display:block; font-size:19px; font-weight:700; letter-spacing:-.035em; }
+.sc-d .top small { display:block; font-size:13px; color:var(--a-muted); }
+.sc-d .top .cv { margin-left:auto; color:var(--a-muted); font-size:15px; }
+.sc-d .tabs { display:flex; align-items:center; gap:6px; margin-top:10px; padding:7px; border-radius:18px; background:#f2eee1; border:1px solid #ded9c6; }
+.sc-d .tabs span { flex:1; text-align:center; padding:12px 4px; border-radius:13px; font-size:14.5px; font-weight:600; color:var(--a-muted); }
+.sc-d .tabs .on { background:#176b48; color:#fff; }
+.sc-d .tabs .cnt { flex:none; padding:6px 11px; border-radius:999px; background:#dceaf2; color:#2b6b8c; font-family:var(--mono); font-size:12px; font-weight:500; }
+.sc-d .segs { display:flex; gap:8px; margin-top:12px; }
+.sc-d .segs span { flex:1; text-align:center; padding:14px; border-radius:16px; font-size:15px; font-weight:600; background:#f2eee1; border:1px solid #ded9c6; color:var(--a-muted); }
+.sc-d .segs .on { background:#176b48; border-color:#176b48; color:#fff; }
+.sc-d .panel { margin-top:12px; border-radius:22px; background:#f4f1e6; border:1px solid #e0dbc8; padding:16px 14px 10px; }
+.sc-d .lgd { display:flex; align-items:center; justify-content:space-between; font-size:11.5px; color:var(--a-muted); margin-bottom:2px; }
+.sc-d .lgd b { font-size:14px; color:var(--a-text); letter-spacing:-.03em; }
+.sc-d .lgd i { display:inline-block; width:16px; height:2px; background:#176b48; vertical-align:middle; margin-right:5px; }
+.sc-d .lgd i.dash { background:repeating-linear-gradient(90deg,#9aa79c 0 4px,transparent 4px 7px); }
+.sc-d svg.radar { width:100%; height:auto; display:block; }
+.sc-d .prio { margin-top:12px; border-radius:22px; background:#f4f1e6; border:1px solid #e0dbc8; padding:18px 16px; }
+.sc-d .prio h3 { margin:0 0 12px; font-size:21px; font-weight:800; letter-spacing:-.045em; }
+.sc-d .item { display:flex; gap:12px; padding:14px; border-radius:18px; background:#efeadb; border:1px solid #ddd7c3; }
+.sc-d .item .n { width:26px; height:26px; border-radius:9px; background:#176b48; color:#fff; display:grid; place-items:center; font-size:13px; font-weight:700; flex:none; }
+.sc-d .item b { display:block; font-size:15.5px; font-weight:700; letter-spacing:-.03em; }
+.sc-d .item p { margin:4px 0 8px; font-size:12.5px; color:var(--a-muted); line-height:1.55; }
+.sc-d .item ul { margin:0; padding-left:14px; font-size:12px; color:var(--a-muted); line-height:1.85; }
+.sc-d .fold { margin-top:12px; text-align:right; font-size:12.5px; color:var(--a-brand); font-weight:600; }
+
+/* ── 마무리: 로고 색, 기본 여백 정리 ─────────────────── */
+.mark { color: var(--brand-lit); }
+.mark .eye { fill: var(--ground); }
+.screen .mark { color: #176b48; }
+.screen .mark .eye { fill: #fbf9f2; }
+
+.eyebrow { margin-top: 0; }
+.state { margin: 0; }
+.foot .meta { margin: 0; }
+.sc-a .fin { margin-bottom: 0; }
+.sc-b .when { margin-top: 0; }
+.sc-c .sheet .d { margin: 0; }
+.sc-c .heart { margin-bottom: 0; }
+.sc-c .one { margin-bottom: 0; }
+.sc-c .dock { bottom: 74px; }
+.sc-d .fold { margin-bottom: 0; }
+</style>
+
+<div class="field">
+<div class="wrap">
+
+  <header class="topbar rise">
+    <div class="lockup">
+      <svg class="mark" viewBox="0 0 46 40" aria-hidden="true">
+        <path d="M6 2 15 11H7Z" fill="currentColor"/>
+        <rect x="2" y="8" width="30" height="28" rx="11" fill="currentColor"/>
+        <circle class="eye" cx="12" cy="21" r="3.2"/>
+        <circle class="eye" cx="23" cy="21" r="3.2"/>
+        <circle cx="40" cy="32" r="4" fill="currentColor"/>
+      </svg>
+      <b>다소니</b>
+      <span>DASONI CARE</span>
+    </div>
+    <div class="build"><i class="dot"></i>데모 빌드 · 2026.08 · 로컬 구동 중</div>
+  </header>
+
+  <section class="main">
+    <div class="copy rise">
+      <p class="eyebrow"><i></i>SKT FLY AI · 2주 MVP · 1인 개발</p>
+      <h1>기억은 흐려져도<br><em>오늘</em>은 이어집니다</h1>
+      <p class="lead">가족의 얼굴과 목소리로 AI가 전화를 받고, 어르신이 놓친 오늘의 맥락을
+        <b>등록된 사실 안에서만</b> 이어 붙입니다. 하루의 변화는 보호자 리포트로 남습니다.</p>
+      <div class="thesis">
+        <p>확인되지 않은 것은 맥락으로도 말하지 않는다.</p>
+        <small>SAFETY LAYER · 규칙 8개 · EVAL 시나리오 22개</small>
+      </div>
+    </div>
+
+    <div class="stateblock rise">
+      <h2>지금 상태</h2>
+      <dl class="state">
+        <div class="hot">
+          <dt>SAFETY EVAL</dt>
+          <dd>91%<u>/ 22개</u></dd>
+          <p>규칙 검사까지 포함한 통과율. 프롬프트 단독은 82%.</p>
+        </div>
+        <div>
+          <dt>ROLE FLOWS</dt>
+          <dd>4개 역할</dd>
+          <p>어르신 · 가족 · 요양원 담당자 · 통화 화면까지 실제 구동.</p>
+        </div>
+        <div>
+          <dt>AI 대리 수신</dt>
+          <dd>서버 판정</dd>
+          <p>거절 · 무응답 · 기기 없음 · 전송 실패 4가지 사유를 남긴다.</p>
+        </div>
+        <div>
+          <dt>AVATAR</dt>
+          <dd>28.4초<u>모핑</u></dd>
+          <p>8→32세 연령 타임라인. 립싱크는 발화당 4초.</p>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="rack">
+
+    <!-- 01 역할 선택 ─────────────────────────────────── -->
+    <figure class="shot rise">
+      <div class="phone"><div class="glass">
+        <div class="screen sc-a">
+          <div class="card">
+            <div class="head">
+              <svg class="mark" viewBox="0 0 46 40" style="width:42px;height:36px" aria-hidden="true">
+                <path d="M6 2 15 11H7Z" fill="currentColor"/>
+                <rect x="2" y="8" width="30" height="28" rx="11" fill="currentColor"/>
+                <circle class="eye" cx="12" cy="21" r="3.2"/>
+                <circle class="eye" cx="23" cy="21" r="3.2"/>
+                <circle cx="40" cy="32" r="4" fill="currentColor"/>
+              </svg>
+              <div><b>다소니</b><small>기억과 오늘을 잇는 AI 케어</small></div>
+            </div>
+            <span class="tag">DASONI CARE</span>
+            <h2>어떤 도움이<br>필요하신가요?</h2>
+            <p class="sub">사용하시는 분에게 필요한 화면만 쉽고 분명하게 보여드려요.<br>선택한 뒤에도 언제든 역할을 바꿀 수 있습니다.</p>
+            <ul class="roles">
+              <li class="r r1"><span class="bdg">통화</span><div><em>어르신</em><strong>가족과 이야기할게요</strong></div><span class="arw">↗</span></li>
+              <li class="r r2"><span class="bdg">소식</span><div><em>가족</em><strong>어르신의 오늘을 볼게요</strong></div><span class="arw">↗</span></li>
+              <li class="r r3"><span class="bdg">관리</span><div><em>요양원 담당자</em><strong>돌봄 기록을 관리할게요</strong></div><span class="arw">↗</span></li>
+            </ul>
+            <p class="fin">가족의 기억<i></i>오늘의 맥락<i></i>안전한 돌봄</p>
+          </div>
+        </div>
+      </div></div>
+      <figcaption>
+        <span class="step">STEP 01</span>
+        <span class="name">역할 선택</span>
+        <span class="desc">어르신·가족·요양원 담당자. 쓰는 사람에게 필요한 화면만 연다.</span>
+      </figcaption>
+    </figure>
+
+    <!-- 02 어르신 통화 홈 ─────────────────────────────── -->
+    <figure class="shot rise">
+      <div class="phone"><div class="glass">
+        <div class="screen sc-b">
+          <div class="float"><span>역할 선택</span><span>Aa</span></div>
+          <p class="when">8월 20일 목요일 · 오전 9:14</p>
+          <h2>좋은 아침이에요</h2>
+          <p class="say">오늘도 가족과 편안하게 이야기할 수 있어요.</p>
+          <p class="mic">마이크가 준비됐어요. 영상 없이 음성으로 연결됩니다.</p>
+          <div class="duo">
+            <div class="tile"><span class="ic sch">일정</span><div><em>오늘 일정</em><strong>등록된 일정이 없어요</strong></div></div>
+            <div class="tile"><span class="ic med">약</span><div><em>오늘 복약 일정</em><strong>1번 중 0번 확인</strong><small>다음 확인은 가족과 함께 해요.</small></div></div>
+          </div>
+          <div class="tile"><span class="ic mem">◇</span><div><em>가족이 확인한 소중한 기억</em><strong>부산 해운대 가족여행</strong><small>2012년 여름</small></div></div>
+          <div class="ask"><h3>누구와 이야기할까요?</h3><span>사진을 눌러 주세요</span></div>
+          <div class="fam">
+            <div class="who">
+              <svg class="face" viewBox="0 0 72 72" aria-hidden="true"><rect width="72" height="72" rx="36" fill="#d6dde4"/><circle cx="36" cy="28" r="12.5" fill="#7d8fa0"/><path d="M36 43c12 0 21 9 22.5 20h-45C15 52 24 43 36 43Z" fill="#7d8fa0"/></svg>
+              <b>정훈</b><small>아들</small>
+            </div>
+            <div class="who">
+              <svg class="face" viewBox="0 0 72 72" aria-hidden="true"><rect width="72" height="72" rx="36" fill="#e7dcd5"/><circle cx="36" cy="28" r="12.5" fill="#a08a7d"/><path d="M36 43c12 0 21 9 22.5 20h-45C15 52 24 43 36 43Z" fill="#a08a7d"/></svg>
+              <b>미영</b><small>딸</small>
+            </div>
+            <div class="who">
+              <svg class="face" viewBox="0 0 72 72" aria-hidden="true"><rect width="72" height="72" rx="36" fill="#dbe1d6"/><circle cx="36" cy="28" r="12.5" fill="#8b9a83"/><path d="M36 43c12 0 21 9 22.5 20h-45C15 52 24 43 36 43Z" fill="#8b9a83"/></svg>
+              <b>민준</b><small>손자</small>
+            </div>
+            <div class="who">
+              <svg class="face" viewBox="0 0 72 72" aria-hidden="true"><rect width="72" height="72" rx="36" fill="#e3dee9"/><circle cx="36" cy="28" r="12.5" fill="#918aa4"/><path d="M36 43c12 0 21 9 22.5 20h-45C15 52 24 43 36 43Z" fill="#918aa4"/></svg>
+              <b>유진</b><small>손녀</small>
+            </div>
+          </div>
+          <div class="cta">가족 이름을 말해도 돼요</div>
+        </div>
+      </div></div>
+      <figcaption>
+        <span class="step">STEP 02</span>
+        <span class="name">어르신 통화 홈</span>
+        <span class="desc">오늘 날짜·복약·확인된 기억을 먼저 보여준다.</span>
+      </figcaption>
+    </figure>
+
+    <!-- 03 오늘의 기록 ────────────────────────────────── -->
+    <figure class="shot rise">
+      <div class="phone"><div class="glass">
+        <div class="screen sc-c">
+          <div class="bar">
+            <span class="lg">
+              <svg class="mark" viewBox="0 0 46 40" style="width:32px;height:28px" aria-hidden="true">
+                <path d="M6 2 15 11H7Z" fill="currentColor"/>
+                <rect x="2" y="8" width="30" height="28" rx="11" fill="currentColor"/>
+                <circle class="eye" cx="12" cy="21" r="3.2"/>
+                <circle class="eye" cx="23" cy="21" r="3.2"/>
+                <circle cx="40" cy="32" r="4" fill="currentColor"/>
+              </svg>다소니
+            </span>
+            <span class="date">2026-08-20</span>
+          </div>
+          <div class="sheet">
+            <p class="d">8월 20일 (목)</p>
+            <h2>오늘, 마음에<br>남은 순간</h2>
+            <div class="stack">
+              <figure class="f1"><svg class="face" viewBox="0 0 100 128" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="128" fill="#e3dee9"/><circle cx="50" cy="48" r="21" fill="#918aa4"/><path d="M50 74c21 0 36 16 38 54H12c2-38 17-54 38-54Z" fill="#918aa4"/></svg></figure>
+              <figure class="f2"><svg class="face" viewBox="0 0 100 128" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="128" fill="#e7dcd5"/><circle cx="50" cy="48" r="21" fill="#a08a7d"/><path d="M50 74c21 0 36 16 38 54H12c2-38 17-54 38-54Z" fill="#a08a7d"/></svg></figure>
+              <figure class="f4"><svg class="face" viewBox="0 0 100 128" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="128" fill="#dbe1d6"/><circle cx="50" cy="48" r="21" fill="#8b9a83"/><path d="M50 74c21 0 36 16 38 54H12c2-38 17-54 38-54Z" fill="#8b9a83"/></svg></figure>
+              <figure class="f3"><svg class="face" viewBox="0 0 100 128" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="128" fill="#d6dde4"/><circle cx="50" cy="46" r="22" fill="#6f8394"/><path d="M50 73c22 0 37 17 39 55H11c2-38 17-55 39-55Z" fill="#6f8394"/></svg></figure>
+            </div>
+            <p class="heart">♥</p>
+            <p class="one">오늘의 한마디</p>
+          </div>
+          <nav class="nav">
+            <span class="row on">♥ 오늘</span>
+            <span class="row">◇ 가족 추억함</span>
+            <span class="gap"></span>
+            <span class="row">⚙ 설정</span>
+          </nav>
+          <div class="dock"><span>◔</span><span>Aa</span><span>◐</span></div>
+        </div>
+      </div></div>
+      <figcaption>
+        <span class="step">STEP 03</span>
+        <span class="name">오늘의 기록</span>
+        <span class="desc">통화에서 남은 순간을 가족이 함께 본다.</span>
+      </figcaption>
+    </figure>
+
+    <!-- 04 보호자 분석 리포트 ─────────────────────────── -->
+    <figure class="shot rise">
+      <div class="phone"><div class="glass">
+        <div class="screen sc-d">
+          <div class="top">
+            <span class="av">박</span>
+            <div><b>박순자</b><small>어머니</small></div>
+            <span class="cv">⌄</span>
+          </div>
+          <div class="tabs">
+            <span class="on">분석 리포트</span>
+            <span>체크사항</span>
+            <span class="cnt">0/17</span>
+            <span>인계</span>
+          </div>
+          <div class="segs"><span class="on">종합 현황</span><span>통화 리포트</span></div>
+
+          <div class="panel">
+            <div class="lgd">
+              <b>8개 영역</b>
+              <span><i></i>오늘 &nbsp; <i class="dash"></i>최근 30일 일일평균</span>
+            </div>
+            <svg class="radar" viewBox="0 0 400 380" aria-label="8개 영역 레이더 차트. 오늘 값과 최근 30일 평균이 모두 0">
+              <g fill="none" stroke="#cbc6b2" stroke-width="1">
+                <polygon points="200,118 250.9,139.1 272,190 250.9,240.9 200,262 149.1,240.9 128,190 149.1,139.1"/>
+                <polygon points="200,136 238.2,151.8 254,190 238.2,228.2 200,244 161.8,228.2 146,190 161.8,151.8"/>
+                <polygon points="200,154 225.5,164.5 236,190 225.5,215.5 200,226 174.5,215.5 164,190 174.5,164.5"/>
+                <polygon points="200,172 212.7,177.3 218,190 212.7,202.7 200,208 187.3,202.7 182,190 187.3,177.3"/>
+                <path d="M200 190 200 118M200 190 250.9 139.1M200 190 272 190M200 190 250.9 240.9M200 190 200 262M200 190 149.1 240.9M200 190 128 190M200 190 149.1 139.1"/>
+              </g>
+              <circle cx="200" cy="190" r="6.5" fill="#f4f1e6" stroke="#176b48" stroke-width="3.4"/>
+              <g font-family="IBM Plex Sans KR, sans-serif" text-anchor="middle" fill="#16342a">
+                <text x="200" y="96"  font-size="14" font-weight="700">지남력</text>
+                <text x="200" y="108" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
+                <text x="300" y="118" font-size="14" font-weight="700">기억</text>
+                <text x="300" y="130" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
+                <text x="344" y="186" font-size="14" font-weight="700">언어</text>
+                <text x="344" y="198" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
+                <text x="302" y="272" font-size="14" font-weight="700">실행기능·판단</text>
+                <text x="302" y="284" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
+                <text x="200" y="292" font-size="14" font-weight="700">정서</text>
+                <text x="200" y="304" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
+                <text x="98"  y="272" font-size="14" font-weight="700">행동·초조</text>
+                <text x="98"  y="284" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
+                <text x="56"  y="186" font-size="14" font-weight="700">일상 수행</text>
+                <text x="56"  y="198" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
+                <text x="100" y="118" font-size="14" font-weight="700">안전·신체</text>
+                <text x="100" y="130" font-size="9.5" fill="#77836f">오늘 0 · 평균 0.0</text>
+              </g>
+            </svg>
+          </div>
+
+          <div class="prio">
+            <h3>확인 우선순위</h3>
+            <div class="item">
+              <span class="n">1</span>
+              <div>
+                <b>평소 루틴 유지</b>
+                <p>월평균에서 크게 벗어난 발화가 없습니다.</p>
+                <ul><li>정해진 일정 유지</li><li>식사·수분·활동 상태 기록</li><li>갑작스러운 변화만 인계</li></ul>
+              </div>
+            </div>
+            <p class="fold">전체 접기 ∧</p>
+          </div>
+          <div class="dock"><span>◔</span><span>Aa</span><span>◐</span></div>
+        </div>
+      </div></div>
+      <figcaption>
+        <span class="step">STEP 04</span>
+        <span class="name">보호자 분석 리포트</span>
+        <span class="desc">8개 영역을 월평균과 나란히. 숫자는 규칙이 만든다.</span>
+      </figcaption>
+    </figure>
+
+  </section>
+
+  <footer class="foot">
+    <div class="rules">
+      <span>없는 약속 만들지 않기</span>
+      <span>미확인 기억은 회상만</span>
+      <span>복약 지시 금지</span>
+      <span>정서적 독점 금지</span>
+    </div>
+    <p class="meta">다소니 — 기억과 오늘을 잇는 AI 인지·정서 케어 통화</p>
+  </footer>
+
+</div>
+</div>
+
+</body>
+</html>
