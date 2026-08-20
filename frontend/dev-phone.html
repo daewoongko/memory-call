@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>다소니 — 폰 미리보기</title>
+<!--
+  개발 전용. 폰 폭으로 앱을 보기 위한 껍데기다.
+
+  왜 iframe 인가: CSS 미디어 쿼리는 요소 폭이 아니라 뷰포트 폭을 본다.
+  본문을 412px 컬럼으로 감싸도 미디어 쿼리는 데스크톱으로 걸려서 폰과
+  다르게 그려진다. iframe 안은 자체 뷰포트라 폭이 그대로 412px 이 되고,
+  DevTools 를 열어두지 않아도 폰과 같은 화면이 나온다.
+
+  vite build 는 index.html 만 진입점으로 잡으므로 이 파일은 배포에
+  들어가지 않는다. 주소: http://localhost:5173/dev-phone.html
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    gap: 18px; align-items: center; padding: 18px;
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #e8ecf3; background: #171a21;
+  }
+  .bar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 10px 14px; border: 1px solid #2e333e; border-radius: 12px;
+    background: #1e222b;
+  }
+  .bar label { display: flex; gap: 6px; align-items: center; color: #9aa4b6; }
+  select, button {
+    font: inherit; padding: 6px 10px; border: 1px solid #3a4150;
+    border-radius: 8px; color: #e8ecf3; background: #262c37; cursor: pointer;
+  }
+  button:hover, select:hover { border-color: #5b6478; }
+  .stage { display: flex; flex-wrap: wrap; gap: 22px; justify-content: center; }
+  .phone {
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+  }
+  .phone > iframe {
+    /* 테두리는 폰처럼 보이게 하는 장식일 뿐이다. box-sizing: border-box 를
+       그대로 두면 테두리 20px 이 폭에서 빠져나가 392px 로 그려진다. */
+    box-sizing: content-box;
+    border: 10px solid #0d0f14; border-radius: 30px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55); background: #fff;
+  }
+  .phone > span { color: #6f7a8d; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <label>화면
+    <select id="route">
+      <option value="#roles">역할 선택</option>
+      <option value="#elder">어르신 통화</option>
+      <option value="#guardian">보호자</option>
+      <option value="#family">가족</option>
+      <option value="#nettest">네트워크 진단</option>
+    </select>
+  </label>
+  <label>크기
+    <select id="size">
+      <option value="412x915">갤럭시 S24 · 412 × 915</option>
+      <option value="360x800">작은 안드로이드 · 360 × 800</option>
+      <option value="390x844">아이폰 14 · 390 × 844</option>
+      <option value="430x932">아이폰 15 Pro Max · 430 × 932</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="pair" /> 두 대 나란히</label>
+  <button id="reload">새로고침</button>
+</div>
+
+<div class="stage" id="stage"></div>
+
+<script type="module">
+  // 선택을 기억한다. 새로고침할 때마다 다시 고르지 않아도 되게.
+  const saved = JSON.parse(localStorage.getItem("dev-phone") ?? "{}");
+  const route = document.getElementById("route");
+  const size = document.getElementById("size");
+  const pair = document.getElementById("pair");
+  const stage = document.getElementById("stage");
+
+  route.value = saved.route ?? "#roles";
+  size.value = saved.size ?? "412x915";
+  pair.checked = saved.pair ?? false;
+
+  function frame(hash, caption) {
+    const [w, h] = size.value.split("x");
+    const box = document.createElement("div");
+    box.className = "phone";
+    const f = document.createElement("iframe");
+    f.width = w;
+    f.height = h;
+    f.src = `/${hash}`;
+    // 통화 화면이 마이크·카메라를 요구한다. localhost 는 보안 컨텍스트라
+    // 허용만 넘겨주면 iframe 안에서도 그대로 열린다.
+    f.allow = "microphone; camera; autoplay; display-capture";
+    const cap = document.createElement("span");
+    cap.textContent = `${caption} · ${w} × ${h}`;
+    box.append(f, cap);
+    return box;
+  }
+
+  function render() {
+    localStorage.setItem("dev-phone", JSON.stringify({
+      route: route.value, size: size.value, pair: pair.checked,
+    }));
+    stage.replaceChildren();
+    stage.append(frame(route.value, "이 화면"));
+    // 두 대 모드는 사람↔사람 통화처럼 두 기기가 필요한 흐름을 볼 때 쓴다.
+    // 어르신 화면을 보고 있으면 상대는 보호자, 아니면 어르신을 띄운다.
+    if (pair.checked) {
+      const other = route.value === "#elder" ? "#guardian" : "#elder";
+      stage.append(frame(other, "상대 기기"));
+    }
+  }
+
+  route.onchange = size.onchange = pair.onchange = render;
+  document.getElementById("reload").onclick = render;
+  render();
+</script>
+
+</body>
+</html>
