@@ -1,31 +1,46 @@
 import BrandMark from "../components/BrandMark.jsx";
 
+// 아이콘은 파일로 두지 않고 인라인으로 둔다. 세 개뿐이고, 색을 역할 색
+// (--role-accent)에서 그대로 물려받아야 해서 currentColor 가 필요하다.
+const svg = (paths) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {paths}
+  </svg>
+);
+
 const ROLES = [
   {
     id: "elder",
-    mark: "통화",
     eyebrow: "어르신",
     title: "가족과 이야기할게요",
-    description: "익숙한 얼굴을 보고 오늘의 시간과 일정을 편안하게 확인해요.",
-    meta: ["큰 글씨", "간단한 선택", "AI 가족 통화"],
+    icon: svg(<path d="M6.2 3.5h3.1l1.5 4-2.1 1.4a12.6 12.6 0 0 0 6.4 6.4l1.4-2.1 4 1.5v3.1a2 2 0 0 1-2.2 2A17.2 17.2 0 0 1 4.2 5.7a2 2 0 0 1 2-2.2Z" />),
   },
   {
     id: "child",
-    mark: "소식",
     eyebrow: "가족",
     title: "어르신의 오늘을 볼게요",
-    description: "오늘 남긴 말씀과 사진, 가족이 확인할 일을 따뜻하게 받아봐요.",
-    meta: ["오늘의 한마디", "가족 추억함", "안심 소식"],
+    icon: svg(<path d="M12 20.2s-7.4-4.6-7.4-9.6a4.2 4.2 0 0 1 7.4-2.7 4.2 4.2 0 0 1 7.4 2.7c0 5-7.4 9.6-7.4 9.6Z" />),
   },
   {
     id: "care",
-    mark: "관리",
     eyebrow: "요양원 담당자",
     title: "돌봄 기록을 관리할게요",
-    description: "발화 변화와 안전·복약 근거를 확인하고 오늘의 업무를 정리해요.",
-    meta: ["분석 리포트", "안전 확인", "복약 기록"],
+    icon: svg(<>
+      <path d="M9 4.5h6M8.4 4.5H6.6a1.6 1.6 0 0 0-1.6 1.6v12.3a1.6 1.6 0 0 0 1.6 1.6h10.8a1.6 1.6 0 0 0 1.6-1.6V6.1a1.6 1.6 0 0 0-1.6-1.6h-1.8" />
+      <path d="M9 3.2h6v2.6H9zM9 12.4l2 2 4-4" />
+    </>),
   },
 ];
+
+const ARROW = svg(<path d="M5.5 12h13M13 6.5l5.5 5.5L13 17.5" />);
 
 export default function RoleScreen({ onPick }) {
   return <main className="role-gateway">
@@ -34,30 +49,19 @@ export default function RoleScreen({ onPick }) {
       <b>다소니</b>
     </header>
 
-    <section className="role-gateway-intro">
-      <span className="role-gateway-badge">DASONI CARE</span>
-      <div className="role-gateway-promise">
-        <span>가족 기반 대화</span><span>근거가 있는 관찰</span><span>안전한 돌봄 연결</span>
-      </div>
-    </section>
-
     <section className="role-gateway-grid" aria-label="사용 역할 선택">
-      {ROLES.map((role, index) => <button
+      {ROLES.map((role) => <button
         key={role.id}
         className={`role-gateway-card ${role.id}`}
         onClick={() => onPick(role.id)}
       >
-        <span className="role-card-number">0{index + 1}</span>
-        <span className="role-card-mark" aria-hidden="true">{role.mark}</span>
+        <span className="role-card-mark">{role.icon}</span>
         <span className="role-card-body">
           <small>{role.eyebrow}</small>
           <b>{role.title}</b>
-          <p>{role.description}</p>
-          <span className="role-card-tags">{role.meta.map((item) => <i key={item}>{item}</i>)}</span>
         </span>
-        <span className="role-card-enter">시작하기 <i>↗</i></span>
+        <span className="role-card-enter">{ARROW}</span>
       </button>)}
     </section>
-
   </main>;
 }
