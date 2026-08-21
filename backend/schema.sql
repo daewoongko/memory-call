@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS personas (
     call_style_name    TEXT,
     call_style_scores  TEXT,   -- JSON 축별 점수
     call_style_answers TEXT,   -- JSON 문항별 선택값
+    avatar_performance_style TEXT NOT NULL DEFAULT 'calm',
     active             INTEGER DEFAULT 1,
     created_at         TEXT DEFAULT CURRENT_TIMESTAMP
 );

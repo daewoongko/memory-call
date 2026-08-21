@@ -16,8 +16,17 @@ from urllib import error, request
 
 API_URL = "https://api.anam.ai/v1/auth/session-token"
 AVATAR_API_URL = "https://api.anam.ai/v1/avatars"
-DEFAULT_AVATAR_MODEL = "cara-4"
+# cara-4-latest is gated by organization access. cara-3 is the stable model
+# accepted by ordinary custom-avatar accounts.
+DEFAULT_AVATAR_MODEL = "cara-3"
 DEFAULT_TIMEOUT_SECONDS = 12.0
+DEFAULT_DIRECTOR_STYLE = (
+    "Keep steady eye contact and remain calm, gentle, and attentive. "
+    "Use restrained head movement and subtle facial expressions. "
+    "Avoid broad smiles, surprise, laughter, emphatic nodding, and exaggerated emotion. "
+    "Behave like a family member speaking softly with an elderly grandfather on a video call."
+)
+DEFAULT_EXPRESSIVITY = 0.05
 
 
 class AnamNotConfigured(RuntimeError):
@@ -47,24 +56,42 @@ def _api_key() -> str:
     return api_key
 
 
+def _director_notes(expressivity: float | None = None) -> dict[str, str | float]:
+    style = os.getenv("ANAM_DIRECTOR_STYLE", "").strip() or DEFAULT_DIRECTOR_STYLE
+    if expressivity is None:
+        try:
+            expressivity = float(os.getenv("ANAM_EXPRESSIVITY", ""))
+        except ValueError:
+            expressivity = DEFAULT_EXPRESSIVITY
+    if not 0.0 <= expressivity <= 1.0:
+        expressivity = DEFAULT_EXPRESSIVITY
+    return {
+        "customStylePrompt": style,
+        "expressivity": expressivity,
+    }
+
+
 def create_session_token(
     *, avatar_id: str, persona_name: str | None = None,
-    avatar_model: str | None = None,
+    avatar_model: str | None = None, expressivity: float | None = None,
 ) -> dict[str, str]:
     api_key = _api_key()
     avatar_id = avatar_id.strip()
     if not avatar_id:
         raise AnamNotConfigured("The selected family member has no ready Anam avatar")
+    model = (
+        (avatar_model or "").strip()
+        or os.getenv("ANAM_AVATAR_MODEL", "").strip()
+        or DEFAULT_AVATAR_MODEL
+    )
     persona_config = {
         "name": (persona_name or "memory-call-family")[:80],
         "avatarId": avatar_id,
-        "avatarModel": (
-            (avatar_model or "").strip()
-            or os.getenv("ANAM_AVATAR_MODEL", "").strip()
-            or DEFAULT_AVATAR_MODEL
-        ),
+        "avatarModel": model,
         "enableAudioPassthrough": True,
     }
+    if model in {"cara-4", "cara-4-latest"}:
+        persona_config["directorNotes"] = _director_notes(expressivity)
     req = request.Request(
         API_URL,
         data=json.dumps({"personaConfig": persona_config}).encode("utf-8"),

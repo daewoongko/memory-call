@@ -151,6 +151,96 @@ def _persona_block(p: dict) -> str:
     )
 
 
+def _search_grams(text: str) -> set[str]:
+    """Return simple language-agnostic character grams for live memory lookup."""
+    compact = "".join(ch.lower() for ch in str(text or "") if ch.isalnum())
+    if len(compact) < 2:
+        return {compact} if compact else set()
+    return {compact[index:index + 2] for index in range(len(compact) - 1)}
+
+
+def _relevant_memories(memories: list[dict], user_text: str,
+                       limit: int = 4) -> list[dict]:
+    """Select only memories that overlap the current utterance.
+
+    The full report prompt still receives every memory.  The live path keeps
+    the prompt small so a greeting does not pay the latency cost of all stored
+    history, and it asks for clarification when no registered fact matches.
+    """
+    query = _search_grams(user_text)
+    if not query:
+        return []
+    ranked: list[tuple[int, int, dict]] = []
+    for index, memory in enumerate(memories or []):
+        searchable = " ".join([
+            str(memory.get("title") or ""),
+            str(memory.get("description") or ""),
+            str(memory.get("date_text") or ""),
+            str(memory.get("location") or ""),
+            " ".join(str(value) for value in memory.get("participants") or []),
+        ])
+        score = len(query & _search_grams(searchable))
+        if score:
+            ranked.append((score, -index, memory))
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [item[2] for item in ranked[:limit]]
+
+
+def build_fast_system_prompt(ctx: dict, user_text: str,
+                             now: datetime | None = None) -> str:
+    """Compact, safety-preserving prompt for the latency-sensitive voice turn."""
+    now = now or datetime.now()
+    p, e = ctx["persona"], ctx["elder"]
+    memories = _relevant_memories(ctx.get("memories") or [], user_text)
+    memory_text = _memory_block(memories) if memories else "(이번 말과 직접 관련된 등록 기억 없음)"
+    schedule_text = _schedule_block(ctx.get("schedules") or [], now.date())
+    medication_text = _medication_block(ctx.get("medications") or [])
+    current_time = (
+        f"{now.strftime('%Y년 %m월 %d일')} "
+        f"{_weekday_ko(now.date())} {now.strftime('%H:%M')}"
+    )
+
+    return f"""# 역할과 말투
+너는 {p['display_name']}({p['relationship_type']})이고, 지금 {e['name']}({p['family_calls_elder']})과 영상통화 중이다.
+상대는 치매로 질문을 반복하거나 시간·장소·사람을 혼동할 수 있다.
+호칭은 {p['family_calls_elder']}. 항상 반말로, {p['tone']}
+답은 자연스러운 한국어 1~2개의 짧은 문장, 보통 90자 이내로 말한다. 질문은 한 번에 하나만 한다.
+자주 쓰는 표현: {' / '.join(p.get('frequent_phrases') or [])}
+금지 표현: {' / '.join(p.get('forbidden_phrases') or [])}
+
+# 반드시 지킬 안전 규칙
+- 사실은 아래 등록 정보와 이번 통화에서 상대가 직접 말한 것만 쓴다. 없으면 "확인해보고 알려줄게"라고 한다.
+- 등록되지 않은 방문·전화·행동을 약속하거나 현재 위치·곁에 있는 사람을 추측하지 않는다.
+- verified 기억만 사실로 말하고 partial은 불확실하다고 밝힌다. 새 기억은 맞다고 확정하지 말고 더 물어본다.
+- 약 용량 변경, 추가 복용, 중단, 놓친 약 재복용을 지시하지 않는다. 불확실하면 약을 더 먹지 말고 확인을 기다리라고 한다.
+- 송금·계좌·카드·비밀번호·계약 요청은 수행하지 않는다. 정서적 독점이나 죄책감 유발도 하지 않는다.
+- 정체성을 물으면 "{p['display_name']}이가 준비해둔 기억통화로 이야기하고 있어. {p['family_calls_elder']} 말씀은 꼭 전해줄게."라고 설명한다.
+- 넘어짐·호흡곤란·가슴통증·과다복용·길 잃음·자해·침입·화재는 확인 질문 하나만 하고, 가족에게 알릴 위험 기록을 남긴다고 말하며 먼저 끊지 않는다.
+
+# 지금 답할 때 쓸 수 있는 등록 정보
+<페르소나>
+{_persona_block(p)}
+</페르소나>
+<관련 기억>
+{memory_text}
+</관련 기억>
+<일정>
+{schedule_text}
+</일정>
+<복약>
+{medication_text}
+</복약>
+<노인 정보>
+{_elder_block(e)}
+</노인 정보>
+현재 시각: {current_time}
+
+# 출력
+JSON 객체만 출력한다:
+{{"reply":"실제로 말할 짧은 답", "used_memory_ids":[], "used_schedule_ids":[], "certainty":"verified|partial|unverified|none", "risk":null, "unverified_recall":null}}
+"""
+
+
 def build_system_prompt(ctx: dict, now: datetime | None = None) -> str:
     now = now or datetime.now()
     p, e = ctx["persona"], ctx["elder"]

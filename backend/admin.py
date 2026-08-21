@@ -47,7 +47,7 @@ PERSONA_FIELDS = {"display_name", "relationship_type", "elder_calls_family",
                   "family_calls_elder", "tone", "frequent_phrases",
                   "forbidden_phrases", "sensitive_policy", "active",
                   "call_style_code", "call_style_name", "call_style_scores",
-                  "call_style_answers"}
+                  "call_style_answers", "avatar_performance_style"}
 ELDER_FIELDS = {"name", "preferred_call_name", "birth_date",
                 "speech_wait_time_ms", "hearing_support", "vision_support",
                 "anxiety_triggers", "calming_phrases", "frequent_questions",

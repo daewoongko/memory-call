@@ -12,6 +12,12 @@ import PersonaPanel from "./PersonaPanel.jsx";
 const toLines = (value) => Array.isArray(value) ? value.join("\n") : String(value || "");
 const fromLines = (value) => String(value || "").split("\n").map((line) => line.trim()).filter(Boolean);
 
+const AVATAR_PERFORMANCE_STYLES = [
+  { value: "calm", label: "차분하게", hint: "고개와 표정 움직임을 작게 유지해요." },
+  { value: "natural", label: "자연스럽게", hint: "일상 대화 정도로 표정을 사용해요." },
+  { value: "lively", label: "생동감 있게", hint: "반응과 표정을 조금 더 크게 보여줘요." },
+];
+
 function stylePayload(persona) {
   return {
     tone: persona.tone || "",
@@ -21,6 +27,7 @@ function stylePayload(persona) {
     call_style_name: persona.call_style_name || null,
     call_style_scores: persona.call_style_scores || null,
     call_style_answers: persona.call_style_answers || {},
+    avatar_performance_style: persona.avatar_performance_style || "calm",
   };
 }
 
@@ -170,6 +177,32 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
           <button type="button" aria-label="사진 관리 닫기" onClick={() => setPhotoOpen(false)}>×</button>
         </header>
         <div className="family-photo-modal-body">
+          <section className="family-avatar-performance">
+            <div>
+              <small>실시간 아바타 표정</small>
+              <h3>통화할 때의 움직임을 정해주세요</h3>
+              <p>사진과 나이 영상은 그대로 두고, 말할 때의 표정 강도만 바뀝니다.</p>
+            </div>
+            <div className="family-avatar-performance-options" role="group" aria-label="실시간 아바타 표정 강도">
+              {AVATAR_PERFORMANCE_STYLES.map((style) => {
+                const selected = (persona.avatar_performance_style || "calm") === style.value;
+                return <button
+                  type="button"
+                  key={style.value}
+                  className={selected ? "selected" : ""}
+                  aria-pressed={selected}
+                  disabled={busy}
+                  onClick={() => persist(
+                    { ...persona, avatar_performance_style: style.value },
+                    `통화 영상 표정을 '${style.label}'로 저장했습니다.`,
+                  )}
+                >
+                  <b>{style.label}</b>
+                  <span>{style.hint}</span>
+                </button>;
+              })}
+            </div>
+          </section>
           <PersonaPanel elderId={elderId} initialPersonaId={personaId} mode="photos" />
         </div>
       </section>

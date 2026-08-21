@@ -92,6 +92,26 @@ def make_analyzer(name: str, *, include_age: bool = False) -> FaceAnalysis:
 
 def largest_face(app: FaceAnalysis, rgb: np.ndarray):
     faces = app.get(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
+    # A tightly normalized portrait can crop the forehead/chin close enough
+    # that RetinaFace rejects an otherwise valid face.  The generator and the
+    # evaluation set both use 512px aligned crops, so retry once on a neutral
+    # 20% canvas.  Constant padding avoids the duplicate faces created by
+    # reflected borders while leaving the face pixels untouched.
+    if not faces:
+        height, width = rgb.shape[:2]
+        pad_y = max(1, int(round(height * 0.20)))
+        pad_x = max(1, int(round(width * 0.20)))
+        neutral = tuple(float(value) for value in rgb.reshape(-1, 3).mean(axis=0))
+        padded = cv2.copyMakeBorder(
+            rgb,
+            pad_y,
+            pad_y,
+            pad_x,
+            pad_x,
+            cv2.BORDER_CONSTANT,
+            value=neutral,
+        )
+        faces = app.get(cv2.cvtColor(padded, cv2.COLOR_RGB2BGR))
     if not faces:
         raise ValueError("No face detected")
     return max(

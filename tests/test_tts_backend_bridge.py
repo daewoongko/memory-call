@@ -441,6 +441,7 @@ class TTSApiTests(unittest.TestCase):
                 "render_lipsync_with_metadata",
                 return_value=video,
             ) as render,
+            patch.object(api, "_musetalk_enabled", return_value=True),
         ):
             response = self.client.post("/api/tts/video", json={"text": "video", "persona_id": "persona_jeonghun"})
 
@@ -462,6 +463,7 @@ class TTSApiTests(unittest.TestCase):
                 "render_lipsync_with_metadata",
                 side_effect=tts_proxy.TTSUnavailable("MuseTalk busy"),
             ),
+            patch.object(api, "_musetalk_enabled", return_value=True),
         ):
             response = self.client.post("/api/tts/video", json={"text": "video", "persona_id": "persona_jeonghun"})
 
@@ -469,6 +471,30 @@ class TTSApiTests(unittest.TestCase):
         self.assertEqual(response.headers["content-type"], "audio/wav")
         self.assertEqual(response.headers["x-lipsync-fallback"], "audio")
         self.assertEqual(response.content, b"RIFF-fallback-wave")
+
+    def test_public_video_route_skips_musetalk_by_default(self):
+        with (
+            patch.object(
+                elevenlabs_tts,
+                "synthesize_with_metadata",
+                return_value=_speech_result(body=b"RIFF-audio-only"),
+            ),
+            patch.object(api, "_musetalk_enabled", return_value=False),
+            patch.object(
+                tts_proxy,
+                "render_lipsync_with_metadata",
+            ) as render,
+        ):
+            response = self.client.post(
+                "/api/tts/video",
+                json={"text": "video", "persona_id": "persona_jeonghun"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "audio/wav")
+        self.assertEqual(response.headers["x-lipsync-disabled"], "musetalk")
+        self.assertEqual(response.content, b"RIFF-audio-only")
+        render.assert_not_called()
 
     def test_public_tts_propagates_only_safe_latency_metadata(self):
         request_id = "b" * 32

@@ -31,7 +31,22 @@ DEBUG_DIR = ROOT / "data" / "faces" / "age_debug"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--count", type=int, default=2)
+    parser.add_argument(
+        "--count",
+        type=int,
+        default=None,
+        help=(
+            "Override the adaptive initial batch size. By default adult "
+            "transitions ending at age 26 or older generate six photographs; "
+            "age 20 and younger generate four."
+        ),
+    )
+    parser.add_argument(
+        "--max-generated-per-segment",
+        type=int,
+        default=8,
+        help="Hard latency/cost budget for one age transition.",
+    )
     parser.add_argument("--steps", type=int, default=4)
     parser.add_argument("--reference-count", type=int, default=5)
     parser.add_argument("--lora-scale", type=float, default=0.8)
@@ -40,10 +55,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--attempts-per-segment",
         type=int,
-        default=4,
+        default=2,
         help=(
-            "Run the initial recipe, two standard feedback retries, and one "
-            "bounded structural-rescue retry before splitting a failed segment."
+            "Generate an initial batch and at most one replacement batch "
+            "before splitting a failed segment."
         ),
     )
     parser.add_argument("--max-refinements", type=int, default=4)
@@ -204,8 +219,15 @@ def main() -> None:
     args = parse_args()
     if args.run_all and not args.auto_select:
         raise ValueError("--run-all requires --auto-select")
-    if args.count < 1:
+    if args.count is not None and args.count < 1:
         raise ValueError("--count must be at least 1")
+    if args.max_generated_per_segment < 4:
+        raise ValueError("--max-generated-per-segment must be at least 4")
+    if (
+        args.count is not None
+        and args.count > args.max_generated_per_segment
+    ):
+        raise ValueError("--count cannot exceed --max-generated-per-segment")
     if args.attempts_per_segment < 1:
         raise ValueError("--attempts-per-segment must be at least 1")
     if not FLUX_PYTHON.is_file():
@@ -233,10 +255,10 @@ def main() -> None:
             historical_passing = [
                 row for row in historical_rows if row.get("full_pass")
             ]
-            if historical_passing:
-                historical_passing.sort(
-                    key=lambda row: candidate_rank(row, target_age), reverse=True
-                )
+            historical_passing.sort(
+                key=lambda row: candidate_rank(row, target_age), reverse=True
+            )
+            if len(historical_passing) >= 4:
                 print(
                     f"\nExisting full-pass candidates for age {target_age}:",
                     flush=True,
@@ -268,6 +290,18 @@ def main() -> None:
                     flush=True,
                 )
                 if attempts[stage_key] >= args.attempts_per_segment:
+                    if historical_passing:
+                        print(
+                            f"Replacement budget ended with {len(historical_passing)} "
+                            "validated photographs. Review those photographs rather "
+                            "than exposing failed candidates.",
+                            flush=True,
+                        )
+                        if args.auto_select:
+                            winner_name = Path(historical_passing[0]["path"]).name
+                            age_timeline.select_candidate(target_age, winner_name)
+                            print(f"Auto-selected best available: {winner_name}", flush=True)
+                        return
                     if args.dry_run:
                         if parent_age - target_age >= 3:
                             message = (
@@ -371,17 +405,30 @@ def main() -> None:
             path.name
             for path in CANDIDATE_DIR.glob(f"age{target_age:02d}_flux2*.png")
         }
+        existing_rows = previous_rows.get(stage_key) or []
+        already_generated = len(existing_rows)
+        passed_count = sum(bool(row.get("full_pass")) for row in existing_rows)
+        initial_count = args.count if args.count is not None else (
+            6 if target_age >= 26 else 4
+        )
+        generation_count = min(
+            initial_count if stage_attempt == 1 else max(1, 4 - passed_count),
+            args.max_generated_per_segment - already_generated,
+        )
+        if generation_count <= 0:
+            print("Candidate budget exhausted for this age transition.", flush=True)
+            return
         requested_seed = (
             args.seed_base
             + target_age * 100
             + refinements * 10000
-            + (stage_attempt - 1) * args.count
+            + already_generated
         )
-        seed = next_free_seed(target_age, requested_seed, args.count)
+        seed = next_free_seed(target_age, requested_seed, generation_count)
         if seed != requested_seed:
             print(
-                f"Seed range {requested_seed}..{requested_seed + args.count - 1} "
-                f"already exists; using {seed}..{seed + args.count - 1}.",
+                f"Seed range {requested_seed}..{requested_seed + generation_count - 1} "
+                f"already exists; using {seed}..{seed + generation_count - 1}.",
                 flush=True,
             )
         run_checked(
@@ -395,7 +442,7 @@ def main() -> None:
                 "--reference-count",
                 str(controls["reference_count"]),
                 "--count",
-                str(args.count),
+                str(generation_count),
                 "--seed",
                 str(seed),
                 "--steps",
@@ -418,10 +465,12 @@ def main() -> None:
 
         run_checked([sys.executable, str(VALIDATOR), "--age", str(target_age)])
         rows = validation_rows(target_age, new_names)
-        previous_rows[stage_key] = rows
-        passing = [row for row in rows if row.get("full_pass")]
-        if passing:
+        accumulated_rows = [*existing_rows, *rows]
+        previous_rows[stage_key] = accumulated_rows
+        passing = [row for row in accumulated_rows if row.get("full_pass")]
+        if len(passing) >= 4:
             passing.sort(key=lambda row: candidate_rank(row, target_age), reverse=True)
+            passing = passing[:4]
             print(f"\nFull-pass candidates for age {target_age}:", flush=True)
             for row in passing:
                 print(
@@ -448,12 +497,31 @@ def main() -> None:
             continue
 
         attempts[stage_key] = stage_attempt
-        if stage_attempt < args.attempts_per_segment:
+        if (
+            stage_attempt < args.attempts_per_segment
+            and len(accumulated_rows) < args.max_generated_per_segment
+        ):
             print(
-                "No full pass in this seed batch. Applying validation feedback "
-                "to the next generation recipe.",
+                f"Only {len(passing)}/4 reviewable photographs passed. "
+                "Generating replacements from validation feedback.",
                 flush=True,
             )
+            continue
+
+        if passing:
+            passing.sort(key=lambda row: candidate_rank(row, target_age), reverse=True)
+            print(
+                f"Replacement budget ended with {len(passing)} validated "
+                "photographs; failed outputs remain hidden.",
+                flush=True,
+            )
+            if not args.auto_select:
+                return
+            winner_name = Path(passing[0]["path"]).name
+            age_timeline.select_candidate(target_age, winner_name)
+            print(f"Auto-selected best available: {winner_name}", flush=True)
+            if not args.run_all:
+                return
             continue
 
         if refinements >= args.max_refinements:

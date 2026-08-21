@@ -28,7 +28,7 @@ DEFAULT_MUSETALK_DIR = ROOT.parent / "Models" / "MuseTalk"
 DEFAULT_TRIAL_DIR = (
     ROOT / "data" / "faces" / "lipsync_trials" / "musetalk_v15_idle_ko"
 )
-DEFAULT_SENTENCE = "민준아, 보고 싶었어. 오늘 뭐 먹고 싶니?"
+DEFAULT_SENTENCE = "대웅아, 보고 싶었어. 오늘 뭐 먹고 싶니?"
 DEFAULT_RESULT_NAME = "musetalk_v15_idle_ko_25fps.mp4"
 EXPECTED_UNET_SHA256 = (
     "7ebf6c98c181e20838e4c0054e96e944ac60d5d692cc01db42839fe11b787007"

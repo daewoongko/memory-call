@@ -49,6 +49,7 @@ from conversation import Session
 from storage import (
     ALIGNED_FACES_DIR,
     AGE_CANDIDATES_DIR,
+    DEFAULT_FACE_PERSONA_ID,
     FACES_ROOT,
     FINAL_AGE_PATH_DIR,
     FRONTEND_DIST,
@@ -206,6 +207,7 @@ class AnamSessionRequest(BaseModel):
     persona_id: str | None = Field(
         default=None, pattern=r"^persona_[a-z0-9_]+$",
     )
+    performance_style: Literal["calm", "natural", "lively"] = "calm"
 
 
 class VoiceConsentRequest(BaseModel):
@@ -286,6 +288,7 @@ class PersonaPatch(BaseModel):
     call_style_name: str | None = Field(default=None, max_length=40)
     call_style_scores: dict | None = None
     call_style_answers: dict[str, str] | None = None
+    avatar_performance_style: Literal["calm", "natural", "lively"] | None = None
 
 
 class ElderPatch(BaseModel):
@@ -514,7 +517,7 @@ def _face_urls(persona_id: str | None = None) -> list[dict]:
         aligned_dir = FACES_DIR
         final_dir = FINAL_AGE_PATH_DIR
         legacy = True
-        selected_persona_id = "persona_minjun"
+        selected_persona_id = "persona_godaewoong"
     else:
         face_paths = ensure_persona_face_directories(persona_id)
         aligned_dir = face_paths.aligned
@@ -585,7 +588,7 @@ def _face_urls(persona_id: str | None = None) -> list[dict]:
 
 def _persona_face_url(persona_id: str) -> str | None:
     """가족별 대표 얼굴. 준비되지 않은 가족에게 다른 사람 얼굴을 빌려주지 않는다."""
-    if persona_id == "persona_minjun":
+    if persona_id == "persona_godaewoong":
         legacy = _face_urls(persona_id)
         return legacy[-1]["url"] if legacy else None
     paths = ensure_persona_face_directories(persona_id)
@@ -644,9 +647,25 @@ def _ready_voice_id(persona_id: str | None) -> str:
     if not persona_id:
         raise HTTPException(409, "통화할 가족을 먼저 선택해 주세요.")
     voice_id = voice_mod.active_voice_id(persona_id)
+    if not voice_id and persona_id == DEFAULT_FACE_PERSONA_ID:
+        voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
     if not voice_id:
         raise HTTPException(409, "선택한 가족의 승인된 목소리를 먼저 등록해 주세요.")
     return voice_id
+
+
+ANAM_EXPRESSIVITY_PRESETS = {
+    "calm": 0.05,
+    "natural": 0.15,
+    "lively": 0.30,
+}
+
+
+def _musetalk_enabled() -> bool:
+    """Keep the rejected MuseTalk renderer out of normal and fallback flows."""
+    return os.getenv("MEMORY_CALL_MUSETALK_ENABLED", "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
 
 
 @app.post("/api/anam/session-token")
@@ -666,6 +685,7 @@ def create_anam_session(req: AnamSessionRequest):
             avatar_id=avatar["avatar_id"],
             avatar_model=avatar["avatar_model"],
             persona_name=persona.get("display_name"),
+            expressivity=ANAM_EXPRESSIVITY_PRESETS[req.performance_style],
         )
     except anam_mod.AnamNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
@@ -675,6 +695,7 @@ def create_anam_session(req: AnamSessionRequest):
         "session_token": result["session_token"],
         "avatar_model": result["avatar_model"],
         "persona_id": session.persona_id,
+        "performance_style": req.performance_style,
         "expires_in_seconds": 3600,
     }
 
@@ -793,6 +814,20 @@ def synthesize_lipsync_video(req: TTSRequest, request: Request):
         ) as exc:
             raise HTTPException(503, str(exc)) from exc
 
+        if not _musetalk_enabled():
+            response_headers = {
+                "Cache-Control": "no-store",
+                "X-TTS-Engine": "elevenlabs",
+                "X-Lipsync-Fallback": "audio",
+                "X-Lipsync-Disabled": "musetalk",
+                **audio_result.public_headers(request_id=request_id),
+            }
+            return Response(
+                content=audio_result.body,
+                media_type="audio/wav",
+                headers=response_headers,
+            )
+
         try:
             video_result = tts_proxy.render_lipsync_with_metadata(
                 audio_result.body,
@@ -837,7 +872,7 @@ def call_targets(elder_id: str = "elder_001"):
     family_order = {
         "persona_jeonghun": 0,
         "persona_miyeong": 1,
-        "persona_minjun": 2,
+        "persona_godaewoong": 2,
         "persona_yujin": 3,
     }
     personas = sorted(
@@ -1477,7 +1512,7 @@ def _open_ai_session(elder_id: str, persona_id: str | None) -> dict:
         "call_id": session.call_id,
         "persona_id": selected_persona_id,
         "persona_name": persona_name,
-        # 복약 시간대면 민준이가 먼저 건넬 말이 들어온다. 없으면 빈 문자열.
+        # 복약 시간대면 대웅이가 먼저 건넬 말이 들어온다. 없으면 빈 문자열.
         "opening": session.opening(),
         # 명세 13.1 — 연결 전 1회만 고지한다. 통화 중에는 반복하지 않는다.
         "announcement": f"{persona_name}이가 준비한 AI 기억통화가 연결됩니다.",

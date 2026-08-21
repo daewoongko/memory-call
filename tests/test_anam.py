@@ -78,6 +78,47 @@ class AnamConfigTests(unittest.TestCase):
         self.assertEqual(result["session_token"], "temporary-token")
         self.assertNotIn("permanent-secret", json.dumps(result))
 
+    def test_cara4_session_uses_restrained_director_notes(self):
+        captured = {}
+
+        def fake_urlopen(req, timeout):
+            captured["payload"] = json.loads(req.data.decode("utf-8"))
+            return _Response(b'{"sessionToken":"temporary-token"}')
+
+        with (
+            patch.dict("os.environ", {"ANAM_API_KEY": "secret"}, clear=True),
+            patch.object(anam.request, "urlopen", side_effect=fake_urlopen),
+        ):
+            anam.create_session_token(
+                avatar_id="avatar-family",
+                persona_name="Daewoong",
+                avatar_model="cara-4",
+                expressivity=0.15,
+            )
+
+        notes = captured["payload"]["personaConfig"]["directorNotes"]
+        self.assertEqual(notes["expressivity"], 0.15)
+        self.assertIn("restrained head movement", notes["customStylePrompt"])
+
+    def test_cara4_session_defaults_to_very_calm_expression(self):
+        captured = {}
+
+        def fake_urlopen(req, timeout):
+            captured["payload"] = json.loads(req.data.decode("utf-8"))
+            return _Response(b'{"sessionToken":"temporary-token"}')
+
+        with (
+            patch.dict("os.environ", {"ANAM_API_KEY": "secret"}, clear=True),
+            patch.object(anam.request, "urlopen", side_effect=fake_urlopen),
+        ):
+            anam.create_session_token(
+                avatar_id="avatar-family",
+                avatar_model="cara-4",
+            )
+
+        notes = captured["payload"]["personaConfig"]["directorNotes"]
+        self.assertEqual(notes["expressivity"], 0.05)
+
     def test_custom_avatar_upload_returns_provider_id(self):
         captured = {}
 
@@ -118,6 +159,23 @@ class AnamApiTests(unittest.TestCase):
     def tearDown(self):
         api.SESSIONS.pop(self.call_id, None)
 
+    def test_default_persona_can_use_deployment_voice_id(self):
+        with (
+            patch.object(api.voice_mod, "active_voice_id", return_value=None),
+            patch.dict("os.environ", {"ELEVENLABS_VOICE_ID": "deployment-voice"}),
+        ):
+            self.assertEqual(
+                api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID),
+                "deployment-voice",
+            )
+
+        with (
+            patch.object(api.voice_mod, "active_voice_id", return_value=None),
+            patch.dict("os.environ", {"ELEVENLABS_VOICE_ID": "deployment-voice"}),
+        ):
+            with self.assertRaises(api.HTTPException):
+                api._ready_voice_id("persona_jeonghun")
+
     def test_session_token_requires_matching_active_call(self):
         with (
             patch.object(
@@ -147,7 +205,10 @@ class AnamApiTests(unittest.TestCase):
         self.assertEqual(response.json()["session_token"], "short-lived")
         self.assertNotIn("avatar_id", response.json())
         create.assert_called_once_with(
-            avatar_id="avatar-family", avatar_model="cara-4", persona_name="정훈"
+            avatar_id="avatar-family",
+            avatar_model="cara-4",
+            persona_name="정훈",
+            expressivity=0.05,
         )
         mismatch = self.client.post(
             "/api/anam/session-token",
@@ -157,6 +218,36 @@ class AnamApiTests(unittest.TestCase):
             },
         )
         self.assertEqual(mismatch.status_code, 409)
+
+    def test_session_token_accepts_user_selected_expression_style(self):
+        with (
+            patch.object(
+                api.avatar_mod,
+                "active_avatar",
+                return_value={"avatar_id": "avatar-family", "avatar_model": "cara-4"},
+            ),
+            patch.object(
+                api.anam_mod,
+                "create_session_token",
+                return_value={
+                    "session_token": "short-lived",
+                    "avatar_id": "avatar-family",
+                    "avatar_model": "cara-4",
+                },
+            ) as create,
+        ):
+            response = self.client.post(
+                "/api/anam/session-token",
+                json={
+                    "call_id": self.call_id,
+                    "persona_id": "persona_jeonghun",
+                    "performance_style": "natural",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["performance_style"], "natural")
+        self.assertEqual(create.call_args.kwargs["expressivity"], 0.15)
 
     def test_pcm_endpoint_streams_family_voice_without_buffering(self):
         upstream = _Response(b"\x01\x02\x03\x04")

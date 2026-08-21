@@ -29,9 +29,10 @@ MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash")
 # 리포트·페르소나는 통화당 한 번만 돌고 지연이 상관없다. 중첩 배열과 id 인용을
 # 시켜야 하므로 대화용 경량 모델보다 큰 모델을 쓴다. 비워 두면 LLM_MODEL 을 쓴다.
 REPORT_MODEL = os.getenv("LLM_REPORT_MODEL", "") or MODEL
+FAST_MODEL = os.getenv("LLM_FAST_MODEL", "") or MODEL
 MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "low")
-FAST_MAX_TOKENS = max(160, int(os.getenv("LLM_FAST_MAX_TOKENS", "384")))
+FAST_MAX_TOKENS = max(160, int(os.getenv("LLM_FAST_MAX_TOKENS", "256")))
 FAST_REASONING_EFFORT = os.getenv("LLM_FAST_REASONING_EFFORT", "").strip()
 LLM_REQUEST_TIMEOUT_SECONDS = max(
     5.0, float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "30"))
@@ -158,7 +159,8 @@ def _extract_json(text: str) -> dict:
 def call_json(messages: list[dict], temperature: float = 0.7,
               model: str | None = None, quiet: bool = False,
               *, stream: bool = False, max_tokens: int | None = None,
-              reasoning_effort: str | None = None) -> dict:
+              reasoning_effort: str | None = None,
+              json_mode: bool = True) -> dict:
     """JSON 응답을 요구하고 dict로 돌려준다. 429는 백오프 재시도."""
     last_err = None
 
@@ -168,9 +170,10 @@ def call_json(messages: list[dict], temperature: float = 0.7,
                 "model": model or MODEL,
                 "messages": messages,
                 "temperature": temperature,
-                "response_format": {"type": "json_object"},
                 "max_tokens": max_tokens or MAX_TOKENS,
             }
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
             effort = REASONING_EFFORT if reasoning_effort is None else reasoning_effort
             if effort:
                 kwargs["reasoning_effort"] = effort
@@ -250,9 +253,11 @@ def _with_system_override(messages: list[dict], override: str) -> list[dict]:
 
 def call_json_fast(messages: list[dict], **kwargs) -> dict:
     """실시간 통화에 필요한 답변·안전 필드만 생성한다."""
+    kwargs.setdefault("model", FAST_MODEL)
     return call_json(
         _with_system_override(messages, FAST_REPLY_SCHEMA_OVERRIDE),
         stream=True,
+        json_mode=False,
         max_tokens=FAST_MAX_TOKENS,
         reasoning_effort=FAST_REASONING_EFFORT,
         **kwargs,

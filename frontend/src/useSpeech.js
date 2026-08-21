@@ -25,8 +25,9 @@ import { createAnamTransport } from "./anamTransport.js";
 const BROWSER_TTS_FALLBACK_ENABLED =
   import.meta.env.VITE_TTS_BROWSER_FALLBACK === "true";
 
-// 립싱크는 기본으로 켜고, 긴급 롤백이 필요할 때만 명시적으로 끈다.
-const LIPSYNC_ENABLED = import.meta.env.VITE_MUSETALK_LIPSYNC !== "false";
+// MuseTalk은 최종 통화 흐름에서 사용하지 않는다. Anam 실패 시에는
+// 같은 ElevenLabs 음성만 재생하고 얼굴 영상 생성으로 우회하지 않는다.
+const LIPSYNC_ENABLED = false;
 const ANAM_ENABLED = import.meta.env.VITE_ANAM_LIPSYNC !== "false";
 const ANAM_VIDEO_ELEMENT_ID = "anam-persona-video";
 
@@ -115,6 +116,8 @@ export function useSpeech({
   rate = 0.92,
   personaId = null,
   callId = null,
+  performanceStyle = "calm",
+  prepareAnam = false,
   preferLipSync = false,
   onFinal,
 } = {}) {
@@ -140,6 +143,7 @@ export function useSpeech({
   const lipSyncBlurRef = useRef(null);
   const anamVideoRef = useRef(null);
   const anamTransportRef = useRef(null);
+  const anamTransportKeyRef = useRef(null);
   const lipSyncUrlRef = useRef(null);
   const ttsRequestRefs = useRef(new Set());
   const speechRunRef = useRef(0);
@@ -201,18 +205,33 @@ export function useSpeech({
 
   const getAnamTransport = useCallback(() => {
     if (!ANAM_ENABLED || !callId || !personaId) return null;
+    const transportKey = `${callId}:${personaId}:${performanceStyle}`;
+    if (
+      anamTransportRef.current &&
+      anamTransportKeyRef.current !== transportKey
+    ) {
+      const previous = anamTransportRef.current;
+      anamTransportRef.current = null;
+      anamTransportKeyRef.current = null;
+      setAnamActive(false);
+      previous.disconnect().catch(() => {});
+    }
     if (!anamTransportRef.current) {
+      anamTransportKeyRef.current = transportKey;
       anamTransportRef.current = createAnamTransport({
         callId,
         personaId,
+        performanceStyle,
         videoElementId: ANAM_VIDEO_ELEMENT_ID,
         onStateChange: (next) => {
-          setAnamActive(next === "connected");
+          if (anamTransportKeyRef.current === transportKey) {
+            setAnamActive(next === "connected");
+          }
         },
       });
     }
     return anamTransportRef.current;
-  }, [callId, personaId]);
+  }, [callId, performanceStyle, personaId]);
 
   const cancelSpeech = useCallback(() => {
     speechRunRef.current += 1;
@@ -997,26 +1016,44 @@ export function useSpeech({
     ]
   );
 
-  // The avatar connection is hidden behind the age morph so the first spoken
-  // answer does not pay the WebRTC setup cost. Failure is intentionally quiet;
-  // speak() will use the existing MuseTalk/audio path.
+  // Prepare Anam behind the age morph. Visibility remains controlled by
+  // preferLipSync, so a ready WebRTC stream never replaces the morph early.
   useEffect(() => {
-    if (!ANAM_ENABLED || !preferLipSync) return undefined;
+    if (!ANAM_ENABLED || !prepareAnam) return undefined;
     const transport = getAnamTransport();
     if (!transport) return undefined;
-    transport.connect().catch(() => {
-      setAnamActive(false);
-    });
-    return undefined;
-  }, [getAnamTransport, preferLipSync]);
+    let cancelled = false;
+    let retryTimer = null;
+    let attempt = 0;
+
+    const connect = async () => {
+      attempt += 1;
+      try {
+        await transport.connect();
+      } catch {
+        if (cancelled) return;
+        setAnamActive(false);
+        if (attempt < 3) {
+          retryTimer = setTimeout(connect, attempt === 1 ? 900 : 2200);
+        }
+      }
+    };
+
+    connect();
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
+  }, [getAnamTransport, prepareAnam]);
 
   useEffect(
     () => () => {
       const transport = anamTransportRef.current;
       anamTransportRef.current = null;
+      anamTransportKeyRef.current = null;
       transport?.disconnect();
     },
-    [callId, personaId]
+    [callId, performanceStyle, personaId]
   );
 
   // 명시적인 폴백 환경에서만 브라우저 목소리를 미리 불러온다.
@@ -1049,6 +1086,8 @@ export function useSpeech({
     [cancelSpeech]
   );
 
+  const anamVisible = anamActive && preferLipSync;
+
   return {
     supported,
     mode: usesServerStt ? "realtime" : "browser",
@@ -1059,8 +1098,8 @@ export function useSpeech({
     inputLevel: usesServerStt ? serverStt.level : null,
     speaking,
     playing,
-    lipSyncActive: lipSyncActive || anamActive,
-    anamActive,
+    lipSyncActive: anamVisible,
+    anamActive: anamVisible,
     anamVideoRef,
     anamVideoElementId: ANAM_VIDEO_ELEMENT_ID,
     lipSyncVideoRef,

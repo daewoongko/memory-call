@@ -35,6 +35,13 @@ from storage import (
 
 
 ALLOWED_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+MAX_VISIBLE_CANDIDATES = 4
+NON_PHOTO_NAME_MARKERS = (
+    "fran_raw",
+    "fran_line",
+    "structure_guide",
+    "lineart",
+)
 
 
 def stages_for(current_age: int, extra_ages: list[int] | None = None) -> list[dict]:
@@ -96,7 +103,29 @@ def _validation_by_name(age: int, persona_id: str | None = None) -> dict[str, di
     }
 
 
-def _candidate_files(age: int, persona_id: str | None = None) -> list[dict]:
+def _candidate_rank(item: dict, age: int) -> tuple:
+    """Rank completed photographs; FRAN drawings are never product candidates."""
+    validation = item.get("validation") or {}
+    age_estimation = validation.get("age_estimation") or {}
+    secondary = validation.get("mivolo_age_estimation") or {}
+    status = str(validation.get("review_status") or "legacy")
+    status_rank = {"strong_pass": 3, "borderline": 2, "human_review": 1}.get(status, 0)
+    return (
+        1 if validation.get("full_pass") else 0,
+        status_rank,
+        float(age_estimation.get("target_range_vote_share", 0.0)),
+        float(secondary.get("target_range_vote_share", 0.0)),
+        -abs(float(validation.get("estimated_age", age)) - age),
+        float(validation.get("parent_similarity", 0.0)),
+        float(validation.get("similarity_mean", 0.0)),
+    )
+
+
+def _candidate_files(
+    age: int,
+    persona_id: str | None = None,
+    selected_name: str | None = None,
+) -> list[dict]:
     prefix = f"age{age:02d}_"
     paths = _paths(persona_id)
     if not paths.age_candidates.exists():
@@ -105,18 +134,46 @@ def _candidate_files(age: int, persona_id: str | None = None) -> list[dict]:
     url_prefix = "/age-candidates" if paths.legacy else (
         f"/persona-assets/{paths.persona_id}/age_candidates"
     )
-    return [
-        {
-            "name": path.name,
-            "url": f"{url_prefix}/{path.name}",
-            "size_kb": path.stat().st_size // 1024,
-            "validation": validation.get(path.name),
-        }
-        for path in sorted(paths.age_candidates.iterdir())
-        if path.is_file()
-        and path.suffix.lower() in ALLOWED_SUFFIXES
-        and path.name.startswith(prefix)
-    ]
+    candidates = []
+    for path in paths.age_candidates.iterdir():
+        if (
+            not path.is_file()
+            or path.suffix.lower() not in ALLOWED_SUFFIXES
+            or not path.name.startswith(prefix)
+            or any(
+                marker in path.name.casefold()
+                for marker in NON_PHOTO_NAME_MARKERS
+            )
+        ):
+            continue
+        validation_row = validation.get(path.name)
+        # New candidates only enter the product after the photograph validator
+        # passes them.  A previously selected legacy photograph remains visible
+        # so an existing user's saved timeline is not broken by this migration.
+        if (
+            validation_row
+            and not validation_row.get("full_pass")
+            and path.name != selected_name
+        ):
+            continue
+        candidates.append(
+            {
+                "name": path.name,
+                "url": f"{url_prefix}/{path.name}",
+                "size_kb": path.stat().st_size // 1024,
+                "validation": validation_row,
+                "candidate_type": "completed_photo",
+            }
+        )
+    candidates.sort(key=lambda item: _candidate_rank(item, age), reverse=True)
+    visible = candidates[:MAX_VISIBLE_CANDIDATES]
+    if selected_name and selected_name not in {item["name"] for item in visible}:
+        selected = next(
+            (item for item in candidates if item["name"] == selected_name), None
+        )
+        if selected:
+            visible = [*visible[: MAX_VISIBLE_CANDIDATES - 1], selected]
+    return visible
 
 
 def get_plan(persona_id: str | None = None) -> dict:
@@ -156,9 +213,9 @@ def get_plan(persona_id: str | None = None) -> dict:
             ) if photo_exists else None
             stage["candidates"] = []
         else:
-            candidates = _candidate_files(stage["age"], persona_id)
-            names = {item["name"] for item in candidates}
             selected = selections.get(str(stage["age"]))
+            candidates = _candidate_files(stage["age"], persona_id, selected)
+            names = {item["name"] for item in candidates}
             stage["selected"] = selected if selected in names else None
             stage["candidates"] = candidates
 

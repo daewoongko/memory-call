@@ -210,12 +210,69 @@ button:focus-visible {
 
 .countdown { font-size: calc(18px * var(--font-scale)); color: var(--muted); }
 
+.calling-screen {
+  position: relative;
+  overflow: hidden;
+}
+
+.calling-with-morph {
+  justify-content: initial;
+  gap: 0;
+  padding: 0;
+  color: #fbf7f0;
+  background: #0a0908;
+}
+
+.calling-morph-status {
+  position: absolute;
+  z-index: 2;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.calling-morph-status {
+  top: 24px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(10px);
+}
+
+.calling-morph-status .who {
+  font-size: calc(25px * var(--font-scale));
+}
+
+.calling-morph-status p {
+  color: rgba(251, 247, 240, 0.75);
+  font-size: calc(14px * var(--font-scale));
+}
+
+.calling-morph-status .ring-dots { gap: 7px; }
+.calling-morph-status .ring-dots i { width: 8px; height: 8px; }
+
 /* ── 통화 화면: 얼굴이 전체, 나머지는 그 위에 뜬다 ────────── */
 
 .call-screen {
   position: relative;
   height: 100%;
 }
+
+.call-stack {
+  position: relative;
+  height: 100%;
+}
+
+.call-stack > .call-screen,
+.call-stack > .calling-screen {
+  position: absolute;
+  inset: 0;
+}
+
+.call-stack > .calling-screen { z-index: 10; }
 
 .stage {
   position: absolute;
@@ -228,29 +285,40 @@ button:focus-visible {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.18s ease, visibility 0s linear 0.18s;
+  background: transparent;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
 }
 
 .lipsync-stage.active {
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.18s ease;
+  transition: opacity 0.2s ease;
 }
 
-.lipsync-stage .anam-media {
+.lipsync-stage .anam-media,
+.lipsync-stage .anam-backdrop {
   opacity: 0;
   visibility: hidden;
-  object-fit: cover;
+  transition: opacity 0.2s ease;
 }
 
-.lipsync-stage.anam-active .anam-media {
+.stage.lipsync-stage.anam-ready .anam-media,
+.stage.lipsync-stage.anam-ready .anam-backdrop {
   opacity: 1;
   visibility: visible;
 }
 
-.lipsync-stage.anam-active .musetalk-media {
-  opacity: 0;
-  visibility: hidden;
+.stage.lipsync-stage.anam-ready .face.anam-media {
+  object-fit: contain;
+  object-position: 50% 50%;
+  transform: scale(1.82);
+  transform-origin: 50% 50%;
+}
+
+.stage.lipsync-stage .anam-backdrop {
+  object-fit: cover;
+  filter: blur(42px) brightness(0.5) saturate(0.72);
+  transform: scale(1.12);
 }
 
 /* 정사각형 사진을 세로 화면에 넣으면 잘려나가므로,
@@ -330,6 +398,13 @@ button:focus-visible {
 
 .badge b { font-weight: 500; }
 
+.call-meta {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
 .selfview {
   width: 96px;
   height: 132px;
@@ -377,29 +452,51 @@ button:focus-visible {
   padding: 0 20px 28px;
 }
 
-.said {
-  font-size: calc(18px * var(--font-scale));
-  color: var(--muted);
-  margin-bottom: 8px;
-  white-space: nowrap;
+.call-caption {
+  width: min(100%, 520px);
+  margin: 0 auto 10px;
+  padding: 12px 15px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(10, 9, 8, 0.7);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18);
+}
+
+.call-caption > b {
+  display: block;
+  margin-bottom: 4px;
+  color: #aee8c1;
+  font-size: calc(12px * var(--font-scale));
+}
+
+.call-caption > p {
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
+  margin: 0;
+  font-size: calc(18px * var(--font-scale));
+  font-weight: 550;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
-.spoken {
-  font-size: calc(30px * var(--font-scale));
-  font-weight: 500;
-  line-height: 1.42;
-  letter-spacing: -0.01em;
-  min-height: 128px;
-  /* 말이 길어도 얼굴을 너무 덮지 않도록 높이를 제한한다 */
-  max-height: 42vh;
-  overflow-y: auto;
-  display: flex;
-  align-items: flex-end;
+.call-caption.live > p { color: rgba(255, 255, 255, 0.78); }
+
+.call-caption .thinking {
+  display: block;
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: calc(11px * var(--font-scale));
 }
 
-.spoken::-webkit-scrollbar { display: none; }
+.call-status {
+  margin: 0 0 14px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: calc(13px * var(--font-scale));
+  text-align: center;
+}
 
 .thinking { color: var(--muted); }
 
@@ -509,8 +606,6 @@ button:focus-visible {
   70% { box-shadow: 0 0 0 20px rgba(47, 125, 79, 0); }
 }
 
-/* 인식 중인 말은 아직 확정이 아니므로 흐리게 보여준다 */
-.spoken.live { color: var(--muted); }
 .round:active { transform: scale(0.94); }
 
 /* ── 요약 ─────────────────────────────────────────────── */
@@ -4029,6 +4124,17 @@ label.checkbox { color: var(--text); }
 .family-photo-modal > header p { margin: 0; color: var(--muted); font-size: calc(9px * var(--font-scale)); }
 .family-photo-modal > header > button { width: 40px; height: 40px; flex: none; border: 1px solid var(--line); border-radius: 50%; color: var(--text); background: var(--bg); font-size: calc(20px * var(--font-scale)); cursor: pointer; }
 .family-photo-modal-body { max-height: calc(100vh - 150px); overflow-y: auto; padding: 22px; }
+.family-avatar-performance { display:grid; grid-template-columns:minmax(220px,.72fr) minmax(440px,1.28fr); align-items:center; gap:20px; margin-bottom:18px; padding:18px; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
+.family-avatar-performance small { color:var(--brand); font-size:calc(8px * var(--font-scale)); font-weight:850; }
+.family-avatar-performance h3 { margin:4px 0; font-size:calc(14px * var(--font-scale)); }
+.family-avatar-performance p { margin:0; color:var(--muted); font-size:calc(8px * var(--font-scale)); line-height:1.5; }
+.family-avatar-performance-options { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.family-avatar-performance-options button { min-width:0; min-height:68px; display:grid; align-content:center; gap:4px; padding:10px 11px; border:1px solid var(--line); border-radius:12px; color:var(--text); background:var(--bg); text-align:left; cursor:pointer; }
+.family-avatar-performance-options button b { font-size:calc(10px * var(--font-scale)); }
+.family-avatar-performance-options button span { color:var(--muted); font-size:calc(7px * var(--font-scale)); line-height:1.35; }
+.family-avatar-performance-options button.selected { border-color:var(--brand); background:color-mix(in srgb,var(--brand) 8%,var(--surface)); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--brand) 20%,transparent); }
+.family-avatar-performance-options button.selected b { color:var(--brand); }
+.family-avatar-performance-options button:disabled { opacity:.55; cursor:wait; }
 .family-photo-modal-body > .meds { margin-bottom: 18px; }
 .family-photo-modal-body > .meds:last-of-type { margin-bottom: 0; }
 .family-photo-modal-body > .meds > .hint { font-size:calc(7px * var(--font-scale)); line-height:1.55; }
@@ -4088,6 +4194,7 @@ label.checkbox { color: var(--text); }
   .voice-create-card,.voice-approval-card,.voice-active-summary { align-items:stretch; flex-direction:column; }
   .family-photo-modal-body .age-plan-box { grid-template-columns:1fr 1fr; }
   .family-photo-modal-body .age-plan-box .save { grid-column:1 / -1; }
+  .family-avatar-performance { grid-template-columns:1fr; }
 }
 
 @media (max-width: 520px) {
@@ -4110,6 +4217,7 @@ label.checkbox { color: var(--text); }
   .family-photo-modal-body .quality-grid { grid-template-columns:repeat(6,112px); }
   .family-photo-modal-body .age-plan-box { grid-template-columns:1fr; }
   .family-photo-modal-body .age-plan-box .save { grid-column:auto; }
+  .family-avatar-performance-options { grid-template-columns:1fr; }
 }
 
 /* 가족 통화 보드 — 색·문자·형태로 통화 주체를 함께 구분 */

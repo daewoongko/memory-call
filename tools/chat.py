@@ -56,7 +56,7 @@ while True:
                 (session.call_id,),
             ).fetchall()
         for r in rows:
-            who = "할아버지" if r["speaker"] == "elder" else "민준  "
+            who = "할아버지" if r["speaker"] == "elder" else "대웅  "
             ms = f" {r['latency_ms']}ms" if r["latency_ms"] else ""
             print(f"{DIM}{r['seq']:>3} {who} | {r['transcript']}{ms}{RESET}")
         continue
@@ -67,7 +67,7 @@ while True:
         print(f"오류: {e}\n")
         continue
 
-    print(f"{CYAN}민준   > {last_raw.get('reply', '')}{RESET}")
+    print(f"{CYAN}대웅   > {last_raw.get('reply', '')}{RESET}")
 
     tags = []
     if last_raw.get("intent"):

@@ -21,8 +21,14 @@ test("통화 시작 body는 elder_id를 포함한다", () => {
 test("앱의 프로필·예약 통화·통화 시작은 모두 연결된 어르신을 사용한다", () => {
   assert.match(app, /getProfile\(target\?\.persona_id, elderId\)/);
   assert.match(app, /getPendingCall\(elderId\)/);
-  assert.match(app, /startCall\(target\?\.persona_id, elderId\)/);
+  assert.match(app, /startCall\(selectedPersonaId \?\? target\?\.persona_id, elderId\)/);
   assert.match(app, /<FamilyScreen elderId=\{elderId\}/);
+});
+
+test("통화 대기는 초 단위 벨 타이머 없이 모핑 전체를 재생한다", () => {
+  assert.match(app, /connectAI\(person\?\.persona_id\)/);
+  assert.doesNotMatch(app, /setSecondsLeft|secondsLeft=/);
+  assert.doesNotMatch(app, /15000/);
 });
 
 test("어르신 통화 대기 화면의 네 데이터 원천은 같은 elderId로 제한된다", () => {

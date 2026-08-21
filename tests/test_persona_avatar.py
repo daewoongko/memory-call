@@ -95,7 +95,7 @@ class PersonaAvatarTests(unittest.TestCase):
         image_payload = create.call_args.kwargs["image"]
         self.assertLess(len(image_payload), 4_500_000)
         with Image.open(io.BytesIO(image_payload)) as rendered:
-            self.assertEqual(rendered.size, (1280, 1280))
+            self.assertEqual(rendered.size, (1500, 1000))
 
     def test_missing_provider_key_keeps_photo_without_avatar_id(self):
         with patch.object(persona_avatar.anam, "configured", return_value=False):
@@ -107,6 +107,20 @@ class PersonaAvatarTests(unittest.TestCase):
         self.assertFalse(profile["ready"])
         self.assertEqual(profile["avatar_status"], "unregistered")
         self.assertIsNone(persona_avatar.active_avatar_id("persona_test"))
+
+    def test_default_persona_can_use_private_deployment_avatar_id(self):
+        with (
+            patch.object(persona_avatar, "DEFAULT_FACE_PERSONA_ID", "persona_test"),
+            patch.dict(
+                "os.environ",
+                {"ANAM_AVATAR_ID": "deployment-avatar", "ANAM_AVATAR_MODEL": "cara-4"},
+                clear=False,
+            ),
+        ):
+            self.assertEqual(
+                persona_avatar.active_avatar("persona_test"),
+                {"avatar_id": "deployment-avatar", "avatar_model": "cara-4"},
+            )
 
     def test_provider_failure_is_visible_without_exposing_provider_id(self):
         with (

@@ -1,6 +1,7 @@
 const SAMPLE_RATE = 16000;
 const BYTES_PER_SAMPLE = 2;
 const PLAYBACK_TAIL_MS = 350;
+const CONNECTION_TIMEOUT_MS = 20000;
 
 const wait = (ms, signal) =>
   new Promise((resolve, reject) => {
@@ -26,16 +27,21 @@ const wait = (ms, signal) =>
 export function createAnamTransport({
   callId,
   personaId,
+  performanceStyle = "calm",
   videoElementId,
   fetchImpl = fetch,
   createClientImpl = null,
   onStateChange = () => {},
   playbackTailMs = PLAYBACK_TAIL_MS,
+  connectionTimeoutMs = CONNECTION_TIMEOUT_MS,
 }) {
   let client = null;
   let connectPromise = null;
   let state = "idle";
   let generation = 0;
+  let detachClientListeners = null;
+  let pendingClient = null;
+  let abortPendingConnection = null;
 
   const setState = (next, detail = null) => {
     state = next;
@@ -54,6 +60,7 @@ export function createAnamTransport({
         body: JSON.stringify({
           call_id: callId,
           ...(personaId ? { persona_id: personaId } : {}),
+          performance_style: performanceStyle,
         }),
       });
       if (!response.ok) throw new Error(`Anam token ${response.status}`);
@@ -66,11 +73,85 @@ export function createAnamTransport({
       const nextClient = createAnamClient(payload.session_token, {
         disableInputAudio: true,
       });
-      await nextClient.streamToVideoElement(videoElementId);
+      pendingClient = nextClient;
+
+      // streamToVideoElement() resolves as soon as the WebRTC connection is
+      // requested. It does not mean that an avatar video track is available.
+      // Sending PCM in that gap makes Anam reject the turn and forces the
+      // caller onto the audio-only fallback, so wait for the real video track.
+      let readyTimer = null;
+      let readySettled = false;
+      let resolveReady;
+      let rejectReady;
+      const ready = new Promise((resolve, reject) => {
+        resolveReady = resolve;
+        rejectReady = reject;
+      });
+      const cleanupReadyListeners = () => {
+        clearTimeout(readyTimer);
+        nextClient.removeListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
+      };
+      const onVideoStarted = () => {
+        if (readySettled) return;
+        readySettled = true;
+        cleanupReadyListeners();
+        resolveReady();
+      };
+      const onConnectionClosed = (reason, details) => {
+        const error = new Error(
+          `Anam connection closed${reason ? ` (${reason})` : ""}${details ? `: ${details}` : ""}`
+        );
+        if (!readySettled) {
+          readySettled = true;
+          cleanupReadyListeners();
+          rejectReady(error);
+        }
+        if (attempt === generation) {
+          client = null;
+          setState("failed", error);
+        }
+      };
+
+      nextClient.addListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
+      nextClient.addListener?.("CONNECTION_CLOSED", onConnectionClosed);
+      abortPendingConnection = () => {
+        if (readySettled) return;
+        readySettled = true;
+        cleanupReadyListeners();
+        rejectReady(new DOMException("Aborted", "AbortError"));
+      };
+      detachClientListeners = () => {
+        cleanupReadyListeners();
+        nextClient.removeListener?.("CONNECTION_CLOSED", onConnectionClosed);
+      };
+      readyTimer = setTimeout(() => {
+        if (readySettled) return;
+        readySettled = true;
+        cleanupReadyListeners();
+        rejectReady(new Error("Anam video connection timed out"));
+      }, connectionTimeoutMs);
+
+      try {
+        await nextClient.streamToVideoElement(videoElementId);
+        await ready;
+      } catch (error) {
+        if (pendingClient === nextClient) pendingClient = null;
+        abortPendingConnection = null;
+        detachClientListeners?.();
+        detachClientListeners = null;
+        await nextClient.stopStreaming().catch(() => {});
+        throw error;
+      }
       if (attempt !== generation) {
+        if (pendingClient === nextClient) pendingClient = null;
+        abortPendingConnection = null;
+        detachClientListeners?.();
+        detachClientListeners = null;
         await nextClient.stopStreaming().catch(() => {});
         throw new DOMException("Aborted", "AbortError");
       }
+      pendingClient = null;
+      abortPendingConnection = null;
       client = nextClient;
       setState("connected");
     })()
@@ -118,7 +199,11 @@ export function createAnamTransport({
           onFirstChunk?.();
         }
         bytes += value.byteLength;
-        audioInput.sendAudioChunk(value);
+        // Fetch is allowed to coalesce server chunks.  Keep every Anam push at
+        // roughly 64 ms of PCM so mouth poses are not updated in 256 ms jumps.
+        for (let offset = 0; offset < value.byteLength; offset += 2048) {
+          audioInput.sendAudioChunk(value.subarray(offset, offset + 2048));
+        }
       }
       audioInput.endSequence();
     } catch (error) {
@@ -136,8 +221,17 @@ export function createAnamTransport({
   const disconnect = async () => {
     generation += 1;
     interrupt();
+    const pending = pendingClient;
+    pendingClient = null;
+    abortPendingConnection?.();
+    abortPendingConnection = null;
+    detachClientListeners?.();
+    detachClientListeners = null;
     const active = client;
     client = null;
+    if (pending && pending !== active) {
+      await pending.stopStreaming().catch(() => {});
+    }
     if (active) await active.stopStreaming().catch(() => {});
     setState("idle");
   };

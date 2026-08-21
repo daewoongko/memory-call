@@ -10,6 +10,7 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
   let streamTarget = null;
   let ended = 0;
   let stopped = 0;
+  const listeners = new Map();
 
   const transport = createAnamTransport({
     callId: "call_12345678",
@@ -29,6 +30,13 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
       return {
         async streamToVideoElement(target) {
           streamTarget = target;
+          queueMicrotask(() => listeners.get("VIDEO_STREAM_STARTED")?.());
+        },
+        addListener(event, callback) {
+          listeners.set(event, callback);
+        },
+        removeListener(event, callback) {
+          if (listeners.get(event) === callback) listeners.delete(event);
         },
         createAgentAudioInputStream(config) {
           assert.deepEqual(config, {
@@ -79,6 +87,7 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
     body: {
       call_id: "call_12345678",
       persona_id: "persona_jeonghun",
+      performance_style: "calm",
     },
   });
   assert.equal(streamTarget, "avatar-video");
@@ -109,4 +118,41 @@ test("Anam transport exposes token failures for the caller fallback", async () =
   await assert.rejects(transport.connect(), /Anam token 503/);
   assert.equal(transport.getState(), "failed");
   assert.deepEqual(states, ["connecting", "failed"]);
+});
+
+test("Anam transport splits coalesced PCM into low-latency avatar pushes", async () => {
+  const chunks = [];
+  const listeners = new Map();
+  const transport = createAnamTransport({
+    callId: "call_12345678",
+    personaId: "persona_jeonghun",
+    videoElementId: "avatar-video",
+    playbackTailMs: 0,
+    fetchImpl: async () => new Response(JSON.stringify({ session_token: "token" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+    createClientImpl: () => ({
+      async streamToVideoElement() {
+        queueMicrotask(() => listeners.get("VIDEO_STREAM_STARTED")?.());
+      },
+      addListener(event, callback) { listeners.set(event, callback); },
+      removeListener(event, callback) {
+        if (listeners.get(event) === callback) listeners.delete(event);
+      },
+      createAgentAudioInputStream() {
+        return {
+          sendAudioChunk(value) { chunks.push(value.byteLength); },
+          endSequence() {},
+        };
+      },
+      interruptPersona() {},
+      async stopStreaming() {},
+    }),
+  });
+
+  const pcm = new Uint8Array(5000);
+  await transport.speakPcmResponse(new Response(pcm), {});
+
+  assert.deepEqual(chunks, [2048, 2048, 904]);
 });

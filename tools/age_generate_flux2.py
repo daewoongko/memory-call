@@ -157,29 +157,19 @@ def load_plan(plan_path: Path = PLAN_PATH) -> dict:
 
 
 def generation_path_for_plan(plan: dict) -> list[int]:
-    """Return the saved adaptive path or an isolated experiment override.
+    """Return the saved adaptive path used by the product.
 
-    Production plans continue to use ``path_with_refinements``.  The override
-    exists only so a leakage-safe experiment can compare a direct 26->8 edit
-    with the unchanged adaptive sequential path without copying production
-    photos into ``data/faces``.
+    Direct adult-to-child generation was an unsuccessful experimental baseline
+    and is intentionally not accepted here.  Every completed photograph must
+    descend from the guardian-selected photograph at the previous age.
     """
     current_age = int(plan.get("current_age", 0))
-    override = plan.get("generation_path_override")
-    if override is None:
-        return path_with_refinements(current_age, plan.get("extra_ages") or [])
-    if not isinstance(override, list) or len(override) < 2:
-        raise ValueError("generation_path_override must contain at least two ages")
-    path = [int(age) for age in override]
-    if path[0] != current_age or path[-1] != 8:
+    if plan.get("generation_path_override") is not None:
         raise ValueError(
-            "generation_path_override must start at current_age and end at age 8"
+            "Direct generation overrides were removed; use the adaptive "
+            "guardian-selected sequential path."
         )
-    if any(younger >= older for older, younger in zip(path, path[1:])):
-        raise ValueError("generation_path_override must be strictly descending")
-    if len(path) != len(set(path)):
-        raise ValueError("generation_path_override must not repeat an age")
-    return path
+    return path_with_refinements(current_age, plan.get("extra_ages") or [])
 
 
 def resolve_current_reference_paths(

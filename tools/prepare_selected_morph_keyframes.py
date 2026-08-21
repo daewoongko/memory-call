@@ -278,6 +278,71 @@ def detect_primary(detector, image: np.ndarray) -> tuple[np.ndarray, float, list
     ]
 
 
+def skin_tone_statistics(
+    image: np.ndarray, landmarks: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return robust face-skin LAB statistics and a soft correction mask."""
+
+    height, width = image.shape[:2]
+    eyes = np.asarray(landmarks[:2], dtype=np.float64)
+    eye_center = np.mean(eyes, axis=0)
+    eye_span = max(float(np.linalg.norm(eyes[0] - eyes[1])), 8.0)
+    mouth_center = np.mean(np.asarray(landmarks[3:5], dtype=np.float64), axis=0)
+    center = (
+        int(round((eye_center[0] + mouth_center[0]) / 2.0)),
+        int(round((eye_center[1] + mouth_center[1]) / 2.0 + 0.12 * eye_span)),
+    )
+    axes = (int(round(0.92 * eye_span)), int(round(1.18 * eye_span)))
+    oval = np.zeros((height, width), dtype=np.uint8)
+    cv2.ellipse(oval, center, axes, 0.0, 0.0, 360.0, 255, -1)
+
+    ycrcb = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+    y_channel, cr_channel, cb_channel = cv2.split(ycrcb)
+    skin = (
+        (oval > 0)
+        & (y_channel > 55)
+        & (cr_channel >= 125)
+        & (cr_channel <= 180)
+        & (cb_channel >= 70)
+        & (cb_channel <= 140)
+    )
+    if int(np.count_nonzero(skin)) < 500:
+        skin = (oval > 0) & (y_channel > 65)
+
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)
+    statistics = np.median(lab[skin], axis=0).astype(np.float64)
+    soft_mask = cv2.GaussianBlur(
+        skin.astype(np.float32), (0, 0), sigmaX=5.0, sigmaY=5.0
+    )
+    soft_mask = np.clip(soft_mask * 0.9, 0.0, 0.9)
+    return statistics, soft_mask
+
+
+def normalize_skin_tone(
+    image: np.ndarray,
+    landmarks: np.ndarray,
+    target_lab: np.ndarray,
+) -> tuple[np.ndarray, dict]:
+    """Gently match face-skin color while preserving texture and non-skin pixels."""
+
+    current_lab, soft_mask = skin_tone_statistics(image, landmarks)
+    limits = np.asarray([10.0, 6.0, 6.0], dtype=np.float64)
+    shift = np.clip(np.asarray(target_lab, dtype=np.float64) - current_lab, -limits, limits)
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)
+    lab += soft_mask[:, :, None] * shift.astype(np.float32)[None, None, :]
+    normalized = cv2.cvtColor(
+        np.clip(lab, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR
+    )
+    normalized[soft_mask < 1e-4] = image[soft_mask < 1e-4]
+    after_lab, _ = skin_tone_statistics(normalized, landmarks)
+    return normalized, {
+        "before_lab": rounded_list(current_lab),
+        "target_lab": rounded_list(target_lab),
+        "applied_shift_lab": rounded_list(shift),
+        "after_lab": rounded_list(after_lab),
+    }
+
+
 def eye_transform(
     source_eye: list[float],
     target_center: np.ndarray,
@@ -366,6 +431,11 @@ def main() -> None:
         action="store_true",
         help="Skip monotonic lower-body remapping for the 8-to-17 sequence.",
     )
+    parser.add_argument(
+        "--normalize-skin-tone",
+        action="store_true",
+        help="Gently match face-skin LAB statistics across approved anchors.",
+    )
     args = parser.parse_args()
     if args.width < 320 or args.height < 320:
         raise ValueError("Output dimensions must both be at least 320 pixels.")
@@ -420,8 +490,19 @@ def main() -> None:
                 "matrix": matrix,
                 "scale": scale,
                 "rotation": rotation,
+                "aligned_landmarks": pre_points,
                 "torso_metrics_before": torso_metrics,
             }
+        )
+
+    skin_target_lab = None
+    if args.normalize_skin_tone:
+        skin_statistics = [
+            skin_tone_statistics(row["aligned"], row["aligned_landmarks"])[0]
+            for row in prepared
+        ]
+        skin_target_lab = np.median(
+            np.asarray(skin_statistics, dtype=np.float64), axis=0
         )
 
     child_rows = [row for row in prepared if row["age"] <= 17]
@@ -485,6 +566,12 @@ def main() -> None:
                 )
                 torso_passes.append(shift)
 
+        skin_normalization = None
+        if skin_target_lab is not None:
+            aligned, skin_normalization = normalize_skin_tone(
+                aligned, row["aligned_landmarks"], skin_target_lab
+            )
+
         aligned_points, aligned_score, aligned_eye = detect_primary(detector, aligned)
         torso_after = measure_dark_sweater(aligned, float(aligned_points[2, 0]))
         filename = f"{index:02d}_age{row['age']:02d}.png"
@@ -518,6 +605,7 @@ def main() -> None:
                 "torso_metrics_target": torso_target,
                 "torso_metrics_after": torso_after,
                 "torso_remap_passes": torso_passes,
+                "skin_tone_normalization": skin_normalization,
                 "warnings": warnings,
             }
         )
@@ -540,7 +628,15 @@ def main() -> None:
             "target_eye_angle_degrees": round(target_angle, 5),
             "rotation_alignment_enabled": args.align_eye_rotation,
             "nonrigid_face_warp": False,
-            "photometric_normalization": False,
+            "photometric_normalization": {
+                "enabled": args.normalize_skin_tone,
+                "type": "soft face-skin LAB median matching",
+                "target_lab": (
+                    rounded_list(skin_target_lab)
+                    if skin_target_lab is not None
+                    else None
+                ),
+            },
             "child_torso_stabilization": {
                 "enabled": not args.no_torso_stabilization,
                 "endpoint_ages": [

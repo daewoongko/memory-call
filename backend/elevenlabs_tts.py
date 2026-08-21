@@ -32,7 +32,9 @@ MAX_PCM_BYTES = 25 * 1024 * 1024  # MuseTalk의 WAV 상한과 맞춘다.
 DEFAULT_MODEL_ID = "eleven_flash_v2_5"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 ANAM_SAMPLE_RATE = 16000
-STREAM_CHUNK_BYTES = 8192
+# 2 KiB is 64 ms of 16 kHz PCM16.  Smaller pushes give Anam more frequent
+# phoneme updates than the previous 8 KiB/256 ms batches.
+STREAM_CHUNK_BYTES = 2048
 # ElevenLabs voice_settings.speed의 문서화된 범위. 프로젝트의 TTSRequest.rate
 # (0.75~1.15)는 이미 이 안에 들어오지만, 방어적으로 한 번 더 clamp한다.
 MIN_SPEED = 0.7

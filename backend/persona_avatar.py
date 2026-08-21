@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import hashlib
 import io
+import os
 from pathlib import Path
 
 from PIL import Image, ImageFilter, ImageOps, UnidentifiedImageError
 
 import anam
 import db
-from storage import persona_face_storage
+from storage import DEFAULT_FACE_PERSONA_ID, persona_face_storage
 
 
 class AvatarProfileError(ValueError):
@@ -72,12 +73,26 @@ def active_avatar(persona_id: str | None) -> dict | None:
             "WHERE persona_id = ? AND avatar_status = 'ready'",
             (persona_id,),
         ).fetchone()
-    if not row or not row["avatar_id"]:
-        return None
-    return {
-        "avatar_id": str(row["avatar_id"]),
-        "avatar_model": str(row["avatar_model"] or anam.DEFAULT_AVATAR_MODEL),
-    }
+    if row and row["avatar_id"]:
+        return {
+            "avatar_id": str(row["avatar_id"]),
+            "avatar_model": str(row["avatar_model"] or anam.DEFAULT_AVATAR_MODEL),
+        }
+
+    # Render's free container can start from a fresh SQLite database on each
+    # deploy. Keep the default demo persona usable without committing provider
+    # ids to the public repository; the ids stay in secret environment values.
+    if persona_id == DEFAULT_FACE_PERSONA_ID:
+        avatar_id = os.getenv("ANAM_AVATAR_ID", "").strip()
+        if avatar_id:
+            return {
+                "avatar_id": avatar_id,
+                "avatar_model": (
+                    os.getenv("ANAM_AVATAR_MODEL", "").strip()
+                    or anam.DEFAULT_AVATAR_MODEL
+                ),
+            }
+    return None
 
 
 def active_avatar_id(persona_id: str | None) -> str | None:
@@ -86,17 +101,19 @@ def active_avatar_id(persona_id: str | None) -> str | None:
 
 
 def _provider_image(source: Path) -> bytes:
-    """Return a Cara 4-ready square JPEG with safe head/chest margins."""
+    """Return an Anam-ready 3:2 JPEG with safe head/chest margins."""
     try:
         with Image.open(source) as opened:
             image = ImageOps.exif_transpose(opened).convert("RGB")
     except (UnidentifiedImageError, OSError) as exc:
         raise AvatarProfileError("선택한 사진을 읽을 수 없습니다.") from exc
 
-    size = (1280, 1280)
+    # Anam custom avatars expect a landscape 3:2 or 16:9 source. Keep the
+    # confirmed portrait uncropped and use a soft extension for the sides.
+    size = (1500, 1000)
     background = ImageOps.fit(image, size, method=Image.Resampling.LANCZOS)
     background = background.filter(ImageFilter.GaussianBlur(28))
-    foreground = ImageOps.contain(image, (920, 1120), method=Image.Resampling.LANCZOS)
+    foreground = ImageOps.contain(image, (760, 920), method=Image.Resampling.LANCZOS)
     left = (size[0] - foreground.width) // 2
     top = (size[1] - foreground.height) // 2
     background.paste(foreground, (left, top))

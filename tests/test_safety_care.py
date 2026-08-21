@@ -10,7 +10,7 @@ import safety  # noqa: E402
 
 
 CTX = {
-    "persona": {"display_name": "민준"},
+    "persona": {"display_name": "대웅"},
     "memories": [],
     "schedules": [],
 }
