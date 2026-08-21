@@ -14,15 +14,15 @@ services:
       - key: DEMO_SEED_MODE
         value: high_volume
       - key: LLM_BASE_URL
-        value: https://api.openai.com/v1
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
       - key: LLM_MODEL
-        value: gpt-5.6-terra
+        value: gemini-3.5-flash
       - key: LLM_FAST_MODEL
-        value: gpt-5.6-luna
+        value: gemini-3.5-flash-lite
       - key: LLM_REASONING_EFFORT
         value: low
       - key: LLM_FAST_REASONING_EFFORT
-        value: none
+        value: ""
       - key: LLM_API_KEY
         sync: false
       - key: OPENAI_API_KEY
