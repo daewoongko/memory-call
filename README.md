@@ -81,7 +81,8 @@ Quick Tunnel 주소는 재시작할 때 바뀌므로 고정 사용은 Render 배
 
 | 변수 | 역할 |
 |---|---|
-| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | Gemini/OpenAI 호환 답변 생성 |
+| `OPENAI_API_KEY`, `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | OpenAI/Gemini 호환 답변 생성 |
+| `LLM_FAST_MODEL`, `LLM_FAST_REASONING_EFFORT` | 실시간 통화용 저지연 모델·추론 수준 |
 | `ELEVENLABS_API_KEY` | 실시간 STT와 가족별 음성 복제·TTS |
 | `ANAM_API_KEY` | 확정된 가족 사진으로 아바타 생성 및 실시간 립싱크 |
 | `STORAGE_DIR` | 배포 환경의 영속 DB·비공개 자산 저장 위치 |
