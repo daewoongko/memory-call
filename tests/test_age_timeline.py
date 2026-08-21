@@ -4,12 +4,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
+import age_timeline  # noqa: E402
 from age_timeline import (  # noqa: E402
     insert_visual_bridge_candidate,
     invalidate_refined_branch,
@@ -18,6 +20,59 @@ from age_timeline import (  # noqa: E402
 
 
 class AgeTimelineSelectionTests(unittest.TestCase):
+    def test_product_candidates_are_completed_validated_photos_and_limited_to_four(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            candidates = Path(temporary)
+            names = [f"age08_candidate_{index}.png" for index in range(6)]
+            hidden = ["age08_fran_raw.png", "age08_structure_guide.png"]
+            for name in [*names, *hidden, "age08_guidefran_completed.png"]:
+                (candidates / name).write_bytes(b"candidate")
+            validation = {
+                name: {
+                    "full_pass": True,
+                    "estimated_age": 8 + index,
+                    "parent_similarity": 0.9 - index * 0.01,
+                }
+                for index, name in enumerate(names)
+            }
+            validation[names[-1]]["full_pass"] = False
+            paths = SimpleNamespace(
+                age_candidates=candidates,
+                legacy=True,
+                persona_id="persona_test",
+            )
+            with (
+                patch("age_timeline._paths", return_value=paths),
+                patch("age_timeline._validation_by_name", return_value=validation),
+            ):
+                visible = age_timeline._candidate_files(8)
+
+        self.assertEqual(len(visible), 4)
+        self.assertTrue(all(item["candidate_type"] == "completed_photo" for item in visible))
+        self.assertFalse(any(item["name"] in hidden for item in visible))
+        self.assertNotIn(names[-1], {item["name"] for item in visible})
+
+    def test_completed_photo_may_record_internal_fran_guidance(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            candidates = Path(temporary)
+            completed = "age08_flux2_guidefran_completed.png"
+            (candidates / completed).write_bytes(b"completed-photo")
+            paths = SimpleNamespace(
+                age_candidates=candidates,
+                legacy=True,
+                persona_id="persona_test",
+            )
+            with (
+                patch("age_timeline._paths", return_value=paths),
+                patch(
+                    "age_timeline._validation_by_name",
+                    return_value={completed: {"full_pass": True, "estimated_age": 8}},
+                ),
+            ):
+                visible = age_timeline._candidate_files(8)
+
+        self.assertEqual([item["name"] for item in visible], [completed])
+
     def test_new_selection_invalidates_all_younger_dependants(self):
         selections = {
             "31": "age31.png",

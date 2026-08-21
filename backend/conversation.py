@@ -18,7 +18,7 @@ import care
 import llm
 import medication
 import safety
-from persona import build_system_prompt, load_context
+from persona import build_fast_system_prompt, build_system_prompt, load_context
 
 MAX_HISTORY_TURNS = 12  # 최근 12턴만 모델에 보냄. 반복 질문이 많아 길어지기 쉽다.
 LOGGER = logging.getLogger(__name__)
@@ -100,9 +100,16 @@ class Session:
             "transcript": user_text,
         })
 
-        messages = [{"role": "system", "content": self.system_prompt}]
-        messages += self.history[-MAX_HISTORY_TURNS * 2:]
+        recent_history = self.history[-MAX_HISTORY_TURNS * 2:]
+        messages = [{
+            "role": "system",
+            "content": build_fast_system_prompt(self.ctx, user_text),
+        }]
+        messages += recent_history
         messages.append({"role": "user", "content": user_text})
+        metadata_messages = [{"role": "system", "content": self.system_prompt}]
+        metadata_messages += recent_history
+        metadata_messages.append({"role": "user", "content": user_text})
 
         t0 = time.time()
         result = llm.call_json_fast(messages)
@@ -140,7 +147,7 @@ class Session:
         result["_due_meds"] = [dict(item) for item in self.due_meds]
         # BackgroundTasks가 같은 요청 문맥을 재구성하지 않도록 호출용 복사본만
         # 넘긴다. API 응답에는 밑줄 필드를 노출하지 않는다.
-        result["_messages"] = messages
+        result["_messages"] = metadata_messages
         return result
 
     def finish_turn_metadata(self, fast_result: dict) -> None:

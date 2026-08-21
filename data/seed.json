@@ -36,7 +36,7 @@
         "priority": 1
       },
       {
-        "name": "민준(손자)",
+        "name": "대웅(손자)",
         "phone": "010-1111-1111",
         "priority": 2
       }
@@ -46,13 +46,13 @@
     {
       "memory_id": "mem_001",
       "title": "부산 해운대 가족여행",
-      "description": "2012년 여름 할아버지, 민준이, 부모님이 해운대에 갔다. 민준이가 모래성을 만들었고 할아버지가 옆에서 지켜봤다.",
+      "description": "2012년 여름 할아버지, 대웅이, 부모님이 해운대에 갔다. 대웅이가 모래성을 만들었고 할아버지가 옆에서 지켜봤다.",
       "date_text": "2012년 여름",
       "happened_year": 2012,
       "location": "부산 해운대",
       "participants": [
         "할아버지",
-        "민준",
+        "대웅",
         "부모님"
       ],
       "status": "verified",
@@ -66,7 +66,7 @@
       "location": "부산 (추정)",
       "participants": [
         "할아버지",
-        "민준"
+        "대웅"
       ],
       "status": "partial",
       "conversation_allowed": true
@@ -74,13 +74,13 @@
     {
       "memory_id": "mem_003",
       "title": "초등학교 입학식",
-      "description": "2010년 민준이 초등학교 입학식에 할아버지가 직접 오셨다. 교문 앞에서 사진을 찍었다.",
+      "description": "2010년 대웅이 초등학교 입학식에 할아버지가 직접 오셨다. 교문 앞에서 사진을 찍었다.",
       "date_text": "2010년 3월",
       "happened_year": 2010,
       "location": "서울",
       "participants": [
         "할아버지",
-        "민준",
+        "대웅",
         "어머니"
       ],
       "status": "verified",
@@ -89,13 +89,13 @@
     {
       "memory_id": "mem_004",
       "title": "할아버지 텃밭",
-      "description": "할아버지가 집 뒤에 상추와 고추를 심으셨다. 민준이가 방학마다 물을 줬다.",
+      "description": "할아버지가 집 뒤에 상추와 고추를 심으셨다. 대웅이가 방학마다 물을 줬다.",
       "date_text": "2008~2015년",
       "happened_year": 2008,
       "location": "할아버지 댁",
       "participants": [
         "할아버지",
-        "민준"
+        "대웅"
       ],
       "status": "verified",
       "conversation_allowed": true
@@ -103,26 +103,26 @@
     {
       "memory_id": "mem_005",
       "title": "붕어빵",
-      "description": "겨울마다 할아버지가 동네 시장에서 붕어빵을 사다 주셨다. 민준이는 팥, 할아버지는 슈크림을 좋아하셨다.",
+      "description": "겨울마다 할아버지가 동네 시장에서 붕어빵을 사다 주셨다. 대웅이는 팥, 할아버지는 슈크림을 좋아하셨다.",
       "date_text": "매년 겨울",
       "location": "동네 시장",
       "participants": [
         "할아버지",
-        "민준"
+        "대웅"
       ],
       "status": "verified",
       "conversation_allowed": true
     },
     {
       "memory_id": "mem_006",
-      "title": "민준이 첫 직장 취업",
-      "description": "2018년 민준이가 첫 직장에 취업했을 때 할아버지가 제일 먼저 전화를 받고 기뻐하셨다.",
+      "title": "대웅이 첫 직장 취업",
+      "description": "2018년 대웅이가 첫 직장에 취업했을 때 할아버지가 제일 먼저 전화를 받고 기뻐하셨다.",
       "date_text": "2018년 겨울",
       "happened_year": 2018,
       "location": "전화",
       "participants": [
         "할아버지",
-        "민준"
+        "대웅"
       ],
       "status": "verified",
       "conversation_allowed": true
@@ -135,7 +135,7 @@
       "location": "확인 안 됨",
       "participants": [
         "할아버지",
-        "민준"
+        "대웅"
       ],
       "status": "partial",
       "conversation_allowed": true
@@ -149,7 +149,7 @@
       "location": "식당",
       "participants": [
         "할아버지",
-        "민준",
+        "대웅",
         "온 가족"
       ],
       "status": "verified",
@@ -158,13 +158,13 @@
     {
       "memory_id": "mem_009",
       "title": "자전거 배우기",
-      "description": "할아버지가 민준이 자전거 뒤를 잡아주며 타는 법을 가르쳐 주셨다.",
+      "description": "할아버지가 대웅이 자전거 뒤를 잡아주며 타는 법을 가르쳐 주셨다.",
       "date_text": "2011년경",
       "happened_year": 2011,
       "location": "동네 공원",
       "participants": [
         "할아버지",
-        "민준"
+        "대웅"
       ],
       "status": "verified",
       "conversation_allowed": true
@@ -190,7 +190,7 @@
       "location": "할아버지 댁",
       "participants": [
         "할아버지",
-        "민준"
+        "대웅"
       ],
       "status": "verified",
       "conversation_allowed": true
@@ -242,7 +242,7 @@
       "location": "할아버지 댁 마당",
       "participants": [
         "할아버지",
-        "민준"
+        "대웅"
       ],
       "status": "verified",
       "conversation_allowed": true
@@ -251,7 +251,7 @@
   "schedules": [
     {
       "schedule_id": "sch_001",
-      "title": "민준이 방문",
+      "title": "대웅이 방문",
       "date": "2026-08-15",
       "time": "14:00",
       "note": "토요일 오후에 할아버지 댁 방문 예정",
@@ -321,10 +321,10 @@
   ],
   "personas": [
     {
-      "persona_id": "persona_minjun",
-      "display_name": "민준",
+      "persona_id": "persona_godaewoong",
+      "display_name": "대웅",
       "relationship_type": "손자",
-      "elder_calls_family": "우리 민준이",
+      "elder_calls_family": "우리 대웅이",
       "family_calls_elder": "할아버지",
       "tone": "따뜻하고 편안한 반말. 서두르지 않고 천천히.",
       "frequent_phrases": [

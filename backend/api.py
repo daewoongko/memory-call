@@ -21,11 +21,12 @@ from typing import Literal
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import admin as admin_mod
+import anam as anam_mod
 import age_timeline
 import db
 import elevenlabs_stt
@@ -37,6 +38,7 @@ import medication as med_mod
 import memories as mem_mod
 import nettest as nettest_mod
 import persona_voice as voice_mod
+import persona_avatar as avatar_mod
 import report as report_mod
 import schedules as sched_mod
 import signaling
@@ -47,6 +49,7 @@ from conversation import Session
 from storage import (
     ALIGNED_FACES_DIR,
     AGE_CANDIDATES_DIR,
+    DEFAULT_FACE_PERSONA_ID,
     FACES_ROOT,
     FINAL_AGE_PATH_DIR,
     FRONTEND_DIST,
@@ -199,6 +202,14 @@ class TTSRequest(BaseModel):
     persona_id: str | None = Field(default=None, pattern=r"^persona_[a-z0-9_]+$")
 
 
+class AnamSessionRequest(BaseModel):
+    call_id: str = Field(min_length=8, max_length=64)
+    persona_id: str | None = Field(
+        default=None, pattern=r"^persona_[a-z0-9_]+$",
+    )
+    performance_style: Literal["calm", "natural", "lively"] = "calm"
+
+
 class VoiceConsentRequest(BaseModel):
     elder_id: str = "elder_001"
     accepted: bool
@@ -277,6 +288,7 @@ class PersonaPatch(BaseModel):
     call_style_name: str | None = Field(default=None, max_length=40)
     call_style_scores: dict | None = None
     call_style_answers: dict[str, str] | None = None
+    avatar_performance_style: Literal["calm", "natural", "lively"] | None = None
 
 
 class ElderPatch(BaseModel):
@@ -505,7 +517,7 @@ def _face_urls(persona_id: str | None = None) -> list[dict]:
         aligned_dir = FACES_DIR
         final_dir = FINAL_AGE_PATH_DIR
         legacy = True
-        selected_persona_id = "persona_minjun"
+        selected_persona_id = "persona_godaewoong"
     else:
         face_paths = ensure_persona_face_directories(persona_id)
         aligned_dir = face_paths.aligned
@@ -576,7 +588,7 @@ def _face_urls(persona_id: str | None = None) -> list[dict]:
 
 def _persona_face_url(persona_id: str) -> str | None:
     """가족별 대표 얼굴. 준비되지 않은 가족에게 다른 사람 얼굴을 빌려주지 않는다."""
-    if persona_id == "persona_minjun":
+    if persona_id == "persona_godaewoong":
         legacy = _face_urls(persona_id)
         return legacy[-1]["url"] if legacy else None
     paths = ensure_persona_face_directories(persona_id)
@@ -611,19 +623,81 @@ def tts_health():
     """ElevenLabs 설정과 선택형 MuseTalk 립싱크 워커 상태를 확인한다."""
     tts_status = {
         "engine": "elevenlabs",
-        "configured": bool(
-            os.getenv("ELEVENLABS_API_KEY", "").strip()
-            and os.getenv("ELEVENLABS_VOICE_ID", "").strip()
-        ),
+        "configured": bool(os.getenv("ELEVENLABS_API_KEY", "").strip()),
         "model": os.getenv(
             "ELEVENLABS_MODEL_ID", elevenlabs_tts.DEFAULT_MODEL_ID,
         ),
     }
     try:
-        return {"tts": tts_status, "lipsync": tts_proxy.health()}
+        return {
+            "tts": tts_status,
+            "anam": {"configured": anam_mod.configured()},
+            "lipsync": tts_proxy.health(),
+        }
     except tts_proxy.TTSUnavailable as exc:
         # 립싱크 워커가 꺼져 있어도 순수 ElevenLabs 음성 통화는 정상 경로다.
-        return {"tts": tts_status, "lipsync": {"available": False, "detail": str(exc)}}
+        return {
+            "tts": tts_status,
+            "anam": {"configured": anam_mod.configured()},
+            "lipsync": {"available": False, "detail": str(exc)},
+        }
+
+
+def _ready_voice_id(persona_id: str | None) -> str:
+    if not persona_id:
+        raise HTTPException(409, "통화할 가족을 먼저 선택해 주세요.")
+    voice_id = voice_mod.active_voice_id(persona_id)
+    if not voice_id and persona_id == DEFAULT_FACE_PERSONA_ID:
+        voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+    if not voice_id:
+        raise HTTPException(409, "선택한 가족의 승인된 목소리를 먼저 등록해 주세요.")
+    return voice_id
+
+
+ANAM_EXPRESSIVITY_PRESETS = {
+    "calm": 0.05,
+    "natural": 0.15,
+    "lively": 0.30,
+}
+
+
+def _musetalk_enabled() -> bool:
+    """Keep the rejected MuseTalk renderer out of normal and fallback flows."""
+    return os.getenv("MEMORY_CALL_MUSETALK_ENABLED", "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
+
+@app.post("/api/anam/session-token")
+def create_anam_session(req: AnamSessionRequest):
+    """Return a short-lived Anam token for the active AI call only."""
+    session = SESSIONS.get(req.call_id)
+    if session is None:
+        raise HTTPException(404, "Active call not found")
+    if req.persona_id and req.persona_id != session.persona_id:
+        raise HTTPException(409, "Persona does not match the active call")
+    persona = session.ctx.get("persona") or {}
+    avatar = avatar_mod.active_avatar(session.persona_id)
+    if not avatar:
+        raise HTTPException(409, "선택한 가족의 AI 영상 얼굴을 먼저 생성해 주세요.")
+    try:
+        result = anam_mod.create_session_token(
+            avatar_id=avatar["avatar_id"],
+            avatar_model=avatar["avatar_model"],
+            persona_name=persona.get("display_name"),
+            expressivity=ANAM_EXPRESSIVITY_PRESETS[req.performance_style],
+        )
+    except anam_mod.AnamNotConfigured as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except anam_mod.AnamUnavailable as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {
+        "session_token": result["session_token"],
+        "avatar_model": result["avatar_model"],
+        "persona_id": session.persona_id,
+        "performance_style": req.performance_style,
+        "expires_in_seconds": 3600,
+    }
 
 
 @app.post("/api/tts/bridge/register")
@@ -653,10 +727,8 @@ def synthesize_speech(req: TTSRequest, request: Request):
     request_id = uuid.uuid4().hex
     try:
         try:
-            voice_id = voice_mod.active_voice_id(req.persona_id)
-            kwargs = {"request_id": request_id}
-            if voice_id:
-                kwargs["voice_id"] = voice_id
+            voice_id = _ready_voice_id(req.persona_id)
+            kwargs = {"request_id": request_id, "voice_id": voice_id}
             result = elevenlabs_tts.synthesize_with_metadata(
                 req.text.strip(), req.rate, **kwargs,
             )
@@ -679,6 +751,46 @@ def synthesize_speech(req: TTSRequest, request: Request):
     )
 
 
+@app.post("/api/tts/pcm-stream")
+def stream_speech_pcm(req: TTSRequest, request: Request):
+    """Stream the cloned family voice as raw PCM16 for Anam passthrough."""
+    _enforce_tts_rate_limit(request)
+    _acquire_tts_capacity()
+    request_id = uuid.uuid4().hex
+    try:
+        voice_id = _ready_voice_id(req.persona_id)
+        kwargs = {"request_id": request_id, "voice_id": voice_id}
+        pcm_stream = elevenlabs_tts.open_pcm_stream(
+            req.text.strip(), req.rate, **kwargs,
+        )
+    except (
+        elevenlabs_tts.ElevenLabsNotConfigured,
+        elevenlabs_tts.ElevenLabsUnavailable,
+    ) as exc:
+        _tts_capacity.release()
+        raise HTTPException(503, str(exc)) from exc
+    except Exception:
+        _tts_capacity.release()
+        raise
+
+    def chunks():
+        try:
+            yield from pcm_stream.iter_chunks()
+        finally:
+            pcm_stream.close()
+            _tts_capacity.release()
+
+    return StreamingResponse(
+        chunks(),
+        media_type="application/octet-stream",
+        headers={
+            "Cache-Control": "no-store",
+            "X-TTS-Engine": "elevenlabs",
+            **pcm_stream.public_headers(),
+        },
+    )
+
+
 @app.post("/api/tts/video")
 def synthesize_lipsync_video(req: TTSRequest, request: Request):
     """ElevenLabs로 오디오를 만들고 로컬 MuseTalk으로 립싱크 MP4를 씌운다.
@@ -691,10 +803,8 @@ def synthesize_lipsync_video(req: TTSRequest, request: Request):
     request_id = uuid.uuid4().hex
     try:
         try:
-            voice_id = voice_mod.active_voice_id(req.persona_id)
-            kwargs = {"request_id": request_id}
-            if voice_id:
-                kwargs["voice_id"] = voice_id
+            voice_id = _ready_voice_id(req.persona_id)
+            kwargs = {"request_id": request_id, "voice_id": voice_id}
             audio_result = elevenlabs_tts.synthesize_with_metadata(
                 req.text.strip(), req.rate, **kwargs,
             )
@@ -703,6 +813,20 @@ def synthesize_lipsync_video(req: TTSRequest, request: Request):
             elevenlabs_tts.ElevenLabsUnavailable,
         ) as exc:
             raise HTTPException(503, str(exc)) from exc
+
+        if not _musetalk_enabled():
+            response_headers = {
+                "Cache-Control": "no-store",
+                "X-TTS-Engine": "elevenlabs",
+                "X-Lipsync-Fallback": "audio",
+                "X-Lipsync-Disabled": "musetalk",
+                **audio_result.public_headers(request_id=request_id),
+            }
+            return Response(
+                content=audio_result.body,
+                media_type="audio/wav",
+                headers=response_headers,
+            )
 
         try:
             video_result = tts_proxy.render_lipsync_with_metadata(
@@ -748,7 +872,7 @@ def call_targets(elder_id: str = "elder_001"):
     family_order = {
         "persona_jeonghun": 0,
         "persona_miyeong": 1,
-        "persona_minjun": 2,
+        "persona_godaewoong": 2,
         "persona_yujin": 3,
     }
     personas = sorted(
@@ -834,11 +958,17 @@ def verify_link_code(req: LinkVerify):
 def get_persona(elder_id: str = "elder_001", persona_id: str | None = None):
     """페르소나 등록 화면에 필요한 전체 정보."""
     try:
+        base = admin_mod.profile(elder_id, persona_id)
+        selected_persona_id = (base.get("persona") or {}).get("persona_id")
         return dict(
-            admin_mod.profile(elder_id, persona_id),
+            base,
             faces=admin_mod.faces(persona_id),
             identity_photos=admin_mod.identity_photos(persona_id),
             age_plan=age_timeline.get_plan(persona_id),
+            avatar_profile=(
+                avatar_mod.public_profile(selected_persona_id, elder_id)
+                if selected_persona_id else None
+            ),
         )
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
@@ -909,7 +1039,7 @@ def get_age_plan(persona_id: str | None = None):
 @app.put("/api/age-plan")
 def put_age_plan(req: AgePlanRequest, persona_id: str | None = None):
     try:
-        return age_timeline.save_plan(
+        plan = age_timeline.save_plan(
             req.current_age,
             req.current_photo,
             birth_date=req.birth_date,
@@ -918,7 +1048,34 @@ def put_age_plan(req: AgePlanRequest, persona_id: str | None = None):
             population_group=req.population_group,
             persona_id=persona_id,
         )
+        if persona_id:
+            plan["avatar_profile"] = avatar_mod.sync_from_confirmed_photo(
+                persona_id, req.current_photo,
+            )
+        return plan
     except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/personas/{persona_id}/avatar-profile")
+def get_avatar_profile(persona_id: str, elder_id: str = "elder_001"):
+    try:
+        return avatar_mod.public_profile(persona_id, elder_id)
+    except avatar_mod.AvatarProfileError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.post("/api/personas/{persona_id}/avatar/sync")
+def sync_avatar_profile(persona_id: str, elder_id: str = "elder_001"):
+    plan = age_timeline.get_plan(persona_id)
+    photo_name = plan.get("current_photo")
+    if not photo_name:
+        raise HTTPException(409, "현재 기준 사진을 먼저 확정해 주세요.")
+    try:
+        return avatar_mod.sync_from_confirmed_photo(
+            persona_id, photo_name, elder_id, force=True,
+        )
+    except avatar_mod.AvatarProfileError as exc:
         raise HTTPException(400, str(exc)) from exc
 
 
@@ -1355,7 +1512,7 @@ def _open_ai_session(elder_id: str, persona_id: str | None) -> dict:
         "call_id": session.call_id,
         "persona_id": selected_persona_id,
         "persona_name": persona_name,
-        # 복약 시간대면 민준이가 먼저 건넬 말이 들어온다. 없으면 빈 문자열.
+        # 복약 시간대면 대웅이가 먼저 건넬 말이 들어온다. 없으면 빈 문자열.
         "opening": session.opening(),
         # 명세 13.1 — 연결 전 1회만 고지한다. 통화 중에는 반복하지 않는다.
         "announcement": f"{persona_name}이가 준비한 AI 기억통화가 연결됩니다.",

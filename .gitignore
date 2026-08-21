@@ -31,6 +31,23 @@ db.sqlite
 *.db
 .logs/
 
+# Licensed face datasets and derived experiment artefacts are local-only.
+data/external/
+data/experiments/aihub*/
+data/experiments/aihub_download_probe/
+data/experiments/face_dataset_audit/
+data/experiments/_hf_local_test/
+data/models/age_prior/
+
+# Reproducible local generation/review output is not part of the deployed app.
+data/backups/
+data/experiments/age_generator_three_way_compare/
+data/experiments/manual_provider_compare_*/
+data/experiments/godaewoong_morph_*/
+data/personas/*/lipsync_trials/
+output/
+tmp/
+
 # Media is private by default. Only the finalized, explicitly listed paths below
 # are published (large binaries are stored with Git LFS).
 *.wav

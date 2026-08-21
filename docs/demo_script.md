@@ -22,28 +22,33 @@
 
 ## 시작 전 (2분)
 
-```bash
-.\.venv\Scripts\python.exe tools\tts_bridge.py    터미널 1, 립싱크(MuseTalk). 먼저 켠다
-python tools/serve.py                             터미널 2, 계속 켜둠
-cd frontend && npm run dev                        터미널 3, 계속 켜둠
-python tools/demo_reset.py --med-in 6             터미널 4
+```powershell
+# 터미널 1 — API와 통합 앱
+.\.venv\Scripts\python.exe tools\serve.py --no-reload
+
+# 터미널 2 — 로컬 UI를 바로 수정할 때만 사용
+cd frontend
+npm run dev
+
+# 시연 데이터 초기화가 필요할 때 한 번 실행
+.\.venv\Scripts\python.exe tools\demo_reset.py --med-in 6
 ```
 
-목소리는 ElevenLabs API라 `.env`에 키만 있으면 터미널 1 없이도 바로 나온다.
-터미널 1은 립싱크 영상용이고, 없어도 통화는 오디오만으로 이어진다.
+ElevenLabs와 Anam은 배포 API를 직접 사용하므로 로컬 GPU 터미널이 필요 없다.
+Anam 연결이 실패해도 ElevenLabs 음성은 계속 재생된다. MuseTalk을 대체 경로로
+따로 시연할 때만 `tools/tts_bridge.py`를 추가로 켠다.
 
 체크리스트
 
 - [ ] **Chrome** 으로 열었는가 (Edge·Safari 는 음성 인식 동작이 다르다)
 - [ ] 마이크 권한 허용
 - [ ] 스피커 볼륨
-- [ ] 탭 두 개 준비: `localhost:5173` / `localhost:5173/#guardian`
-- [ ] 립싱크를 켤 계획이면 브리지 터미널에 **MuseTalk 준비 완료** 가 찍혔는지
-      (모델 로딩에 30초 정도 걸린다. 그 전에는 얼굴이 정지 화면으로 대체된다)
+- [ ] 어르신·가족 앱에서 서로 다른 역할과 같은 어르신을 선택했는가
+- [ ] 가족의 승인된 음성 ID와 Anam avatar ID가 설정 화면에 생성되어 있는가
 - [ ] 개발자 도구는 **닫아둘 것**
 
-**시연은 배포 주소가 아니라 `localhost` 로 한다.** 왕복이 8초 대 10.5초로
-빠르고, 배포 경로는 재배포 직후 최대 45초간 목소리가 죽는 구간이 있다.
+폰 두 대 시연은 HTTPS인 Render 배포 주소 또는 고정 Cloudflare Tunnel을 사용한다.
+Quick Tunnel은 재시작할 때 주소가 바뀌므로 발표용 고정 주소로 간주하지 않는다.
 **발표 직전에는 배포하지 않는다.**
 
 ---
@@ -79,7 +84,7 @@ python tools/demo_reset.py --med-in 6             터미널 4
 
 말한다:
 
-> **"민준아, 오늘 집에 오니?"**
+> **"대웅아, 오늘 집에 오니?"**
 
 AI가 답한다. 오늘 일정이 없으므로 오늘 오겠다고 하지 않는다.
 등록된 주말 방문만 이야기한다.
@@ -123,7 +128,7 @@ AI는 사실로 확정하지 않고 되묻는다.
 
 > 이번엔 AI가 겁니다. 보호자가 등록한 복약 시간이 됐기 때문입니다.
 
-**받기** 를 누르면 민준이가 먼저 말한다.
+**받기** 를 누르면 대웅이가 먼저 말한다.
 
 > 약 이름과 복용량은 AI가 만든 문장이 아닙니다.
 > 보호자가 등록한 값을 그대로 읽습니다.

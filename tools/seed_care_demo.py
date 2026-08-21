@@ -42,9 +42,9 @@ DEMO_PERSONAS = {
         "tone": "다정하고 안정적인 반말. 짧고 천천히 말한다.",
         "frequent_phrases": ["아버지, 천천히 말씀해 주세요.", "제가 같이 확인해 볼게요."],
     },
-    "민준": {
-        "persona_id": "persona_minjun", "relationship_type": "손자",
-        "elder_calls_family": "우리 민준이", "family_calls_elder": "할아버지",
+    "대웅": {
+        "persona_id": "persona_godaewoong", "relationship_type": "손자",
+        "elder_calls_family": "우리 대웅이", "family_calls_elder": "할아버지",
         "tone": "따뜻하고 편안한 반말. 천천히 듣고 한 번에 한 가지씩 말한다.",
         "frequent_phrases": ["할아버지, 저 여기 있어요.", "우리 하나씩 같이 해봐요."],
     },
@@ -155,7 +155,7 @@ def _delete_demo_calls(conn, prefix: str) -> None:
 
 
 def _ensure_demo_family(conn, elder_id: str) -> None:
-    """데모 가족을 정훈·미영·민준·유진 네 명으로 통일한다."""
+    """데모 가족을 정훈·미영·대웅·유진 네 명으로 통일한다."""
     conn.execute("UPDATE personas SET active = 0 WHERE elder_id = ?", (elder_id,))
     for name, persona in DEMO_PERSONAS.items():
         payload = {

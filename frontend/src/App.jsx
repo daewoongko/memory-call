@@ -21,9 +21,6 @@ import { createTransport, openCallMedia } from "./callTransport.js";
 import { useCallMediaReadiness } from "./useCallMediaReadiness.js";
 import { useScreenWakeLock } from "./useScreenWakeLock.js";
 
-// 벨이 몇 초 울리는지는 서버가 정해서 내려보낸다. 받을 기기가 없으면 짧게
-// 울려야 하는데, 그 판단에 필요한 정보가 화면에는 없기 때문이다.
-const RING_POLL_MS = 1500;
 const PENDING_POLL_MS = 20000;  // 복약 시간이 되었는지 주기적으로 확인
 const RING_COOLDOWN_MS = 300000; // 거절하거나 통화가 끝난 뒤 다시 걸기까지
 
@@ -56,8 +53,7 @@ function removeLocal(key) {
   }
 }
 
-// 가족 응답을 기다리는 시간 (명세 FR-01)
-const ANNOUNCE_MS = 2600; // AI 통화 안내를 보여주는 시간 (명세 13.1)
+const ANNOUNCE_MS = 2600; // 예약 통화 연결 안내를 보여주는 시간
 
 export default function App() {
   // 색과 글씨 크기는 앱 전체에 걸리므로 가장 바깥에서 한 번만 적용한다
@@ -93,7 +89,6 @@ export default function App() {
   // 지금 울리고 있는 호출. 받았는지 여부는 서버만 안다.
   const [invite, setInvite] = useState(null);
   const [summary, setSummary] = useState(null);
-  const [secondsLeft, setSecondsLeft] = useState(0);
   const [incomingReason, setIncomingReason] = useState(null);
   // 지금 통화하려는 가족. 대기 화면에서 고른 값이 통화 끝까지 따라간다.
   const [target, setTarget] = useState(null);
@@ -102,6 +97,7 @@ export default function App() {
   const timers = useRef([]);
   const phaseRef = useRef(phase);
   const inviteRef = useRef(invite);
+  const callingMorphDoneRef = useRef(false);
   const humanTransport = useRef(null);
   const transportFailed = useRef(false);
   const takeoverInFlight = useRef(false);
@@ -155,12 +151,19 @@ export default function App() {
 
   const enterCall = useCallback((res) => {
     setCall(res);
+    if (phaseRef.current === "calling") {
+      if (callingMorphDoneRef.current) {
+        phaseRef.current = "incall";
+        setPhase("incall");
+      }
+      return;
+    }
     timers.current.push(setTimeout(() => setPhase("incall"), ANNOUNCE_MS));
   }, []);
 
-  const connectAI = useCallback(async () => {
+  const connectAI = useCallback(async (selectedPersonaId = null) => {
     try {
-      enterCall(await api.startCall(target?.persona_id, elderId));
+      enterCall(await api.startCall(selectedPersonaId ?? target?.persona_id, elderId));
     } catch (e) {
       setError(`통화를 열지 못했어요. (${e.message})`);
       setPhase("idle");
@@ -223,68 +226,6 @@ export default function App() {
     }
   }, [fallBackFromHuman]);
 
-  /**
-   * 벨이 울리는 동안 서버에 물어본다.
-   *
-   * 예전에는 여기가 setSecondsLeft(s => s - 1) 하나였다. 화면 안에서만 도는
-   * 숫자였으므로 보호자가 무엇을 하든 15초 뒤에는 똑같이 AI 로 넘어갔다.
-   * 이제 받았는지 여부는 서버가 판정하고 화면은 그 결과를 따라간다.
-   */
-  useEffect(() => {
-    if (phase !== "calling" || !invite?.invite_id) return undefined;
-
-    let alive = true;
-    let timer = null;
-    const inviteId = invite.invite_id;
-
-    const tick = async () => {
-      if (!alive) return;
-      try {
-        const current = await api.getInvite(inviteId);
-        if (!alive) return;
-        setSecondsLeft(Math.max(0, Math.ceil(current.seconds_left ?? 0)));
-
-        if (current.state === "answered") {
-          setInvite(current);
-          if (transportFailed.current) {
-            fallBackFromHuman(inviteId);
-          } else {
-            setPhase("human");
-          }
-          return;
-        }
-        if (current.should_take_over) {
-          await releaseHumanTransport(false);
-          const res = await api.takeOverInvite(inviteId);
-          if (!alive) return;
-          setInvite(res.invite);
-          enterCall(res);
-          return;
-        }
-        if (current.state === "cancelled" || current.state === "ended") {
-          await releaseHumanTransport(false);
-          setPhase("idle");
-          setInvite(null);
-          return;
-        }
-      } catch (e) {
-        if (!alive) return;
-        // 벨이 울리는 중의 통신 오류로 어르신을 대기 화면에 가둘 수는 없다.
-        // 이 서비스에서 잘못될 수 있는 방향 중 AI 가 받는 쪽이 정상이다.
-        setError(`연결이 고르지 않아 AI 가 받을게요. (${e.message})`);
-        connectAI();
-        return;
-      }
-      if (alive) timer = setTimeout(tick, RING_POLL_MS);
-    };
-
-    tick();
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
-  }, [phase, invite?.invite_id, connectAI, enterCall, fallBackFromHuman, releaseHumanTransport]);
-
   // 보호자가 받은 뒤 12초 안에 미디어가 붙지 않으면 조용히 AI로 넘긴다.
   useEffect(() => {
     if (phase !== "human" || !invite?.invite_id || humanTransportState === "connected") {
@@ -341,26 +282,13 @@ export default function App() {
     setCall(null);
     setSummary(null);
     setInvite(null);
-    setSecondsLeft(0);
+    callingMorphDoneRef.current = false;
+    phaseRef.current = "calling";
     setPhase("calling");
 
-    try {
-      const created = await api.ringFamily({
-        elder_id: elderId,
-        persona_id: person?.persona_id,
-        from_device: deviceId(),
-      });
-      setInvite(created);
-      inviteRef.current = created;
-      setSecondsLeft(Math.ceil(created.seconds_left ?? created.ring_timeout_sec));
-      // ICE 수집 시간을 벨 뒤에 숨긴다. 보호자가 받기 전부터 offer를 만든다.
-      prepareHumanTransport(created.invite_id);
-    } catch (e) {
-      // 호출을 만들지 못해도 통화는 이어져야 한다. 어르신에게는 전화가
-      // 실패한 것이 아니라 가족이 받지 않은 것과 같아야 한다.
-      setError(`가족을 부르지 못해 AI 가 받을게요. (${e.message})`);
-      connectAI();
-    }
+    // 대기 시간은 가족 기기 응답 여부와 무관하게 24.2초 모핑 전체로 고정한다.
+    // AI 세션과 Anam은 지금 바로 뒤에서 준비하되 화면은 영상이 끝나야 열린다.
+    connectAI(person?.persona_id);
   }
 
   function answerIncoming() {
@@ -385,15 +313,15 @@ export default function App() {
     setInvite(null);
     setCall(null);
     setSummary(null);
+    callingMorphDoneRef.current = false;
     setPhase("idle");
   }
 
-  /** 어르신이 벨이 울리는 중에 그만둔다. AI 로 넘기지 않는다. */
-  function stopCalling() {
-    if (invite?.invite_id) api.cancelInvite(invite.invite_id).catch(() => {});
-    releaseHumanTransport(false);
-    setInvite(null);
-    setPhase("idle");
+  function finishCallingMorph() {
+    callingMorphDoneRef.current = true;
+    if (!call) return;
+    phaseRef.current = "incall";
+    setPhase("incall");
   }
 
   /** 사람 통화를 끝낸다. 리포트가 없으므로 대기 화면으로 곧장 돌아간다. */
@@ -406,9 +334,9 @@ export default function App() {
     setPhase("idle");
   }
 
-  const wrap = (node, { gear = false, wide = false, roleSwitch = false } = {}) => (
-    <div className={`frame${wide ? " guardian-frame" : ""}`}>
-      <div className={`device${wide ? " guardian-device" : ""}`}>
+  const wrap = (node, { gear = false, wide = false, roleSwitch = false, shell = "default" } = {}) => (
+    <div className={`frame app-shell app-shell-${shell}${wide ? " guardian-frame" : ""}`}>
+      <div className={`device app-device app-device-${shell}${wide ? " guardian-device" : ""}`}>
         {wide && (roleSwitch || gear) && <WideDisplayDock
           theme={theme}
           size={size}
@@ -487,26 +415,27 @@ export default function App() {
   };
 
   // P2P 가 이 망에서 붙는지 재는 화면. 통화 흐름과 무관하게 따로 연다.
-  if (hash === "#nettest") return wrap(<NetTestScreen />, { wide: true });
+  if (hash === "#nettest") return wrap(<NetTestScreen />, { wide: true, shell: "nettest" });
 
   // 루트에서는 저장된 역할과 관계없이 항상 역할을 먼저 고른다.
   if (hash === "#roles" || (!hash && !role))
-    return wrap(<RoleScreen onPick={chooseRole} />, { wide: true });
+    return wrap(<RoleScreen onPick={chooseRole} />, { wide: true, shell: "roles" });
 
   // 주소로 직접 들어온 경우는 입구를 건너뛴다.
   // #elder는 이 브라우저에 저장된 보호자 역할과 무관하게 어르신 화면을 연다.
   const directElder = hash === "#elder";
   if (hash === "#care" || hash === "#guardian")
-    return wrap(<CareManagerScreen />, { gear: true, wide: true, roleSwitch: true });
+    return wrap(<CareManagerScreen />, { gear: true, wide: true, roleSwitch: true, shell: "care" });
   if (hash === "#child" || hash === "#family") {
-    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true });
-    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, roleSwitch: true });
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true, shell: "family" });
+    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, roleSwitch: true, shell: "family" });
   }
 
   if (!directElder && !booted)
     return wrap(<SplashScreen onDone={() => setBooted(true)} />);
 
-  if (!directElder && !role) return wrap(<RoleScreen onPick={chooseRole} />);
+  if (!directElder && !role)
+    return wrap(<RoleScreen onPick={chooseRole} />, { wide: true, shell: "roles" });
 
   if (!directElder && !linked)
     return wrap(
@@ -514,16 +443,17 @@ export default function App() {
         role={role}
         onLinked={finishLink}
         onSkip={() => finishLink("skipped")}
-      />
+      />,
+      { wide: true, roleSwitch: true, shell: role === "care" ? "care" : "family" }
     );
 
   if (!directElder && role === "care") {
-    return wrap(<CareManagerScreen />, { gear: true, wide: true });
+    return wrap(<CareManagerScreen />, { gear: true, wide: true, shell: "care" });
   }
 
   if (!directElder && role === "child") {
-    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true });
-    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true });
+    if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, shell: "family" });
+    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, shell: "family" });
   }
 
 
@@ -550,30 +480,39 @@ export default function App() {
     return wrap(
       <CallingScreen
         name={profile?.persona?.display_name ?? "가족"}
-        secondsLeft={0}
         announcement={call?.announcement ?? "연결하고 있어요"}
-        onSkip={() => {}}
       />
     );
 
-  if (phase === "calling")
+  if ((phase === "calling" || phase === "incall") && (phase === "calling" || call)) {
+    const conversationEnabled = phase === "incall";
     return wrap(
-      <CallingScreen
-        name={profile?.persona?.display_name ?? "가족"}
-        secondsLeft={secondsLeft}
-        announcement={call?.announcement ?? "연결하고 있어요"}
-        onSkip={() => {
-          if (invite?.invite_id) {
-            api.takeOverInvite(invite.invite_id, "transport_failed")
-              .then((res) => { setInvite(res.invite); enterCall(res); })
-              .catch((e) => setError(`연결하지 못했어요. (${e.message})`));
-          } else {
-            connectAI();
-          }
-        }}
-        onStop={stopCalling}
-      />
+      <div className="call-stack">
+        {call && <CallScreen
+          key={call.call_id}
+          faces={call.faces?.length ? call.faces : profile?.faces ?? []}
+          opening={call.opening ?? ""}
+          name={profile?.persona?.display_name ?? "가족"}
+          personaId={call.persona_id ?? target?.persona_id ?? null}
+          callId={call.call_id}
+          api={api}
+          conversationEnabled={conversationEnabled}
+          performanceStyle={profile?.persona?.avatar_performance_style ?? "calm"}
+          onEnded={(s) => {
+            setSummary(s);
+            setPhase("ended");
+          }}
+        />}
+
+        {phase === "calling" && <CallingScreen
+          name={profile?.persona?.display_name ?? "가족"}
+          announcement={call?.announcement ?? "연결하고 있어요"}
+          morphUrl={profile?.morph_url ?? null}
+          onMorphEnded={finishCallingMorph}
+        />}
+      </div>
     );
+  }
 
   if (phase === "human" && invite)
     return wrap(
@@ -584,24 +523,6 @@ export default function App() {
         localStream={humanLocalStream}
         remoteStream={humanRemoteStream}
         onEnd={endHumanCall}
-      />
-    );
-
-  if (phase === "incall" && call)
-    return wrap(
-      <CallScreen
-        faces={call.faces?.length ? call.faces : profile?.faces ?? []}
-        morphUrl={call.morph_url ?? profile?.morph_url ?? null}
-        loops={call.loops ?? profile?.loops ?? {}}
-        opening={call.opening ?? ""}
-        name={profile?.persona?.display_name ?? "가족"}
-        personaId={call.persona_id ?? target?.persona_id ?? null}
-        callId={call.call_id}
-        api={api}
-        onEnded={(s) => {
-          setSummary(s);
-          setPhase("ended");
-        }}
       />
     );
 

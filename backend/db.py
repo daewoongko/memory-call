@@ -41,6 +41,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "call_style_name": "TEXT",
         "call_style_scores": "TEXT",
         "call_style_answers": "TEXT",
+        "avatar_performance_style": "TEXT NOT NULL DEFAULT 'calm'",
     },
     "utterances": {
         "care_data": "TEXT",
@@ -144,12 +145,25 @@ def _migrate_demo_personas(conn: sqlite3.Connection) -> None:
     참조를 먼저 현재 ID로 옮긴 뒤 낡은 행만 지워 기존 기록을 보존한다.
     """
     migrations = {
-        "persona_" + "".join(("dae", "woong")): (
-            "persona_minjun", "민준", "손자", "우리 민준이",
+        "persona_" + "".join(("min", "jun")): (
+            "persona_godaewoong", "대웅", "손자", "우리 대웅이",
         ),
         "persona_minsu": ("persona_jeonghun", "정훈", "아들", "우리 정훈이"),
         "persona_jieun": ("persona_miyeong", "미영", "딸", "우리 미영이"),
         "persona_ssuah": ("persona_yujin", "유진", "손녀", "우리 유진이"),
+    }
+    persona_reference_tables = (
+        "persona_voice_profiles",
+        "persona_voice_samples",
+        "persona_avatar_profiles",
+        "devices",
+        "call_invites",
+        "calls",
+    )
+    existing_tables = {
+        row["name"] for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        )
     }
     columns = [row["name"] for row in conn.execute("PRAGMA table_info(personas)")]
     for legacy_id, (current_id, display_name, relationship, elder_call) in migrations.items():
@@ -170,12 +184,27 @@ def _migrate_demo_personas(conn: sqlite3.Connection) -> None:
                 "elder_calls_family": elder_call,
             })
             insert(conn, "personas", values)
-        conn.execute(
-            "UPDATE calls SET persona_id = ?, counterpart_name = ?, "
-            "counterpart_relation = ? WHERE persona_id = ?",
-            (current_id, display_name, relationship, legacy_id),
+        for table in persona_reference_tables:
+            if table in existing_tables:
+                conn.execute(
+                    f"UPDATE {table} SET persona_id = ? WHERE persona_id = ?",
+                    (current_id, legacy_id),
+                )
+        if "calls" in existing_tables:
+            conn.execute(
+                "UPDATE calls SET counterpart_name = ?, counterpart_relation = ? "
+                "WHERE persona_id = ?",
+                (display_name, relationship, current_id),
+            )
+        remaining_references = sum(
+            conn.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE persona_id = ?", (legacy_id,)
+            ).fetchone()[0]
+            for table in persona_reference_tables
+            if table in existing_tables
         )
-        conn.execute("DELETE FROM personas WHERE persona_id = ?", (legacy_id,))
+        if remaining_references == 0:
+            conn.execute("DELETE FROM personas WHERE persona_id = ?", (legacy_id,))
 
 
 def _row(row: sqlite3.Row) -> dict:

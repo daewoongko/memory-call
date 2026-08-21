@@ -1,8 +1,8 @@
 """ElevenLabs에 참조 음성을 등록해 클론 voice_id를 발급받는 1회성 스크립트.
 
 data/voice/reference.wav를 Instant Voice Cloning API에 올리고 돌려받은
-voice_id를 출력한다. 그 값을 .env의 ELEVENLABS_VOICE_ID에 붙여넣으면
-backend/elevenlabs_tts.py가 그 목소리로 합성한다.
+voice_id를 출력하는 수동 점검 도구다. 실제 서비스에서는 가족 설정 화면이
+가족별 voice_id를 SQLite에 저장하므로 이 값을 전역 환경변수로 쓰지 않는다.
 
 사용:
     python tools/elevenlabs_clone_voice.py --name "할아버지 목소리"
@@ -99,8 +99,7 @@ def main() -> None:
         raise SystemExit(f"voice_id를 받지 못했습니다: {result}")
 
     print(f"등록 완료: voice_id = {voice_id}")
-    print("이 값을 .env의 ELEVENLABS_VOICE_ID에 넣으세요:")
-    print(f"ELEVENLABS_VOICE_ID={voice_id}")
+    print("수동 점검용 ID입니다. 서비스 등록은 가족 설정 화면에서 진행하세요.")
 
 
 if __name__ == "__main__":

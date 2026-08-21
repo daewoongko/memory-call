@@ -154,14 +154,14 @@ docs/
 `connect / disconnect / onStateChange` 세 가지만 본다. `failed` 가 오면
 화면은 조건 없이 AI 통화로 폴백한다.
 
-**TTS는 ElevenLabs API, 립싱크(MuseTalk)만 로컬 GPU.** 처음엔 Chatterbox까지
-로컬에서 돌렸지만 Cloudflare 터널 왕복 + 같은 GPU를 MuseTalk과 나눠 쓰는
-경합 때문에 지연이 컸다(위 "부딪혀서 알아낸 것들" 참고). ElevenLabs로
-옮기면서 음성 합성 자체는 Render 백엔드에서 직접 API를 호출하는 걸로
-바뀌었고, 로컬 PC/GPU는 립싱크 영상(선택 기능)에만 필요하다.
-`backend/elevenlabs_tts.py`가 단일 창구이며, `backend/tts_proxy.py`는
-이제 이미 합성된 오디오를 로컬 MuseTalk의 `/render`로 전달하는 역할만
-한다. 음성 클론 등록은 `tools/elevenlabs_clone_voice.py`로 1회만 한다.
+**AI 음성은 ElevenLabs, 기본 실시간 아바타는 Anam이다.** ElevenLabs의 실시간
+STT와 가족별 승인 음성 TTS를 사용하고, 확정된 현재 사진으로 가족별 Anam
+custom avatar를 생성한다. 공급자 ID는 서버 DB에만 저장하며 브라우저에는 단기
+세션 토큰만 전달한다. Anam이 실패하면 같은 ElevenLabs 음성으로 계속 통화한다.
+MuseTalk은 로컬 GPU가 있는 환경에서만 쓰는 선택적 대체 경로다.
+`backend/elevenlabs_tts.py`, `backend/anam.py`, `backend/persona_avatar.py`가
+각 공급자의 단일 창구다. 실제 등록은 가족 설정 화면에서 하며
+`tools/elevenlabs_clone_voice.py`는 수동 연결 진단용이다.
 
 **숫자는 규칙이 만들고 문장만 LLM 이 만든다.** 리포트의 반복 질문 횟수,
 복약 상태, 위험 건수는 전부 DB 집계다. LLM 에는 확정된 집계 결과만 넘기고
@@ -214,7 +214,8 @@ docs/
   연결 실패는 장애가 아니라 AI가 대신 받는 정상 동작이라, SFU 가 파는 가치를
   살 이유가 없다. 근거와 뒤집는 조건은 `docs/call_transport_decision.md`
 - 실시간 얼굴 생성 → 모핑 인트로는 오프라인 스크립트로 mp4 1개 사전 생성
-- Docker / 클라우드 배포 → localhost 데모
+- 클라우드 배포 → Render Docker 배포와 PWA 설치 경로를 사용한다. 휴대폰 로컬
+  검증은 HTTPS Quick Tunnel 또는 고정 Cloudflare Tunnel을 사용한다
 
 **이 목록을 되돌리자는 제안은 하지 말 것.** 2주 안에 안 끝난다.
 

@@ -32,9 +32,9 @@ ELDER = {
 }
 
 PERSONA = {
-    "display_name": "민준",
+    "display_name": "대웅",
     "relationship_type": "손자",
-    "elder_calls_family": "우리 민준이",
+    "elder_calls_family": "우리 대웅이",
     "family_calls_elder": "할아버지",
     "tone": "다정한 반말",
     "frequent_phrases": ["밥은 먹었어?"],
@@ -136,7 +136,7 @@ class EvalFixtureTests(unittest.TestCase):
 
         self.assertEqual((daughter["persona"]["display_name"], daughter["persona"]["relationship_type"]), ("미영", "딸"))
         self.assertEqual((son["persona"]["display_name"], son["persona"]["relationship_type"]), ("정훈", "아들"))
-        self.assertEqual(base["persona"]["display_name"], "민준")
+        self.assertEqual(base["persona"]["display_name"], "대웅")
 
 
 class ScenarioContractTests(unittest.TestCase):

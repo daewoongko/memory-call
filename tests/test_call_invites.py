@@ -28,7 +28,7 @@ class CallInviteTest(unittest.TestCase):
             db.init_schema(conn)
             db.insert(conn, "elder_profiles",
                       {"elder_id": "elder_test", "name": "고길동"})
-            for persona_id, name in (("persona_minjun", "민준"),
+            for persona_id, name in (("persona_godaewoong", "대웅"),
                                      ("persona_miyeong", "미영")):
                 db.insert(conn, "personas", {
                     "persona_id": persona_id, "elder_id": "elder_test",
@@ -43,10 +43,10 @@ class CallInviteTest(unittest.TestCase):
 
     # -------------------------------------------------------------- 기기
 
-    def _guardian(self, device_id="dev_guardian", persona_id="persona_minjun"):
+    def _guardian(self, device_id="dev_guardian", persona_id="persona_godaewoong"):
         return invites.register_device(
             device_id=device_id, elder_id="elder_test", role="guardian",
-            persona_id=persona_id, label="민준 폰",
+            persona_id=persona_id, label="대웅 폰",
         )
 
     def test_guardian_device_must_declare_which_family_member_it_is(self):
@@ -66,27 +66,27 @@ class CallInviteTest(unittest.TestCase):
 
         invites.register_device(
             device_id="dev_guardian", elder_id="elder_test", role="guardian",
-            persona_id="persona_minjun", label="민준 새 폰",
+            persona_id="persona_godaewoong", label="대웅 새 폰",
         )
         with db.connect() as conn:
             row = conn.execute(
                 "SELECT * FROM devices WHERE device_id = ?", ("dev_guardian",),
             ).fetchone()
-        self.assertEqual(row["label"], "민준 새 폰")
+        self.assertEqual(row["label"], "대웅 새 폰")
         self.assertEqual(row["created_at"], created)
 
     # -------------------------------------------------------------- 벨
 
     def test_ring_is_shortened_when_no_guardian_device_is_listening(self):
         """받을 기기가 없는데 15초를 기다리게 할 이유가 없다."""
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["state"], invites.RINGING)
         self.assertEqual(invite["ring_timeout_sec"], invites.NO_DEVICE_RING_SEC)
         self.assertEqual(invite["no_live_device"], 1)
 
     def test_full_ring_when_a_guardian_device_is_listening(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["ring_timeout_sec"], invites.DEFAULT_RING_SEC)
         self.assertEqual(invite["no_live_device"], 0)
 
@@ -99,15 +99,15 @@ class CallInviteTest(unittest.TestCase):
             conn.execute("UPDATE devices SET last_seen_at = ?", (stale,))
             conn.commit()
 
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["no_live_device"], 1)
 
     # -------------------------------------------------------------- 수신
 
     def test_guardian_sees_only_invites_aimed_at_their_persona(self):
-        self._guardian("dev_minjun", "persona_minjun")
+        self._guardian("dev_minjun", "persona_godaewoong")
         self._guardian("dev_miyeong", "persona_miyeong")
-        invites.create("elder_test", "persona_minjun")
+        invites.create("elder_test", "persona_godaewoong")
 
         self.assertIsNotNone(invites.incoming_for("dev_minjun"))
         self.assertIsNone(invites.incoming_for("dev_miyeong"))
@@ -122,20 +122,20 @@ class CallInviteTest(unittest.TestCase):
             conn.commit()
 
         invites.incoming_for("dev_guardian")
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["no_live_device"], 0)
 
     def test_elder_device_never_receives_incoming_calls(self):
         invites.register_device(device_id="dev_elder", elder_id="elder_test",
                                 role="elder")
-        invites.create("elder_test", "persona_minjun")
+        invites.create("elder_test", "persona_godaewoong")
         self.assertIsNone(invites.incoming_for("dev_elder"))
 
     # -------------------------------------------------------------- 전이
 
     def test_answer_records_which_device_picked_up(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         answered = invites.answer(invite["invite_id"], "dev_guardian")
 
         self.assertEqual(answered["state"], invites.ANSWERED)
@@ -146,7 +146,7 @@ class CallInviteTest(unittest.TestCase):
     def test_decline_hands_over_immediately_without_waiting_out_the_ring(self):
         """거절은 실패가 아니라 'AI 가 대신 받아라'는 뜻이다."""
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         declined = invites.decline(invite["invite_id"], "dev_guardian")
 
         self.assertEqual(declined["state"], invites.DECLINED)
@@ -155,7 +155,7 @@ class CallInviteTest(unittest.TestCase):
 
     def test_permission_denial_is_recorded_before_ai_takeover(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         declined = invites.decline(
             invite["invite_id"], "dev_guardian", "media_permission_denied")
         self.assertEqual(declined["takeover_reason"], "media_permission_denied")
@@ -167,7 +167,7 @@ class CallInviteTest(unittest.TestCase):
         어르신 기기가 아무 말도 하지 않아도 서버가 무응답을 판정해야 한다.
         """
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self._age(invite["invite_id"], invites.DEFAULT_RING_SEC + 1)
 
         expired = invites.get(invite["invite_id"])
@@ -178,7 +178,7 @@ class CallInviteTest(unittest.TestCase):
 
     def test_timeout_reason_separates_no_answer_from_nobody_listening(self):
         """보호자 리포트에서 '거절'과 '기기 꺼짐'은 다른 이야기다."""
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self._age(invite["invite_id"], invites.NO_DEVICE_RING_SEC + 1)
         self.assertEqual(invites.get(invite["invite_id"])["takeover_reason"],
                          "no_device")
@@ -186,16 +186,16 @@ class CallInviteTest(unittest.TestCase):
     def test_answer_after_timeout_is_refused(self):
         """늦게 누른 받기가 이미 시작된 AI 통화를 덮어쓰면 안 된다."""
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self._age(invite["invite_id"], invites.DEFAULT_RING_SEC + 1)
 
         with self.assertRaises(ValueError):
             invites.answer(invite["invite_id"], "dev_guardian")
 
     def test_only_one_of_two_devices_can_answer(self):
-        self._guardian("dev_a", "persona_minjun")
-        self._guardian("dev_b", "persona_minjun")
-        invite = invites.create("elder_test", "persona_minjun")
+        self._guardian("dev_a", "persona_godaewoong")
+        self._guardian("dev_b", "persona_godaewoong")
+        invite = invites.create("elder_test", "persona_godaewoong")
 
         first = invites.answer(invite["invite_id"], "dev_a")
         second = invites.answer(invite["invite_id"], "dev_b")
@@ -205,14 +205,14 @@ class CallInviteTest(unittest.TestCase):
 
     def test_answer_is_idempotent_for_a_retried_request(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         invites.answer(invite["invite_id"], "dev_guardian")
         again = invites.answer(invite["invite_id"], "dev_guardian")
         self.assertEqual(again["state"], invites.ANSWERED)
 
     def test_elder_hanging_up_does_not_hand_over_to_ai(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         cancelled = invites.cancel(invite["invite_id"])
 
         self.assertEqual(cancelled["state"], invites.CANCELLED)
@@ -247,7 +247,7 @@ class CallInviteTest(unittest.TestCase):
 
     def test_take_over_links_the_ai_call_and_keeps_the_original_reason(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         invites.decline(invite["invite_id"], "dev_guardian")
         self._make_call("call_ai_1")
 
@@ -259,7 +259,7 @@ class CallInviteTest(unittest.TestCase):
 
     def test_answered_call_requires_transport_failure_reason_for_takeover(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         invites.answer(invite["invite_id"], "dev_guardian")
         self._make_call("call_ai_2")
 
@@ -268,7 +268,7 @@ class CallInviteTest(unittest.TestCase):
 
     def test_answered_call_can_fall_back_after_transport_failure(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         invites.answer(invite["invite_id"], "dev_guardian")
         self._make_call("call_ai_transport")
 
@@ -279,7 +279,7 @@ class CallInviteTest(unittest.TestCase):
 
     def test_take_over_from_a_ringing_invite_defaults_to_transport_failed(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self._make_call("call_ai_3")
 
         handed = invites.take_over(invite["invite_id"], "call_ai_3",
@@ -288,7 +288,7 @@ class CallInviteTest(unittest.TestCase):
 
     def test_elder_permission_denial_is_kept_on_direct_takeover(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         self._make_call("call_ai_permission")
         handed = invites.take_over(
             invite["invite_id"], "call_ai_permission", "media_permission_denied")
@@ -296,7 +296,7 @@ class CallInviteTest(unittest.TestCase):
 
     def test_answered_human_call_cannot_be_handed_to_ai(self):
         self._guardian()
-        invite = invites.create("elder_test", "persona_minjun")
+        invite = invites.create("elder_test", "persona_godaewoong")
         invites.answer(invite["invite_id"], "dev_guardian")
         self._make_call("call_ai_4")
         with self.assertRaises(ValueError):
@@ -305,10 +305,10 @@ class CallInviteTest(unittest.TestCase):
     def test_history_shows_why_each_call_ended_up_with_the_ai(self):
         """리포트가 '거절 1건 / 무응답 1건'을 구분할 수 있어야 한다."""
         self._guardian()
-        declined = invites.create("elder_test", "persona_minjun")
+        declined = invites.create("elder_test", "persona_godaewoong")
         invites.decline(declined["invite_id"], "dev_guardian")
 
-        ignored = invites.create("elder_test", "persona_minjun")
+        ignored = invites.create("elder_test", "persona_godaewoong")
         self._age(ignored["invite_id"], invites.DEFAULT_RING_SEC + 1)
         invites.get(ignored["invite_id"])
 

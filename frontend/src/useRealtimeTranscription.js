@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getRealtimeSTTToken, transcribeSpeech } from "./api.js";
 
 const TARGET_SAMPLE_RATE = 16000;
-const SILENCE_MS = 1000;
+const DEFAULT_SILENCE_MS = 700;
 const MIN_VOICE_MS = 260;
 const MAX_IDLE_MS = 15000;
 const MAX_UTTERANCE_MS = 20000;
@@ -61,7 +61,12 @@ function rms(samples) {
  * only deliberate end-of-turn wait. MediaRecorder runs in parallel solely as
  * a fallback for the existing Gemini file-transcription endpoint.
  */
-export function useRealtimeTranscription({ enabled = true, lang = "ko-KR", onFinal } = {}) {
+export function useRealtimeTranscription({
+  enabled = true,
+  lang = "ko-KR",
+  silenceMs = DEFAULT_SILENCE_MS,
+  onFinal,
+} = {}) {
   const [starting, setStarting] = useState(false);
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -84,6 +89,10 @@ export function useRealtimeTranscription({ enabled = true, lang = "ko-KR", onFin
   const fallbackRef = useRef(false);
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
+  const endSilenceMs = Math.min(
+    2000,
+    Math.max(500, Number(silenceMs) || DEFAULT_SILENCE_MS),
+  );
 
   const supported = Boolean(
     enabled &&
@@ -149,11 +158,13 @@ export function useRealtimeTranscription({ enabled = true, lang = "ko-KR", onFin
     const finalText = String(text || "").trim();
     if (!finalText || !wantedRef.current) return false;
     wantedRef.current = false;
-    await finishRecorder();
-    await release();
+    // Stop capture immediately, but do not hold the LLM request behind the
+    // MediaRecorder stop event and AudioContext teardown.
+    const cleanup = Promise.allSettled([finishRecorder(), release()]);
     setInterim("");
     setTranscribing(false);
     onFinalRef.current?.(finalText);
+    await cleanup;
     return true;
   }, [finishRecorder, release]);
 
@@ -335,7 +346,7 @@ export function useRealtimeTranscription({ enabled = true, lang = "ko-KR", onFin
             audio_base_64: pcm16ToBase64(pcm),
           }));
         }
-        if (speechStartedAt && voiceMs >= MIN_VOICE_MS && now - lastVoiceAt >= SILENCE_MS) commit();
+        if (speechStartedAt && voiceMs >= MIN_VOICE_MS && now - lastVoiceAt >= endSilenceMs) commit();
         else if (speechStartedAt && now - speechStartedAt >= MAX_UTTERANCE_MS) commit();
       };
 
@@ -356,7 +367,7 @@ export function useRealtimeTranscription({ enabled = true, lang = "ko-KR", onFin
       await fallbackToGemini(cause?.message || "실시간 STT 시작 실패");
       return false;
     }
-  }, [deliver, fallbackToGemini, lang, later, release, supported]);
+  }, [deliver, endSilenceMs, fallbackToGemini, lang, later, release, supported]);
 
   useEffect(() => stop, [stop]);
 

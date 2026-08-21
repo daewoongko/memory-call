@@ -69,7 +69,7 @@ def main() -> None:
     db.insert(conn, "schedules", {
         "schedule_id": "sch_visit",
         "elder_id": args.elder,
-        "title": "민준이 방문",
+        "title": "대웅이 방문",
         "date": visit.isoformat(),
         "time": "14:00",
         "note": "주말 오후에 할아버지 댁 방문 예정",

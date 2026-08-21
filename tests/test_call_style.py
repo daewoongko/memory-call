@@ -13,7 +13,7 @@ import persona  # noqa: E402
 
 
 class CallStyleMigrationTests(unittest.TestCase):
-    def test_existing_persona_table_gains_call_style_evidence_columns(self):
+    def test_existing_persona_table_gains_call_and_avatar_style_columns(self):
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         conn.execute("CREATE TABLE personas (persona_id TEXT PRIMARY KEY)")
@@ -23,8 +23,9 @@ class CallStyleMigrationTests(unittest.TestCase):
 
         self.assertTrue({
             "call_style_code", "call_style_name", "call_style_scores", "call_style_answers",
+            "avatar_performance_style",
         }.issubset(columns))
-        self.assertEqual(len([name for name in added if name.startswith("personas.")]), 4)
+        self.assertEqual(len([name for name in added if name.startswith("personas.")]), 5)
         self.assertEqual(db._add_missing_columns(conn), [])
         conn.close()
 

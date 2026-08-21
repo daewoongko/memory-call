@@ -34,6 +34,8 @@ class FastReplySchemaTests(unittest.TestCase):
         self.assertIn('"reply"', patched_messages[0]["content"])
         self.assertEqual(call.call_args.kwargs["temperature"], 0.1)
         self.assertTrue(call.call_args.kwargs["stream"])
+        self.assertFalse(call.call_args.kwargs["json_mode"])
+        self.assertEqual(call.call_args.kwargs["model"], llm.FAST_MODEL)
         self.assertEqual(call.call_args.kwargs["max_tokens"], llm.FAST_MAX_TOKENS)
 
     def test_metadata_prompt_json_escapes_final_reply(self):
@@ -103,6 +105,7 @@ class ConversationSplitTests(unittest.TestCase):
             "unverified_recall": None,
         }
         with (
+            patch.object(conversation, "build_fast_system_prompt", return_value="fast system") as prompt_call,
             patch.object(llm, "call_json_fast", return_value=fast.copy()) as fast_call,
             patch.object(llm, "call_json_metadata") as metadata_call,
             patch.object(session, "_apply_safety", side_effect=lambda value, _text: value),
@@ -110,6 +113,8 @@ class ConversationSplitTests(unittest.TestCase):
             result = session.turn("조금 불안하다")
 
         fast_call.assert_called_once()
+        prompt_call.assert_called_once_with(session.ctx, "조금 불안하다")
+        self.assertEqual(fast_call.call_args.args[0][0]["content"], "fast system")
         metadata_call.assert_not_called()
         self.assertEqual(result["reply"], fast["reply"])
         self.assertEqual(result["_elder_uid"], 101)

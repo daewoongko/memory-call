@@ -21,7 +21,7 @@ import urllib.request
 
 BASE = "http://127.0.0.1:8000"
 ELDER = "elder_001"
-PERSONA = "persona_minjun"
+PERSONA = "persona_godaewoong"
 GUARDIAN_DEVICE = "dev_flow_guardian"
 ELDER_DEVICE = "dev_flow_elder"
 
@@ -57,7 +57,7 @@ def ok(condition: bool, message: str) -> bool:
 def register_guardian() -> None:
     call("POST", "/api/devices", {
         "device_id": GUARDIAN_DEVICE, "elder_id": ELDER,
-        "role": "guardian", "persona_id": PERSONA, "label": "민준 폰",
+        "role": "guardian", "persona_id": PERSONA, "label": "대웅 폰",
     })
 
 

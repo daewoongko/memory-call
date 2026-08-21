@@ -29,14 +29,14 @@ class CareReportAggregationTest(unittest.TestCase):
 
     def test_family_mentions_count_only_registered_names(self):
         utterances = [
-            {"utterance_id": 1, "speaker": "elder", "transcript": "민준이는 잘 있나?"},
+            {"utterance_id": 1, "speaker": "elder", "transcript": "대웅이는 잘 있나?"},
             {"utterance_id": 2, "speaker": "ai", "transcript": "응."},
-            {"utterance_id": 3, "speaker": "elder", "transcript": "민준이 보고 싶네."},
+            {"utterance_id": 3, "speaker": "elder", "transcript": "대웅이 보고 싶네."},
             {"utterance_id": 4, "speaker": "elder", "transcript": "미영이도 바쁘겠지."},
         ]
-        mentions = report._family_mentions(utterances, ["민준", "미영"])
+        mentions = report._family_mentions(utterances, ["대웅", "미영"])
 
-        self.assertEqual(mentions[0]["name"], "민준")
+        self.assertEqual(mentions[0]["name"], "대웅")
         self.assertEqual(mentions[0]["count"], 2)
         self.assertEqual(mentions[0]["utterance_ids"], [1, 3])
         self.assertEqual(mentions[1]["count"], 1)

@@ -1,3 +1,4 @@
 # FRAN face re-aging inference dependency.
 # torch/torchvision are already provided by the age-generation environment.
 antialiased-cnns==0.3
+lpips==0.1.4

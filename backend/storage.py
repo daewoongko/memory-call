@@ -16,7 +16,7 @@ DB_PATH = STORAGE_DIR / "memory_call.sqlite"
 PERSONAS_ROOT = STORAGE_DIR / "personas"
 MEMORY_PHOTOS_ROOT = STORAGE_DIR / "memories"
 PRIVATE_VOICE_ROOT = STORAGE_DIR / "private_voice"
-DEFAULT_FACE_PERSONA_ID = "persona_minjun"
+DEFAULT_FACE_PERSONA_ID = "persona_godaewoong"
 LEGACY_FACES_ROOT = STORAGE_DIR / "faces"
 
 # 기존 생성 도구들은 저장 경로 상수를 직접 import한다. 도구 실행 시에만
@@ -62,7 +62,7 @@ class PersonaFaceStorage:
 def persona_face_storage(persona_id: str | None = None) -> PersonaFaceStorage:
     """한 가족의 얼굴 생성물을 다른 가족과 섞이지 않게 분리한다.
 
-    민준은 이미 완성된 전역 ``data/faces`` 자산과 통화 기록이 있으므로
+    대웅은 이미 완성된 전역 ``data/faces`` 자산과 통화 기록이 있으므로
     기존 ID를 그대로 해당 폴더에 연결한다.
     """
     selected = persona_id or DEFAULT_FACE_PERSONA_ID

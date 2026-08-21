@@ -31,6 +31,10 @@ MAX_PCM_BYTES = 25 * 1024 * 1024  # MuseTalk의 WAV 상한과 맞춘다.
 # 품질이 아쉬우면 eleven_multilingual_v2로 바꾸되 지연이 늘어난다.
 DEFAULT_MODEL_ID = "eleven_flash_v2_5"
 DEFAULT_TIMEOUT_SECONDS = 20.0
+ANAM_SAMPLE_RATE = 16000
+# 2 KiB is 64 ms of 16 kHz PCM16.  Smaller pushes give Anam more frequent
+# phoneme updates than the previous 8 KiB/256 ms batches.
+STREAM_CHUNK_BYTES = 2048
 # ElevenLabs voice_settings.speed의 문서화된 범위. 프로젝트의 TTSRequest.rate
 # (0.75~1.15)는 이미 이 안에 들어오지만, 방어적으로 한 번 더 clamp한다.
 MIN_SPEED = 0.7
@@ -43,6 +47,45 @@ class ElevenLabsUnavailable(RuntimeError):
 
 class ElevenLabsNotConfigured(RuntimeError):
     """API 키 또는 voice_id가 설정되지 않았다."""
+
+
+@dataclass
+class PCMStreamResult:
+    """Open raw PCM response used by real-time avatar rendering."""
+
+    response: object
+    generation_seconds: float
+    local_request_id: str | None = None
+    sample_rate: int = ANAM_SAMPLE_RATE
+
+    def iter_chunks(self):
+        try:
+            while True:
+                chunk = self.response.read(STREAM_CHUNK_BYTES)
+                if not chunk:
+                    break
+                if len(chunk) % 2:
+                    chunk += self.response.read(1)
+                if chunk:
+                    yield chunk
+        finally:
+            self.response.close()
+
+    def close(self) -> None:
+        self.response.close()
+
+    def public_headers(self) -> dict[str, str]:
+        headers = {
+            "X-Audio-Encoding": "pcm_s16le",
+            "X-Audio-Sample-Rate": str(self.sample_rate),
+            "X-Audio-Channels": "1",
+            "X-Generation-Seconds": f"{self.generation_seconds:.3f}",
+            "X-TTS-Model": _model_id(),
+            "Server-Timing": f"tts_headers;dur={self.generation_seconds * 1000:.1f}",
+        }
+        if self.local_request_id:
+            headers["X-Request-ID"] = self.local_request_id
+        return headers
 
 
 def _model_id() -> str:
@@ -72,11 +115,11 @@ def _require_api_key() -> str:
 
 
 def _require_voice_id(voice_id: str | None = None) -> str:
-    selected = (voice_id or os.getenv("ELEVENLABS_VOICE_ID", "")).strip()
+    selected = (voice_id or "").strip()
     if not selected:
         raise ElevenLabsNotConfigured(
-            "ELEVENLABS_VOICE_ID가 설정되지 않았습니다. "
-            "tools/elevenlabs_clone_voice.py로 먼저 클론 음성을 등록하세요."
+            "선택한 가족의 승인된 ElevenLabs 목소리가 없습니다. "
+            "가족 설정에서 목소리를 먼저 등록해 주세요."
         )
     return selected
 
@@ -186,5 +229,62 @@ def synthesize_with_metadata(
         body=wav_bytes,
         audio_duration_seconds=duration_seconds,
         generation_seconds=generation_seconds,
+        local_request_id=request_id,
+    )
+
+
+def open_pcm_stream(
+    text: str,
+    rate: float,
+    *,
+    request_id: str | None = None,
+    voice_id: str | None = None,
+) -> PCMStreamResult:
+    """Open a 16 kHz mono PCM16 ElevenLabs response without buffering it."""
+    api_key = _require_api_key()
+    selected_voice_id = _require_voice_id(voice_id)
+    payload = json.dumps(
+        {
+            "text": text,
+            "model_id": _model_id(),
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.8,
+                "speed": _clamp_speed(rate),
+            },
+        }
+    ).encode("utf-8")
+    url = (
+        f"{API_BASE}/v1/text-to-speech/{selected_voice_id}/stream"
+        f"?output_format=pcm_{ANAM_SAMPLE_RATE}"
+    )
+    req = request.Request(
+        url,
+        data=payload,
+        method="POST",
+        headers={
+            "xi-api-key": api_key,
+            "Content-Type": "application/json",
+            "Accept": "audio/pcm",
+        },
+    )
+    started = time.perf_counter()
+    try:
+        response = request.urlopen(req, timeout=_timeout_seconds())
+    except error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read().decode("utf-8"))
+            message = detail.get("detail", {}).get("message") or str(detail)
+        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+            message = None
+        raise ElevenLabsUnavailable(
+            message or f"ElevenLabs API error ({exc.code})"
+        ) from exc
+    except (error.URLError, TimeoutError, OSError) as exc:
+        raise ElevenLabsUnavailable(f"ElevenLabs connection failed: {exc}") from exc
+
+    return PCMStreamResult(
+        response=response,
+        generation_seconds=_safe_seconds(time.perf_counter() - started),
         local_request_id=request_id,
     )

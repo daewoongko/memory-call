@@ -102,20 +102,58 @@ def load_sequence(sequence_dir: Path) -> tuple[list[int], list[np.ndarray], list
     return ages, frames, paths
 
 
-def segment_seconds(start_age: int, end_age: int) -> float:
-    legacy = LEGACY_SECONDS.get((start_age, end_age))
-    if legacy is not None:
-        return legacy
+def segment_seconds(
+    start_age: int,
+    end_age: int,
+    *,
+    timing_mode: str = "legacy",
+    seconds_per_year: float = 1.0,
+    child_slowdown_until: int = 12,
+    child_slowdown: float = 1.5,
+) -> float:
     gap = end_age - start_age
     if gap <= 0:
         raise ValueError(f"Invalid age segment: {start_age}->{end_age}")
+    if timing_mode == "age-linear":
+        return round(min(4.0, max(1.2, gap * 1.2)), 2)
+    if timing_mode == "age-weighted":
+        if seconds_per_year <= 0 or child_slowdown < 1.0:
+            raise ValueError("Age-weighted timing values must be positive.")
+        weighted_years = sum(
+            child_slowdown if age < child_slowdown_until else 1.0
+            for age in range(start_age, end_age)
+        )
+        return round(seconds_per_year * weighted_years, 3)
+    if timing_mode != "legacy":
+        raise ValueError(f"Unknown timing mode: {timing_mode}")
+    legacy = LEGACY_SECONDS.get((start_age, end_age))
+    if legacy is not None:
+        return legacy
     base = 2.4 if end_age <= 18 else 2.2 if end_age <= 30 else 2.0 if end_age <= 50 else 1.8
     return round(min(2.8, base + max(0, gap - 3) * 0.08), 2)
 
 
-def timing_for_ages(ages: list[int]) -> tuple[tuple[int, int, float], ...]:
+def timing_for_ages(
+    ages: list[int],
+    *,
+    timing_mode: str = "legacy",
+    seconds_per_year: float = 1.0,
+    child_slowdown_until: int = 12,
+    child_slowdown: float = 1.5,
+) -> tuple[tuple[int, int, float], ...]:
     return tuple(
-        (start, end, segment_seconds(start, end))
+        (
+            start,
+            end,
+            segment_seconds(
+                start,
+                end,
+                timing_mode=timing_mode,
+                seconds_per_year=seconds_per_year,
+                child_slowdown_until=child_slowdown_until,
+                child_slowdown=child_slowdown,
+            ),
+        )
         for start, end in zip(ages, ages[1:])
     )
 
@@ -158,6 +196,10 @@ def build(
     *,
     sequence_dir: Path,
     prefer_cuda: bool,
+    timing_mode: str = "legacy",
+    seconds_per_year: float = 1.0,
+    child_slowdown_until: int = 12,
+    child_slowdown: float = 1.5,
     segment_limit: int | None = None,
 ) -> None:
     ages, anchors, paths = load_sequence(sequence_dir)
@@ -172,7 +214,13 @@ def build(
     engine = RifeOrt(MODEL, prefer_cuda=prefer_cuda)
     print(f"Execution provider: {engine.provider}", flush=True)
 
-    all_segments = timing_for_ages(ages)
+    all_segments = timing_for_ages(
+        ages,
+        timing_mode=timing_mode,
+        seconds_per_year=seconds_per_year,
+        child_slowdown_until=child_slowdown_until,
+        child_slowdown=child_slowdown,
+    )
     if segment_limit is not None and not 1 <= segment_limit <= len(all_segments):
         raise ValueError(f"--segment-limit must be between 1 and {len(all_segments)}")
     segments = all_segments if segment_limit is None else all_segments[:segment_limit]
@@ -238,12 +286,25 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=OUTPUT)
     parser.add_argument("--sequence-dir", type=Path, default=DEFAULT_SEQUENCE_DIR)
     parser.add_argument("--cpu", action="store_true", help="Force CPU inference")
+    parser.add_argument(
+        "--timing-mode",
+        choices=("legacy", "age-linear", "age-weighted"),
+        default="legacy",
+        help="Use legacy pacing or allocate 1.2 seconds per year of age change.",
+    )
+    parser.add_argument("--seconds-per-year", type=float, default=1.0)
+    parser.add_argument("--child-slowdown-until", type=int, default=12)
+    parser.add_argument("--child-slowdown", type=float, default=1.5)
     parser.add_argument("--segment-limit", type=int)
     args = parser.parse_args()
     build(
         args.output.resolve(),
         sequence_dir=args.sequence_dir.resolve(),
         prefer_cuda=not args.cpu,
+        timing_mode=args.timing_mode,
+        seconds_per_year=args.seconds_per_year,
+        child_slowdown_until=args.child_slowdown_until,
+        child_slowdown=args.child_slowdown,
         segment_limit=args.segment_limit,
     )
 

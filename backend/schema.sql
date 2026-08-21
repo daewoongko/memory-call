@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS personas (
     call_style_name    TEXT,
     call_style_scores  TEXT,   -- JSON 축별 점수
     call_style_answers TEXT,   -- JSON 문항별 선택값
+    avatar_performance_style TEXT NOT NULL DEFAULT 'calm',
     active             INTEGER DEFAULT 1,
     created_at         TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -83,6 +84,22 @@ CREATE TABLE IF NOT EXISTS persona_voice_samples (
 );
 CREATE INDEX IF NOT EXISTS idx_persona_voice_samples
     ON persona_voice_samples(persona_id, phase, created_at);
+
+-- Anam custom avatar generated from the family member's confirmed current photo.
+-- Provider ids are server-only and are never returned by public profile APIs.
+CREATE TABLE IF NOT EXISTS persona_avatar_profiles (
+    persona_id         TEXT PRIMARY KEY REFERENCES personas(persona_id),
+    avatar_id          TEXT,
+    avatar_model       TEXT NOT NULL DEFAULT 'cara-4',
+    source_photo_name  TEXT,
+    source_sha256      TEXT,
+    avatar_status      TEXT NOT NULL DEFAULT 'unregistered' CHECK (
+        avatar_status IN ('unregistered','creating','ready','failed')
+    ),
+    last_error         TEXT,
+    created_at         TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS memories (
     memory_id            TEXT PRIMARY KEY,

@@ -54,14 +54,13 @@ class ElevenLabsConfigTests(unittest.TestCase):
             "os.environ",
             {
                 "ELEVENLABS_API_KEY": "00fdd4-key-id",
-                "ELEVENLABS_VOICE_ID": "voice-123",
             },
             clear=True,
         ):
             with self.assertRaisesRegex(
                 elevenlabs_tts.ElevenLabsNotConfigured, "API key ID",
             ):
-                elevenlabs_tts.synthesize_with_metadata("안녕하세요", 1.0)
+                elevenlabs_tts.synthesize_with_metadata("안녕하세요", 1.0, voice_id="voice-123")
 
 
 class ElevenLabsSynthesisTests(unittest.TestCase):
@@ -70,7 +69,6 @@ class ElevenLabsSynthesisTests(unittest.TestCase):
             "os.environ",
             {
                 "ELEVENLABS_API_KEY": "sk_test-key",
-                "ELEVENLABS_VOICE_ID": "voice-123",
             },
             clear=True,
         )
@@ -84,7 +82,7 @@ class ElevenLabsSynthesisTests(unittest.TestCase):
         with patch.object(
             elevenlabs_tts.request, "urlopen", return_value=_Response(pcm)
         ):
-            result = elevenlabs_tts.synthesize_with_metadata("안녕하세요", 1.0)
+            result = elevenlabs_tts.synthesize_with_metadata("안녕하세요", 1.0, voice_id="voice-123")
 
         with wave.open(BytesIO(result.body), "rb") as reader:
             self.assertEqual(reader.getnchannels(), 1)
@@ -105,7 +103,7 @@ class ElevenLabsSynthesisTests(unittest.TestCase):
             return _Response(_pcm(0.1))
 
         with patch.object(elevenlabs_tts.request, "urlopen", side_effect=fake_urlopen):
-            elevenlabs_tts.synthesize_with_metadata("빠르게 말해줘", 5.0)
+            elevenlabs_tts.synthesize_with_metadata("빠르게 말해줘", 5.0, voice_id="voice-123")
 
         self.assertIn("/v1/text-to-speech/voice-123", captured["url"])
         self.assertIn("output_format=pcm_24000", captured["url"])
@@ -145,7 +143,7 @@ class ElevenLabsSynthesisTests(unittest.TestCase):
 
         with patch.object(elevenlabs_tts.request, "urlopen", side_effect=fake_urlopen):
             with self.assertRaises(elevenlabs_tts.ElevenLabsUnavailable) as raised:
-                elevenlabs_tts.synthesize_with_metadata("hello", 1.0)
+                elevenlabs_tts.synthesize_with_metadata("hello", 1.0, voice_id="voice-123")
         self.assertIn("invalid api key", str(raised.exception))
 
     def test_odd_length_pcm_is_rejected(self):
@@ -153,21 +151,21 @@ class ElevenLabsSynthesisTests(unittest.TestCase):
             elevenlabs_tts.request, "urlopen", return_value=_Response(b"\x01\x02\x03")
         ):
             with self.assertRaises(elevenlabs_tts.ElevenLabsUnavailable):
-                elevenlabs_tts.synthesize_with_metadata("hello", 1.0)
+                elevenlabs_tts.synthesize_with_metadata("hello", 1.0, voice_id="voice-123")
 
     def test_empty_pcm_is_rejected(self):
         with patch.object(
             elevenlabs_tts.request, "urlopen", return_value=_Response(b"")
         ):
             with self.assertRaises(elevenlabs_tts.ElevenLabsUnavailable):
-                elevenlabs_tts.synthesize_with_metadata("hello", 1.0)
+                elevenlabs_tts.synthesize_with_metadata("hello", 1.0, voice_id="voice-123")
 
     def test_public_headers_include_request_id_and_model(self):
         with patch.object(
             elevenlabs_tts.request, "urlopen", return_value=_Response(_pcm(0.5))
         ):
             result = elevenlabs_tts.synthesize_with_metadata(
-                "hello", 1.0, request_id="a" * 32
+                "hello", 1.0, request_id="a" * 32, voice_id="voice-123"
             )
         headers = result.public_headers()
         self.assertEqual(headers["X-Request-ID"], "a" * 32)

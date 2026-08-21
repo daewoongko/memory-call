@@ -122,13 +122,33 @@ def load_sequence(sequence_dir: Path) -> list[tuple[int, Path]]:
     return sequence
 
 
-def segment_seconds(start_age: int, end_age: int) -> float:
-    legacy = LEGACY_SECONDS.get((start_age, end_age))
-    if legacy is not None:
-        return legacy
+def segment_seconds(
+    start_age: int,
+    end_age: int,
+    *,
+    timing_mode: str = "legacy",
+    seconds_per_year: float = 1.0,
+    child_slowdown_until: int = 12,
+    child_slowdown: float = 1.5,
+) -> float:
     gap = end_age - start_age
     if gap <= 0:
         raise ValueError(f"Invalid age segment: {start_age}->{end_age}")
+    if timing_mode == "age-linear":
+        return round(min(4.0, max(1.2, gap * 1.2)), 2)
+    if timing_mode == "age-weighted":
+        if seconds_per_year <= 0 or child_slowdown < 1.0:
+            raise ValueError("Age-weighted timing values must be positive.")
+        weighted_years = sum(
+            child_slowdown if age < child_slowdown_until else 1.0
+            for age in range(start_age, end_age)
+        )
+        return round(seconds_per_year * weighted_years, 3)
+    if timing_mode != "legacy":
+        raise ValueError(f"Unknown timing mode: {timing_mode}")
+    legacy = LEGACY_SECONDS.get((start_age, end_age))
+    if legacy is not None:
+        return legacy
     base = 2.4 if end_age <= 18 else 2.2 if end_age <= 30 else 2.0 if end_age <= 50 else 1.8
     return round(min(2.8, base + max(0, gap - 3) * 0.08), 2)
 
@@ -202,7 +222,15 @@ def consecutive_runs(frame_numbers: Iterable[int]) -> list[list[int]]:
     return runs
 
 
-def build_timing(ages: list[int], fps: float = EXPECTED_FPS) -> dict[str, Any]:
+def build_timing(
+    ages: list[int],
+    fps: float = EXPECTED_FPS,
+    *,
+    timing_mode: str = "legacy",
+    seconds_per_year: float = 1.0,
+    child_slowdown_until: int = 12,
+    child_slowdown: float = 1.5,
+) -> dict[str, Any]:
     lead_frames = round(LEAD_HOLD_SECONDS * fps)
     tail_frames = round(TAIL_HOLD_SECONDS * fps)
     segments: list[dict[str, Any]] = []
@@ -210,7 +238,14 @@ def build_timing(ages: list[int], fps: float = EXPECTED_FPS) -> dict[str, Any]:
     next_output_frame = lead_frames
     anchors = [{"age": ages[0], "hit_frame": 0, "elapsed_seconds": 0.0}]
     for from_age, to_age in zip(ages, ages[1:]):
-        seconds = segment_seconds(from_age, to_age)
+        seconds = segment_seconds(
+            from_age,
+            to_age,
+            timing_mode=timing_mode,
+            seconds_per_year=seconds_per_year,
+            child_slowdown_until=child_slowdown_until,
+            child_slowdown=child_slowdown,
+        )
         frame_count = round(seconds * fps)
         target_hit_frame = next_output_frame + frame_count - 1
         elapsed = (target_hit_frame + 1) / fps
@@ -232,6 +267,10 @@ def build_timing(ages: list[int], fps: float = EXPECTED_FPS) -> dict[str, Any]:
     expected_frames = lead_frames + sum(item["interpolated_frame_count"] for item in segments) + tail_frames
     return {
         "fps": fps,
+        "timing_mode": timing_mode,
+        "seconds_per_year": seconds_per_year,
+        "child_slowdown_until": child_slowdown_until,
+        "child_slowdown": child_slowdown,
         "lead_hold_seconds": LEAD_HOLD_SECONDS,
         "lead_hold_frames": lead_frames,
         "tail_hold_seconds": TAIL_HOLD_SECONDS,
@@ -332,7 +371,14 @@ def validate(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
     sequence_dir = args.sequence_dir.resolve()
     sequence = load_sequence(sequence_dir)
     sequence_ages = [age for age, _ in sequence]
-    timing = build_timing(sequence_ages, EXPECTED_FPS)
+    timing = build_timing(
+        sequence_ages,
+        EXPECTED_FPS,
+        timing_mode=args.timing_mode,
+        seconds_per_year=args.seconds_per_year,
+        child_slowdown_until=args.child_slowdown_until,
+        child_slowdown=args.child_slowdown,
+    )
     expected_count = timing["expected_frame_count"]
     anchor_frames = {item["hit_frame"]: item["age"] for item in timing["anchors"]}
 
@@ -640,6 +686,15 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--detector-model", type=Path, default=DEFAULT_DETECTOR)
     result.add_argument("--rife-model", type=Path, default=DEFAULT_RIFE_MODEL)
     result.add_argument("--no-yunet", action="store_true", help="Disable per-frame YuNet validation")
+    result.add_argument(
+        "--timing-mode",
+        choices=("legacy", "age-linear", "age-weighted"),
+        default="legacy",
+        help="Timing contract used when the morph was rendered.",
+    )
+    result.add_argument("--seconds-per-year", type=float, default=1.0)
+    result.add_argument("--child-slowdown-until", type=int, default=12)
+    result.add_argument("--child-slowdown", type=float, default=1.5)
     result.add_argument("--strict", action="store_true", help="Exit non-zero when any required validation check fails")
     return result
 

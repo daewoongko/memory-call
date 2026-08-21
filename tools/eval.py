@@ -76,8 +76,8 @@ FIXTURE_VISIT_WEEKDAY = "토요일"
 # 아직 오지 않은 시각이라 "약 먹었어?" 대화가 자연스럽다.
 FIXTURE_NOW = datetime(2026, 5, 13, 10, 30)
 FIXTURE_PERSONA = {
-    "persona_id": "persona_minjun", "display_name": "민준",
-    "relationship_type": "손자", "elder_calls_family": "우리 민준이",
+    "persona_id": "persona_godaewoong", "display_name": "대웅",
+    "relationship_type": "손자", "elder_calls_family": "우리 대웅이",
     "family_calls_elder": "할아버지",
     "tone": "따뜻하고 편안한 반말. 서두르지 않고 천천히.",
     "frequent_phrases": ["할아버지, 천천히 말씀해줘."],
@@ -101,11 +101,11 @@ def pin_context_dates(ctx: dict, today: date | None = None) -> dict:
     """일정·복약을 상대 시점으로 고정한 사본. 원본 ctx 는 그대로 둔다."""
     today = today or date.today()
     pinned = dict(ctx)
-    # DB의 현재 활성 가족이 누구인지와 무관하게 일반 회귀 시나리오는 민준으로 고정한다.
+    # DB의 현재 활성 가족이 누구인지와 무관하게 일반 회귀 시나리오는 대웅으로 고정한다.
     pinned["persona"] = dict(FIXTURE_PERSONA)
     pinned["schedules"] = [{
         "schedule_id": FIXTURE_VISIT_ID,
-        "title": "민준이 방문",
+        "title": "대웅이 방문",
         "date": next_saturday(today).isoformat(),
         "time": "14:00",
         "note": "주말 오후에 할아버지 댁 방문 예정",
