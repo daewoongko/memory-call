@@ -23,9 +23,12 @@ print(f"설정된 모델: {llm.MODEL}{RESET}\n")
 try:
     models = llm.list_models()
     print(f"{GREEN}{OK}{RESET} 키 인증 성공 — 사용 가능 모델 {len(models)}개")
-    flash = [m for m in models if "flash" in m.lower()]
-    print(f"{DIM}  Flash 계열 (무료 티어 후보):{RESET}")
-    for m in flash[:15]:
+    candidates = [
+        m for m in models
+        if any(name in m.lower() for name in ("luna", "terra", "flash"))
+    ]
+    print(f"{DIM}  실시간·리포트 모델 후보:{RESET}")
+    for m in candidates[:15]:
         mark = " ←현재" if llm.MODEL in m else ""
         print(f"{DIM}    {m}{mark}{RESET}")
 except Exception as e:  # noqa: BLE001

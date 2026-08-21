@@ -1,10 +1,10 @@
 """
 LLM 호출 단일 창구.
 
-Gemini를 OpenAI 호환 엔드포인트로 부른다. 나중에 OpenAI/Claude로 갈아탈 때
-.env의 세 줄만 바꾸면 되고 나머지 코드는 손대지 않는다.
+OpenAI와 Gemini의 OpenAI 호환 엔드포인트를 같은 코드 경로로 부른다.
+.env의 엔드포인트·키·모델만 바꾸면 나머지 코드는 손대지 않는다.
 
-무료 티어는 분당 요청 수 제한이 빡빡해서 429가 자주 뜬다.
+공급자별 분당 요청 수 제한을 넘으면 429가 발생할 수 있다.
 call_json()이 지수 백오프로 알아서 재시도한다.
 """
 
@@ -23,9 +23,15 @@ from pydantic import BaseModel, ValidationError
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
-BASE_URL = os.getenv("LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
-API_KEY = os.getenv("LLM_API_KEY", "")
-MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash")
+BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
+GENERIC_API_KEY = os.getenv("LLM_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+API_KEY = (
+    OPENAI_API_KEY or GENERIC_API_KEY
+    if "api.openai.com" in BASE_URL.lower()
+    else GENERIC_API_KEY
+)
+MODEL = os.getenv("LLM_MODEL", "gpt-5.6-terra")
 # 리포트·페르소나는 통화당 한 번만 돌고 지연이 상관없다. 중첩 배열과 id 인용을
 # 시켜야 하므로 대화용 경량 모델보다 큰 모델을 쓴다. 비워 두면 LLM_MODEL 을 쓴다.
 REPORT_MODEL = os.getenv("LLM_REPORT_MODEL", "") or MODEL
@@ -41,10 +47,10 @@ MAX_RETRIES = max(1, int(os.getenv("LLM_MAX_RETRIES", "3")))
 
 if not API_KEY:
     sys.exit(
-        "LLM_API_KEY가 없습니다.\n"
+        "LLM API 키가 없습니다.\n"
         "  1) cp .env.example .env\n"
-        "  2) .env 파일에 Google AI Studio에서 받은 키를 넣으세요.\n"
-        "     https://aistudio.google.com/apikey"
+        "  2) .env 파일에 OPENAI_API_KEY 또는 선택한 공급자의 LLM_API_KEY를 넣으세요.\n"
+        "     OpenAI: https://platform.openai.com/api-keys"
     )
 
 # 대화 요청은 이 함수 아래의 지수 백오프가 직접 재시도한다. SDK의 기본
@@ -58,7 +64,12 @@ client = OpenAI(
 )
 
 class QuotaExceeded(RuntimeError):
-    """무료 사용량 소진."""
+    """공급자 사용량 또는 요청 한도 소진."""
+
+
+def _is_openai_gpt5(model: str) -> bool:
+    """OpenAI GPT-5 계열의 Chat Completions 파라미터 차이를 판별한다."""
+    return "api.openai.com" in BASE_URL.lower() and model.lower().startswith("gpt-5")
 
 
 FAST_REPLY_SCHEMA_OVERRIDE = """
@@ -166,15 +177,22 @@ def call_json(messages: list[dict], temperature: float = 0.7,
 
     for attempt in range(MAX_RETRIES):
         try:
+            selected_model = model or MODEL
+            effort = REASONING_EFFORT if reasoning_effort is None else reasoning_effort
             kwargs = {
-                "model": model or MODEL,
+                "model": selected_model,
                 "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens or MAX_TOKENS,
             }
+            token_limit = max_tokens or MAX_TOKENS
+            if _is_openai_gpt5(selected_model):
+                kwargs["max_completion_tokens"] = token_limit
+                # GPT-5 계열은 reasoning 설정에 따라 sampling 파라미터 지원 범위가
+                # 달라질 수 있으므로 말투는 프롬프트로 제어하고 모델 기본값을 쓴다.
+            else:
+                kwargs["max_tokens"] = token_limit
+                kwargs["temperature"] = temperature
             if json_mode:
                 kwargs["response_format"] = {"type": "json_object"}
-            effort = REASONING_EFFORT if reasoning_effort is None else reasoning_effort
             if effort:
                 kwargs["reasoning_effort"] = effort
             request_started = time.perf_counter()
@@ -218,10 +236,10 @@ def call_json(messages: list[dict], temperature: float = 0.7,
             last_err = e
             msg = str(e)
 
-            # 무료 티어 분당/일일 한도
+            # 공급자 분당/일일 한도
             if "429" in msg or "RESOURCE_EXHAUSTED" in msg or "quota" in msg.lower():
                 if attempt == MAX_RETRIES - 1:
-                    raise QuotaExceeded("무료 사용량 소진") from e
+                    raise QuotaExceeded("LLM 사용량 또는 요청 한도 소진") from e
                 wait = min(2 ** attempt + random.uniform(0, 1), 60)
                 if not quiet:
                     print(f"    …요청 한도. {wait:.0f}초 대기 후 재시도 "

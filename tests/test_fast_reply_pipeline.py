@@ -38,6 +38,45 @@ class FastReplySchemaTests(unittest.TestCase):
         self.assertEqual(call.call_args.kwargs["model"], llm.FAST_MODEL)
         self.assertEqual(call.call_args.kwargs["max_tokens"], llm.FAST_MAX_TOKENS)
 
+    def test_openai_gpt5_request_uses_completion_limit(self):
+        choice = MagicMock()
+        choice.delta.content = '{"reply":"네."}'
+        choice.finish_reason = "stop"
+        chunk = MagicMock()
+        chunk.choices = [choice]
+
+        with (
+            patch.object(llm, "BASE_URL", "https://api.openai.com/v1"),
+            patch.object(
+                llm.client.chat.completions,
+                "create",
+                return_value=iter([chunk]),
+            ) as create,
+        ):
+            result = llm.call_json(
+                [{"role": "user", "content": "안녕"}],
+                model="gpt-5.6-luna",
+                stream=True,
+                max_tokens=160,
+                reasoning_effort="none",
+                json_mode=False,
+            )
+
+        request = create.call_args.kwargs
+        self.assertEqual(result["reply"], "네.")
+        self.assertEqual(request["max_completion_tokens"], 160)
+        self.assertNotIn("max_tokens", request)
+        self.assertNotIn("temperature", request)
+        self.assertEqual(request["reasoning_effort"], "none")
+
+    def test_gemini_endpoint_is_not_treated_as_openai_gpt5(self):
+        with patch.object(
+            llm,
+            "BASE_URL",
+            "https://generativelanguage.googleapis.com/v1beta/openai/",
+        ):
+            self.assertFalse(llm._is_openai_gpt5("gpt-5.6-luna"))
+
     def test_metadata_prompt_json_escapes_final_reply(self):
         prompt = llm.metadata_schema_override('그분이 "곧 온다"고 했어요.\\')
         self.assertIn('그분이 \\"곧 온다\\"고 했어요.\\\\', prompt)
