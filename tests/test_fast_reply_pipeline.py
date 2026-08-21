@@ -24,7 +24,15 @@ class FastReplySchemaTests(unittest.TestCase):
             {"role": "system", "content": "base instructions"},
             {"role": "user", "content": "안녕하세요"},
         ]
-        with patch.object(llm, "call_json", return_value={"reply": "네."}) as call:
+        with (
+            patch.object(
+                llm,
+                "BASE_URL",
+                "https://generativelanguage.googleapis.com/v1beta/openai/",
+            ),
+            patch.object(llm, "FAST_MODEL", "gemini-3.5-flash-lite"),
+            patch.object(llm, "call_json", return_value={"reply": "네."}) as call,
+        ):
             result = llm.call_json_fast(messages, temperature=0.1)
 
         self.assertEqual(result["reply"], "네.")
@@ -35,7 +43,7 @@ class FastReplySchemaTests(unittest.TestCase):
         self.assertEqual(call.call_args.kwargs["temperature"], 0.1)
         self.assertTrue(call.call_args.kwargs["stream"])
         self.assertFalse(call.call_args.kwargs["json_mode"])
-        self.assertEqual(call.call_args.kwargs["model"], llm.FAST_MODEL)
+        self.assertEqual(call.call_args.kwargs["model"], "gemini-3.5-flash-lite")
         self.assertEqual(call.call_args.kwargs["max_tokens"], llm.FAST_MAX_TOKENS)
 
     def test_openai_gpt5_request_uses_completion_limit(self):
@@ -76,6 +84,21 @@ class FastReplySchemaTests(unittest.TestCase):
             "https://generativelanguage.googleapis.com/v1beta/openai/",
         ):
             self.assertFalse(llm._is_openai_gpt5("gpt-5.6-luna"))
+
+    def test_openai_fast_reply_enforces_json_mode(self):
+        messages = [
+            {"role": "system", "content": "base instructions"},
+            {"role": "user", "content": "안녕하세요"},
+        ]
+        with (
+            patch.object(llm, "BASE_URL", "https://api.openai.com/v1"),
+            patch.object(llm, "FAST_MODEL", "gpt-5.6-luna"),
+            patch.object(llm, "call_json", return_value={"reply": "안녕하세요."}) as call,
+        ):
+            result = llm.call_json_fast(messages)
+
+        self.assertEqual(result["reply"], "안녕하세요.")
+        self.assertTrue(call.call_args.kwargs["json_mode"])
 
     def test_metadata_prompt_json_escapes_final_reply(self):
         prompt = llm.metadata_schema_override('그분이 "곧 온다"고 했어요.\\')
