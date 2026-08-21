@@ -272,10 +272,14 @@ def _with_system_override(messages: list[dict], override: str) -> list[dict]:
 def call_json_fast(messages: list[dict], **kwargs) -> dict:
     """실시간 통화에 필요한 답변·안전 필드만 생성한다."""
     kwargs.setdefault("model", FAST_MODEL)
+    selected_model = kwargs["model"]
     return call_json(
         _with_system_override(messages, FAST_REPLY_SCHEMA_OVERRIDE),
         stream=True,
-        json_mode=False,
+        # Luna는 프롬프트 지시만으로는 간헐적으로 일반 텍스트를 반환한다.
+        # OpenAI GPT-5 경로는 지원되는 JSON response_format을 함께 사용해
+        # 실시간 통화가 502로 끝나지 않게 한다. Gemini는 기존 저지연 경로 유지.
+        json_mode=_is_openai_gpt5(selected_model),
         max_tokens=FAST_MAX_TOKENS,
         reasoning_effort=FAST_REASONING_EFFORT,
         **kwargs,

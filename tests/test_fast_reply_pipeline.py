@@ -77,6 +77,21 @@ class FastReplySchemaTests(unittest.TestCase):
         ):
             self.assertFalse(llm._is_openai_gpt5("gpt-5.6-luna"))
 
+    def test_openai_fast_reply_enforces_json_mode(self):
+        messages = [
+            {"role": "system", "content": "base instructions"},
+            {"role": "user", "content": "안녕하세요"},
+        ]
+        with (
+            patch.object(llm, "BASE_URL", "https://api.openai.com/v1"),
+            patch.object(llm, "FAST_MODEL", "gpt-5.6-luna"),
+            patch.object(llm, "call_json", return_value={"reply": "안녕하세요."}) as call,
+        ):
+            result = llm.call_json_fast(messages)
+
+        self.assertEqual(result["reply"], "안녕하세요.")
+        self.assertTrue(call.call_args.kwargs["json_mode"])
+
     def test_metadata_prompt_json_escapes_final_reply(self):
         prompt = llm.metadata_schema_override('그분이 "곧 온다"고 했어요.\\')
         self.assertIn('그분이 \\"곧 온다\\"고 했어요.\\\\', prompt)
