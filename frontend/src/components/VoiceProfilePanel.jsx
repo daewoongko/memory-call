@@ -251,9 +251,9 @@ export default function VoiceProfilePanel({ elderId, personaId, persona }) {
 
   return <section className="family-voice-settings">
     <header className="voice-settings-heading">
-      <div><span>내 목소리</span><h2>AI 통화에 사용할 목소리를 등록하세요</h2></div>
+      <div><h2>AI 통화에 사용할 목소리를 등록하세요</h2></div>
       <div className="voice-heading-actions">
-        <strong>{approved ? "통화에 사용 중" : profile.voice_status === "ivc_ready" ? "미리 듣기" : `${readyPrompts.size}/2 녹음`}</strong>
+        {!approved && <strong>{profile.voice_status === "ivc_ready" ? "미리 듣기" : `${readyPrompts.size}/2 녹음`}</strong>}
         {profile.consented && <button type="button" className="danger-link" disabled={busy} onClick={removeVoice}>목소리 등록 삭제</button>}
       </div>
     </header>

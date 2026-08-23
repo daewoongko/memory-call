@@ -89,7 +89,7 @@ function SpecialNotes({ summary, onReload }) {
   </section>;
 }
 
-export default function CareManagerScreen() {
+export default function CareManagerScreen({ onDisplaySettings }) {
   const [elders, setElders] = useState(null);
   const [picked, setPicked] = useState(null);
   const [tab, setTab] = useState("analysis");
@@ -100,7 +100,6 @@ export default function CareManagerScreen() {
   const [comparisonDay, setComparisonDay] = useState(null);
   const [error, setError] = useState("");
   const [baselineLoading, setBaselineLoading] = useState(false);
-  const [taskProgress, setTaskProgress] = useState(null);
   const [taskInitialSubtab, setTaskInitialSubtab] = useState("checklist");
   const [taskActiveSubtab, setTaskActiveSubtab] = useState("checklist");
 
@@ -141,27 +140,31 @@ export default function CareManagerScreen() {
     }).catch((e) => setError(`분석을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요. (${e.message})`));
   }, [period, picked]);
   useEffect(() => { loadSummary(); }, [loadSummary]);
-  useEffect(() => {
-    if (!picked) return;
-    api.getCareTasks(period.value)
-      .then((result) => setTaskProgress({ completed: result.completed || 0, total: result.total || 0 }))
-      .catch(() => setTaskProgress(null));
-  }, [picked, period.value]);
-
   if (!elders) return <main className="guardian"><p className={error ? "error" : "hint"}>{error || "어르신 정보를 불러오는 중…"}</p></main>;
-  if (!picked) return <main className="guardian role-picker"><header className="g-head"><BrandMark size={34} /><b>요양원 담당자</b></header><h1 className="g-title">관리할 어르신을 선택하세요</h1><div className="elder-cards">{elders.map((elder) => <button className="elder-card" key={elder.elder_id} onClick={() => setPicked(elder)}><span className="elder-face">{elder.name?.slice(0, 1)}</span><span className="elder-info"><b>{elder.name}</b><small>{elder.diagnosis_label || elder.preferred_call_name}</small><em>{elder.residence_type || "생활 정보 미등록"}</em></span><span className="chev">›</span></button>)}</div></main>;
+  if (!picked) return <main className="guardian role-picker"><header className="g-head care-picker-head"><BrandMark size={34} /><h1>관리할 어르신을 선택하세요</h1><button type="button" className="care-view-settings" onClick={onDisplaySettings} aria-label="글자 크기와 화면 명암 설정"><span>Aa</span></button></header><div className="elder-cards">{elders.map((elder) => <button className="elder-card" key={elder.elder_id} onClick={() => setPicked(elder)}><span className="elder-face">{elder.name?.slice(0, 1)}</span><span className="elder-info"><b>{elder.name}</b><small>{elder.diagnosis_label || elder.preferred_call_name}</small><em>{elder.residence_type || "생활 정보 미등록"}</em></span><span className="chev">›</span></button>)}</div></main>;
+
+  const pickedDiagnosis = patientProfile?.diagnosis_label || picked.diagnosis_label || "진단 정보 미등록";
 
   return <main className="guardian guardian-dashboard care-manager-dashboard">
     <div className="guardian-shell">
       <aside className="guardian-sidebar">
         <div className="sidebar-brand"><BrandMark size={32} /><div><b>다소니</b><span>요양원 케어 분석</span></div></div>
-        <button className="sidebar-elder" onClick={() => elders.length > 1 && setPicked(null)}><span className="elder-face sm">{picked.name?.slice(0, 1)}</span><span><b>{picked.name}</b><small>{picked.preferred_call_name}</small></span><i>⌄</i></button>
-        <nav className="sidebar-nav" aria-label="담당자 메뉴">{MAIN_TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => { setTab(item.id); if (item.id === "checks") setTaskInitialSubtab("checklist"); }}>{item.icon && <span>{item.icon}</span>}{item.label}{item.id === "checks" && taskProgress && <em>{taskProgress.completed}/{taskProgress.total}</em>}</button>)}</nav>
+        <div className="sidebar-elder sidebar-elder-panel">
+          <button type="button" className="sidebar-elder-select" onClick={() => elders.length > 1 && setPicked(null)} aria-label="관리할 어르신 다시 선택">
+            <span className="elder-face sm">{picked.name?.slice(0, 1)}</span>
+            <span className="sidebar-elder-copy">
+              <span className="sidebar-elder-name"><b>{picked.name}</b><small>{picked.preferred_call_name}</small></span>
+              <em>{pickedDiagnosis}</em>
+            </span>
+            <i>⌄</i>
+          </button>
+          <label className="sidebar-elder-date" aria-label="분석 날짜"><input type="date" value={period.value} max={localDateKey()} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} /></label>
+        </div>
+        <nav className="sidebar-nav" aria-label="담당자 메뉴">{MAIN_TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => { setTab(item.id); if (item.id === "checks") setTaskInitialSubtab("checklist"); }}>{item.icon && <span>{item.icon}</span>}{item.label}</button>)}</nav>
       </aside>
       <section className="guardian-workspace">
-        <header className="dashboard-heading manager-heading"><div><p className="eyebrow">{picked.name} 어르신 · {patientProfile?.diagnosis_label || picked.diagnosis_label || "진단 정보 미등록"}</p><h1>{tab === "checks" && taskActiveSubtab === "medication" ? "오늘 복약" : `${new Date(`${period.value}T00:00:00`).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 분석 리포트`}</h1>{tab !== "analysis" && <span>담당자가 직접 확인해야 할 근거와 행동을 모았습니다.</span>}</div>{!(tab === "checks" && taskActiveSubtab === "medication") && <label className="manager-date-picker"><span>분석 날짜</span><input type="date" value={period.value} max={localDateKey()} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} /></label>}</header>
         {error && <p className="error">{error}</p>}
-        {!summary ? <p className="hint">분석 데이터를 불러오는 중…</p> : tab === "analysis" ? <><ReportTabs elderId={picked.elder_id} elderName={picked.name} patientProfile={patientProfile} summary={summary} baselineSummary={baselineSummary || summary} comparisonDay={comparisonDay || summary} days={summary.days} period={period} onPeriod={setPeriod} onReload={loadSummary} />{baselineLoading && <p className="manager-baseline-loading">최근 30일 비교 기준을 이어서 계산하고 있습니다.</p>}</> : tab === "checks" ? <CareTaskWorkspace elderId={picked.elder_id} summary={summary} baselineSummary={baselineSummary || summary} period={period} onReload={loadSummary} onOpenHandover={() => setTab("handover")} onOpenMedication={(item) => { setTaskInitialSubtab("medication"); const target = elders.find((elder) => elder.elder_id === item.elder_id); if (target && target.elder_id !== picked.elder_id) setPicked(target); }} onProgress={setTaskProgress} onSubtabChange={setTaskActiveSubtab} initialSubtab={taskInitialSubtab} /> : <HandoverWorkspace date={period.value} onProgress={setTaskProgress} />}
+        {!summary ? <p className="hint">분석 데이터를 불러오는 중…</p> : tab === "analysis" ? <><ReportTabs elderId={picked.elder_id} elderName={picked.name} patientProfile={patientProfile} summary={summary} baselineSummary={baselineSummary || summary} comparisonDay={comparisonDay || summary} days={summary.days} period={period} onPeriod={setPeriod} onReload={loadSummary} />{baselineLoading && <p className="manager-baseline-loading">최근 30일 비교 기준을 이어서 계산하고 있습니다.</p>}</> : tab === "checks" ? <CareTaskWorkspace elderId={picked.elder_id} summary={summary} baselineSummary={baselineSummary || summary} period={period} onReload={loadSummary} onOpenHandover={() => setTab("handover")} onOpenMedication={(item) => { setTaskInitialSubtab("medication"); const target = elders.find((elder) => elder.elder_id === item.elder_id); if (target && target.elder_id !== picked.elder_id) setPicked(target); }} onSubtabChange={setTaskActiveSubtab} initialSubtab={taskInitialSubtab} /> : <HandoverWorkspace date={period.value} />}
       </section>
     </div>
   </main>;

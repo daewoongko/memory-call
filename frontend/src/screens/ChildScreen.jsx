@@ -6,14 +6,19 @@ import GuardianCallOverlay from "./GuardianCallOverlay.jsx";
 import FamilyMemoryClothesline from "./FamilyMemoryClothesline.jsx";
 import FamilyPersonaSettings from "./FamilyPersonaSettings.jsx";
 import CallTranscriptModal from "./CallTranscriptModal.jsx";
+import DasoniHomeTab from "./DasoniHomeTab.jsx";
 import { useCallMediaReadiness } from "../useCallMediaReadiness.js";
 import { useScreenWakeLock } from "../useScreenWakeLock.js";
 
+function TabGlyph({ children }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
+}
+
 const TABS = [
-  { id: "today", mark: "♥", label: "오늘" },
-  { id: "memories", mark: "◇", label: "가족 추억함" },
-  { id: "calls", mark: "◷", label: "통화" },
-  { id: "settings", mark: "⚙", label: "설정" },
+  { id: "today", mark: <TabGlyph><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.8z" /></TabGlyph>, label: "오늘" },
+  { id: "memories", mark: <TabGlyph><path d="M12 3l9 9-9 9-9-9z" /></TabGlyph>, label: "추억함" },
+  { id: "calls", mark: <TabGlyph><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></TabGlyph>, label: "통화" },
+  { id: "settings", mark: <TabGlyph><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></TabGlyph>, label: "설정" },
 ];
 
 function localDateKey(date = new Date()) {
@@ -40,38 +45,33 @@ function duration(seconds = 0) {
   return minutes ? `${minutes}분 ${rest}초` : `${rest}초`;
 }
 
+function withTopicParticle(word = "어르신") {
+  const last = [...word.trim()].at(-1) || "";
+  const code = last.charCodeAt(0) - 0xAC00;
+  const hasFinalConsonant = code >= 0 && code <= 11171 && code % 28 > 0;
+  return `${word}${hasFinalConsonant ? "은" : "는"}`;
+}
+
 function memoryImage(memory) {
   return memory?.artwork?.image_url || memory?.image_url || memory?.photo_url || "";
 }
 
 const CALL_TYPES = {
-  direct: { label: "내가 직접 통화", mark: "나" },
-  ai: { label: "AI가 대신 통화", mark: "AI" },
-  ai_to_direct: { label: "AI 통화 후 직접 연결", mark: "연결" },
+  direct: { label: "가족이 직접 통화", filterLabel: "가족 직접", mark: "나" },
+  ai: { label: "다소니가 대신 통화", filterLabel: "다소니 AI", mark: "AI" },
+  ai_to_direct: { label: "AI 통화 후 가족이 이어받음", filterLabel: "이어받음", mark: "연결" },
 };
 
-const CALL_PERIODS = [
-  { id: "morning", label: "오전", range: "00–12시", includes: (hour) => hour < 12 },
-  { id: "afternoon", label: "오후", range: "12–18시", includes: (hour) => hour >= 12 && hour < 18 },
-  { id: "evening", label: "저녁", range: "18–24시", includes: (hour) => hour >= 18 },
-];
-
-function periodForCall(call) {
-  const date = new Date(call.started_at);
-  const hour = Number.isNaN(date.getTime()) ? 0 : date.getHours();
-  return CALL_PERIODS.find((period) => period.includes(hour))?.id || "morning";
-}
-
-export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", onMyPersonaChange }) {
+export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", onMyPersonaChange, onDisplaySettings }) {
   const [picked, setPicked] = useState(null);
   const [selectedDate, setSelectedDate] = useState(() => localDateKey());
   const [summary, setSummary] = useState(null);
   const [memories, setMemories] = useState([]);
   const [personas, setPersonas] = useState([]);
   const [calls, setCalls] = useState([]);
-  const [tab, setTab] = useState("today");
+  const [elderCallName, setElderCallName] = useState("어르신");
+  const [tab, setTab] = useState("home");
   const [callFilter, setCallFilter] = useState("all");
-  const [expandedCallPeriods, setExpandedCallPeriods] = useState({});
   const [activeCall, setActiveCall] = useState(null);
   const [connected, setConnected] = useState(null);
   const [callBusy, setCallBusy] = useState(false);
@@ -124,25 +124,43 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const readyPersonas = useMemo(() => personas.filter((item) => item.ready), [personas]);
   const myPersona = useMemo(() => readyPersonas.find((item) => item.persona_id === myPersonaId)
     || (readyPersonas.length === 1 ? readyPersonas[0] : null), [readyPersonas, myPersonaId]);
+
+  useEffect(() => {
+    if (!picked) return;
+    const fallback = picked.preferred_call_name || "어르신";
+    setElderCallName(fallback);
+    if (!myPersona?.persona_id) return;
+    let alive = true;
+    api.getProfile(myPersona.persona_id, picked.elder_id)
+      .then((profile) => {
+        if (alive) setElderCallName(profile?.elder?.call_name || fallback);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [picked, myPersona?.persona_id]);
   const dayHeartPhoto = heart?.memory_banner?.image_url || heart?.visual_story?.image_url || "";
-  const heartLabel = heart?.missed_word?.label || "마음";
   const heartQuote = heart?.missed_word?.quote || heart?.memory_banner?.quote
     || heart?.visual_story?.source_quote || artwork?.description || "가족과 나눈 이야기가 안전하게 정리되었습니다.";
-  const heartPhotos = useMemo(() => {
-    const ordered = [
-      ...(dayHeartPhoto ? [{ photo_url: dayHeartPhoto, title: `${shortDate(selectedDate)} 마음 기록` }] : []),
-      artwork,
-      ...verifiedMemories.filter((memory) => memory !== artwork),
-    ]
-      .map((memory) => ({ src: memoryImage(memory), alt: memory?.title || "가족 추억" }))
-      .filter((item) => item.src);
-    readyPersonas.forEach((persona) => {
-      if (persona.face) ordered.push({ src: persona.face, alt: `${persona.display_name} 가족 사진` });
-    });
-    return ordered.filter((item, index, rows) => rows.findIndex((row) => row.src === item.src) === index).slice(0, 13);
-  }, [dayHeartPhoto, selectedDate, artwork, verifiedMemories, readyPersonas]);
-  const urgent = (latest?.risks || []).filter((risk) => !risk.acknowledged);
   const hasCalls = Boolean((summary?.calls || 0) > 0);
+  const diaryImage = dayHeartPhoto || memoryImage(artwork);
+  const diaryImageAlt = heart?.memory_banner?.alt_text || heart?.visual_story?.alt_text
+    || artwork?.title || "오늘의 대표 그림";
+  const diaryTitle = heart?.memory_banner?.memory_title || heart?.memory_bridge?.title
+    || artwork?.title || "오늘의 마음";
+  const diaryArtworkLabel = heart?.visual_story?.status_label
+    || (heart?.memory_banner ? "확인된 가족 기억 기반" : diaryImage ? "가족이 확인한 추억" : "");
+  const diaryDisplayImage = diaryImage || "/diary/haeundae-family-drawing.png";
+  const diaryDisplayAlt = diaryImage ? diaryImageAlt : "할아버지와 손자가 해변에서 모래성을 만드는 그림일기 삽화";
+  const diaryDisplayTitle = hasCalls ? diaryTitle : "할아버지와 만든 모래성";
+  const diaryTitleFit = Math.min(1, 9 / Math.max(diaryDisplayTitle.replace(/\s/g, "").length, 1));
+  const diaryWritingText = (hasCalls
+    ? heartQuote
+    : "2012년 여름 할아버지와 해운대에 갔다. 둘이 모래성을 만들고 파도를 보며 함께 웃었다.")
+    .replace(/[“”"]/g, "").trim();
+  const familyInsight = heart?.day_translation?.family
+    || `${withTopicParticle(elderCallName)} 대웅이와 갔던 해운대 바다가 아직도 많이 생각나시는 것 같아.`;
+  const quotedFamilyInsight = `“${familyInsight.replace(/[“”"]/g, "").trim()}”`;
+  const urgent = (latest?.risks || []).filter((risk) => !risk.acknowledged);
   const callTypeCounts = useMemo(() => calls.reduce((counts, call) => {
     const type = CALL_TYPES[call.call_type] ? call.call_type : "ai";
     counts[type] += 1;
@@ -151,10 +169,9 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const filteredCalls = useMemo(() => callFilter === "all"
     ? calls
     : calls.filter((call) => (call.call_type || "ai") === callFilter), [calls, callFilter]);
-  const callPeriods = useMemo(() => CALL_PERIODS.map((period) => ({
-    ...period,
-    calls: filteredCalls.filter((call) => periodForCall(call) === period.id),
-  })), [filteredCalls]);
+  const visibleCalls = useMemo(() => [...filteredCalls]
+    .sort((left, right) => String(right.started_at || "").localeCompare(String(left.started_at || ""))), [filteredCalls]);
+  const totalCallDuration = useMemo(() => calls.reduce((sum, call) => sum + (call.duration_sec || 0), 0), [calls]);
 
   // 통화 중에는 폴링을 멈춘다. 이미 받은 벨을 다시 물고 올 이유가 없다.
   // listening 은 "지금 실제로 벨을 받을 수 있는가"다. 등록된 것과는 다르다.
@@ -254,11 +271,20 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       error={callError || ringError}
     />
     <header className="child-header child-family-header">
-      <div className="child-brand"><BrandMark size={34} /><div><b>다소니</b><span>가족 안심 소식</span></div></div>
-      <div className="child-header-context">
+      <button type="button" className={`child-brand child-brand-home${tab === "home" ? " on" : ""}`} onClick={() => { setSelectedDate(todayKey); setTab("home"); }} aria-label="다소니 메인 홈으로 이동">
+        <BrandMark size={34} />
+      </button>
+      {tab === "today" && <blockquote className="child-header-diary-note" aria-label="다소니가 전하는 오늘의 한마디"><span>{quotedFamilyInsight}</span></blockquote>}
+      {tab === "memories" && <div className="child-header-memory-title"><strong>가족 추억함</strong><span>{picked.name} 어르신과 AI가 함께 이야기할 수 있는 추억을 관리해요.</span></div>}
+      {tab === "calls" && <div className="child-header-call-title"><strong>{shortDate(selectedDate)} 통화 이야기</strong><span>{calls.length}통 · {duration(totalCallDuration)}</span></div>}
+      {tab === "settings" && <div className="child-header-reachable"><strong className={listening ? "device-live" : "device-idle"}>“{listening ? "지금 전화를 받을 수 있어요" : "지금은 다소니가 대신 받아요"}”</strong><span>{listening ? "화면을 켜 두면 어르신의 전화가 이 폰으로 와요." : "화면을 켜고 기다리면 가족 전화가 다시 연결돼요."}</span></div>}
+      {tab === "home" && <div className="child-header-context">
         <strong className="child-elder-name">{picked.name} 어르신</strong>
+        <button type="button" className="child-view-settings" onClick={onDisplaySettings} aria-label="글자 크기와 화면 명암 설정">
+          <span aria-hidden="true">Aa</span>
+        </button>
         <label className="child-date-picker"><span>날짜</span><input type="date" value={selectedDate} max={todayKey} onChange={(event) => setSelectedDate(event.target.value)} /></label>
-      </div>
+      </div>}
     </header>
 
     {!callMedia.ready && <section className="media-readiness-panel child-media-readiness" aria-live="polite">
@@ -271,18 +297,34 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     </section>}
 
     <div className="child-app-body">
-      <nav className="child-tabs" aria-label="가족 화면 메뉴">{TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => setTab(item.id)}><span className="child-tab-mark" aria-hidden="true">{item.mark}</span><b>{item.label}</b></button>)}</nav>
-      <section className="child-view">
+      <nav className="child-tabs" aria-label="가족 화면 메뉴">{TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => setTab(item.id)} aria-current={tab === item.id ? "page" : undefined}><span className="child-tab-mark" aria-hidden="true">{item.mark}</span><b>{item.label}</b></button>)}</nav>
+      <section className={`child-view${tab === "today" ? " today-view" : ""}`}>
         {loading && <div className="child-loading-bar"><i /></div>}
 
+        {tab === "home" && <DasoniHomeTab
+          elderCallName={elderCallName}
+          dateLabel={shortDate(selectedDate)}
+          callCount={calls.length}
+          totalDurationText={duration(totalCallDuration)}
+          attentionItems={urgent.map((risk) => ({
+            id: risk.event_id,
+            label: risk.label || "가족 확인이 필요해요",
+            evidence: risk.evidence,
+            action: risk.action || "현재 상태를 직접 확인해 주세요.",
+          }))}
+        />}
+
         {tab === "today" && <section className="child-today">
-          <article className="child-heart-story">
-            <header><span>{shortDate(selectedDate)}</span><h1>오늘, 마음에 남은 순간</h1></header>
-            <div className={`child-heart-collage photos-${Math.min(heartPhotos.length, 13)}`} aria-label={`${heartPhotos.length}장의 사진으로 만든 추억 하트`}>
-              {heartPhotos.map((photo, index) => <figure className={`heart-photo heart-photo-${index + 1}${index === 0 ? " main" : ""}`} key={`${photo.src}-${index}`}><img src={photo.src} alt={photo.alt} loading={index > 0 ? "lazy" : "eager"} /></figure>)}
-              {!heartPhotos.length && <div className="child-heart-empty"><b>♡</b><span>가족 추억함에 사진을 걸면<br />오늘의 하트가 채워져요.</span></div>}
-            </div>
-            <div className="child-heart-quote"><span>{hasCalls ? `${heartLabel}이 담긴 한마디` : "오늘의 한마디"}</span><blockquote>“{hasCalls ? heartQuote : "이날은 아직 통화에서 남은 한마디가 없어요."}”</blockquote></div>
+          <article className="child-day-diary">
+            <header className="child-diary-meta"><time dateTime={selectedDate}>{shortDate(selectedDate)}</time><span>오늘의 마음 날씨 · 맑음</span></header>
+            <figure className="child-diary-art">
+              <img src={diaryDisplayImage} alt={diaryDisplayAlt} />
+              {diaryImage && diaryArtworkLabel && <figcaption>{diaryArtworkLabel}</figcaption>}
+            </figure>
+            <section className="child-diary-page">
+              <header className="child-diary-title-row"><span>제목</span><h1 style={{ "--diary-title-fit": diaryTitleFit }}>{diaryDisplayTitle}</h1></header>
+              <div className="child-diary-writing" aria-label={diaryWritingText}>{[...diaryWritingText].map((letter, index) => <span className={letter === " " ? "blank" : ""} aria-hidden="true" key={`${letter}-${index}`}>{letter === " " ? "\u00a0" : letter}</span>)}</div>
+            </section>
           </article>
           {urgent.length > 0 && <details className="child-alert"><summary><b>가족이 직접 확인할 이야기</b><span>{urgent.length}건 · 펼쳐보기</span></summary>{urgent.map((risk) => <p key={risk.event_id}>“{risk.evidence}”라는 말씀이 있었습니다. 현재 상태를 직접 확인해 주세요.</p>)}</details>}
         </section>}
@@ -292,63 +334,26 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
         </section>}
 
         {tab === "calls" && <section className="child-call-page">
-          <header className="child-section-heading child-call-heading"><div><span>CALL STORY</span><h1>{shortDate(selectedDate)} 통화 이야기</h1><p>{calls.length}통 · {duration(calls.reduce((sum, call) => sum + (call.duration_sec || 0), 0))}</p></div></header>
           <nav className="child-call-filters" aria-label="통화 유형 필터">
-            <button type="button" className={callFilter === "all" ? "on" : ""} onClick={() => setCallFilter("all")}><i aria-hidden="true">전체</i><span>모든 통화</span><b>{calls.length}</b></button>
-            {Object.entries(CALL_TYPES).map(([type, meta]) => <button type="button" key={type} className={`${type} ${callFilter === type ? "on" : ""}`} onClick={() => setCallFilter(type)}><i aria-hidden="true">{meta.mark}</i><span>{meta.label}</span><b>{callTypeCounts[type]}</b></button>)}
+            <button type="button" className={callFilter === "all" ? "on" : ""} onClick={() => setCallFilter("all")}><span>전체</span><b>{calls.length}</b></button>
+            {Object.entries(CALL_TYPES).map(([type, meta]) => <button type="button" key={type} className={`${type} ${callFilter === type ? "on" : ""}`} onClick={() => setCallFilter(type)}><span>{meta.filterLabel}</span><b>{callTypeCounts[type]}</b></button>)}
           </nav>
-          <div className="child-call-period-board">
-            {callPeriods.map((period) => {
-              const directCalls = period.calls.filter((call) => call.call_type === "direct");
-              const otherCalls = period.calls.filter((call) => call.call_type !== "direct");
-              const collapsedCalls = [...directCalls, ...otherCalls.slice(0, Math.max(0, 3 - directCalls.length))]
-                .sort((left, right) => String(left.started_at).localeCompare(String(right.started_at)));
-              const visibleCalls = expandedCallPeriods[period.id] ? period.calls : collapsedCalls;
-              const hiddenCount = period.calls.length - visibleCalls.length;
-              const seconds = period.calls.reduce((sum, call) => sum + (call.duration_sec || 0), 0);
-              return <section className="child-call-period" key={period.id}>
-                <header><div><span>{period.range}</span><h2>{period.label}</h2></div><p><b>{period.calls.length}</b>통 · {duration(seconds)}</p></header>
-                <div className="child-call-card-grid">
-                  {visibleCalls.map((call) => {
-                    const type = CALL_TYPES[call.call_type] || CALL_TYPES.ai;
-                    const needsAttention = Number(call.risk_count || 0) > 0;
-                    return <button type="button" className={`child-call-card ${call.call_type || "ai"}${needsAttention ? " problem" : ""}`} key={call.call_id} onClick={() => setActiveCall(call)}>
-                      <span className={`child-call-type-badge ${call.call_type || "ai"}`}><i aria-hidden="true">{type.mark}</i>{type.label}</span>
-                      <time>{shortTime(call.started_at)}<small>{duration(call.duration_sec)}</small></time>
-                      <h3>{call.report_title || call.summary || "가족과 나눈 통화"}</h3>
-                      <p>{call.summary || (call.meaning_count ? `가족에게 전할 순간 ${call.meaning_count}건` : "대화 내용을 확인해 보세요.")}</p>
-                      <footer>
-                        <span>{call.counterpart_name || "가족"}</span>
-                        <em>{needsAttention ? `확인 필요 ${call.risk_count}` : call.repeat_count ? `반복 ${call.repeat_count}` : call.meaning_count ? `마음 ${call.meaning_count}` : "대화 보기"}</em>
-                      </footer>
-                    </button>;
-                  })}
-                  {!period.calls.length && <p className="child-call-period-empty">이 시간대에는 통화가 없어요.</p>}
-                </div>
-                {hiddenCount > 0 && <button type="button" className="child-call-more" onClick={() => setExpandedCallPeriods((current) => ({ ...current, [period.id]: true }))}>{hiddenCount}통 더 보기 <span>↓</span></button>}
-                {expandedCallPeriods[period.id] && period.calls.length > collapsedCalls.length && <button type="button" className="child-call-more" onClick={() => setExpandedCallPeriods((current) => ({ ...current, [period.id]: false }))}>간단히 보기 <span>↑</span></button>}
-              </section>;
+          <div className="child-call-list">
+            {visibleCalls.map((call) => {
+              const type = CALL_TYPES[call.call_type] || CALL_TYPES.ai;
+              const needsAttention = Number(call.risk_count || 0) > 0;
+              return <button type="button" className={`child-call-list-item ${call.call_type || "ai"}${needsAttention ? " problem" : ""}`} key={call.call_id} onClick={() => setActiveCall(call)}>
+                <span className={`child-call-type-badge ${call.call_type || "ai"}`}><i aria-hidden="true">{type.mark}</i>{type.filterLabel}</span>
+                <span className="child-call-list-copy"><b>{call.report_title || call.summary || "가족과 나눈 통화"}</b><small>{call.summary || (call.meaning_count ? `기억에 남은 대화 ${call.meaning_count}건` : "대화 내용을 확인해 보세요.")}</small></span>
+                <span className="child-call-list-meta"><time>{shortTime(call.started_at)}</time><small>{duration(call.duration_sec)}</small><em>{needsAttention ? `확인 필요 ${call.risk_count}` : "보기"}</em></span>
+              </button>;
             })}
-            {!calls.length && <div className="child-empty-card"><b>이날은 정리된 통화가 없어요</b><p>다른 날짜를 선택하면 그날의 통화 이야기를 확인할 수 있어요.</p></div>}
+            {!visibleCalls.length && <div className="child-empty-card"><b>조건에 맞는 통화가 없어요</b><p>다른 날짜나 유형을 선택해 보세요.</p></div>}
           </div>
           <CallTranscriptModal call={activeCall} elderName={picked.name} onClose={() => setActiveCall(null)} />
         </section>}
 
         {tab === "settings" && <section className="child-family-settings">
-          {/* 이 폰이 지금 벨을 받을 수 있는지. 폴링이 곧 신고이므로 화면이
-              꺼지면 함께 꺼진다. 보호자가 손에 든 폰을 두고 실제로 갖는
-              질문이라 설정 맨 위에 둔다. */}
-          <div className="family-reachable">
-            <b className={listening ? "device-live" : "device-idle"}>
-              {listening ? "지금 전화를 받을 수 있어요" : "지금은 AI 가 대신 받습니다"}
-            </b>
-            <p>
-              {listening
-                ? "화면을 켜 두면 어르신의 전화가 이 폰으로 옵니다."
-                : "화면이 꺼져 있거나 가족을 고르지 않으면 벨이 오지 않습니다."}
-            </p>
-          </div>
-
           {!myPersona && readyPersonas.length > 1 ? <div className="family-legacy-picker">
             <header><span>내 프로필 선택</span><h1>통화에서 사용할 나를 선택해 주세요</h1></header>
             <div>{readyPersonas.map((persona) => <button type="button" key={persona.persona_id} onClick={() => onMyPersonaChange?.(persona.persona_id)}>{persona.face ? <img src={persona.face} alt="" /> : <i>{persona.display_name?.slice(0, 1)}</i>}<b>{persona.display_name}</b><small>{persona.relationship}</small></button>)}</div>

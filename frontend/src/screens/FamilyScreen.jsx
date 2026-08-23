@@ -1,25 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import * as api from "../api.js";
 import { useSpeech } from "../useSpeech.js";
 import { familyMatchPrompt, matchFamily, readyFamilyHint } from "../familyMatch.js";
+import BrandMark from "../components/BrandMark.jsx";
 
-const dateKey = (date) => [
-  date.getFullYear(),
-  String(date.getMonth() + 1).padStart(2, "0"),
-  String(date.getDate()).padStart(2, "0"),
-].join("-");
+const ORDINALS = ["첫째", "둘째", "셋째", "넷째", "다섯째", "여섯째", "일곱째", "여덟째"];
 
-function greeting(hour) {
-  if (hour < 11) return "좋은 아침이에요";
-  if (hour < 17) return "편안한 오후예요";
-  return "편안한 저녁이에요";
-}
+const PhoneIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></svg>;
+const MicIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8" /></svg>;
 
-export default function FamilyScreen({ elderId = "elder_001", onPick, error, media }) {
+export default function FamilyScreen({ elderId = "elder_001", onPick, error, media, onOpenSettings, onRole }) {
   const [personas, setPersonas] = useState([]);
-  const [schedules, setSchedules] = useState([]);
-  const [medications, setMedications] = useState([]);
-  const [memories, setMemories] = useState([]);
   const [now, setNow] = useState(() => new Date());
   const [notice, setNotice] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -38,29 +29,15 @@ export default function FamilyScreen({ elderId = "elder_001", onPick, error, med
   useEffect(() => {
     let alive = true;
     setLoadError("");
-    Promise.all([
-      api.getPersonas(elderId), api.getSchedules(elderId),
-      api.getMedications(elderId), api.getMemories(elderId),
-    ]).then(([personaResult, scheduleResult, medicationResult, memoryResult]) => {
+    api.getPersonas(elderId).then((personaResult) => {
       if (!alive) return;
       setPersonas(personaResult.personas || []);
-      setSchedules([...(scheduleResult.past || []), ...(scheduleResult.upcoming || [])]);
-      setMedications(medicationResult.today || []);
-      setMemories(memoryResult.memories || []);
     }).catch((reason) => alive && setLoadError(reason.message));
     const clock = setInterval(() => setNow(new Date()), 30000);
     return () => { alive = false; clearInterval(clock); };
   }, [elderId]);
 
   const ready = personas.filter((persona) => persona.ready);
-  const today = dateKey(now);
-  const todaySchedules = schedules.filter((item) => item.date === today);
-  const confirmedMedicationCount = medications.filter((item) =>
-    item.last_status === "USER_CONFIRMED" || item.status === "USER_CONFIRMED"
-  ).length;
-  const memory = useMemo(() => memories.find((item) =>
-    item.status === "verified" && item.conversation_allowed && item.artwork?.image_url
-  ) || memories.find((item) => item.status === "verified" && item.conversation_allowed), [memories]);
 
   const dateLabel = now.toLocaleDateString("ko-KR", {
     month: "long", day: "numeric", weekday: "long",
@@ -69,77 +46,75 @@ export default function FamilyScreen({ elderId = "elder_001", onPick, error, med
     hour: "numeric", minute: "2-digit",
   });
 
+  const toggleVoice = async () => {
+    if (speech.listening) {
+      speech.stop();
+      return;
+    }
+    if (!media?.ready) {
+      try {
+        const prepared = await media?.prepare?.();
+        if (!prepared?.ready) throw new Error("microphone unavailable");
+      } catch {
+        setNotice("마이크 연결이 안 됐어요. 마이크 권한과 연결 상태를 확인해 주세요.");
+        return;
+      }
+    }
+    setNotice("");
+    speech.start();
+  };
+
   return (
-    <div className="screen family reassurance-home">
-      <header className="reassurance-header">
-        <p>{dateLabel} · {timeLabel}</p>
-        <h1>{greeting(now.getHours())}</h1>
-        <span>오늘도 가족과 편안하게 이야기할 수 있어요.</span>
+    <div className="screen family reassurance-home reassurance-home-simple">
+      <header className="elder-topbar">
+        <button type="button" className="elder-topbar-brand" onClick={onRole} aria-label="사용자 선택 화면으로 이동">
+          <BrandMark size={42} />
+          <span><b>다소니</b></span>
+        </button>
+        <button type="button" className="elder-view-button" onClick={onOpenSettings} aria-label="글자 크기와 화면 명암 설정"><span>Aa</span></button>
       </header>
 
-      {!media?.ready && <section className="media-readiness-panel" aria-live="polite">
-        <div><b>통화 준비</b><p>{media?.message || "마이크와 카메라를 먼저 준비해 주세요."}</p></div>
-        <button
-          className="media-preflight-button"
-          onClick={() => media?.prepare?.().catch(() => {})}
-          disabled={media?.status === "checking"}
-        >{media?.status === "checking" ? "확인 중…" : "마이크·카메라 허용"}</button>
-      </section>}
-      {media?.ready && <p className="media-ready-note">{media.message}</p>}
-
-      <section className="today-reassurance" aria-label="오늘의 안심 정보">
-        <article>
-          <span className="today-icon schedule" aria-hidden="true">일정</span>
-          <div><small>오늘 일정</small><b>{todaySchedules[0]?.title || "등록된 일정이 없어요"}</b>
-            {todaySchedules[0] && <p>{todaySchedules[0].time || "시간 미정"}{todaySchedules.length > 1 ? ` · 외 ${todaySchedules.length - 1}개` : ""}</p>}
-          </div>
-        </article>
-        <article>
-          <span className="today-icon medication" aria-hidden="true">약</span>
-          <div><small>오늘 복약 일정</small><b>{medications.length ? `${medications.length}번 중 ${confirmedMedicationCount}번 확인` : "등록된 복약 일정이 없어요"}</b>
-            {medications[0] && <p>다음 확인은 가족과 함께 해요.</p>}
-          </div>
-        </article>
-      </section>
-
-      {memory && <section className="reassurance-memory" aria-label="가족이 확인한 기억">
-        {memory.artwork?.image_url
-          ? <img src={memory.artwork.image_url} alt={memory.artwork.alt_text || memory.title} />
-          : <span aria-hidden="true">◇</span>}
-        <div><small>가족이 확인한 소중한 기억</small><b>{memory.title}</b><p>{memory.date_text || memory.location || "가족이 함께 기억하고 있어요."}</p></div>
-      </section>}
-
       <section className="reassurance-family">
-        <header><h2>누구와 이야기할까요?</h2><span>사진을 눌러 주세요</span></header>
+        <header>
+          <p>{dateLabel} · {timeLabel}</p>
+          <h1>누구와 이야기해 볼까요?</h1>
+        </header>
         <div className="family-grid">
-          {personas.map((persona) => (
+          {personas.map((persona, index) => (
             <button
               key={persona.persona_id}
-              className={`family-card${persona.ready && media?.ready ? "" : " waiting"}`}
-              disabled={!persona.ready || !media?.ready}
+              data-persona-id={persona.persona_id}
+              className={`family-card${persona.ready ? "" : " waiting"}`}
+              disabled={!persona.ready}
               onClick={() => onPick(persona)}
               aria-label={`${persona.display_name} ${persona.relationship}에게 전화하기`}
             >
               <span className="family-face">
                 {persona.face ? <img src={persona.face} alt="" /> : <i>{persona.display_name.slice(0, 1)}</i>}
               </span>
-              <span><b>{persona.display_name}</b><small>{persona.ready ? persona.relationship : "등록 대기"}</small></span>
+              <span className="family-card-text"><small>{ORDINALS[index] || `${index + 1}번째`} · {persona.ready ? persona.relationship : "등록 대기"}</small><b>{persona.display_name}</b></span>
+              <span className="family-call-icon" aria-hidden="true"><PhoneIcon /></span>
             </button>
           ))}
           {!personas.length && <p className="family-empty">아직 등록된 가족이 없어요. 가족 앱에서 먼저 얼굴과 관계를 등록해 주세요.</p>}
         </div>
       </section>
 
-      {speech.supported && ready.length > 0 && <button
-        className={`pill voice reassurance-voice${speech.listening ? " listening" : ""}`}
-        onClick={() => (speech.listening ? speech.stop() : speech.start())}
-      >
-        {speech.listening ? "듣고 있어요" : "가족 이름을 말해도 돼요"}
-      </button>}
-
-      {speech.listening && <p className="hint">{speech.interim || readyFamilyHint(personas)}</p>}
-      {!speech.listening && notice && <p className="hint">{notice}</p>}
       {(error || loadError) && <p className="error">일부 정보를 불러오지 못했어요. 가족 통화는 계속 이용할 수 있어요. ({error || loadError})</p>}
+
+      {speech.supported && ready.length > 0 && <footer className="voice-call-dock">
+        {(speech.listening || notice || speech.error) && <p className="hint" aria-live="polite">
+          {speech.error || (speech.listening ? (speech.interim || readyFamilyHint(personas)) : notice)}
+        </p>}
+        <button
+          type="button"
+          className={`pill voice reassurance-voice${speech.listening ? " listening" : ""}`}
+          onClick={toggleVoice}
+        >
+          <MicIcon />
+          <span>{speech.listening ? "듣고 있어요" : "가족 이름 말하기"}</span>
+        </button>
+      </footer>}
     </div>
   );
 }

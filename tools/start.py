@@ -50,6 +50,23 @@ def main() -> None:
                 check=True,
             )
 
+        # 정서 유발 주제의 네 가지 요약과 버블 매트릭스도 로컬 데모와
+        # 동일한 실제 집계 경로를 사용한다. 전용 접두사만 확인하므로
+        # 사용자가 만든 통화나 기존 비교 환자 데이터는 덮어쓰지 않는다.
+        with db.connect() as conn:
+            emotion_demo_count = conn.execute(
+                "SELECT COUNT(*) FROM calls "
+                "WHERE elder_id = 'elder_002' "
+                "AND call_id LIKE 'demo_emotion_sunja_%'"
+            ).fetchone()[0]
+        if emotion_demo_count == 0:
+            print("공개 데모 DB에 박순자 어르신 정서 주제 통화를 적재합니다.")
+            subprocess.run(
+                [sys.executable, str(ROOT / "tools" / "seed_emotion_topic_demo.py")],
+                cwd=ROOT,
+                check=True,
+            )
+
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(
         "api:app",

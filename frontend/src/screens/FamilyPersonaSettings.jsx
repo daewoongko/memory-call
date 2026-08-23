@@ -1,10 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import * as api from "../api.js";
-import {
-  CALL_STYLE_DIMENSIONS,
-  callStylePersonaPatch,
-  getDefaultCallStyle,
-} from "../callStyle.js";
+import { callStylePersonaPatch, getDefaultCallStyle } from "../callStyle.js";
 import CallStyleQuiz from "../components/CallStyleQuiz.jsx";
 import VoiceProfilePanel from "../components/VoiceProfilePanel.jsx";
 import PersonaPanel from "./PersonaPanel.jsx";
@@ -55,8 +51,6 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
     return () => { alive = false; };
   }, [elderId, personaId]);
 
-  const scores = useMemo(() => persona?.call_style_scores || {}, [persona]);
-
   useEffect(() => {
     if (!photoOpen) return undefined;
     const closeOnEscape = (event) => event.key === "Escape" && setPhotoOpen(false);
@@ -99,31 +93,22 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
 
   return <div className="family-persona-settings">
     <article className="family-self-card">
-      <button type="button" className="family-profile-entry" onClick={() => setPhotoOpen(true)} aria-label={`${persona.display_name || "가족"} 사진 관리 열기`}>
-        {summary?.face ? <img src={summary.face} alt="" /> : <span className="family-self-placeholder">{persona.display_name?.slice(0, 1)}</span>}
+      <div className="family-profile-entry">
+        <button type="button" className="family-profile-photo" onClick={() => setPhotoOpen(true)} aria-label={`${persona.display_name || "가족"} 사진 관리 열기`}>
+          {summary?.face ? <img src={summary.face} alt="" /> : <span className="family-self-placeholder">{persona.display_name?.slice(0, 1)}</span>}
+        </button>
         <span className="family-self-identity">
         <small>내 가족 프로필</small>
         <h1>{persona.display_name}<i className="child-me-badge">나</i></h1>
         <p>{persona.relationship_type || summary?.relationship}</p>
-        <em>사진 보기</em>
         </span>
-      </button>
+      </div>
       <button type="button" className="family-style-current" onClick={() => setQuizOpen((open) => !open)} aria-expanded={quizOpen}>
         <small>말투 카드</small>
-        <strong>{persona.call_style_name || "미설정"}</strong>
+        <strong>{persona.call_style_name || "미설정"}{persona.call_style_code && <em>({persona.call_style_code})</em>}</strong>
         <span>{quizOpen ? "설정 닫기" : persona.call_style_code ? "다시 설정하기" : "설정하기"} <b aria-hidden="true">›</b></span>
       </button>
     </article>
-
-    {persona.call_style_code && <div className="family-style-scores" aria-label="말투 시작점 네 영역">
-      {CALL_STYLE_DIMENSIONS.map((dimension) => {
-        const score = scores[dimension.id];
-        return <div key={dimension.id}>
-          <span>{dimension.short}</span>
-          <b>{score ? `${score.selected} · ${Math.max(score.left_percent, score.right_percent)}%` : "저장됨"}</b>
-        </div>;
-      })}
-    </div>}
 
     {quizOpen && <div className="family-style-quiz-wrap">
       <CallStyleQuiz
@@ -139,12 +124,7 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
     <VoiceProfilePanel elderId={elderId} personaId={personaId} persona={persona} />
 
     <section className="family-speech-settings">
-      <header><span>말투 세부 조정</span><h2>우리 가족이 실제로 쓰는 표현을 알려주세요</h2></header>
-      <label>
-        <b>말투</b>
-        <span>말의 속도, 높임말과 반말, 평소 분위기를 적어주세요.</span>
-        <textarea value={toLines(persona.tone)} onChange={(event) => setPersona({ ...persona, tone: event.target.value })} />
-      </label>
+      <header><span>가족 표현</span><h2>우리 가족이 실제로 쓰는 표현을 알려주세요</h2></header>
       <div className="family-speech-grid">
         <label>
           <b>자주 쓰는 말</b>
@@ -159,7 +139,7 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
       </div>
       <div className="family-speech-actions">
         <p>통화 중에는 이 설정보다 안전 규칙이 항상 우선합니다.</p>
-        <button type="button" disabled={busy} onClick={() => persist(persona, "말투 세부 설정을 저장했습니다.")}>{busy ? "저장 중…" : "말투 저장"}</button>
+        <button type="button" disabled={busy} onClick={() => persist(persona, "가족 표현을 저장했습니다.")}>{busy ? "저장 중…" : "표현 저장"}</button>
       </div>
     </section>
 

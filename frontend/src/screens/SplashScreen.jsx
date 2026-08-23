@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import BrandMark from "../components/BrandMark.jsx";
 
 /** 앱을 열 때 잠깐 보이는 화면. */
-export default function SplashScreen({ onDone, ms = 1800 }) {
+export default function SplashScreen({ onDone, ms = 1300 }) {
   useEffect(() => {
     const id = setTimeout(onDone, ms);
     return () => clearTimeout(id);
@@ -13,7 +13,7 @@ export default function SplashScreen({ onDone, ms = 1800 }) {
       <BrandMark size={144} />
       <div className="wordmark">
         다소니
-        <small>에이닷</small>
+        <small>따뜻한 하루를 함께해요</small>
       </div>
     </div>
   );

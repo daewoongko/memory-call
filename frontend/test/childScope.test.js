@@ -1,13 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const child = readFileSync(new URL("../src/screens/ChildScreen.jsx", import.meta.url), "utf8");
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const familySettings = readFileSync(new URL("../src/screens/FamilyPersonaSettings.jsx", import.meta.url), "utf8");
+const displaySettings = readFileSync(new URL("../src/components/DisplaySettings.jsx", import.meta.url), "utf8");
+const dasoniHome = readFileSync(new URL("../src/screens/DasoniHomeTab.jsx", import.meta.url), "utf8");
+const clothesline = readFileSync(new URL("../src/screens/FamilyMemoryClothesline.jsx", import.meta.url), "utf8");
+const seedCareDemo = readFileSync(new URL("../../tools/seed_care_demo.py", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
 test("가족 화면은 연결된 어르신과 본인 가족 식별자를 받는다", () => {
-  assert.match(child, /ChildScreen\(\{ elderId = "elder_001", myPersonaId = "", onMyPersonaChange \}\)/);
+  assert.match(child, /ChildScreen\(\{ elderId = "elder_001", myPersonaId = "", onMyPersonaChange, onDisplaySettings \}\)/);
   assert.match(child, /rows\.find\(\(elder\) => elder\.elder_id === elderId\)/);
   assert.doesNotMatch(child, /setPicked\(rows\[0\]\)/);
   assert.match(app, /<ChildScreen elderId=\{elderId\} myPersonaId=\{myPersonaId\}/);
@@ -19,13 +24,19 @@ test("가족 화면의 날짜는 일별 조회와 통화 필터에 사용된다"
   assert.match(child, /type="date" value=\{selectedDate\}/);
 });
 
-test("통화 화면은 직접·AI·이어받기 유형과 시간대 보드 및 대화 팝업을 제공한다", () => {
+test("통화 화면은 직접·AI·이어받기 유형과 시간순 목록 및 대화 팝업을 제공한다", () => {
   const callModal = readFileSync(new URL("../src/screens/CallTranscriptModal.jsx", import.meta.url), "utf8");
-  assert.match(child, /내가 직접 통화/);
-  assert.match(child, /AI가 대신 통화/);
-  assert.match(child, /AI 통화 후 직접 연결/);
-  assert.match(child, /CALL_PERIODS/);
-  assert.match(child, /child-call-period-board/);
+  assert.match(child, /가족이 직접 통화/);
+  assert.match(child, /다소니가 대신 통화/);
+  assert.match(child, /AI 통화 후 가족이 이어받음/);
+  assert.doesNotMatch(child, /CALL_PERIODS/);
+  assert.doesNotMatch(child, /child-call-period-board/);
+  assert.match(child, /child-call-list-item/);
+  assert.match(child, /className="child-header-call-title"/);
+  assert.doesNotMatch(child, /CALL STORY/);
+  assert.doesNotMatch(child, /CALL_TYPE_PREVIEWS|missingCallTypePreviews|child-call-neon-preview|표시 예시/);
+  assert.match(seedCareDemo, /"call_type": "direct"/);
+  assert.match(seedCareDemo, /"call_type": "ai_to_direct"/);
   assert.match(child, /setActiveCall\(call\)/);
   assert.match(child, /<CallTranscriptModal/);
   assert.match(callModal, /<Transcript callId=\{call\.call_id\}/);
@@ -34,24 +45,79 @@ test("통화 화면은 직접·AI·이어받기 유형과 시간대 보드 및 �
   assert.match(callModal, /child-call-problem-badge/);
 });
 
-test("가족 추억함은 주별 빨랫줄과 시대순·사진 업로드 흐름을 제공한다", () => {
-  const clothesline = readFileSync(new URL("../src/screens/FamilyMemoryClothesline.jsx", import.meta.url), "utf8");
-  assert.match(child, /label: "가족 추억함"/);
-  assert.match(clothesline, /확인된 주마다 한 줄/);
+test("가족 추억함은 네 단계의 단일 보관 흐름과 사진 업로드를 제공한다", () => {
+  assert.match(child, /label: "추억함"/);
+  assert.match(clothesline, /함께 보는 추억/);
+  assert.match(clothesline, /memory-rope/);
+  assert.match(clothesline, /memory-tape/);
   assert.match(clothesline, /happened_year/);
   assert.match(clothesline, /uploadMemoryPhoto/);
   assert.match(clothesline, /아직 걸지 않은 이야기/);
-  assert.match(clothesline, /서랍에 넣어둔 추억/);
+  assert.match(clothesline, /대화에서 잠시 뺀 추억/);
+  assert.doesNotMatch(clothesline, /빨랫줄|weekLabel/);
+});
+
+test("가족 홈은 대표 그림과 통화 일기 및 고정 4등분 하단 탭을 사용한다", () => {
+  assert.match(child, /const diaryImage = dayHeartPhoto \|\| memoryImage\(artwork\)/);
+  assert.match(child, /className="child-day-diary"/);
+  assert.match(child, /다소니가 전하는 오늘의 한마디/);
+  assert.match(child, /heart\?\.day_translation\?\.family/);
+  assert.match(child, /className="child-header-diary-note"/);
+  assert.match(child, /quotedFamilyInsight/);
+  assert.match(child, /className="child-header-memory-title"/);
+  assert.doesNotMatch(clothesline, /FAMILY ARCHIVE|className="family-memory-title"/);
+  assert.match(child, /tab === "today" \? " today-view"/);
+  assert.doesNotMatch(child, /child-diary-page[\s\S]{0,800}<footer>/);
+  assert.match(child, /className="child-diary-writing"/);
+  assert.match(child, /className=\{letter === " " \? "blank" : ""\}/);
+  assert.match(child, /해운대 바다가 아직도 많이 생각나시는 것 같아/);
+  assert.doesNotMatch(child, /--insight-fit/);
+  assert.match(child, /\/diary\/haeundae-family-drawing\.png/);
+  assert.ok(existsSync(new URL("../public/diary/haeundae-family-drawing.png", import.meta.url)));
+  assert.match(child, /heart\?\.visual_story\?\.status_label/);
+  assert.match(styles, /\.app-device-family \.child-tabs \{[\s\S]*grid-template-columns: repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles, /\.child-diary-art/);
+  assert.match(styles, /\.child-diary-page/);
+  assert.doesNotMatch(child, /child-heart-collage|HEART_SLOT_COUNT/);
+});
+
+test("다소니 홈은 요약만 보여주고 이동은 고정 하단 탭 네 개만 사용한다", () => {
+  assert.match(child, /useState\("home"\)/);
+  assert.match(child, /<DasoniHomeTab/);
+  assert.match(child, /setTab\("home"\)/);
+  assert.match(dasoniHome, /오늘의 핵심 수치/);
+  assert.match(dasoniHome, /직접 확인/);
+  assert.doesNotMatch(dasoniHome, /오늘의 기록|최근 통화/);
+  assert.doesNotMatch(dasoniHome, /<button/);
+  assert.doesNotMatch(dasoniHome, /다소니 메인 메뉴|onQuick/);
+  assert.equal((child.match(/id: "(?:today|memories|calls|settings)"/g) || []).length, 4);
+  assert.doesNotMatch(child, /id: "dasoni"/);
+  assert.match(child, /getProfile\(myPersona\.persona_id, picked\.elder_id\)/);
+  assert.match(dasoniHome, /const homeTitle = `\$\{elderCallName\}의 오늘`/);
+  assert.match(dasoniHome, /--home-title-fit/);
+});
+
+test("가족 화면의 글자·명암 설정은 상단 보기 버튼으로 연다", () => {
+  assert.match(child, /\{tab === "home" && <div className="child-header-context">/);
+  assert.match(child, /className="child-view-settings"/);
+  assert.match(child, />Aa<\/span>/);
+  assert.doesNotMatch(child, />보기<\/b>/);
+  assert.match(app, /onDisplaySettings=\{\(\) => setSettingsOpen\(true\)\}/);
+  assert.match(app, /displayDock: false, shell: "family"/);
+  assert.match(displaySettings, /역할 선택으로 돌아가기/);
+  assert.match(child, /className="child-header-reachable"/);
+  assert.doesNotMatch(child, /className="family-reachable"/);
 });
 
 test("오늘 화면의 중복 카드 두 개가 제거됐다", () => {
   assert.doesNotMatch(child, /함께하는 AI 가족/);
   assert.doesNotMatch(child, /가족이 해볼 일 하나/);
-  assert.match(child, /child-heart-collage/);
-  assert.match(child, /오늘, 마음에 남은 순간/);
+  assert.match(child, /child-day-diary/);
+  assert.match(child, /오늘의 마음 날씨/);
   assert.doesNotMatch(child, /child-today-bento-simple/);
   assert.doesNotMatch(child, /선택한 날/);
-  assert.match(child, /id: "today", mark: "♥"/);
+  assert.match(child, /id: "today"/);
+  assert.match(child, /<TabGlyph>/);
   assert.match(child, /heart\?\.missed_word\?\.quote/);
 });
 
@@ -70,13 +136,14 @@ test("설정의 본인 가족 카드에는 나 배지가 표시된다", () => {
   assert.match(familySettings, /child-me-badge/);
 });
 
-test("가족 설정은 본인 한 명의 MBTI와 말투만 인라인으로 편집한다", () => {
+test("가족 설정은 말투 카드와 가족 표현만 편집한다", () => {
   assert.doesNotMatch(child, /AI FAMILY|통화에 등장할 가족이에요|안전한 기본값/);
   assert.match(familySettings, /다시 설정하기/);
   assert.match(familySettings, /CallStyleQuiz/);
-  assert.match(familySettings, /말투 세부 조정/);
+  assert.match(familySettings, /가족 표현/);
   assert.match(familySettings, /자주 쓰는 말/);
   assert.match(familySettings, /쓰면 안 되는 말/);
+  assert.doesNotMatch(familySettings, /말의 속도, 높임말과 반말/);
   assert.doesNotMatch(child, /id: "settings", mark: "설정", label: "설정"/);
   assert.match(child, /onMyPersonaChange\?\.\(persona\.persona_id\)/);
 });

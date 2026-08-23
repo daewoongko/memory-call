@@ -101,6 +101,22 @@ class Session:
         })
 
         recent_history = self.history[-MAX_HISTORY_TURNS * 2:]
+        due_snapshot = [dict(item) for item in self.due_meds]
+        previous_ai_text = next(
+            (
+                str(message.get("content") or "")
+                for message in reversed(recent_history)
+                if message.get("role") == "assistant"
+            ),
+            "",
+        )
+        explicit_medication_status = medication.classify_explicit_status(
+            user_text,
+            due_snapshot,
+            prompted=medication.is_due_medication_prompt(
+                previous_ai_text, due_snapshot,
+            ),
+        )
         messages = [{
             "role": "system",
             "content": build_fast_system_prompt(self.ctx, user_text),
@@ -112,7 +128,22 @@ class Session:
         metadata_messages.append({"role": "user", "content": user_text})
 
         t0 = time.time()
-        result = llm.call_json_fast(messages)
+        fast_reply_error = None
+        try:
+            result = llm.call_json_fast(messages)
+        except Exception as exc:  # noqa: BLE001 - 통화를 끊지 않는 안전 폴백
+            fast_reply_error = type(exc).__name__
+            LOGGER.warning(
+                "fast reply generation failed for %s: %s", self.call_id, exc,
+            )
+            if safety.direct_risk(user_text):
+                fallback_text = (
+                    "지금은 무리해서 움직이지 말고 가까운 사람에게 "
+                    "바로 도움을 요청해줘."
+                )
+            else:
+                fallback_text = None
+            result = llm.safe_fast_reply(fallback_text)
         latency_ms = int((time.time() - t0) * 1000)
         first_token_ms = result.pop("_stream_first_token_ms", None)
 
@@ -134,6 +165,17 @@ class Session:
         })
 
         self._record_risk_event(result, elder_uid, ai_uid)
+        medication_recorded_sync = explicit_medication_status is not None
+        if explicit_medication_status is not None:
+            # 명시적인 복약 답변은 백그라운드 LLM 성공 여부와 무관하게
+            # API 응답 전에 보존한다. 추가 네트워크 호출은 없다.
+            self._record_medication_metadata(
+                {"medication_status": explicit_medication_status},
+                user_text,
+                elder_uid,
+                ai_uid,
+                due_meds=due_snapshot,
+            )
 
         self.history += [
             {"role": "user", "content": user_text},
@@ -144,7 +186,11 @@ class Session:
         result["_elder_uid"] = elder_uid
         result["_ai_uid"] = ai_uid
         result["_user_text"] = user_text
-        result["_due_meds"] = [dict(item) for item in self.due_meds]
+        result["_due_meds"] = due_snapshot
+        result["_medication_recorded_sync"] = medication_recorded_sync
+        result["_immediate_medication_status"] = explicit_medication_status
+        if fast_reply_error:
+            result["_fast_reply_error"] = fast_reply_error
         # BackgroundTasks가 같은 요청 문맥을 재구성하지 않도록 호출용 복사본만
         # 넘긴다. API 응답에는 밑줄 필드를 노출하지 않는다.
         result["_messages"] = metadata_messages
@@ -198,9 +244,10 @@ class Session:
                 })
                 conn.commit()
 
-        self._record_medication_metadata(
-            meta, user_text, elder_uid, ai_uid, due_meds=due_meds,
-        )
+        if not fast_result.get("_medication_recorded_sync"):
+            self._record_medication_metadata(
+                meta, user_text, elder_uid, ai_uid, due_meds=due_meds,
+            )
 
     def _apply_safety(self, result: dict, user_text: str = "") -> dict:
         """규칙 검사. 위반이면 안전 문장으로 교체하고 사유를 남긴다."""

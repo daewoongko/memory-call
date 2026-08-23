@@ -1,4 +1,5 @@
 import MorphStage from "../components/MorphStage.jsx";
+import BrandMark from "../components/BrandMark.jsx";
 
 /**
  * 가족을 호출하는 구간. 대웅의 연령 변화 영상은 이 대기 시간을 대신한다.
@@ -38,6 +39,7 @@ export default function CallingScreen({
 
   return (
     <div className="screen calling-screen">
+      <BrandMark size={170} />
       <div className="ring-dots">
         <i />
         <i />

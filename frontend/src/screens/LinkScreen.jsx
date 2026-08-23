@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "../api.js";
+import BrandMark from "../components/BrandMark.jsx";
 
 /**
  * 기기 연동.
@@ -36,6 +37,7 @@ export default function LinkScreen({ role, onLinked, onSkip }) {
   if (role === "child" || role === "care") {
     return (
       <div className="screen link">
+        <div className="link-brand"><BrandMark size={110} /><b>다소니</b></div>
         <h1>어르신 기기에 이 번호를 넣어주세요</h1>
 
         {issued ? (
@@ -58,6 +60,7 @@ export default function LinkScreen({ role, onLinked, onSkip }) {
 
   return (
     <div className="screen link">
+      <div className="link-brand"><BrandMark size={110} /><b>다소니</b></div>
       <h1>보호자에게 받은 번호를 넣어주세요</h1>
 
       <input

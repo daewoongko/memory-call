@@ -138,7 +138,15 @@ export default function App() {
       if (Date.now() < cooldownUntil.current) return;
       api
         .getPendingCall(elderId)
-        .then((r) => alive && r.due && setIncomingReason(r.reason))
+        .then((r) => {
+          if (!alive || !r.due) return;
+          if (r.persona_id) {
+            setTarget((current) => current?.persona_id === r.persona_id
+              ? current
+              : { persona_id: r.persona_id });
+          }
+          setIncomingReason(r.reason);
+        })
         .catch(() => {});
     };
     check();
@@ -151,6 +159,10 @@ export default function App() {
 
   const enterCall = useCallback((res) => {
     setCall(res);
+    // The fixed age-morph wait is useful preparation time. Warm only the
+    // low-latency answer model here; failure is harmless because sendTurn can
+    // still make the normal first request.
+    api.prepareCall(res.call_id).catch(() => {});
     if (phaseRef.current === "calling") {
       if (callingMorphDoneRef.current) {
         phaseRef.current = "incall";
@@ -274,8 +286,13 @@ export default function App() {
   async function startCalling(picked) {
     const person = picked ?? target;
     if (!callMedia.ready) {
-      setError("먼저 ‘마이크·카메라 허용’을 눌러 통화를 준비해 주세요.");
-      return;
+      try {
+        const prepared = await callMedia.prepare();
+        if (!prepared?.ready) throw new Error("microphone unavailable");
+      } catch {
+        setError("마이크 연결이 안 됐어요. 마이크 권한과 연결 상태를 확인해 주세요.");
+        return;
+      }
     }
     if (picked) setTarget(picked);
     setError("");
@@ -334,17 +351,17 @@ export default function App() {
     setPhase("idle");
   }
 
-  const wrap = (node, { gear = false, wide = false, roleSwitch = false, shell = "default" } = {}) => (
+  const wrap = (node, { gear = false, wide = false, roleSwitch = false, displayDock = true, embeddedControls = false, shell = "default" } = {}) => (
     <div className={`frame app-shell app-shell-${shell}${wide ? " guardian-frame" : ""}`}>
       <div className={`device app-device app-device-${shell}${wide ? " guardian-device" : ""}`}>
-        {wide && (roleSwitch || gear) && <WideDisplayDock
+        {wide && displayDock && (roleSwitch || gear) && <WideDisplayDock
           theme={theme}
           size={size}
           onTheme={setTheme}
           onSize={setSize}
           onRole={() => { setRole(null); window.location.hash = ""; }}
         />}
-        {!wide && roleSwitch && (
+        {!wide && roleSwitch && !embeddedControls && (
           <button
             className="role-switch"
             onClick={() => { setRole(null); window.location.hash = ""; }}
@@ -353,7 +370,7 @@ export default function App() {
             역할 선택
           </button>
         )}
-        {!wide && gear && (
+        {!wide && gear && !embeddedControls && (
           <button
             className="gear"
             onClick={() => setSettingsOpen(true)}
@@ -370,6 +387,11 @@ export default function App() {
             onTheme={setTheme}
             onSize={setSize}
             onClose={() => setSettingsOpen(false)}
+            onRole={roleSwitch ? () => {
+              setSettingsOpen(false);
+              setRole(null);
+              window.location.hash = "";
+            } : null}
           />
         )}
       </div>
@@ -378,8 +400,11 @@ export default function App() {
 
   const chooseRole = (picked) => {
     setRole(picked);
+    setBooted(true);
     writeLocal(KEY_ROLE, picked);
-    window.location.hash = picked === "child" ? "#family" : `#${picked}`;
+    // 역할 선택 뒤에는 데모용 직행 주소가 아니라 실제 앱의 연동·온보딩
+    // 흐름을 탄다. 저장된 연동이 있으면 해당 역할의 홈으로 바로 이어진다.
+    window.location.hash = "";
   };
 
   const finishLink = (nextElderId) => {
@@ -417,18 +442,19 @@ export default function App() {
   // P2P 가 이 망에서 붙는지 재는 화면. 통화 흐름과 무관하게 따로 연다.
   if (hash === "#nettest") return wrap(<NetTestScreen />, { wide: true, shell: "nettest" });
 
-  // 루트에서는 저장된 역할과 관계없이 항상 역할을 먼저 고른다.
-  if (hash === "#roles" || (!hash && !role))
+  // 역할 선택 주소는 개발·사용자 전환용으로 바로 연다. 일반적인 첫 실행은
+  // 스플래시를 본 뒤 아래의 역할 선택으로 이어진다.
+  if (hash === "#roles")
     return wrap(<RoleScreen onPick={chooseRole} />, { wide: true, shell: "roles" });
 
   // 주소로 직접 들어온 경우는 입구를 건너뛴다.
   // #elder는 이 브라우저에 저장된 보호자 역할과 무관하게 어르신 화면을 연다.
   const directElder = hash === "#elder";
   if (hash === "#care" || hash === "#guardian")
-    return wrap(<CareManagerScreen />, { gear: true, wide: true, roleSwitch: true, shell: "care" });
+    return wrap(<CareManagerScreen onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "care" });
   if (hash === "#child" || hash === "#family") {
     if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true, shell: "family" });
-    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, roleSwitch: true, shell: "family" });
+    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "family" });
   }
 
   if (!directElder && !booted)
@@ -448,32 +474,40 @@ export default function App() {
     );
 
   if (!directElder && role === "care") {
-    return wrap(<CareManagerScreen />, { gear: true, wide: true, shell: "care" });
+    return wrap(<CareManagerScreen onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "care" });
   }
 
   if (!directElder && role === "child") {
     if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, shell: "family" });
-    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} />, { gear: true, wide: true, shell: "family" });
+    return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "family" });
   }
 
 
   if (phase === "idle" && incomingReason)
     return wrap(
       <IncomingScreen
-        profile={profile}
+        profile={profile?.persona?.persona_id === target?.persona_id ? profile : null}
         reason={incomingReason}
         onAnswer={answerIncoming}
         onDecline={() => {
           cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
           setIncomingReason(null);
+          setTarget(null);
         }}
       />
     );
 
   if (phase === "idle")
     return wrap(
-      <FamilyScreen elderId={elderId} onPick={startCalling} error={error} media={callMedia} />,
-      { gear: true, roleSwitch: true }
+      <FamilyScreen
+        elderId={elderId}
+        onPick={startCalling}
+        error={error}
+        media={callMedia}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onRole={() => { setRole(null); window.location.hash = ""; }}
+      />,
+      { gear: true, roleSwitch: true, embeddedControls: true }
     );
 
   if (phase === "connecting")

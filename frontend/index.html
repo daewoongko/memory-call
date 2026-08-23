@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>다소니</title>
-    <meta name="theme-color" content="#176b48" />
+    <meta name="theme-color" content="#3b8163" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="다소니" />
@@ -19,13 +19,10 @@
     <script>
       // 화면이 그려지기 전에 모드를 적용해 색이 번쩍이는 것을 막는다
       try {
-        var t = localStorage.getItem("dasoni.theme") || "dark";
-        var z = localStorage.getItem("dasoni.size") || "normal";
+        var t = localStorage.getItem("dasoni.theme") || "light";
+        var z = Number(localStorage.getItem("dasoni.size")) || 100;
         document.documentElement.dataset.theme = t;
-        document.documentElement.style.setProperty(
-          "--scale",
-          { normal: "1", large: "1.15", xlarge: "1.32" }[z] || "1"
-        );
+        document.documentElement.style.setProperty("--font-scale", String(z / 100));
       } catch (e) {}
     </script>
     <div id="root"></div>

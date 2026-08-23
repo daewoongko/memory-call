@@ -13,12 +13,14 @@ import os
 import random
 import re
 import sys
+import threading
 import time
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -44,6 +46,11 @@ LLM_REQUEST_TIMEOUT_SECONDS = max(
     5.0, float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "30"))
 )
 MAX_RETRIES = max(1, int(os.getenv("LLM_MAX_RETRIES", "3")))
+FAST_WARM_TTL_SECONDS = max(
+    30.0, float(os.getenv("LLM_FAST_WARM_TTL_SECONDS", "300"))
+)
+_fast_warm_lock = threading.Lock()
+_fast_warmed_at = 0.0
 
 if not API_KEY:
     sys.exit(
@@ -70,6 +77,71 @@ class QuotaExceeded(RuntimeError):
 def _is_openai_gpt5(model: str) -> bool:
     """OpenAI GPT-5 계열의 Chat Completions 파라미터 차이를 판별한다."""
     return "api.openai.com" in BASE_URL.lower() and model.lower().startswith("gpt-5")
+
+
+class FastRisk(BaseModel):
+    """사용자에게 말하기 전에 확정해야 하는 즉시 위험 신호."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    type: Literal[
+        "stroke_sign",
+        "fall",
+        "breathing",
+        "chest_pain",
+        "overdose",
+        "self_harm",
+        "fire",
+        "gas_leak",
+        "intrusion",
+        "lost",
+    ]
+    level: Literal["high", "medium"]
+    evidence: str
+
+
+class FastUnverifiedRecall(BaseModel):
+    """등록된 기억으로 확인되지 않은 사용자의 새 회상."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    summary: str
+    quote: str
+
+
+class FastReply(BaseModel):
+    """실시간 음성 응답이 허용되기 전에 필요한 최소 계약."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    reply: str
+    used_memory_ids: list[str]
+    used_schedule_ids: list[str]
+    certainty: Literal["verified", "partial", "unverified", "none"]
+    risk: FastRisk | None
+    unverified_recall: FastUnverifiedRecall | None
+
+
+FAST_REPLY_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "memory_call_fast_reply",
+        "strict": True,
+        "schema": FastReply.model_json_schema(),
+    },
+}
+
+
+def safe_fast_reply(reply: str | None = None) -> dict:
+    """모델 호출·형식 검증 실패 시에도 안전 검사를 계속할 완전한 응답."""
+    return FastReply(
+        reply=reply or "잠깐 연결이 원활하지 않네. 한 번만 다시 말해줄래?",
+        used_memory_ids=[],
+        used_schedule_ids=[],
+        certainty="none",
+        risk=None,
+        unverified_recall=None,
+    ).model_dump()
 
 
 FAST_REPLY_SCHEMA_OVERRIDE = """
@@ -171,7 +243,8 @@ def call_json(messages: list[dict], temperature: float = 0.7,
               model: str | None = None, quiet: bool = False,
               *, stream: bool = False, max_tokens: int | None = None,
               reasoning_effort: str | None = None,
-              json_mode: bool = True) -> dict:
+              json_mode: bool = True,
+              response_format: dict | None = None) -> dict:
     """JSON 응답을 요구하고 dict로 돌려준다. 429는 백오프 재시도."""
     last_err = None
 
@@ -191,7 +264,9 @@ def call_json(messages: list[dict], temperature: float = 0.7,
             else:
                 kwargs["max_tokens"] = token_limit
                 kwargs["temperature"] = temperature
-            if json_mode:
+            if response_format is not None:
+                kwargs["response_format"] = response_format
+            elif json_mode:
                 kwargs["response_format"] = {"type": "json_object"}
             if effort:
                 kwargs["reasoning_effort"] = effort
@@ -273,17 +348,69 @@ def call_json_fast(messages: list[dict], **kwargs) -> dict:
     """실시간 통화에 필요한 답변·안전 필드만 생성한다."""
     kwargs.setdefault("model", FAST_MODEL)
     selected_model = kwargs["model"]
-    return call_json(
+    raw = call_json(
         _with_system_override(messages, FAST_REPLY_SCHEMA_OVERRIDE),
         stream=True,
-        # Luna는 프롬프트 지시만으로는 간헐적으로 일반 텍스트를 반환한다.
-        # OpenAI GPT-5 경로는 지원되는 JSON response_format을 함께 사용해
-        # 실시간 통화가 502로 끝나지 않게 한다. Gemini는 기존 저지연 경로 유지.
+        # OpenAI 경로는 여섯 필드의 이름·타입·허용값을 서버 생성 단계부터
+        # 강제한다. 다른 공급자는 프롬프트 출력 후 같은 Pydantic 계약으로
+        # 로컬 검증한다.
         json_mode=_is_openai_gpt5(selected_model),
+        response_format=(
+            FAST_REPLY_RESPONSE_FORMAT
+            if _is_openai_gpt5(selected_model)
+            else None
+        ),
         max_tokens=FAST_MAX_TOKENS,
         reasoning_effort=FAST_REASONING_EFFORT,
         **kwargs,
     )
+    raw = dict(raw)
+    first_token_ms = raw.pop("_stream_first_token_ms", None)
+    validated = FastReply.model_validate(raw).model_dump()
+    if first_token_ms is not None:
+        validated["_stream_first_token_ms"] = first_token_ms
+    return validated
+
+
+def warm_fast_model() -> dict:
+    """Warm the live model connection while the age morph is still playing.
+
+    The result is never shown or stored. A process-wide TTL prevents several
+    calls opened together from paying for duplicate warm-ups.
+    """
+    global _fast_warmed_at
+
+    now = time.monotonic()
+    if now - _fast_warmed_at < FAST_WARM_TTL_SECONDS:
+        return {"performed": False, "latency_ms": 0, "first_token_ms": None}
+
+    with _fast_warm_lock:
+        now = time.monotonic()
+        if now - _fast_warmed_at < FAST_WARM_TTL_SECONDS:
+            return {"performed": False, "latency_ms": 0, "first_token_ms": None}
+
+        started = time.perf_counter()
+        # 실제 통화와 같은 모델·출력 스키마를 사용해야 연결뿐 아니라
+        # Structured Outputs 스키마 준비 비용도 모핑 재생 중에 숨길 수 있다.
+        result = call_json_fast(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "This is a hidden connection warm-up. Return a short "
+                        "neutral Korean acknowledgement using the required schema."
+                    ),
+                },
+                {"role": "user", "content": "연결 준비"},
+            ],
+            quiet=True,
+        )
+        _fast_warmed_at = time.monotonic()
+        return {
+            "performed": True,
+            "latency_ms": round((time.perf_counter() - started) * 1000),
+            "first_token_ms": result.get("_stream_first_token_ms"),
+        }
 
 
 def call_json_metadata(messages: list[dict], final_reply: str, **kwargs) -> dict:

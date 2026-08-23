@@ -76,55 +76,6 @@ function dailyBubbleItems(day) {
     .sort((a, b) => b.value - a.value).slice(0, 9);
 }
 
-function mergeAnalysisRows(rows, rangeLabel) {
-  const observationMap = new Map();
-  const repeatMap = new Map();
-  const actions = [];
-  const risks = [];
-  let heart = null;
-  rows.forEach((row) => {
-    (row.observations || []).forEach((item) => {
-      const key = `${item.domain}:${item.signal}`;
-      const current = observationMap.get(key) || { ...item, count: 0, evidence: [] };
-      current.count += item.count || 0;
-      (item.evidence || []).forEach((quote) => {
-        if (quote && !current.evidence.includes(quote)) current.evidence.push(quote);
-      });
-      current.evidence = current.evidence.slice(0, 4);
-      observationMap.set(key, current);
-    });
-    (row.repeated_phrases || []).forEach((item) => {
-      const key = item.question;
-      const current = repeatMap.get(key) || { ...item, count: 0, call_count: 0 };
-      current.count += item.count || 0;
-      current.call_count += item.call_count || 0;
-      repeatMap.set(key, current);
-    });
-    (row.guardian_actions || []).forEach((action) => {
-      if (action && !actions.includes(action)) actions.push(action);
-    });
-    risks.push(...(row.risks || []));
-    if (row.heart_report) heart = row.heart_report;
-  });
-  const observations = [...observationMap.values()].sort((a, b) => b.count - a.count);
-  const repeated = [...repeatMap.values()].sort((a, b) => b.count - a.count);
-  return {
-    date: rows.at(-1)?.date || "",
-    range_label: rangeLabel,
-    analysis_title: "선택 기간의 통화를 하나의 리포트로 정리했습니다",
-    calls: rows.reduce((sum, row) => sum + (row.calls || 0), 0),
-    seconds: rows.reduce((sum, row) => sum + (row.seconds || 0), 0),
-    observation_count: observations.reduce((sum, item) => sum + item.count, 0),
-    observations,
-    repeated_total: repeated.reduce((sum, item) => sum + item.count, 0),
-    repeated_phrases: repeated.slice(0, 6),
-    risk_count: risks.length,
-    risks,
-    guardian_actions: actions.slice(0, 6),
-    heart_report: heart,
-  };
-}
-
 function DailyReportModal({ day, elderName, onClose, onAck, busy }) {
   if (!day) return null;
   const evidences = (day.observations || []).flatMap((item) =>
@@ -260,10 +211,11 @@ function Sparkline({ values = [], label = "추이", tone = "normal" }) {
 
 function CareDomainRadar({ todayItems, averageItems }) {
   const centerX = 260;
-  const centerY = 165;
-  const radius = 108;
-  const labelRadius = 145;
-  const maxValue = Math.max(1, ...todayItems.map((item) => item.value), ...averageItems.map((item) => item.value));
+  const centerY = 190;
+  const radius = 138;
+  const labelRadius = 178;
+  const observedMax = Math.max(0, ...todayItems.map((item) => item.value), ...averageItems.map((item) => item.value));
+  const maxValue = observedMax > 0 ? observedMax * 1.2 : 1;
   const point = (index, value, targetRadius = radius) => {
     const angle = -Math.PI / 2 + index * Math.PI / 4;
     const scaledRadius = targetRadius * (value / maxValue);
@@ -275,7 +227,7 @@ function CareDomainRadar({ todayItems, averageItems }) {
   return <section className="care-domain-radar" aria-label="오늘과 최근 30일 일평균의 8개 관찰영역 비교">
     <header><h3>오늘 발화에서 확인된 8개 영역</h3><div className="radar-legend"><span className="today">오늘</span><span className="average">최근 30일 일평균</span></div></header>
     <div className="radar-layout">
-      <svg viewBox="0 0 520 340" role="img" aria-label={`8개 영역 오늘 총 ${total}건, 최근 30일 하루 평균과 비교`}>
+      <svg viewBox="0 0 520 400" role="img" aria-label={`8개 영역 오늘 총 ${total}건, 최근 30일 하루 평균과 비교`}>
         {[.25, .5, .75, 1].map((ratio) => <polygon key={ratio} className={`radar-grid ${ratio === 1 ? "level-100" : ""}`} points={gridPolygon(ratio)} />)}
         {todayItems.map((_, index) => { const [x, y] = point(index, maxValue); return <line key={index} className="radar-axis" x1={centerX} y1={centerY} x2={x} y2={y} />; })}
         <polygon className="radar-average" points={polygon(averageItems)} />
@@ -618,14 +570,14 @@ function EmotionTopicMap({ topics = [], tendency = null }) {
   const durationMax = Math.max(...points.map((item) => item.duration), medianDuration);
   const burdenMin = Math.min(...points.map((item) => item.burden), medianBurden);
   const burdenMax = Math.max(...points.map((item) => item.burden), medianBurden);
-  const plot = { left: 120, right: 830, top: 56, bottom: 410, midX: 475, midY: 233 };
+  const plot = { left: 72, right: 718, top: 54, bottom: 438, midX: 395, midY: 246 };
   const scaleAroundMedian = (value, split, min, max, low, middle, high) => {
     if (value === split) return middle;
     if (value < split) return low + (value - min) / Math.max(.001, split - min) * (middle - low) * .92;
     return middle + (high - middle) * (.08 + (value - split) / Math.max(.001, max - split) * .92);
   };
   const plotted = points.map((item, index) => {
-    const radius = 12 + Math.sqrt(item.calls / maxCalls) * 31;
+    const radius = 15 + Math.sqrt(item.calls / maxCalls) * 38;
     const x = scaleAroundMedian(item.duration, medianDuration, durationMin, durationMax, plot.left + radius, plot.midX, plot.right - radius);
     const y = scaleAroundMedian(item.burden, medianBurden, burdenMin, burdenMax, plot.bottom - radius, plot.midY, plot.top + radius);
     return {
@@ -654,7 +606,7 @@ function EmotionTopicMap({ topics = [], tendency = null }) {
     <TendencyFourSummary tendency={tendency} />
     {topics.length ? <>
       <div className="topic-scatter-wrap">
-        <svg className="topic-scatter" viewBox="0 0 950 470" role="img" aria-label="주제별 평균 통화 시간과 부담 표현 비율 버블 산점도">
+        <svg className="topic-scatter" viewBox="0 0 790 525" role="img" aria-label="주제별 평균 통화 시간과 부담 표현 비율 버블 산점도">
           <rect className="topic-plot-bg" x={plot.left} y={plot.top} width={plot.right - plot.left} height={plot.bottom - plot.top} rx="8" />
           {[.25, .5, .75].map((ratio) => <g key={ratio}><line className="topic-grid-line" x1={plot.left} x2={plot.right} y1={plot.top + (plot.bottom - plot.top) * ratio} y2={plot.top + (plot.bottom - plot.top) * ratio} /><line className="topic-grid-line" y1={plot.top} y2={plot.bottom} x1={plot.left + (plot.right - plot.left) * ratio} x2={plot.left + (plot.right - plot.left) * ratio} /></g>)}
           <line className="topic-median-line" x1={plot.left} x2={plot.right} y1={plot.midY} y2={plot.midY} />
@@ -678,26 +630,18 @@ function EmotionTopicMap({ topics = [], tendency = null }) {
               <text className={`topic-point-count outside ${label.side > 0 ? "right" : "left"}`} x={label.x + label.side * 4} y={label.y + 11}>{item.calls}통 · {item.duration}분</text>
             </g>;
           })}
-          <text className="topic-axis-title y" transform="translate(27 233) rotate(-90)">부담 표현 비율</text>
-          <text className="topic-axis-end y-top" x="82" y={plot.top + 4}>많음</text><text className="topic-axis-end y-bottom" x="82" y={plot.bottom}>적음</text>
-          <text className="topic-axis-end" x={plot.left} y="455">짧게 이어짐</text><text className="topic-axis-end right" x={plot.right} y="455">오래 이어짐</text>
-          <text className="topic-axis-title" x={(plot.left + plot.right) / 2} y="455">주제가 나온 통화의 평균 시간</text>
+          <text className="topic-axis-title y" transform="translate(18 246) rotate(-90)">부담 표현 비율</text>
+          <text className="topic-axis-end y-top" x="53" y={plot.top + 4}>많음</text><text className="topic-axis-end y-bottom" x="53" y={plot.bottom}>적음</text>
+          <text className="topic-axis-end" x={plot.left} y="490">짧게 이어짐</text><text className="topic-axis-end right" x={plot.right} y="490">오래 이어짐</text>
+          <text className="topic-axis-title" x={(plot.left + plot.right) / 2} y="490">주제가 나온 통화의 평균 시간</text>
         </svg>
       </div>
-      <div className="topic-legend"><span className="topic-size-key"><i /><b>원의 크기</b> 통화 수</span>{Object.entries(TOPIC_EMOTION_COLOR).map(([label, color]) => <span key={label}><i style={{ background: color }} /><b>{label}</b><small>{TOPIC_EMOTION_ACTION[label]}</small></span>)}</div>
+      <div className="topic-legend">
+        <span className="topic-size-key"><i /><b>원의 크기</b> 통화 수</span>
+        <div className="topic-emotion-legend">{Object.entries(TOPIC_EMOTION_COLOR).map(([label, color]) => <span key={label}><i style={{ background: color }} /><b>{label}</b><small>{TOPIC_EMOTION_ACTION[label]}</small></span>)}</div>
+      </div>
     </> : <p className="empty-state">주제를 비교할 통화 기록이 더 필요합니다.</p>}
   </section>;
-}
-
-function FamilyMomentModal({ report, onClose }) {
-  if (!report) return null;
-  return <div className="daily-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="family-moment-modal" role="dialog" aria-modal="true" aria-label="가족에게 전할 순간 설명">
-    <header><div><p className="eyebrow">가족에게 전할 순간</p><h2>{report.label ? `${report.label}이 담긴 직접 발화` : "가족에게 전할 발화 근거"}</h2></div><button onClick={onClose}>×</button></header>
-    {report.quote ? <blockquote>“{report.quote}”</blockquote> : <p>선택 기간에는 가족에게 전할 직접적인 표현이 확인되지 않았습니다.</p>}
-    <div className="family-moment-reason"><small>왜 가족에게 전달하나요?</small><p>{report.quote ? "가족 또는 삶의 기억과 연결된 감정 표현이 실제 발화로 확인됐기 때문입니다. 상태 수치보다 어르신이 직접 남긴 말을 가족이 이해할 수 있도록 전달합니다." : "근거가 부족한 감정은 추측해 전달하지 않습니다."}</p></div>
-    {report.message && <div className="family-moment-summary"><small>전달 요점</small><p>{report.message}</p></div>}
-    <p className="moment-policy">이 내용은 담당자 분석에서 선별하고, 실제 가족용 화면에는 이미지와 함께 간단히 표시됩니다.</p>
-  </section></div>;
 }
 
 export default function ReportTabs({
@@ -720,7 +664,6 @@ export default function ReportTabs({
   const [busy, setBusy] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [heatmapPreview, setHeatmapPreview] = useState(null);
-  const [showFamilyMoment, setShowFamilyMoment] = useState(false);
   const [expandedPrioritySignal, setExpandedPrioritySignal] = useState("");
   const [showPrioritySignals, setShowPrioritySignals] = useState(true);
   const [showDecreases, setShowDecreases] = useState(false);
@@ -747,10 +690,6 @@ export default function ReportTabs({
   }
 
   const unread = summary.risks.filter((risk) => !risk.acknowledged);
-  const periodReport = useMemo(() => mergeAnalysisRows(
-    summary.daily_reports || [],
-    `${summary.since} ~ ${summary.until} 전체 분석`,
-  ), [summary.daily_reports, summary.since, summary.until]);
   const activeDaySummary = comparisonDay || (period.mode === "day" ? summary : null);
   const activeBaseline = baselineSummary || summary;
   const activeDayDomainCounts = useMemo(() => domainCounts(activeDaySummary), [activeDaySummary]);
@@ -793,9 +732,11 @@ export default function ReportTabs({
     {tab === "insight" && <>
       <div className="manager-focus-layout">
         <section className="dashboard-card manager-combined-overview">
-          <header><div><h2>{elderName} 어르신의 오늘 관찰 요약</h2></div><button className="family-moment-button" onClick={() => setShowFamilyMoment(true)}>가족에게 전할 순간 <b>{summary.meaningful_total || 0}</b><span>요점 보기 ›</span></button></header>
-          <div className="manager-stat-grid">{kpis.map((item) => { const delta = item.value - item.average; return <article key={item.label}><span>{item.label}</span><strong>{item.value}<small>{item.unit}</small></strong><em>{item.status || `평균 대비 ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}`}</em><Sparkline values={item.trend} label={`${item.label} 최근 30일 추이`} tone={item.status && unread.length ? "alert" : "normal"} /></article>; })}</div>
           <CareDomainRadar todayItems={careItems} averageItems={averageCareItems} />
+          <section className="manager-observation-summary">
+            <header><div><h2>{elderName} 어르신의 오늘 관찰 요약</h2></div></header>
+            <div className="manager-stat-grid manager-stat-strip">{kpis.map((item) => { const delta = item.value - item.average; return <article key={item.label}><span>{item.label}</span><strong>{item.value}<small>{item.unit}</small></strong><em>{item.status || `평균 대비 ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}`}</em></article>; })}</div>
+          </section>
         </section>
         <aside className="dashboard-card daily-priority-panel">
           <header><div><h2>확인 우선순위</h2></div></header>
@@ -886,7 +827,6 @@ export default function ReportTabs({
       }}
     />}
 
-    {showFamilyMoment && <FamilyMomentModal report={periodReport.heart_report || {}} onClose={() => setShowFamilyMoment(false)} />}
 
   </div>;
 }

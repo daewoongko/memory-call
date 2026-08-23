@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@anam-ai/js-sdk": "^4.23.1",
+    "@fontsource/gaegu": "^5.2.8",
+    "@fontsource/gowun-dodum": "^5.2.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

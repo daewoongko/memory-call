@@ -4,7 +4,7 @@ const MIN_REMAINING_CHARS = 10;
 const PREFERRED_FIRST_CHUNK_CHARS = 54;
 const MAX_PREFERRED_FIRST_CHUNK_CHARS = 84;
 const MAX_RETRY_AFTER_MS = 5000;
-const SHORT_FINAL_GRACE_MS = 1200;
+const SHORT_FINAL_GRACE_MS = 500;
 
 const STRONG_BOUNDARY = new Set([".", "!", "?", "。", "！", "？", "…"]);
 const SOFT_BOUNDARY = new Set([",", "，", ";", "；", ":", "："]);
