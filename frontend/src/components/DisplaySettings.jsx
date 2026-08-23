@@ -6,7 +6,7 @@ import { SIZE_MAX, SIZE_MIN, SIZE_STEP, THEMES } from "../theme.js";
  * 노인이 직접 누를 수 있어야 하므로 항목을 세 개씩만 두고
  * 지금 무엇이 선택되어 있는지 한눈에 보이게 한다.
  */
-export default function DisplaySettings({ theme, size, onTheme, onSize, onClose }) {
+export default function DisplaySettings({ theme, size, onTheme, onSize, onClose, onRole }) {
   return (
     <div className="sheet" role="dialog" aria-label="화면 설정">
       <div className="sheet-body">
@@ -31,6 +31,10 @@ export default function DisplaySettings({ theme, size, onTheme, onSize, onClose 
           ))}
         </div>
         <p className="display-hint">기기의 실제 밝기는 Windows 또는 휴대폰의 밝기 설정에서 조절해 주세요.</p>
+
+        {onRole && <button className="sheet-role-switch" onClick={onRole}>
+          역할 선택으로 돌아가기
+        </button>}
 
         <button className="sheet-close" onClick={onClose}>
           닫기

@@ -144,7 +144,7 @@ test("adaptive silence only shortens reliable final short turns", () => {
       hasFinalResult: true,
       hasInterim: false,
     }),
-    1200
+    500
   );
   assert.equal(
     adaptiveSilenceDelay({
@@ -172,5 +172,14 @@ test("adaptive silence only shortens reliable final short turns", () => {
       hasInterim: true,
     }),
     2000
+  );
+  assert.equal(
+    adaptiveSilenceDelay({
+      configuredMs: 600,
+      finalizedText: "응.",
+      hasFinalResult: true,
+      hasInterim: false,
+    }),
+    500
   );
 });

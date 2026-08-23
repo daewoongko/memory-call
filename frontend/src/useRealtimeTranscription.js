@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getRealtimeSTTToken, transcribeSpeech } from "./api.js";
+import { adaptiveSilenceDelay } from "./speechPipeline.js";
 
 const TARGET_SAMPLE_RATE = 16000;
 const DEFAULT_SILENCE_MS = 700;
@@ -283,6 +284,8 @@ export function useRealtimeTranscription({
       let speechStartedAt = 0;
       let lastVoiceAt = 0;
       let voiceMs = 0;
+      let latestTranscript = "";
+      let hasFinalTranscript = false;
       let lastTickAt = performance.now();
       const calibrationEndsAt = lastTickAt + 650;
       let noiseFloor = 0.003;
@@ -306,7 +309,9 @@ export function useRealtimeTranscription({
         let message;
         try { message = JSON.parse(event.data); } catch { return; }
         if (message.message_type === "partial_transcript" || message.message_type === "final_transcript") {
-          setInterim(String(message.text || ""));
+          latestTranscript = String(message.text || "");
+          hasFinalTranscript = message.message_type === "final_transcript";
+          setInterim(latestTranscript);
         } else if (message.message_type === "committed_transcript") {
           deliver(message.text);
         } else if (message.message_type === "error" || message.message_type === "rate_limited") {
@@ -346,7 +351,13 @@ export function useRealtimeTranscription({
             audio_base_64: pcm16ToBase64(pcm),
           }));
         }
-        if (speechStartedAt && voiceMs >= MIN_VOICE_MS && now - lastVoiceAt >= endSilenceMs) commit();
+        const currentSilenceMs = adaptiveSilenceDelay({
+          configuredMs: endSilenceMs,
+          finalizedText: latestTranscript,
+          hasFinalResult: hasFinalTranscript,
+          hasInterim: Boolean(latestTranscript.trim()) && !hasFinalTranscript,
+        });
+        if (speechStartedAt && voiceMs >= MIN_VOICE_MS && now - lastVoiceAt >= currentSilenceMs) commit();
         else if (speechStartedAt && now - speechStartedAt >= MAX_UTTERANCE_MS) commit();
       };
 

@@ -61,6 +61,9 @@ export const startCall = (personaId, elderId = "elder_001") =>
     }),
   });
 
+export const prepareCall = (callId) =>
+  request(`/api/calls/${callId}/prepare`, { method: "POST" });
+
 export const sendTurn = (callId, text) =>
   request(`/api/calls/${callId}/turn`, {
     method: "POST",

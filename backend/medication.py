@@ -12,6 +12,7 @@
 그대로 위험이 되므로, 등록된 값만 그대로 읽어 준다.
 """
 
+import re
 from datetime import date, datetime, timedelta
 
 import db
@@ -22,6 +23,92 @@ AFTER_MIN = 120
 
 WEEKDAY = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 MEAL_TEXT = {"before": "식전", "after": "식후", "none": ""}
+
+
+def is_due_medication_prompt(text: str, due_meds: list[dict]) -> bool:
+    """직전 AI 문장이 현재 복약 대상에 관한 질문인지 보수적으로 판별한다."""
+    if not text or not due_meds:
+        return False
+    if re.search(r"(?:약|복용|알약)[^.!?]{0,24}(?:먹|드|챙|복용)", text):
+        return True
+    compact = re.sub(r"\s+", "", text)
+    return any(
+        re.sub(r"\s+", "", str(row.get("medication_name") or "")) in compact
+        for row in due_meds
+        if row.get("medication_name")
+    )
+
+
+def classify_explicit_status(
+    user_text: str,
+    due_meds: list[dict],
+    *,
+    prompted: bool = False,
+) -> dict | None:
+    """명시적인 복약 답변만 네트워크 호출 없이 즉시 보존한다.
+
+    애매한 일반 대화의 ``먹었어``를 약으로 오인하지 않도록 약을 직접
+    언급했거나 직전 문장이 현재 복약 질문일 때만 분류한다. ``NOT_TAKEN``은
+    DB의 기존 허용 상태를 바꾸지 않고 ``UNCLEAR``로 저장하되 claim에 원뜻을
+    보존한다. 따라서 복용 완료로 처리되거나 대상 약이 목록에서 빠지지 않는다.
+    """
+    text = (user_text or "").strip()
+    if not text or not due_meds:
+        return None
+
+    compact = re.sub(r"\s+", "", text)
+    med_names = [
+        re.sub(r"\s+", "", str(row.get("medication_name") or ""))
+        for row in due_meds
+        if row.get("medication_name")
+    ]
+    mentions_medication = bool(re.search(r"약|복용|알약", text)) or any(
+        name and name in compact for name in med_names
+    )
+    if not mentions_medication and not prompted:
+        return None
+
+    def payload(status: str, claim: str) -> dict:
+        return {
+            "schedule_id": str(due_meds[0]["schedule_id"]),
+            "status": status,
+            "claim": claim,
+            "source": "local_explicit",
+        }
+
+    # 중복 복용 가능성은 단순 복용 확인보다 먼저 잡는다.
+    if re.search(
+        r"(?:약[^.!?]{0,14})?(?:두|세|2|3|여러)\s*번[^.!?]{0,10}"
+        r"(?:먹|복용|챙)|(?:또|다시)[^.!?]{0,8}(?:먹|복용)",
+        text,
+    ):
+        return payload("DUPLICATE_SUSPECTED", "DUPLICATE_SUSPECTED")
+
+    if re.search(
+        r"(?:먹었나|먹었는지|복용했는지|먹었을까|기억(?:이)?\s*안|"
+        r"기억나지\s*않|헷갈|모르겠|모르지)",
+        text,
+    ):
+        return payload("UNCLEAR", "UNCERTAIN")
+
+    if re.search(r"(?:안\s*먹을|먹기\s*싫|복용하기\s*싫|거부|싫어)", text):
+        return payload("REFUSED", "REFUSED")
+
+    if re.search(
+        r"(?:아직[^.!?]{0,8})?(?:안|못)\s*(?:먹었|먹었어|먹음|복용했)|"
+        r"복용\s*(?:안|못)\s*했",
+        text,
+    ):
+        return payload("UNCLEAR", "NOT_TAKEN")
+
+    if re.search(r"(?:먹었|먹었어|먹었지|복용했|챙겨\s*먹|챙겼)", text):
+        return payload("USER_CONFIRMED", "TAKEN")
+
+    if prompted and re.fullmatch(r"(?:응|어|그래|네|예|맞아|맞아요)[.!?~ ]*", text):
+        return payload("USER_CONFIRMED", "TAKEN")
+    if prompted and re.fullmatch(r"(?:아니|아니야|아니요|아직)[.!?~ ]*", text):
+        return payload("UNCLEAR", "NOT_TAKEN")
+    return None
 
 
 def _parse_time(value: str) -> tuple[int, int]:

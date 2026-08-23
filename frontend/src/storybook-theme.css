@@ -1,0 +1,1697 @@
+/* --------------------------------------------------------------------------
+   다소니 파스텔 그림책 디자인 시스템
+   기능별 예외색을 줄이고 모든 역할이 같은 종이·수채화 톤을 공유한다.
+   -------------------------------------------------------------------------- */
+
+:root,
+[data-theme="light"] {
+  --brand: #3b8163;
+  --brand-deep: #285b46;
+  --brand-soft: #76a98d;
+  --sky: #efc878;
+  --lilac: #e99b91;
+  --call: #5aa87c;
+  --end: #d96f63;
+  --alert: #d9a24f;
+  --bg: #faf9f2;
+  --surface: #fffefa;
+  --line: #ced9cd;
+  --text: #29342e;
+  --muted: #66736b;
+  --frame-bg: #edf2e8;
+  --scrim-1: rgba(46, 86, 66, .16);
+  --scrim-2: rgba(26, 50, 38, .82);
+  --storybook-blue: #dcecf1;
+  --storybook-yellow: #f7e8b8;
+  --storybook-coral: #f2cbc5;
+  --storybook-green: #dcebdd;
+  --storybook-paper: #fffdf6;
+  --storybook-shadow: 0 16px 38px rgba(54, 77, 63, .10);
+}
+
+[data-theme="contrast"] {
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --line: #708078;
+  --text: #102019;
+  --muted: #394a41;
+  --frame-bg: #e7eee8;
+  --brand: #236a4d;
+  --brand-deep: #123e2c;
+  --brand-soft: #4a8b6c;
+  --storybook-paper: #ffffff;
+}
+
+[data-theme="soft"] {
+  --bg: #eee9dc;
+  --surface: #f8f3e8;
+  --line: #b8b09f;
+  --text: #302d25;
+  --muted: #625d52;
+  --frame-bg: #dfdacd;
+  --brand: #49745f;
+  --brand-deep: #324f41;
+  --brand-soft: #789585;
+  --storybook-paper: #f6f0e3;
+  --storybook-blue: #dce3e2;
+  --storybook-yellow: #eadfbb;
+  --storybook-coral: #e8cec5;
+  --storybook-green: #d7e1d5;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: "Gowun Dodum", "Malgun Gothic", sans-serif;
+}
+
+h1,
+h2,
+h3,
+.who,
+.wordmark,
+.role-gateway-intro h1,
+.child-diary-page h1,
+.child-diary-art.empty b {
+  font-family: "Gaegu", "Gowun Dodum", "Malgun Gothic", sans-serif;
+  letter-spacing: -.025em;
+}
+
+.app-device *,
+.device * {
+  min-width: 0;
+}
+
+.app-device img,
+.device img {
+  max-width: 100%;
+}
+
+.app-shell,
+.app-shell.guardian-frame {
+  background:
+    radial-gradient(circle at 12% 14%, rgba(246, 220, 166, .34), transparent 27%),
+    radial-gradient(circle at 88% 82%, rgba(190, 220, 204, .38), transparent 29%),
+    var(--frame-bg);
+}
+
+.app-device,
+.app-device.guardian-device {
+  border-color: color-mix(in srgb, var(--brand) 32%, var(--line));
+  border-radius: 32px;
+  box-shadow: 0 22px 58px rgba(47, 71, 56, .16);
+  background: var(--bg);
+}
+
+.screen,
+.guardian,
+.child-screen,
+.guardian-onboarding {
+  color: var(--text);
+  background: var(--bg);
+}
+
+.brandmark.dasoni-mascot {
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 12px rgba(181, 120, 42, .16));
+}
+
+.pill,
+.save,
+.media-preflight-button {
+  border-radius: 18px;
+  color: #fff;
+  background: var(--brand);
+  box-shadow: 0 9px 20px rgba(50, 114, 83, .16);
+}
+
+.hint { color: var(--muted); }
+.error { border-color: #e2aaa3; color: #93473f; background: #fff2ef; }
+
+/* 시작 화면 --------------------------------------------------------------- */
+
+.splash {
+  gap: 14px;
+  background:
+    radial-gradient(circle at 50% 43%, rgba(247, 218, 146, .30), transparent 37%),
+    var(--bg);
+}
+.splash .brandmark { width: min(48vw, 210px); height: min(48vw, 210px); }
+.splash .wordmark { color: var(--brand-deep); font-size: calc(58px * var(--font-scale)); }
+.splash .wordmark small { margin-top: 2px; color: var(--muted); font-family: "Gowun Dodum", sans-serif; font-size: calc(15px * var(--font-scale)); letter-spacing: 0; }
+
+.role-gateway {
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 17% 87%, rgba(227, 239, 220, .86), transparent 28%),
+    radial-gradient(circle at 86% 10%, rgba(245, 226, 185, .72), transparent 24%),
+    var(--bg);
+}
+.role-gateway::before { border-color: color-mix(in srgb, var(--brand) 20%, var(--line)); box-shadow: none; }
+.role-gateway-brand { z-index: 2; }
+.role-gateway-brand .brandmark { width: 46px; height: 46px; }
+.role-gateway-brand b { color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(25px * var(--font-scale)); }
+.role-gateway-brand span { color: var(--muted); }
+.role-gateway-intro { position: relative; }
+.role-gateway-intro > .brandmark { position: absolute; right: 0; bottom: -18px; width: 154px; height: 154px; opacity: .96; }
+.role-gateway-badge { width: max-content; min-height: 32px; border: 0; color: var(--brand-deep); background: var(--storybook-green); }
+.role-gateway-intro h1 { max-width: 520px; color: var(--brand-deep); font-size: clamp(calc(43px * var(--font-scale)), calc(5vw * var(--font-scale)), calc(68px * var(--font-scale))); line-height: 1.02; }
+.role-gateway-intro > p { max-width: 540px; color: var(--muted); }
+.role-gateway-promise { display: none; }
+.role-gateway-grid { gap: 12px; }
+.role-gateway-card {
+  min-height: 230px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--storybook-shadow);
+}
+.role-gateway-card.elder { --role-accent: #4c8c68; --role-surface: var(--storybook-green); --role-border: #a8c8b1; }
+.role-gateway-card.child { --role-accent: #c47a68; --role-surface: var(--storybook-coral); --role-border: #e0b5ab; }
+.role-gateway-card.care { --role-accent: #60849a; --role-surface: var(--storybook-blue); --role-border: #aac3ce; }
+.role-card-number { color: var(--role-accent); }
+.role-card-mark { border-radius: 17px; color: var(--role-accent); background: var(--role-surface); box-shadow: none; }
+.role-card-body small { color: var(--role-accent); }
+.role-card-body > b { font-family: "Gaegu", sans-serif; font-size: calc(24px * var(--font-scale)); }
+.role-card-body p { color: var(--muted); }
+.role-card-tags { display: none; }
+.role-card-enter { color: var(--role-accent); background: color-mix(in srgb, var(--role-surface) 68%, var(--surface)); }
+.role-gateway-card:hover,
+.role-gateway-card:focus-visible { border-color: var(--role-border); background: color-mix(in srgb, var(--role-surface) 36%, var(--surface)); box-shadow: 0 16px 34px rgba(47, 76, 59, .14); transform: translateY(-2px); outline: 3px solid color-mix(in srgb, var(--role-accent) 20%, transparent); }
+.role-gateway-footer { color: var(--muted); }
+
+/* 연결·최초 설정 ---------------------------------------------------------- */
+
+.link { overflow-x: hidden; background: radial-gradient(circle at 50% 18%, rgba(247, 225, 171, .38), transparent 27%), var(--bg); }
+.link-brand { display: grid; justify-items: center; gap: 3px; }
+.link-brand b { color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(30px * var(--font-scale)); }
+.link h1 { max-width: 620px; color: var(--brand-deep); font-size: calc(38px * var(--font-scale)); line-height: 1.2; }
+.code-big,
+.code-input { border: 2px solid var(--brand-soft); border-radius: 20px; color: var(--brand-deep); background: var(--surface); box-shadow: var(--storybook-shadow); }
+.guardian-onboarding { background: radial-gradient(circle at 92% 8%, rgba(219, 235, 239, .72), transparent 25%), var(--bg); }
+.onboarding-brand b { color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(24px * var(--font-scale)); }
+.onboarding-steps span.on i,
+.onboarding-steps span.done i { background: var(--brand); }
+.onboarding-card,
+.call-style-scene,
+.call-style-result { border-color: var(--line); border-radius: 22px; background: var(--surface); box-shadow: var(--storybook-shadow); }
+.onboarding-card h1 { color: var(--brand-deep); }
+.onboarding-personas button.selected,
+.call-style-scene-choices button.selected { border-color: var(--brand); background: var(--storybook-green); }
+
+/* 어르신 홈 --------------------------------------------------------------- */
+
+.reassurance-home {
+  align-items: stretch;
+  gap: 15px;
+  padding: 22px 18px 24px;
+  text-align: left;
+  background:
+    radial-gradient(circle at 100% 0, rgba(244, 220, 168, .30), transparent 27%),
+    var(--bg);
+}
+.reassurance-header { width: 100%; }
+.reassurance-greeting { display: grid; grid-template-columns: minmax(0, 1fr) 105px; align-items: center; gap: 10px; }
+.reassurance-greeting .brandmark { width: 105px; height: 105px; }
+.reassurance-header p { color: var(--muted); }
+.reassurance-header h1 { margin: 2px 0 0; color: var(--brand-deep); font-size: clamp(calc(34px * var(--font-scale)), 8vw, calc(46px * var(--font-scale))); }
+.reassurance-header span { color: var(--muted); }
+.media-readiness-panel { border-color: #dfb3a9; border-radius: 18px; background: var(--storybook-coral); }
+.media-ready-note { color: var(--brand-deep); background: var(--storybook-green); }
+.today-reassurance { width: 100%; grid-template-columns: 1fr 1fr; gap: 10px; }
+.today-reassurance article { min-height: 116px; padding: 15px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: none; }
+.today-reassurance article:first-child { background: color-mix(in srgb, var(--storybook-blue) 48%, var(--surface)); }
+.today-reassurance article:last-child { background: color-mix(in srgb, var(--storybook-yellow) 55%, var(--surface)); }
+.today-icon { border-radius: 14px; color: var(--brand-deep); background: rgba(255,255,255,.66); }
+.reassurance-memory { width: 100%; border-color: var(--line); border-radius: 18px; background: var(--surface); box-shadow: none; }
+.reassurance-family { width: 100%; }
+.reassurance-family > header h2 { color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(29px * var(--font-scale)); }
+.reassurance-family > header span { color: var(--muted); }
+.family-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.reassurance-home .family-card { min-height: 104px; padding: 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: none; }
+.reassurance-home .family-card:nth-child(4n+1) { background: color-mix(in srgb, var(--storybook-green) 44%, var(--surface)); }
+.reassurance-home .family-card:nth-child(4n+2) { background: color-mix(in srgb, var(--storybook-coral) 42%, var(--surface)); }
+.reassurance-home .family-card:nth-child(4n+3) { background: color-mix(in srgb, var(--storybook-blue) 48%, var(--surface)); }
+.reassurance-home .family-card:nth-child(4n+4) { background: color-mix(in srgb, var(--storybook-yellow) 48%, var(--surface)); }
+.reassurance-home .family-face { border: 3px solid rgba(255,255,255,.88); box-shadow: 0 5px 14px rgba(57, 80, 66, .10); }
+.reassurance-home .family-card b { color: var(--text); }
+.reassurance-home .family-card small { color: var(--muted); }
+.reassurance-voice { width: 100%; min-height: 60px; color: #fff; background: var(--brand); }
+
+/* 통화 연결·통화·종료 ---------------------------------------------------- */
+
+.calling-screen:not(.calling-with-morph) { background: radial-gradient(circle at 50% 31%, rgba(248, 221, 151, .42), transparent 30%), var(--bg); }
+.calling-screen:not(.calling-with-morph) .brandmark { width: min(46vw, 190px); height: min(46vw, 190px); }
+.calling-screen .who { color: var(--brand-deep); font-size: calc(37px * var(--font-scale)); }
+.ring-dots i { background: var(--brand-soft); }
+.calling-morph-status { left: 50%; bottom: 24px; width: calc(100% - 32px); max-width: 520px; padding: 15px 18px; border: 1px solid rgba(255,255,255,.62); border-radius: 20px; background: rgba(255, 254, 249, .90); box-shadow: 0 12px 32px rgba(24, 44, 34, .16); backdrop-filter: blur(14px); }
+.calling-morph-status .who { color: var(--brand-deep); }
+.calling-morph-status p { color: var(--muted); }
+.call-screen { background: #1e2b24; }
+.call-screen .topbar { padding: 16px; }
+.call-meta .badge { border: 1px solid rgba(255,255,255,.20); background: rgba(24, 44, 34, .72); backdrop-filter: blur(10px); }
+.call-screen .bottom { padding: 20px 18px calc(22px + env(safe-area-inset-bottom)); background: linear-gradient(0deg, rgba(18, 32, 24, .96), rgba(18, 32, 24, .76) 68%, transparent); }
+.call-caption { border: 1px solid rgba(255,255,255,.17); border-radius: 18px; background: rgba(255,255,255,.12); backdrop-filter: blur(12px); }
+.call-status { color: #fff; font-family: "Gaegu", sans-serif; font-size: calc(27px * var(--font-scale)); }
+.controls { gap: 18px; }
+.controls .round { width: 112px; min-width: 112px; height: 72px; border-radius: 22px; color: #fff; background: var(--brand); box-shadow: 0 10px 24px rgba(0,0,0,.20); }
+.controls .round.danger { background: var(--end); }
+.summary-screen { background: radial-gradient(circle at 50% 27%, rgba(247, 220, 151, .42), transparent 31%), var(--bg); }
+.summary-screen .brandmark { width: min(48vw, 185px); height: min(48vw, 185px); }
+.summary-screen .who { color: var(--brand-deep); font-size: calc(45px * var(--font-scale)); }
+.summary-screen .summary { width: min(100%,560px); display: grid; justify-items: center; gap: 10px; padding: 24px 18px; border: 1px solid var(--line); border-radius: 24px; color: var(--text); background: color-mix(in srgb,var(--surface) 94%,var(--storybook-yellow)); box-shadow: var(--storybook-shadow); text-align: center; }
+.summary-screen .summary > div { white-space: nowrap; }
+.summary-screen .summary-thanks { color: var(--muted); font-size: clamp(12px,3.1vw,18px); line-height: 1.4; letter-spacing: -.05em; }
+.summary-screen .summary-duration { color: var(--text); font-size: calc(18px * var(--font-scale)); }
+.summary-screen .summary-duration b { color: var(--brand-deep); font-weight: 800; }
+.summary-message { max-width: 390px; color: var(--muted); text-align: center; }
+.summary { width: min(100%, 390px); gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--storybook-shadow); }
+.summary > div { border-color: var(--line); }
+
+/* 가족 앱 ----------------------------------------------------------------- */
+
+.app-device-family > .child-screen { background: radial-gradient(circle at 92% 5%, rgba(218, 236, 240, .72), transparent 24%), var(--bg); }
+.child-header { border-bottom-color: var(--line); }
+.child-brand .brandmark,
+.sidebar-brand .brandmark,
+.onboarding-brand .brandmark { width: 44px; height: 44px; }
+.child-brand b,
+.sidebar-brand b { color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(23px * var(--font-scale)); }
+.child-view-settings,
+.child-date-picker,
+.manager-date-picker { border-color: var(--line); border-radius: 15px; background: rgba(255,255,255,.80); box-shadow: none; }
+.child-view-settings span { color: var(--brand); }
+.child-app-body { min-width: 0; overflow: hidden; }
+.child-view { min-width: 0; overflow-x: hidden; }
+.child-day-diary { width: 100%; max-width: 720px; border-color: var(--line); border-radius: 24px; background: var(--storybook-paper); box-shadow: var(--storybook-shadow); }
+.child-diary-meta { border-bottom-color: var(--line); background: color-mix(in srgb, var(--storybook-green) 44%, var(--surface)); }
+.child-diary-meta time { color: var(--brand-deep); }
+.child-diary-art { aspect-ratio: 16 / 9; border-color: var(--line); border-radius: 18px; background: color-mix(in srgb, var(--storybook-blue) 58%, var(--surface)); }
+.child-diary-art.empty { min-height: 0; background: radial-gradient(circle at 50% 46%, rgba(245, 209, 121, .40), transparent 31%), color-mix(in srgb, var(--storybook-green) 50%, var(--surface)); }
+.child-diary-art.empty b { color: var(--brand-deep); font-size: calc(32px * var(--font-scale)); }
+.child-diary-page { border: 0; border-top: 1px solid var(--line); border-radius: 0; background-color: var(--storybook-paper); background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, color-mix(in srgb, var(--line) 55%, transparent) 32px); background-size: auto; }
+.child-diary-page h1 { color: var(--brand-deep); font-size: clamp(calc(30px * var(--font-scale)), calc(4vw * var(--font-scale)), calc(44px * var(--font-scale))); }
+.child-diary-page > p { color: var(--text); background: transparent; font-family: "Gaegu", "Gowun Dodum", sans-serif; font-size: calc(18px * var(--font-scale)); font-weight: 700; line-height: 1.75; }
+.child-diary-page > p:first-of-type { color: var(--brand); font-size: calc(21px * var(--font-scale)); }
+.child-diary-page footer { border-top-color: var(--line); }
+.child-tabs { border-color: var(--line); background: rgba(255,254,250,.94); }
+.child-tabs button { color: var(--muted); }
+.child-tabs button.on { color: #fff; background: var(--brand); }
+.child-call-filters button,
+.child-call-period,
+.child-call-card,
+.family-self-card,
+.family-reachable,
+.family-legacy-picker,
+.child-empty-card { border-color: var(--line); background: var(--surface); box-shadow: none; }
+.child-call-filters button.on { border-color: var(--brand); background: var(--storybook-green); }
+.child-call-card.direct { border-color: #9cc9ae; background: color-mix(in srgb, var(--storybook-green) 45%, var(--surface)); }
+.child-call-card.ai_to_direct { border-color: #e4c995; background: color-mix(in srgb, var(--storybook-yellow) 44%, var(--surface)); }
+.child-call-card.problem { border-color: #dfa59e; background: color-mix(in srgb, var(--storybook-coral) 48%, var(--surface)); box-shadow: none; }
+
+/* 담당자 앱 --------------------------------------------------------------- */
+
+.guardian-dashboard,
+.care-manager-dashboard { background: var(--bg); }
+.guardian-sidebar { border-color: var(--line); background: color-mix(in srgb, var(--storybook-green) 34%, var(--surface)); }
+.sidebar-brand span { color: var(--muted); }
+.sidebar-elder { border-color: var(--line); border-radius: 17px; background: var(--surface); }
+.sidebar-nav button { border-radius: 14px; color: var(--muted); }
+.sidebar-nav button.on { color: var(--brand-deep); background: var(--surface); box-shadow: 0 7px 18px rgba(43, 80, 59, .09); }
+.guardian-workspace { overflow-x: hidden; background: var(--bg); }
+.dashboard-heading h1 { color: var(--brand-deep); }
+.dashboard-heading .eyebrow { color: var(--brand); }
+.manager-stat-grid,
+.manager-focus-layout,
+.manager-daily-summary,
+.manager-combined-overview,
+.compact-rhythm-report,
+.talk-brief,
+.compact-time-report,
+.evidence-shortlist,
+.medication-workspace,
+.safety-checklist,
+.special-notes,
+.care-task-workspace,
+.handover-workspace { border-color: var(--line); border-radius: 20px; background: var(--surface); box-shadow: none; }
+.report-tab-strip button.on,
+.task-subtabs button.on { color: #fff; background: var(--brand); }
+
+/* 화면 설정 --------------------------------------------------------------- */
+
+.sheet { background: rgba(30, 45, 36, .38); }
+.sheet-body { border: 1px solid var(--line); background: var(--surface); }
+.sheet-body h2 { color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(34px * var(--font-scale)); }
+.choice button,
+.text-size-range,
+.sheet-role-switch { border-color: var(--line); background: var(--bg); }
+.choice button.on { border-color: var(--brand); color: #fff; background: var(--brand); }
+
+/* 좁은 화면: 옆으로 밀리는 원인을 구조적으로 차단한다. ------------------- */
+
+@media (max-width: 760px) {
+  .role-gateway-intro > .brandmark { right: -12px; width: 126px; height: 126px; opacity: .74; }
+  .role-gateway-grid { grid-template-columns: 1fr; }
+  .role-gateway-card { min-height: 104px; grid-template-columns: 48px minmax(0,1fr) auto; padding: 13px; }
+  .role-card-number { display: none; }
+  .role-card-mark { width: 48px; height: 48px; }
+  .role-card-body p { display: none; }
+  .role-card-enter { min-width: 86px; }
+  .reassurance-greeting { grid-template-columns: minmax(0,1fr) 88px; }
+  .reassurance-greeting .brandmark { width: 88px; height: 88px; }
+  .child-diary-page { padding: 20px 16px; }
+  .child-diary-page > p { font-size: calc(17px * var(--font-scale)); }
+}
+
+@media (max-width: 430px) {
+  .screen { max-width: 100%; padding-inline: 18px; }
+  .role-gateway { padding-inline: 14px; }
+  .role-gateway-intro h1 { max-width: 270px; font-size: calc(42px * var(--font-scale)); }
+  .role-gateway-intro > p { max-width: 270px; }
+  .role-gateway-intro > .brandmark { width: 112px; height: 112px; }
+  .role-card-enter { min-width: 0; width: 34px; height: 34px; padding: 0; font-size: 0; }
+  .role-card-enter i { margin: 0; }
+  .reassurance-home { padding-inline: 14px; }
+  .reassurance-greeting { grid-template-columns: minmax(0,1fr) 76px; }
+  .reassurance-greeting .brandmark { width: 76px; height: 76px; }
+  .today-reassurance { grid-template-columns: 1fr; }
+  .today-reassurance article { min-height: 92px; }
+  .family-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .reassurance-home .family-card { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .app-device-family .child-family-header { grid-template-columns: auto minmax(0,1fr); }
+  .app-device-family .child-family-header > .child-header-context { grid-template-columns: 44px minmax(0,1fr); }
+  .child-view-settings { width: 44px; padding: 5px; }
+  .child-view-settings b { display: none; }
+  .child-date-picker { width: 100%; }
+  .child-date-picker input { font-size: max(14px, calc(9px * var(--font-scale))); }
+  .child-diary-art { aspect-ratio: 4 / 3; }
+  .child-diary-page > p { font-size: calc(16px * var(--font-scale)); }
+  .child-diary-page > p:first-of-type { font-size: calc(18px * var(--font-scale)); }
+  .controls .round { width: 104px; min-width: 104px; }
+}
+
+@media (max-width: 350px) {
+  .child-brand b { display: none; }
+  .family-grid { grid-template-columns: 1fr; }
+}
+
+/* design2 선별 이식: 실제 앱형 입구 ------------------------------------- */
+
+.app-device-roles { --app-preview-width: 430px; }
+.role-gateway.role-gateway-simple {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: calc(28px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+.role-gateway.role-gateway-simple::before { display: none; }
+.role-gateway-simple .role-gateway-brand {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  margin: 0;
+  text-align: center;
+}
+.role-gateway-simple .role-gateway-brand .brandmark { width: 108px; height: 108px; }
+.role-gateway-simple .role-gateway-brand > div { display: grid; justify-items: center; }
+.role-gateway-simple .role-gateway-brand b { color: var(--brand-deep); font-size: calc(34px * var(--font-scale)); }
+.role-gateway-subtitle { margin: 0; color: var(--muted); font-size: calc(15px * var(--font-scale)); }
+.role-list { width: min(100%, 390px); display: flex; flex-direction: column; gap: 12px; }
+.role-list-item {
+  width: 100%;
+  min-width: 0;
+  min-height: 88px;
+  display: grid;
+  grid-template-columns: 58px minmax(0,1fr) 20px;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  color: var(--text);
+  background: rgba(255,255,252,.84);
+  box-shadow: var(--storybook-shadow);
+  text-align: left;
+}
+.role-list-item:focus-visible { outline: 3px solid color-mix(in srgb,var(--brand) 26%,transparent); outline-offset: 2px; }
+.role-list-item:active { transform: scale(.985); }
+.role-list-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; color: #fff; }
+.role-list-icon svg { width: 27px; height: 27px; }
+.role-list-item.elder .role-list-icon { background: #d8893f; }
+.role-list-item.child .role-list-icon { background: var(--brand); }
+.role-list-item.care .role-list-icon { background: #66869a; }
+.role-list-body { min-width: 0; display: grid; gap: 3px; }
+.role-list-body small { color: var(--muted); font-size: calc(12px * var(--font-scale)); }
+.role-list-body b { overflow-wrap: anywhere; color: var(--brand-deep); font-size: calc(18px * var(--font-scale)); line-height: 1.3; }
+.role-list-chevron { justify-self: end; color: #9b806c; font-size: 28px; line-height: 1; }
+
+/* design2 선별 이식: 다소니 전체 메인 홈 ------------------------------- */
+
+.child-brand-home {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 8px 4px 4px;
+  border: 0;
+  border-radius: 15px;
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+}
+.child-brand-home.on { background: color-mix(in srgb,var(--storybook-yellow) 58%,transparent); }
+.child-brand-home .brandmark { flex: none; width: 42px; height: 42px; }
+.child-tab-mark { display: grid; place-items: center; }
+.child-tab-mark svg { width: 20px; height: 20px; }
+
+.dasoni-home { width: min(100%, 760px); margin: 0 auto; display: grid; gap: 16px; }
+.dasoni-home-hero {
+  min-height: 220px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 154px;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 24px 20px;
+  overflow: hidden;
+  border: 1px solid #c6d8c8;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 91% 18%, rgba(255,235,176,.76), transparent 31%),
+    linear-gradient(135deg, #e7f1e5 0%, #f8f4df 100%);
+  box-shadow: var(--storybook-shadow);
+}
+.dasoni-home-copy { position: relative; z-index: 1; min-width: 0; }
+.dasoni-home-copy > span { color: var(--brand); font-size: calc(12px * var(--font-scale)); font-weight: 800; }
+.dasoni-home-copy h1 { margin: 8px 0 7px; color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(clamp(calc(31px * var(--font-scale)), calc(4.5vw * var(--font-scale)), calc(44px * var(--font-scale))) * var(--home-title-fit,1)); line-height: 1.08; letter-spacing: -.04em; white-space: nowrap; }
+.dasoni-home-copy p { max-width: 390px; margin: 0; color: var(--muted); font-size: calc(13px * var(--font-scale)); line-height: 1.55; }
+.dasoni-home-hero .brandmark { width: 154px; height: 154px; }
+.dasoni-home-status { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.dasoni-home-status article { min-width: 0; min-height: 78px; display: grid; align-content: center; gap: 4px; padding: 13px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.dasoni-home-status article:nth-child(2) { background: color-mix(in srgb,var(--storybook-blue) 48%,var(--surface)); }
+.dasoni-home-status article:nth-child(3) { background: color-mix(in srgb,var(--storybook-green) 48%,var(--surface)); }
+.dasoni-home-status article.attention { border-color: #dfa59e; background: color-mix(in srgb,var(--storybook-coral) 54%,var(--surface)); }
+.dasoni-home-status small { color: var(--muted); font-size: calc(10px * var(--font-scale)); }
+.dasoni-home-status b { overflow: hidden; color: var(--brand-deep); font-size: clamp(calc(15px * var(--font-scale)), 3.3vw, calc(19px * var(--font-scale))); text-overflow: ellipsis; white-space: nowrap; }
+.dasoni-attention { display: grid; gap: 9px; padding: 0 4px; }
+.dasoni-attention-list { display: grid; gap: 9px; }
+.dasoni-attention-item { min-width: 0; display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 12px; padding: 15px 17px 15px 14px; border-left: 4px solid #d96b60; border-radius: 0 18px 18px 0; background: color-mix(in srgb,var(--storybook-coral) 42%,var(--surface)); box-shadow: 0 7px 18px rgba(90,58,48,.06); }
+.dasoni-attention-item.example { border-left-style: dashed; }
+.dasoni-attention-icon { width: 38px; height: 38px; display: grid; place-items: center; color: #a54c45; }
+.dasoni-attention-icon svg { width: 24px; height: 24px; }
+.dasoni-attention-item > div { min-width: 0; }
+.dasoni-attention-item small { color: #a54c45; font-size: calc(13px * var(--font-scale)); font-weight: 900; }
+.dasoni-attention-item h3 { margin: 3px 0 9px; color: var(--brand-deep); font-size: calc(21px * var(--font-scale)); line-height: 1.15; }
+.dasoni-attention-item blockquote { margin: 0; color: var(--text); font-size: calc(13px * var(--font-scale)); line-height: 1.5; word-break: keep-all; }
+.dasoni-attention-item p { margin: 7px 0 0; color: var(--muted); font-size: calc(11px * var(--font-scale)); line-height: 1.45; word-break: keep-all; }
+
+/* design2 선별 이식: 어르신 연락처 중심 홈 ----------------------------- */
+
+.reassurance-home.reassurance-home-simple { height: 100%; min-height: 0; justify-content: flex-start; gap: 14px; padding: 0 16px calc(14px + env(safe-area-inset-bottom)); overflow: hidden; }
+.elder-topbar { position: sticky; z-index: 20; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 -16px; padding: calc(14px + env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid color-mix(in srgb,var(--line) 72%,transparent); background: color-mix(in srgb,var(--bg) 93%,transparent); backdrop-filter: blur(18px); }
+.elder-topbar-brand { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0; border: 0; color: var(--text); background: transparent; text-align: left; }
+.elder-topbar-brand .brandmark { flex: none; width: 42px; height: 42px; }
+.elder-topbar-brand > span { min-width: 0; display: grid; gap: 1px; }
+.elder-topbar-brand b { color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(24px * var(--font-scale)); line-height: 1; }
+.elder-topbar-brand small { overflow: hidden; color: var(--muted); font-size: calc(10px * var(--font-scale)); text-overflow: ellipsis; white-space: nowrap; }
+.elder-view-button { flex: none; min-height: 42px; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 14px; color: var(--brand-deep); background: var(--surface); }
+.elder-view-button span { color: var(--brand); font-weight: 900; }
+.elder-view-button b { font-size: calc(12px * var(--font-scale)); }
+.reassurance-home-simple .reassurance-family { width: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0,1fr); gap: 12px; flex: 1; }
+.reassurance-home-simple .reassurance-family > header { display: grid; gap: 3px; text-align: left; }
+.reassurance-home-simple .reassurance-family > header p { margin: 0; color: var(--brand); font-size: calc(12px * var(--font-scale)); font-weight: 700; }
+.reassurance-home-simple .reassurance-family > header h1 { margin: 5px 0 2px; color: var(--brand-deep); font-family: "Gowun Dodum", sans-serif; font-size: calc(30px * var(--font-scale)); font-weight: 700; line-height: 1.25; letter-spacing: -.045em; word-break: keep-all; }
+.reassurance-home-simple .reassurance-family > header span { color: var(--muted); font-size: calc(13px * var(--font-scale)); }
+.reassurance-home-simple .family-grid { min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 2px 0 4px; overflow: hidden; }
+.reassurance-home-simple .family-card { width: 100%; min-height: 134px; display: grid; grid-template-columns: 112px minmax(0,1fr) 44px; align-items: center; gap: 16px; flex: 1 1 0; padding: 9px 16px 9px 12px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); text-align: left; box-shadow: 0 5px 14px rgba(47,76,59,.04); }
+.reassurance-home-simple .family-card:nth-child(4n+1) { background: color-mix(in srgb,var(--storybook-green) 36%,var(--surface)); }
+.reassurance-home-simple .family-card:nth-child(4n+2) { background: color-mix(in srgb,var(--storybook-coral) 33%,var(--surface)); }
+.reassurance-home-simple .family-card:nth-child(4n+3) { background: color-mix(in srgb,var(--storybook-blue) 40%,var(--surface)); }
+.reassurance-home-simple .family-face,
+.app-device-default .reassurance-home-simple .family-face { width: 112px; height: 112px; border: 4px solid rgba(255,255,255,.84); box-shadow: 0 5px 14px rgba(43,61,51,.14); }
+.reassurance-home-simple .family-card[data-persona-id="persona_godaewoong"] .family-face img { object-position: center 36%; }
+.family-card-text { min-width: 0; display: grid; gap: 3px; }
+.family-card-text small,.family-card-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reassurance-home-simple .family-card .family-card-text small { color: var(--brand); font-size: calc(13px * var(--font-scale)); font-weight: 800; }
+.reassurance-home-simple .family-card .family-card-text b { color: var(--brand-deep); font-size: calc(20px * var(--font-scale)); }
+.reassurance-home-simple .family-call-icon { width: 44px; height: 44px; display: grid; place-items: center; justify-self: end; border: 1px solid color-mix(in srgb,var(--brand) 25%,transparent); border-radius: 50%; color: var(--brand); background: rgba(255,255,255,.58); }
+.reassurance-home-simple .family-call-icon svg { width: 23px; height: 23px; }
+.reassurance-home-simple .family-card.waiting .family-call-icon { color: #7b8981; border-color: var(--line); }
+.voice-call-dock { z-index: 12; width: 100%; flex: none; display: grid; gap: 8px; padding-top: 4px; background: linear-gradient(180deg,transparent,var(--bg) 22%); }
+.voice-call-dock .hint { margin: 0; color: var(--brand-deep); text-align: center; font-size: calc(13px * var(--font-scale)); }
+.reassurance-home-simple .reassurance-voice { position: static; width: 100%; min-height: 64px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 20px; color: #fff; background: var(--brand); box-shadow: 0 12px 28px rgba(34,91,61,.22); font-size: calc(18px * var(--font-scale)); font-weight: 800; }
+.reassurance-home-simple .reassurance-voice svg { width: 25px; height: 25px; }
+.elder-today-summary { order: 5; }
+.reassurance-home-simple .reassurance-memory { order: 6; }
+
+@media (max-width: 520px) {
+  .role-gateway.role-gateway-simple { justify-content: flex-start; padding-inline: 16px; }
+  .role-gateway-simple .role-gateway-brand .brandmark { width: 94px; height: 94px; }
+  .role-list-item { min-height: 82px; grid-template-columns: 54px minmax(0,1fr) 18px; padding: 12px 14px; }
+  .role-list-icon { width: 54px; height: 54px; }
+  .dasoni-home-hero { min-height: 202px; grid-template-columns: minmax(0,1fr) 104px; padding: 20px 17px; }
+  .dasoni-home-hero .brandmark { width: 112px; height: 112px; margin-right: -10px; }
+  .dasoni-home-copy p { font-size: calc(11px * var(--font-scale)); }
+  .dasoni-home-status article { padding: 11px; }
+  .dasoni-attention-item { padding: 14px 14px 14px 11px; }
+  .reassurance-home-simple .family-card { min-height: 128px; grid-template-columns: 108px minmax(0,1fr) 42px; gap: 12px; padding: 8px 12px 8px 10px; }
+  .reassurance-home-simple .family-face,
+  .app-device-default .reassurance-home-simple .family-face { width: 108px; height: 108px; }
+  .reassurance-home-simple .family-call-icon { width: 42px; height: 42px; }
+}
+
+@media (max-width: 360px) {
+  .role-list-body b { font-size: calc(16px * var(--font-scale)); }
+  .dasoni-home-status article { min-height: 72px; padding: 9px 7px; }
+  .dasoni-home-status small { font-size: calc(9px * var(--font-scale)); }
+  .dasoni-home-status b { font-size: calc(14px * var(--font-scale)); }
+  .elder-topbar-brand small { display: none; }
+  .elder-view-button b { display: none; }
+  .reassurance-home-simple .family-card { min-height: 116px; grid-template-columns: 96px minmax(0,1fr) 38px; gap: 9px; padding: 8px 9px; }
+  .reassurance-home-simple .family-face,
+  .app-device-default .reassurance-home-simple .family-face { width: 96px; height: 96px; }
+  .reassurance-home-simple .family-call-icon { width: 38px; height: 38px; }
+  .reassurance-home-simple .family-call-icon svg { width: 20px; height: 20px; }
+}
+
+/* 2026-08-22 가족 앱 단순화 ------------------------------------------- */
+
+/* 모핑 영상 위에 이전 위치 규칙이 겹쳐 거대한 흰 패널로 늘어나던 상태창. */
+.calling-morph-status { display: none; }
+
+/* 시작 화면의 다소니를 중앙에서 1.5배 크게 보여준다. */
+.role-gateway-simple .role-gateway-brand { width: 100%; place-items: center; }
+.role-gateway-simple .role-gateway-brand .brandmark { width: 162px; height: 162px; }
+
+/* 보기 버튼은 두 앱 모두 같은 원형 Aa 버튼으로 통일한다. */
+.child-view-settings,
+.elder-view-button,
+.care-view-settings {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+}
+.child-view-settings span,
+.elder-view-button span,
+.care-view-settings span { font-size: calc(15px * var(--font-scale)); line-height: 1; }
+
+/* 오늘 일기는 그림과 원고지 한 장이 화면 안에 함께 보이도록 압축한다. */
+.app-device-family .child-today { height: 100%; min-height: 0; display: grid; }
+.app-device-family .child-day-diary {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(190px, 44%) minmax(255px, 1fr);
+  overflow: hidden;
+  border-radius: 18px;
+}
+.app-device-family .child-diary-meta { min-height: 42px; padding: 9px 14px; }
+.app-device-family .child-diary-meta span { white-space: nowrap; }
+.app-device-family .child-diary-art {
+  height: 100%;
+  min-height: 0;
+  margin: 10px 12px;
+  aspect-ratio: auto;
+  border-radius: 12px;
+}
+.app-device-family .child-diary-art.empty { min-height: 0; }
+.app-device-family .child-diary-page {
+  min-height: 0;
+  align-content: start;
+  gap: 6px;
+  margin: 0 12px 12px;
+  padding: 12px 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background-color: #faf5e8;
+  background-image:
+    linear-gradient(to right, rgba(116, 105, 84, .17) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(116, 105, 84, .17) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.app-device-family .child-diary-page > span { padding: 2px 6px; font-size: calc(7px * var(--font-scale)); }
+.app-device-family .child-diary-page h1 {
+  overflow: hidden;
+  margin: 0;
+  font-family: "Gaegu", "Gowun Dodum", sans-serif;
+  font-size: clamp(calc(24px * var(--font-scale)), 5vw, calc(32px * var(--font-scale)));
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-device-family .child-diary-page > p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  padding: 2px 3px;
+  font-size: calc(13px * var(--font-scale));
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.app-device-family .child-diary-page > p:first-of-type { font-size: calc(15px * var(--font-scale)); -webkit-line-clamp: 4; }
+.app-device-family .child-diary-page footer { gap: 1px; margin-top: 2px; padding-top: 6px; }
+.app-device-family .child-diary-page footer small { white-space: nowrap; }
+
+/* 추억함은 한 데이터의 두 보기 방식을 없애고 네 단계의 단일 흐름으로 만든다. */
+.family-memory-clothesline { gap: 12px; }
+.family-memory-title { align-items: flex-start; padding-inline: 4px; }
+.memory-step-section {
+  overflow: hidden;
+  border: 0;
+  border-left: 4px solid color-mix(in srgb, var(--brand) 72%, #fff);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 90%, var(--storybook-green));
+  box-shadow: 0 8px 22px rgba(38, 61, 46, .07);
+}
+.memory-step-section > header { min-height: 64px; padding: 13px 16px; border-bottom: 0; }
+.memory-step-section > header small,
+.memory-drawer-section.memory-step-section small { width: 30px; height: 30px; }
+.memory-section-toggle {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--brand);
+  border-radius: 999px;
+  color: var(--brand);
+  background: var(--surface);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.memory-gallery-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 14px;
+  padding: 8px 16px 18px;
+  background: transparent;
+}
+.memory-gallery-grid .clothesline-memory {
+  width: 100%;
+  min-width: 0;
+  padding-top: 0;
+  transform: none;
+}
+.memory-gallery-grid .memory-polaroid {
+  width: 100%;
+  min-height: 178px;
+  grid-template-rows: 112px auto auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(52, 47, 38, .10);
+}
+.memory-gallery-grid .memory-polaroid > img,
+.memory-gallery-grid .memory-polaroid-text { height: 112px; border-radius: 7px; }
+.memory-gallery-grid .memory-to-drawer { white-space: nowrap; }
+.empty-clothesline { min-height: 150px; background: transparent; }
+.empty-clothesline > span { display: none; }
+
+/* 통화 기록은 시간대 상자 대신 하나의 시간순 목록으로 읽는다. */
+.child-call-page .child-call-filters {
+  position: static;
+  display: flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--storybook-green));
+}
+.child-call-page .child-call-filters button {
+  min-width: 0;
+  min-height: 38px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  text-align: center;
+  box-shadow: none;
+}
+.child-call-page .child-call-filters button:hover,
+.child-call-page .child-call-filters button:focus-visible { box-shadow: none; transform: none; }
+.child-call-page .child-call-filters button.on { color: #fff; background: var(--brand); box-shadow: none; }
+.child-call-page .child-call-filters span { overflow: visible; color: inherit; font-size: calc(9px * var(--font-scale)); }
+.child-call-page .child-call-filters b { color: inherit; font-size: calc(9px * var(--font-scale)); }
+.child-call-page .child-call-list {
+  overflow: hidden;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+.child-call-list-item {
+  width: 100%;
+  min-width: 0;
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 6px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+}
+.child-call-list-item:last-child { border-bottom: 0; }
+.child-call-list-item.problem { background: color-mix(in srgb, var(--storybook-coral) 28%, transparent); }
+.child-call-list-copy { min-width: 0; display: grid; gap: 4px; }
+.child-call-list-copy b,
+.child-call-list-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.child-call-list-copy b { color: var(--text); font-size: calc(11px * var(--font-scale)); }
+.child-call-list-copy small { color: var(--muted); font-size: calc(8px * var(--font-scale)); }
+.child-call-list-meta { display: grid; justify-items: end; gap: 2px; white-space: nowrap; }
+.child-call-list-meta time { color: var(--text); font-size: calc(9px * var(--font-scale)); font-weight: 800; }
+.child-call-list-meta small { color: var(--muted); font-size: calc(7px * var(--font-scale)); }
+.child-call-list-meta em { color: var(--brand); font-size: calc(7px * var(--font-scale)); font-style: normal; font-weight: 800; }
+
+/* 말투 카드는 이름과 CPOG 코드만 남기고 버튼 글자는 줄바꿈하지 않는다. */
+.family-style-current strong { display: flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+.family-style-current strong em { color: var(--brand); font-size: .55em; font-style: normal; letter-spacing: .04em; }
+.voice-heading-actions,
+.voice-heading-actions button,
+.voice-active-summary button,
+.voice-preview-actions button,
+.voice-recorder-card button,
+.family-speech-actions button { white-space: nowrap; }
+
+@media (max-width: 520px) {
+  .role-gateway-simple .role-gateway-brand .brandmark { width: 142px; height: 142px; }
+  .app-device-family .child-day-diary { grid-template-rows: auto minmax(180px, 42%) minmax(250px, 1fr); }
+  .child-call-list-item { grid-template-columns: auto minmax(0, 1fr); gap: 9px; }
+  .child-call-list-meta { grid-column: 2; display: flex; justify-content: flex-start; gap: 8px; }
+}
+
+/* 2026-08-22 후속 조정: 추억 빨랫줄과 설정의 한 줄 밀도 ----------- */
+
+.memory-all-line {
+  min-height: 286px;
+  padding-top: 18px;
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255,255,255,.62), transparent 25%),
+    linear-gradient(180deg, #efe4d9 0%, #f8f2e9 66%, #eee1d3 100%);
+}
+.memory-all-line .memory-rope { display: none; }
+.memory-all-line ul { padding-top: 0; padding-bottom: 12px; }
+.memory-all-line ul::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 47px;
+  left: -28px;
+  right: -28px;
+  height: 3px;
+  background: #947a5e;
+  box-shadow: 0 2px 2px rgba(80,54,28,.14);
+}
+.memory-all-line .clothesline-memory { z-index: 1; padding-top: 56px; }
+
+.memory-section-toggle {
+  width: 116px;
+  min-width: 116px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-color: var(--line);
+  color: var(--brand);
+  background: var(--bg);
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(12px * var(--font-scale));
+  font-weight: 800;
+  line-height: 1;
+}
+.memory-basket-toggle,
+.memory-drawer-section > button em {
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(12px * var(--font-scale));
+}
+.memory-basket-toggle { width: 116px; min-width: 116px; min-height: 48px; justify-content: center; gap: 5px; padding: 0 12px; }
+.memory-basket-toggle b,
+.memory-basket-toggle span,
+.memory-basket-toggle i { font-size: calc(12px * var(--font-scale)); line-height: 1; }
+
+/* 선택된 통화 유형은 의미에 맞는 네온색을 유지한다. */
+.child-call-page .child-call-filters button.direct.on {
+  color: #064f31;
+  background: #76f0ad;
+  box-shadow: 0 0 0 2px rgba(91, 241, 160, .22), 0 0 20px rgba(91, 241, 160, .34);
+}
+.child-call-page .child-call-filters button.ai.on {
+  color: #063d56;
+  background: #7fdcff;
+  box-shadow: 0 0 0 2px rgba(93, 207, 255, .20), 0 0 20px rgba(93, 207, 255, .30);
+}
+.child-call-page .child-call-filters button.ai_to_direct.on {
+  color: #603203;
+  background: #ffc66b;
+  box-shadow: 0 0 0 2px rgba(255, 188, 81, .22), 0 0 20px rgba(255, 188, 81, .30);
+}
+.child-call-list-item.direct { border-left: 3px solid #62eaa0; background: rgba(98, 234, 160, .08); box-shadow: inset 4px 0 13px rgba(98,234,160,.14); }
+.child-call-list-item.ai { border-left: 3px solid #69d3ff; background: rgba(105, 211, 255, .07); box-shadow: inset 4px 0 13px rgba(105,211,255,.13); }
+.child-call-list-item.ai_to_direct { border-left: 3px solid #ffbd58; background: rgba(255, 189, 88, .08); box-shadow: inset 4px 0 13px rgba(255,189,88,.14); }
+.child-call-list-item.problem { border-left-color: #ff5b72; box-shadow: inset 3px 0 12px rgba(255, 91, 114, .12); }
+
+/* 프로필 설명은 정적 정보로 두고 얼굴 자체만 사진 관리를 연다. */
+.family-profile-entry { cursor: default; }
+.family-profile-photo {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--brand);
+  cursor: pointer;
+}
+.family-profile-photo img,
+.family-profile-photo .family-self-placeholder { width: 100%; height: 100%; object-fit: cover; }
+.family-profile-photo:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 28%, transparent); outline-offset: 3px; }
+
+/* 음성 진행 정보와 저장 안내를 작고 한 줄로 정리한다. */
+.app-device-family .voice-active-summary {
+  align-items: center;
+  flex-direction: row;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.app-device-family .voice-active-summary > div { min-width: 0; flex: 1; }
+.app-device-family .voice-active-summary h3 {
+  overflow: hidden;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(10px * var(--font-scale));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-device-family .voice-active-summary p {
+  overflow: hidden;
+  margin: 3px 0 0;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(7px * var(--font-scale));
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-device-family .voice-active-summary button { min-height: 36px; padding: 0 11px; font-size: calc(8px * var(--font-scale)); }
+.app-device-family .voice-progress-card { padding: 13px 14px; }
+.app-device-family .voice-progress-card > header { align-items: center; gap: 10px; }
+.app-device-family .voice-progress-card > header > div { min-width: 0; }
+.app-device-family .voice-progress-card h3 {
+  overflow: hidden;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(9px * var(--font-scale));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-device-family .voice-progress-card > header strong {
+  flex: none;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(9px * var(--font-scale));
+  font-weight: 800;
+  white-space: nowrap;
+}
+.app-device-family .family-speech-actions {
+  align-items: center;
+  flex-direction: row;
+  gap: 10px;
+}
+.app-device-family .family-speech-actions p {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(7px * var(--font-scale));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-device-family .family-speech-actions > button {
+  width: auto;
+  min-height: 36px;
+  flex: none;
+  padding: 0 12px;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(8px * var(--font-scale));
+  white-space: nowrap;
+}
+
+@media (max-width: 820px) {
+  .family-profile-photo { width: 64px; height: 64px; }
+}
+
+@media (max-width: 520px) {
+  .family-profile-photo { width: 56px; height: 56px; }
+  .child-call-page .child-call-filters button { padding-inline: 5px; }
+  .child-call-page .child-call-filters span { font-size: calc(8px * var(--font-scale)); }
+}
+
+/* 2026-08-22 일기 한 장 구성과 담당자 요약 밀도 ------------------- */
+
+.app-device-family .child-view { padding-bottom: 10px; }
+.app-device-family .child-today {
+  height: auto;
+  min-height: calc(100dvh - 158px);
+}
+.app-device-family .child-day-diary {
+  position: relative;
+  min-height: calc(100dvh - 158px);
+  grid-template-rows: auto minmax(240px, 43%) minmax(310px, 1fr);
+  border: 1px solid #bcae91;
+  border-radius: 14px;
+  background: #fbf5e5;
+  box-shadow: 0 12px 30px rgba(70, 58, 37, .10);
+}
+.app-device-family .child-diary-meta {
+  min-height: 52px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #bcae91;
+  background: #f1eddf;
+}
+.app-device-family .child-diary-meta time,
+.app-device-family .child-diary-meta span {
+  font-family: "Gowun Dodum", sans-serif;
+}
+.app-device-family .child-diary-art {
+  margin: 16px 18px 10px;
+  border: 1px solid #c8bda5;
+  border-radius: 6px;
+  background: #edf0e5;
+  box-shadow: 0 5px 14px rgba(71, 60, 39, .08);
+}
+.app-device-family .child-diary-art::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: -7px;
+  left: 50%;
+  width: 64px;
+  height: 15px;
+  background: rgba(220, 193, 132, .56);
+  box-shadow: 0 1px 2px rgba(91, 69, 32, .10);
+  transform: translateX(-50%) rotate(-1deg);
+}
+.app-device-family .child-diary-page {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 18px 26px 18px 58px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background-color: #fbf5e5;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, rgba(102, 128, 139, .19) 32px);
+  background-size: auto;
+}
+.app-device-family .child-diary-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 42px;
+  width: 1px;
+  background: rgba(203, 106, 92, .35);
+}
+.child-diary-title-row {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 3px 4px 7px;
+  border-bottom: 2px solid rgba(72, 91, 80, .42);
+}
+.app-device-family .child-diary-title-row > span {
+  width: auto;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(9px * var(--font-scale));
+}
+.app-device-family .child-diary-title-row h1 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--brand-deep);
+  font-family: "Gaegu", "Gowun Dodum", sans-serif;
+  font-size: clamp(calc(24px * var(--font-scale)), 5vw, calc(34px * var(--font-scale)));
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-device-family .child-diary-page > p {
+  position: relative;
+  z-index: 1;
+  padding: 3px 5px;
+  font-family: "Gaegu", "Gowun Dodum", sans-serif;
+  font-size: calc(16px * var(--font-scale));
+  line-height: 1.65;
+  -webkit-line-clamp: 4;
+}
+.app-device-family .child-diary-page > p:first-of-type {
+  color: var(--brand);
+  font-size: calc(18px * var(--font-scale));
+}
+.app-device-family .child-diary-page footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding: 12px 4px 2px;
+  border-top: 3px double rgba(72, 91, 80, .42);
+}
+.app-device-family .child-diary-page footer b,
+.app-device-family .child-diary-page footer small {
+  overflow: hidden;
+  font-family: "Gowun Dodum", sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-device-family .child-diary-page footer b { flex: none; font-size: calc(9px * var(--font-scale)); }
+.app-device-family .child-diary-page footer small { font-size: calc(7px * var(--font-scale)); }
+
+/* 담당자 헤더의 이름·제목과 날짜를 한 줄에 배치한다. */
+.app-device-care .manager-heading {
+  align-items: flex-end;
+  flex-direction: row;
+  gap: 14px;
+}
+.app-device-care .manager-heading > div { min-width: 0; flex: 1; }
+.app-device-care .manager-heading .eyebrow,
+.app-device-care .manager-heading h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-device-care .manager-date-picker {
+  width: auto;
+  min-width: 154px;
+  flex: none;
+  display: block;
+  padding: 8px 10px;
+}
+.app-device-care .manager-date-picker input {
+  width: 100%;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(11px * var(--font-scale));
+  text-align: right;
+}
+
+/* 다섯 지표는 폭에 맞춰 재배치되는 카드로 보여 주고 가로 스크롤을 없앤다. */
+.app-device-care .manager-stat-grid.manager-stat-strip {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.app-device-care .manager-stat-strip article,
+.app-device-care .manager-stat-strip article:nth-child(3),
+.app-device-care .manager-stat-strip article:nth-child(even),
+.app-device-care .manager-stat-strip article:last-child {
+  min-height: 92px;
+  grid-column: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  align-items: start;
+  gap: 4px;
+  padding: 12px 13px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb,var(--storybook-green) 32%,var(--surface));
+}
+.app-device-care .manager-stat-strip article:nth-child(2),
+.app-device-care .manager-stat-strip article:nth-child(4) { background: color-mix(in srgb,#fff1de 52%,var(--surface)); }
+.app-device-care .manager-stat-strip span {
+  grid-column: 1 / -1;
+  overflow: visible;
+  color: var(--brand);
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(9px * var(--font-scale));
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+}
+.app-device-care .manager-stat-strip strong {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(21px * var(--font-scale));
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.app-device-care .manager-stat-strip em {
+  grid-column: 1 / -1;
+  overflow: visible;
+  color: var(--muted);
+  font-family: "Gowun Dodum", sans-serif;
+  font-size: calc(8px * var(--font-scale));
+  line-height: 1.25;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: keep-all;
+}
+@media (max-width: 900px) {
+  .app-device-care .manager-stat-grid.manager-stat-strip { grid-template-columns: repeat(6,minmax(0,1fr)); }
+  .app-device-care .manager-stat-grid.manager-stat-strip article,
+  .app-device-care .manager-stat-grid.manager-stat-strip article:nth-child(3),
+  .app-device-care .manager-stat-grid.manager-stat-strip article:nth-child(even) { grid-column: span 2; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .app-device-care .manager-stat-grid.manager-stat-strip article:nth-child(n+4) { grid-column: span 3; }
+}
+@media (max-width: 430px) {
+  .app-device-care .manager-stat-grid.manager-stat-strip { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .app-device-care .manager-stat-grid.manager-stat-strip article,
+  .app-device-care .manager-stat-grid.manager-stat-strip article:nth-child(3),
+  .app-device-care .manager-stat-grid.manager-stat-strip article:nth-child(even),
+  .app-device-care .manager-stat-grid.manager-stat-strip article:nth-child(n+4) { grid-column: auto; }
+  .app-device-care .manager-stat-grid.manager-stat-strip article:last-child { grid-column: 1 / -1; }
+}
+.app-device-care .manager-observation-summary > header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: calc(8px * var(--font-scale));
+}
+.app-device-care .manager-combined-overview > .care-domain-radar {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.app-device-care .manager-observation-summary {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.app-device-care .manager-observation-summary > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.app-device-care .emotion-topic-analysis .topic-scatter-wrap { overflow-x: hidden; }
+.app-device-care .emotion-topic-analysis .topic-scatter { width: calc(100% + 24px); min-width: 0; margin-left: -12px; }
+.app-device-care .emotion-topic-analysis .topic-tendency-four {
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  margin-inline: 16px;
+}
+.app-device-care .emotion-topic-analysis .topic-tendency-four > div,
+.app-device-care .emotion-topic-analysis .topic-tendency-four > div:nth-child(odd) {
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 8px;
+  min-height: 112px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.app-device-care .emotion-topic-analysis .topic-tendency-four > div:nth-child(odd) { border-right: 1px solid var(--line); }
+.app-device-care .emotion-topic-analysis .topic-tendency-four > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+.app-device-care .emotion-topic-analysis .topic-legend { display: grid; justify-content: stretch; gap: 8px; }
+.app-device-care .emotion-topic-analysis .topic-size-key { justify-self: start; }
+.app-device-care .emotion-topic-analysis .topic-emotion-legend {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 8px;
+}
+.app-device-care .emotion-topic-analysis .topic-emotion-legend > span {
+  display: grid;
+  grid-template-columns: 10px minmax(0,1fr);
+  align-content: start;
+  gap: 2px 6px;
+  min-width: 0;
+  padding: 7px 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb,var(--brand) 3%,var(--surface));
+}
+.app-device-care .emotion-topic-analysis .topic-emotion-legend i { grid-row: 1 / 3; }
+.app-device-care .emotion-topic-analysis .topic-emotion-legend small { grid-column: 2; line-height: 1.25; }
+.app-device-care .care-domain-radar {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.app-device-care .radar-layout {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.app-device-care .radar-layout svg {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+}
+.app-device-care .care-domain-radar .radar-label { font-size: 12px; }
+.app-device-care .care-domain-radar .radar-label tspan + tspan { font-size: 9.5px; }
+.app-device-care .care-domain-radar .radar-grid { stroke-width: 1.05; }
+.app-device-care .care-domain-radar .radar-grid.level-100 { stroke-width: 1.45; }
+.app-device-care .care-domain-radar .radar-axis { stroke-width: 1; }
+
+@media (max-width: 430px) {
+  .app-device-family .child-diary-page { padding-left: 48px; padding-right: 16px; }
+  .app-device-family .child-diary-page::before { left: 34px; }
+  .app-device-family .child-diary-page footer { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .app-device-care .manager-heading { gap: 8px; }
+  .app-device-care .manager-date-picker { min-width: 132px; padding-inline: 7px; }
+}
+
+/* 가족 앱의 모든 문자를 메인 제목과 같은 다소니 손글씨체로 통일한다. */
+.app-device-family .child-screen,
+.app-device-family .child-screen :where(button,input,select,textarea,h1,h2,h3,h4,p,span,b,strong,small,time,label,blockquote,figcaption,em,i) {
+  font-family: "Gaegu", "Gowun Dodum", sans-serif !important;
+}
+
+/* 오늘 탭: 그림에서 글로 자연스럽게 이어지는 한 장짜리 일기장. */
+.app-device-family .child-view.today-view { overflow-y: hidden; padding-bottom: 0; }
+.app-device-family .child-today {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0,1fr);
+  gap: 0;
+  overflow: hidden;
+}
+.child-header-diary-note {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  display: block;
+  justify-self: start;
+  margin: 0;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+}
+.child-header-diary-note::before,
+.child-header-diary-note::after { display: none; }
+.child-header-diary-note span {
+  position: relative;
+  z-index: 1;
+  display: block;
+  overflow: visible;
+  color: var(--brand-deep);
+  font-size: clamp(calc(16px * var(--font-scale)),3.8vw,calc(20px * var(--font-scale)));
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: left;
+  text-wrap: balance;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+.child-header-memory-title {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  justify-self: start;
+  gap: 1px;
+}
+.child-header-memory-title strong {
+  color: var(--brand-deep);
+  font-size: calc(22px * var(--font-scale));
+  line-height: 1.05;
+}
+.child-header-memory-title span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: calc(11px * var(--font-scale));
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.child-header-call-title {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  justify-self: start;
+  gap: 2px;
+}
+.child-header-call-title strong {
+  overflow: hidden;
+  color: var(--brand-deep);
+  font-size: calc(22px * var(--font-scale));
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.child-header-call-title span { color: var(--brand); font-size: calc(13px * var(--font-scale)); font-weight: 800; }
+.child-header-reachable {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  justify-self: start;
+  gap: 2px;
+}
+.child-header-reachable strong { color: var(--brand-deep); font-size: calc(19px * var(--font-scale)); line-height: 1.15; }
+.child-header-reachable strong.device-live { color: var(--brand); }
+.child-header-reachable span { overflow: hidden; color: var(--muted); font-size: calc(11px * var(--font-scale)); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+
+.app-device-family .voice-settings-heading { display: grid; grid-template-columns: minmax(0,1fr); gap: 7px; }
+.app-device-family .voice-settings-heading h2 { overflow: visible; font-size: clamp(12px,3.4vw,calc(16px * var(--font-scale))); letter-spacing: -.025em; white-space: nowrap; }
+.app-device-family .voice-heading-actions { justify-self: end; align-items: center; flex-direction: row; }
+
+.app-device-family .child-day-diary {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(180px,42%) minmax(0,1fr);
+  overflow: hidden;
+  border: 1px solid #c8bda5;
+  border-radius: 18px;
+  background: #fbf5e5;
+  box-shadow: 0 10px 25px rgba(70,58,37,.09);
+}
+.app-device-family .child-diary-meta {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 15px;
+  border-bottom: 1px solid #c8bda5;
+  background: #f1eddf;
+}
+.app-device-family .child-diary-meta time { font-size: calc(13px * var(--font-scale)); }
+.app-device-family .child-diary-meta span { font-size: calc(10px * var(--font-scale)); white-space: nowrap; }
+.app-device-family .child-diary-art {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  align-self: stretch;
+  margin: 10px 14px 0;
+  overflow: hidden;
+  border: 1px solid #c8bda5;
+  border-radius: 7px 7px 0 0;
+  background: #edf0e5;
+  box-shadow: none;
+}
+.app-device-family .child-diary-art::before { height: 15px; }
+.app-device-family .child-diary-page {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  align-content: initial;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 14px 12px;
+  padding: 11px 12px 12px;
+  overflow: hidden;
+  border: 1px solid #c8bda5;
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  background-color: #fffaf0;
+  background-image: none;
+}
+.app-device-family .child-diary-page::before { display: none; }
+.app-device-family .child-diary-title-row {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 2px 6px;
+  border-bottom: 2px solid rgba(72,91,80,.42);
+}
+.app-device-family .child-diary-title-row > span { position: absolute; left: 2px; font-size: calc(10px * var(--font-scale)); }
+.app-device-family .child-diary-title-row h1 {
+  width: 100%;
+  overflow: visible;
+  font-size: calc(clamp(calc(24px * var(--font-scale)),4vw,calc(32px * var(--font-scale))) * var(--diary-title-fit,1));
+  line-height: 1.08;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+.child-diary-writing {
+  --diary-cols: 12;
+  --diary-rows: 11;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--diary-cols),minmax(0,1fr));
+  grid-template-rows: repeat(var(--diary-rows),minmax(0,1fr));
+  grid-auto-rows: calc(100% / var(--diary-rows));
+  align-content: start;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(42,42,38,.52);
+  background-color: #fffaf0;
+  background-image:
+    linear-gradient(to right, rgba(42,42,38,.34) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(42,42,38,.34) 1px, transparent 1px);
+  background-size: calc(100% / var(--diary-cols)) calc(100% / var(--diary-rows));
+}
+.app-device-family .child-diary-writing span {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--brand);
+  background: transparent;
+  font-size: calc(17px * var(--font-scale));
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.app-device-family .child-diary-writing span.blank { color: transparent; }
+
+@media (max-width: 430px) {
+  .child-header-diary-note { padding: 0 2px; }
+  .child-header-diary-note span { font-size: clamp(calc(15px * var(--font-scale)),4vw,calc(18px * var(--font-scale))); }
+  .child-header-memory-title strong { font-size: calc(19px * var(--font-scale)); }
+  .child-header-memory-title span { display: -webkit-box; font-size: calc(10px * var(--font-scale)); white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .child-header-call-title strong { font-size: calc(19px * var(--font-scale)); }
+  .child-header-call-title span { font-size: calc(12px * var(--font-scale)); }
+  .child-header-reachable strong { font-size: calc(17px * var(--font-scale)); }
+  .child-header-reachable span { font-size: calc(10px * var(--font-scale)); }
+  .app-device-family .child-day-diary { grid-template-rows: auto minmax(150px,40%) minmax(0,1fr); }
+  .app-device-family .child-diary-meta { grid-template-columns: 1fr auto; gap: 8px; padding: 7px 12px; }
+  .app-device-family .child-diary-art { margin: 8px 10px 0; }
+  .app-device-family .child-diary-page { margin: 0 10px 9px; padding: 9px 10px 10px; }
+  .app-device-family .child-diary-writing span { font-size: calc(15px * var(--font-scale)); }
+}
+
+/* 담당자 화면도 다른 역할과 동일한 단일 Aa 보기 버튼을 사용한다. */
+.care-view-settings {
+  flex: none;
+  border: 1px solid var(--line);
+  color: var(--brand-deep);
+  background: rgba(255,255,255,.8);
+  box-shadow: none;
+  cursor: pointer;
+}
+.care-view-settings span { color: var(--brand); font-weight: 900; letter-spacing: -.05em; }
+.app-device-care .role-picker .care-picker-head {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.app-device-care .care-picker-head h1 {
+  min-width: 0;
+  margin: 0;
+  color: var(--brand-deep);
+  font-family: "Gaegu", sans-serif;
+  font-size: clamp(15px,4.4vw,calc(25px * var(--font-scale)));
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.025em;
+  word-break: keep-all;
+  white-space: nowrap;
+}
+.app-device-care .sidebar-elder-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  align-items: stretch;
+  gap: 0;
+  padding: 9px 10px;
+}
+.app-device-care .sidebar-elder-select {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.app-device-care .sidebar-elder-copy {
+  min-width: 0;
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  line-height: 1.3;
+}
+.app-device-care .sidebar-elder-name {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+}
+.app-device-care .sidebar-elder-name b { font-size: calc(16px * var(--font-scale)); }
+.app-device-care .sidebar-elder-name small { color: var(--muted); font-size: calc(12px * var(--font-scale)); }
+.app-device-care .sidebar-elder-copy > em {
+  color: var(--brand);
+  font-size: calc(10px * var(--font-scale));
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+.app-device-care .sidebar-elder-date {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  align-items: center;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+.app-device-care .sidebar-elder-date input {
+  min-width: 0;
+  width: 100%;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text);
+  background: color-mix(in srgb,var(--storybook-green) 48%,var(--surface));
+  font: inherit;
+  font-size: calc(11px * var(--font-scale));
+  font-weight: 700;
+  text-align: right;
+  outline: 0;
+}
+.app-device-care .sidebar-nav button,
+.app-device-care .sidebar-nav button:not(:has(> span)) { justify-content: center; text-align: center; }
+.app-device-care .task-heading {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  align-items: center;
+  gap: 16px;
+}
+.app-device-care .task-heading-summary {
+  min-width: 0;
+  justify-self: center;
+  text-align: center;
+}
+.app-device-care .task-heading-summary h2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.app-device-care .task-heading-summary h2 span { color: var(--brand); }
+.app-device-care .task-heading-summary h2 small { color: var(--muted); font-size: .68em; font-weight: 600; }
+.app-device-care .task-heading .task-view-toggle { justify-self: center; }
+
+/* 가족 설정의 안내와 조작 글자는 기본 크기에서도 또렷하게 보이도록 올린다. */
+.app-device-family .child-family-settings > header > p:last-child,
+.app-device-family .family-self-identity p { font-size: calc(13px * var(--font-scale)); line-height: 1.45; }
+.app-device-family .family-self-identity small,
+.app-device-family .family-style-current small,
+.app-device-family .voice-recorder-card small,
+.app-device-family .voice-create-card small,
+.app-device-family .voice-approval-card small,
+.app-device-family .voice-active-summary small,
+.app-device-family .voice-progress-card small,
+.app-device-family .family-speech-settings header > span { font-size: calc(11px * var(--font-scale)); }
+.app-device-family .family-self-identity em,
+.app-device-family .family-style-current span,
+.app-device-family .voice-progress-marks,
+.app-device-family .family-speech-actions p { font-size: calc(10px * var(--font-scale)); line-height: 1.45; }
+.app-device-family .voice-settings-heading h2 {
+  margin: 0;
+  font-size: clamp(14px,3.25vw,calc(17px * var(--font-scale)));
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.app-device-family .voice-consent-card h3,
+.app-device-family .voice-create-card h3,
+.app-device-family .voice-approval-card h3,
+.app-device-family .voice-active-summary h3,
+.app-device-family .voice-progress-card h3,
+.app-device-family .voice-recorder-card h3,
+.app-device-family .family-speech-settings label > b { font-size: calc(13px * var(--font-scale)); line-height: 1.35; }
+.app-device-family .voice-consent-card p,
+.app-device-family .voice-create-card p,
+.app-device-family .voice-approval-card p,
+.app-device-family .voice-active-summary p,
+.app-device-family .voice-progress-card p,
+.app-device-family .family-speech-settings label > span { font-size: calc(11px * var(--font-scale)); line-height: 1.55; }
+.app-device-family .family-voice-settings button,
+.app-device-family .family-speech-actions > button { font-size: calc(11px * var(--font-scale)); }
+.app-device-family .voice-active-summary h3,
+.app-device-family .voice-progress-card h3 { overflow: visible; text-overflow: clip; white-space: normal; }
+.app-device-family .voice-active-summary p { overflow: visible; text-overflow: clip; white-space: normal; }
+.app-device-family .family-speech-settings header h2 { font-size: calc(18px * var(--font-scale)); line-height: 1.35; }
+.app-device-family .family-speech-settings textarea { font-size: calc(12px * var(--font-scale)); line-height: 1.7; }
+
+@media (max-width: 760px) {
+  .app-device-care .sidebar-elder-panel { grid-template-columns: minmax(0,1fr) minmax(145px,auto); gap: 12px; padding: 9px 12px; }
+  .app-device-care .sidebar-elder-date { grid-template-columns: minmax(0,1fr); align-content: center; margin: 0; padding: 0 0 0 12px; border-top: 0; border-left: 1px solid var(--line); }
+}
+
+@media (max-width: 430px) {
+  .app-device-care .care-picker-head { gap: 9px; }
+  .app-device-care .care-picker-head h1 { font-size: clamp(14px,4.2vw,calc(18px * var(--font-scale))); }
+  .app-device-care .sidebar-elder-panel { grid-template-columns: minmax(0,1fr); gap: 0; }
+  .app-device-care .sidebar-elder-date { grid-template-columns: minmax(0,1fr); margin-top: 8px; padding: 8px 0 0; border-top: 1px solid var(--line); border-left: 0; }
+  .app-device-care .task-heading { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .app-device-care .task-heading-summary,
+  .app-device-care .task-heading .task-view-toggle { grid-column: 1; justify-self: center; }
+  .app-device-family .voice-settings-heading h2 { font-size: clamp(13px,3.7vw,calc(16px * var(--font-scale))); }
+}

@@ -70,7 +70,7 @@ function TaskRow({ item, asOf, busy, onAcknowledge, onDoseStatus, onOpenMedicati
   </article>;
 }
 
-export default function CareTaskWorkspace({ elderId, summary, baselineSummary, period, onReload, onOpenHandover, onOpenMedication, onProgress, onSubtabChange, initialSubtab = "checklist" }) {
+export default function CareTaskWorkspace({ elderId, summary, baselineSummary, period, onReload, onOpenHandover, onOpenMedication, onSubtabChange, initialSubtab = "checklist" }) {
   const [subtab, setSubtab] = useState(initialSubtab);
   const [planVersion, setPlanVersion] = useState(0);
   const [mode, setMode] = useState("time");
@@ -80,7 +80,6 @@ export default function CareTaskWorkspace({ elderId, summary, baselineSummary, p
   const load = () => api.getCareTasks(period.value).then((result) => {
     setTasks(result);
     setError("");
-    onProgress?.({ completed: result.completed || 0, total: result.total || 0 });
     return result;
   }).catch((reason) => setError(reason.message));
   useEffect(() => { load(); }, [period.value]);
@@ -128,9 +127,6 @@ export default function CareTaskWorkspace({ elderId, summary, baselineSummary, p
     ];
   }, [tasks, mode, allRows]);
 
-  const dateLabel = tasks?.as_of
-    ? new Date(`${tasks.as_of}T00:00:00`).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" })
-    : "오늘";
   const handoverCount = tasks?.carryover?.length || 0;
   function openMedication(item) {
     setSubtab("medication");
@@ -145,7 +141,7 @@ export default function CareTaskWorkspace({ elderId, summary, baselineSummary, p
     </nav>
     {subtab === "checklist" ? <>
       {tasks?.latest_handover && <button className="handover-banner" type="button" onClick={onOpenHandover}><span>{({ day: "주간", evening: "저녁", night: "야간" })[tasks.latest_handover.shift]} 근무 인계 {handoverCount ? `${handoverCount}건` : ""}</span><b>{tasks.latest_handover.note || "메모 없음"}</b><em>보기 ›</em></button>}
-      <header className="task-heading"><div><h2>{dateLabel} 할 일</h2><p>{tasks ? `${tasks.completed}/${tasks.total}` : "-/-"} 기록 완료</p></div><div className="task-view-toggle"><button className={mode === "time" ? "on" : ""} onClick={() => setMode("time")}>시간순</button><button className={mode === "elder" ? "on" : ""} onClick={() => setMode("elder")}>환자별</button></div></header>
+      <header className="task-heading"><div className="task-heading-summary"><h2>할 일 <span>{tasks ? `${tasks.completed}/${tasks.total}` : "-/-"}</span> <small>기록 완료</small></h2></div><div className="task-view-toggle"><button className={mode === "time" ? "on" : ""} onClick={() => setMode("time")}>시간순</button><button className={mode === "elder" ? "on" : ""} onClick={() => setMode("elder")}>환자별</button></div></header>
       {error && <p className="error">{error}</p>}
       <div className="care-task-groups">{groups.map((group) => <TaskGroup key={`${mode}-${group.label}`} group={group} asOf={period.value} busy={busy} onAcknowledge={acknowledge} onDoseStatus={setDoseStatus} onOpenMedication={openMedication} />)}</div>
       {!allRows.length && tasks && <p className="empty-state">선택한 날짜에 확인할 항목이 없습니다.</p>}

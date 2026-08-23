@@ -11,6 +11,7 @@ React 화면(D5-B)이 이 API만 보고 동작하도록 응답 형태를 고정�
 from collections import Counter, defaultdict, deque
 from datetime import date, datetime, timedelta
 import json
+import logging
 import math
 import os
 import threading
@@ -66,6 +67,7 @@ from storage import (
 FACES_DIR = ALIGNED_FACES_DIR
 MEDIA_DIR = FACES_ROOT
 MORPH = MORPH_PATH
+LOGGER = logging.getLogger(__name__)
 
 app = FastAPI(title="기억이음 Call API", version="0.1.0")
 
@@ -1489,6 +1491,10 @@ def pending_call(elder_id: str = "elder_001"):
     return {
         "due": bool(meds),
         "reason": "medication" if meds else None,
+        # 자동 복약 전화는 명세와 데모에서 정한 대웅 페르소나로 건다.
+        # 명시하지 않으면 기존 DB의 생성 순서에 따라 정훈 등 다른 가족이
+        # 선택되어 수신 화면과 실제 통화 상대가 어긋날 수 있다.
+        "persona_id": DEFAULT_FACE_PERSONA_ID if meds else None,
         "medications": [
             {"name": m["medication_name"], "scheduled_time": m["scheduled_time"],
              "minutes_late": m["minutes_late"]}
@@ -1526,6 +1532,18 @@ def _open_ai_session(elder_id: str, persona_id: str | None) -> dict:
 def start_call(req: StartCallRequest):
     """AI 인지·정서 케어 통화를 연다."""
     return _open_ai_session(req.elder_id, req.persona_id)
+
+
+@app.post("/api/calls/{call_id}/prepare")
+def prepare_call(call_id: str):
+    """Hide the live model's first connection behind the age-morph wait."""
+    _get(call_id)
+    try:
+        result = llm.warm_fast_model()
+    except Exception as exc:  # noqa: BLE001 - warm-up must never block a call
+        LOGGER.warning("live model warm-up failed for %s: %s", call_id, exc)
+        return {"ready": False, "performed": False}
+    return {"ready": True, **result}
 
 
 # ---------------------------------------------------------------- 기기와 호출
