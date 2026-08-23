@@ -158,6 +158,19 @@ class FastReplySchemaTests(unittest.TestCase):
             llm.FAST_REPLY_RESPONSE_FORMAT,
         )
 
+    def test_zero_warm_timestamp_is_never_treated_as_recent(self):
+        warmed = llm.safe_fast_reply("준비됐어요.")
+        with (
+            patch.object(llm, "_fast_warmed_at", 0.0),
+            patch.object(llm, "FAST_WARM_TTL_SECONDS", 300.0),
+            patch.object(llm.time, "monotonic", side_effect=[12.0, 12.0, 13.0]),
+            patch.object(llm, "call_json", return_value=warmed) as call,
+        ):
+            result = llm.warm_fast_model()
+
+        self.assertTrue(result["performed"])
+        call.assert_called_once()
+
 
 class ExplicitMedicationClassificationTests(unittest.TestCase):
     DUE = [{"schedule_id": "med_evening", "medication_name": "저녁약"}]

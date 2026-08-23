@@ -381,12 +381,12 @@ def warm_fast_model() -> dict:
     global _fast_warmed_at
 
     now = time.monotonic()
-    if now - _fast_warmed_at < FAST_WARM_TTL_SECONDS:
+    if _fast_warmed_at > 0 and now - _fast_warmed_at < FAST_WARM_TTL_SECONDS:
         return {"performed": False, "latency_ms": 0, "first_token_ms": None}
 
     with _fast_warm_lock:
         now = time.monotonic()
-        if now - _fast_warmed_at < FAST_WARM_TTL_SECONDS:
+        if _fast_warmed_at > 0 and now - _fast_warmed_at < FAST_WARM_TTL_SECONDS:
             return {"performed": False, "latency_ms": 0, "first_token_ms": None}
 
         started = time.perf_counter()
