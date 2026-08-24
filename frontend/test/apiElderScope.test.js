@@ -60,6 +60,9 @@ test("가족이 받아도 24초 AI 영상·대기 음악 뒤에 사람 통화를
   assert.match(calling, /잔잔한 음악을 들으며 잠시 기다려 주세요/);
   assert.match(guardianCall, /나의 AI 영상을 재생 중/);
   assert.match(guardianCall, /재생이 끝나면 통화가 자동으로 연결됩니다/);
+  assert.match(guardianCall, /remainingIntroMs \+ HUMAN_CONNECT_GRACE_MS/);
+  assert.doesNotMatch(guardianCall, /setTimeout\(fail, 12000\)/);
+  assert.match(app, /HUMAN_CONNECT_GRACE_MS = 20000/);
   assert.match(melody, /const NOTES = \[/);
   assert.match(melody, /export function startWaitingMelody/);
 });

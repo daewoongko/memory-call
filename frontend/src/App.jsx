@@ -29,6 +29,10 @@ import { startWaitingMelody, stopWaitingMelody } from "./waitingMelody.js";
 const RING_POLL_MS = 1500;
 const PENDING_POLL_MS = 20000;  // 복약 시간이 되었는지 주기적으로 확인
 const RING_COOLDOWN_MS = 300000; // 거절하거나 통화가 끝난 뒤 다시 걸기까지
+// 모바일 WebRTC의 ICE 연결은 같은 와이파이에서도 수 초 이상 걸릴 수 있다.
+// 24초 인트로가 끝난 뒤에만 이 유예 시간을 적용해 정상적인 받기를 인트로
+// 도중에 실패로 닫지 않는다.
+const HUMAN_CONNECT_GRACE_MS = 20000;
 
 const KEY_ROLE = "dasoni.role";
 const KEY_LINKED = "dasoni.linked";
@@ -402,13 +406,15 @@ export default function App() {
     fallBackFromHuman, releaseHumanTransport,
   ]);
 
-  // 보호자가 받은 뒤 12초 안에 미디어가 붙지 않으면 조용히 AI로 넘긴다.
+  // 24초 인트로가 끝나 사람 화면을 연 뒤에도 미디어가 붙지 않을 때만
+  // 조용히 AI로 넘긴다. 보호자가 받자마자 시작한 별도 타이머로 인트로 중
+  // 연결을 끊으면 양쪽 화면이 서로 다른 상태가 된다.
   useEffect(() => {
     if (phase !== "human" || !invite?.invite_id || humanTransportState === "connected") {
       return undefined;
     }
     const id = setTimeout(
-      () => fallBackFromHuman(invite.invite_id), 12000,
+      () => fallBackFromHuman(invite.invite_id), HUMAN_CONNECT_GRACE_MS,
     );
     return () => clearTimeout(id);
   }, [phase, invite?.invite_id, humanTransportState, fallBackFromHuman]);

@@ -28,6 +28,8 @@ function clock(seconds) {
   return `${m}:${s}`;
 }
 
+const HUMAN_CONNECT_GRACE_MS = 20000;
+
 export default function GuardianCallOverlay({
   invite, connected, elderName, onAnswer, onDecline, onEnd,
   onTransportFailed, busy, error,
@@ -78,6 +80,12 @@ export default function GuardianCallOverlay({
     let alive = true;
     let transport = null;
     let timeout = null;
+    // 받기를 누른 시점부터 재면 24초 인트로가 끝나기 전에 정상 연결을
+    // 실패로 닫을 수 있다. 서버가 알려 준 남은 인트로 뒤에 ICE 유예 시간을
+    // 더해 두 기기가 같은 마감 시각을 사용하게 한다.
+    const remainingIntroMs = Math.max(
+      0, Number(connected.intro_seconds_left || 0) * 1000,
+    );
 
     const fail = async () => {
       if (!alive) return;
@@ -105,7 +113,7 @@ export default function GuardianCallOverlay({
         if (state === "connected") clearTimeout(timeout);
         if (state === "failed") fail();
       });
-      timeout = setTimeout(fail, 12000);
+      timeout = setTimeout(fail, remainingIntroMs + HUMAN_CONNECT_GRACE_MS);
       await transport.connect();
     }).catch(fail);
 
@@ -154,7 +162,7 @@ export default function GuardianCallOverlay({
           </p>
         )}
 
-        {error && <p className="error">{error}</p>}
+        {error && !introPending && <p className="error">{error}</p>}
 
         {connected ? (
           <div className="guardian-call-actions">
