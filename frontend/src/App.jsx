@@ -511,9 +511,11 @@ export default function App() {
     setPhase("idle");
   }
 
-  const wrap = (node, { gear = false, wide = false, roleSwitch = false, displayDock = true, embeddedControls = false, shell = "default" } = {}) => (
+  const wrap = (node, { gear = false, wide = false, roleSwitch = false, displayDock = true, embeddedControls = false, shell = "default" } = {}) => {
+    const fontRole = shell === "family" || shell === "journey-child" ? "family" : "readable";
+    return (
     <div className={`frame app-shell app-shell-${shell}${wide ? " guardian-frame" : ""}`}>
-      <div className={`device app-device app-device-${shell}${wide ? " guardian-device" : ""}`}>
+      <div className={`device app-device app-device-${shell} font-role-${fontRole}${wide ? " guardian-device" : ""}`}>
         {wide && displayDock && (roleSwitch || gear) && <WideDisplayDock
           theme={theme}
           size={size}
@@ -556,7 +558,8 @@ export default function App() {
         )}
       </div>
     </div>
-  );
+    );
+  };
 
   const chooseRole = (picked) => {
     setRole(picked);
@@ -670,7 +673,7 @@ export default function App() {
         onLinked={finishLink}
         onSkip={() => finishLink("skipped")}
       />,
-      { wide: true, roleSwitch: true, shell: role === "care" ? "care" : "family" }
+      { wide: true, roleSwitch: true, shell: role === "child" ? "family" : role === "care" ? "care" : "elder" }
     );
 
   if (!directElder && role === "care") {
@@ -694,7 +697,8 @@ export default function App() {
           setIncomingReason(null);
           setTarget(null);
         }}
-      />
+      />,
+      { shell: "elder" }
     );
 
   if (phase === "idle")
@@ -707,7 +711,7 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onRole={() => { setRole(null); window.location.hash = ""; }}
       />,
-      { gear: true, roleSwitch: true, embeddedControls: true }
+      { gear: true, roleSwitch: true, embeddedControls: true, shell: "elder" }
     );
 
   if (phase === "connecting")
@@ -717,7 +721,8 @@ export default function App() {
         announcement={call?.announcement ?? "연결하고 있어요"}
         onChooseAI={chooseAIWhileWaiting}
         onCancel={cancelCalling}
-      />
+      />,
+      { shell: "elder" }
     );
 
   if ((phase === "calling" || phase === "incall") && (phase === "calling" || call)) {
@@ -748,7 +753,8 @@ export default function App() {
           onChooseAI={chooseAIWhileWaiting}
           onCancel={cancelCalling}
         />}
-      </div>
+      </div>,
+      { shell: "elder" }
     );
   }
 
@@ -761,11 +767,12 @@ export default function App() {
         localStream={humanLocalStream}
         remoteStream={humanRemoteStream}
         onEnd={endHumanCall}
-      />
+      />,
+      { shell: "elder" }
     );
 
   if (phase === "ended" && summary)
-    return wrap(<SummaryScreen summary={summary} onRestart={reset} />);
+    return wrap(<SummaryScreen summary={summary} onRestart={reset} />, { shell: "elder" });
 
-  return wrap(<div className="screen"><p className="hint">준비하는 중…</p></div>);
+  return wrap(<div className="screen"><p className="hint">준비하는 중…</p></div>, { shell: "elder" });
 }

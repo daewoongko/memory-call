@@ -78,3 +78,19 @@ test("가족 메인 홈은 이동 카드 없이 오늘의 핵심 정보만 요�
   assert.doesNotMatch(theme, /dasoni-home-copy h1[^}]+text-overflow: ellipsis/);
   assert.match(theme, /\.app-device-family \.child-screen :where\([^)]+\)[^{]+\{[\s\S]*font-family: "Gaegu"/);
 });
+
+test("role typography stays consistent throughout each screen tree", () => {
+  assert.match(app, /font-role-\$\{fontRole\}/);
+  assert.match(app, /shell === "family" \|\| shell === "journey-child" \? "family" : "readable"/);
+  assert.match(app, /shell: role === "child" \? "family" : role === "care" \? "care" : "elder"/);
+  assert.match(theme, /--font-readable: "Gowun Dodum"/);
+  assert.match(theme, /--font-family: "Gaegu"/);
+  assert.match(theme, /\.font-role-readable,\s*\.font-role-readable \*\s*\{\s*font-family: var\(--font-readable\) !important;/);
+  assert.match(theme, /\.font-role-family,\s*\.font-role-family \*\s*\{\s*font-family: var\(--font-family\) !important;/);
+});
+
+test("the phone-sized login shell always uses a single-column layout", () => {
+  assert.match(theme, /\.app-device-login \.login-screen \{ grid-template-columns:1fr;/);
+  assert.match(theme, /\.app-device-login \.login-welcome \{ display:grid; grid-template-columns:92px minmax\(0,1fr\)/);
+  assert.match(theme, /\.app-device-login \.login-card \{ justify-self:center;/);
+});
