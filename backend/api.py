@@ -2245,8 +2245,12 @@ def close_handover(req: HandoverRequest):
 
 
 @app.get("/api/elders/{elder_id}/reports")
-def elder_reports(elder_id: str = "elder_001", limit: int = 20):
-    return {"elder_id": elder_id, "calls": report_mod.recent(elder_id, limit)}
+def elder_reports(elder_id: str = "elder_001", limit: int = 20,
+                  on: str | None = None):
+    return {
+        "elder_id": elder_id,
+        "calls": report_mod.recent(elder_id, limit, on_date=on),
+    }
 
 
 @app.post("/api/calls/{call_id}/end")

@@ -156,3 +156,80 @@ test("Anam transport splits coalesced PCM into low-latency avatar pushes", async
 
   assert.deepEqual(chunks, [2048, 2048, 904]);
 });
+
+test("Anam transport reattaches a mobile video track and requests playback", async () => {
+  const listeners = new Map();
+  const stream = { getVideoTracks: () => [{ readyState: "live" }] };
+  const video = {
+    srcObject: null,
+    playCalls: 0,
+    async play() { this.playCalls += 1; },
+  };
+  const originalDocument = globalThis.document;
+  globalThis.document = {
+    getElementById(id) {
+      assert.equal(id, "avatar-video");
+      return video;
+    },
+  };
+
+  try {
+    const transport = createAnamTransport({
+      callId: "call_12345678",
+      personaId: "persona_jeonghun",
+      videoElementId: "avatar-video",
+      fetchImpl: async () => new Response(JSON.stringify({ session_token: "token" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+      createClientImpl: () => ({
+        async streamToVideoElement() {
+          queueMicrotask(() => listeners.get("VIDEO_STREAM_STARTED")?.(stream));
+        },
+        addListener(event, callback) { listeners.set(event, callback); },
+        removeListener(event, callback) {
+          if (listeners.get(event) === callback) listeners.delete(event);
+        },
+        interruptPersona() {},
+        async stopStreaming() {},
+      }),
+    });
+
+    await transport.connect();
+    assert.equal(video.srcObject, stream);
+    assert.equal(video.playCalls, 1);
+    assert.equal(transport.getState(), "connected");
+    await transport.disconnect();
+  } finally {
+    if (originalDocument === undefined) delete globalThis.document;
+    else globalThis.document = originalDocument;
+  }
+});
+
+test("Anam transport also accepts the SDK video-play readiness event", async () => {
+  const listeners = new Map();
+  const transport = createAnamTransport({
+    callId: "call_12345678",
+    personaId: "persona_jeonghun",
+    videoElementId: "avatar-video",
+    fetchImpl: async () => new Response(JSON.stringify({ session_token: "token" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+    createClientImpl: () => ({
+      async streamToVideoElement() {
+        queueMicrotask(() => listeners.get("VIDEO_PLAY_STARTED")?.());
+      },
+      addListener(event, callback) { listeners.set(event, callback); },
+      removeListener(event, callback) {
+        if (listeners.get(event) === callback) listeners.delete(event);
+      },
+      interruptPersona() {},
+      async stopStreaming() {},
+    }),
+  });
+
+  await transport.connect();
+  assert.equal(transport.getState(), "connected");
+  await transport.disconnect();
+});

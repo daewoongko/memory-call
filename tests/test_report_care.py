@@ -477,6 +477,22 @@ class CareReportAggregationTest(unittest.TestCase):
         self.assertFalse(result["tendency_summary"]["sufficient_period"])
         self.assertEqual(result["tendency_summary"]["burden_ranking"], [])
 
+    def test_emotion_topic_counts_direct_risks_per_elder_utterance(self):
+        calls = [
+            {"call_id": "fall", "started_at": "2026-08-10T19:00:00+09:00", "duration_sec": 180},
+            {"call_id": "chest", "started_at": "2026-08-11T20:00:00+09:00", "duration_sec": 190},
+        ]
+        utterances = [
+            {"call_id": "fall", "seq": 1, "speaker": "elder", "transcript": "어제 넘어져서 일어나기가 힘들었어."},
+            {"call_id": "chest", "seq": 1, "speaker": "elder", "transcript": "가슴이 답답하고 아파."},
+        ]
+
+        result = report._call_analytics(calls, utterances, "1940-01-01")
+        health = next(item for item in result["emotion_topics"] if item["topic"] == "건강")
+
+        self.assertEqual(health["risk_count"], 2)
+        self.assertEqual(health["risk_types"], ["chest_pain", "fall"])
+
     def test_topic_emotion_uses_caregiver_response_groups(self):
         calls = [
             {"call_id": "fear", "started_at": "2026-08-10T09:00:00+09:00", "duration_sec": 60},

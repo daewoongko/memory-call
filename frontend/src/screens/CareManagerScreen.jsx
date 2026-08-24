@@ -4,6 +4,7 @@ import BrandMark from "../components/BrandMark.jsx";
 import ReportTabs from "./ReportTabs.jsx";
 import CareTaskWorkspace from "./CareTaskWorkspace.jsx";
 import HandoverWorkspace from "./HandoverWorkspace.jsx";
+import AppDatePicker from "../components/AppDatePicker.jsx";
 
 const MAIN_TABS = [
   { id: "analysis", label: "분석 리포트", icon: null },
@@ -158,7 +159,7 @@ export default function CareManagerScreen({ onDisplaySettings }) {
             </span>
             <i>⌄</i>
           </button>
-          <label className="sidebar-elder-date" aria-label="분석 날짜"><input type="date" value={period.value} max={localDateKey()} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} /></label>
+          <AppDatePicker className="sidebar-elder-date" ariaLabel="분석 날짜" value={period.value} onChange={(event) => event.target.value && setPeriod({ mode: "day", value: event.target.value })} />
         </div>
         <nav className="sidebar-nav" aria-label="담당자 메뉴">{MAIN_TABS.map((item) => <button key={item.id} className={tab === item.id ? "on" : ""} onClick={() => { setTab(item.id); if (item.id === "checks") setTaskInitialSubtab("checklist"); }}>{item.icon && <span>{item.icon}</span>}{item.label}</button>)}</nav>
       </aside>

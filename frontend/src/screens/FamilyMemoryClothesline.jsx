@@ -7,8 +7,15 @@ const EMPTY_FORM = {
 };
 
 function photoOf(memory) {
-  return memory?.photo_url || memory?.artwork?.image_url || "";
+  return memory?.photo_url || memory?.artwork?.image_url || memory?._demo_photo_url || "";
 }
+
+const DEMO_MEMORY_IMAGES = [
+  "/diary/country-market-memory.png",
+  "/diary/persimmon-yard-memory.png",
+  "/diary/autumn-riverside-picnic.png",
+  "/diary/haeundae-family-drawing.png",
+];
 
 function rotation(memory) {
   const text = String(memory.memory_id || memory.title || "memory");
@@ -28,11 +35,11 @@ function UseDots({ count = 0 }) {
   </span>;
 }
 
-function Polaroid({ memory, onOpen, onDrawer }) {
-  const image = photoOf(memory);
+function Polaroid({ memory, index, onOpen, onDrawer }) {
+  const image = photoOf(memory) || DEMO_MEMORY_IMAGES[index % DEMO_MEMORY_IMAGES.length];
   return <li className={`clothesline-memory ${memory.status}`} style={{ "--tilt": rotation(memory) }}>
     <span className="memory-tape" aria-hidden="true" />
-    <button type="button" className="memory-polaroid" onClick={() => onOpen(memory)}>
+    <button type="button" className="memory-polaroid" onClick={() => onOpen({ ...memory, _demo_photo_url: image })}>
       {image ? <img src={image} alt={memory.title} loading="lazy" /> : <span className="memory-polaroid-text"><small>{era(memory)}</small><b>{memory.title}</b><em>사진 올리기</em></span>}
       <strong>{memory.title}</strong>
       <small>{era(memory)}{memory.location ? ` · ${memory.location}` : ""}</small>
@@ -123,7 +130,7 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
     <section className="hung-memory-section memory-step-section">
       <header><div><small>01</small><h2>함께 보는 추억</h2></div><p>가족이 확인했고 AI 통화에서도 사용할 수 있어요.</p></header>
       {!hung.length && <div className="empty-clothesline"><span /><b>첫 추억을 추가해 보세요</b><p>사진이 없어도 이야기부터 저장할 수 있어요.</p></div>}
-      {hung.length > 0 && <div className="memory-week-line memory-all-line"><div className="memory-rope" aria-hidden="true" /><ul>{hung.map((memory) => <Polaroid memory={memory} key={memory.memory_id} onOpen={setSelected} onDrawer={(item) => run(() => api.patchMemory(item.memory_id, { conversation_allowed: false }))} />)}</ul></div>}
+      {hung.length > 0 && <div className="memory-week-line memory-all-line"><div className="memory-rope" aria-hidden="true" /><ul>{hung.map((memory, index) => <Polaroid memory={memory} index={index} key={memory.memory_id} onOpen={setSelected} onDrawer={(item) => run(() => api.patchMemory(item.memory_id, { conversation_allowed: false }))} />)}</ul></div>}
     </section>
 
     <section className="memory-basket-section memory-step-section">

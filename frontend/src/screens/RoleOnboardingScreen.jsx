@@ -295,7 +295,7 @@ export default function RoleOnboardingScreen({ role, account, elderId = "elder_0
       </>}
 
       {step === "practice" && <>
-        <header className="journey-copy"><p className="eyebrow">한 번만 연습해요</p><h2>얼굴 카드를 누르면<br />바로 가족에게 전화해요</h2><p>20~30초 이상 기다리게 되면 연결 상태를 사실대로 알려 드리고, 다른 가족 선택이나 다소니와 먼저 이야기하기를 보여 드려요.</p></header>
+        <header className="journey-copy"><p className="eyebrow">한 번만 연습해요</p><h2>얼굴 카드를 누르면<br />바로 가족에게 전화해요</h2><p>20~30초 이상 기다리게 되면 연결 상태를 사실대로 알려 드리고, 다소니와 먼저 이야기할 수 있게 도와드려요.</p></header>
         <div className="journey-practice"><span>정훈</span><div><b>아들 정훈</b><small>카드 전체를 눌러 전화하기</small></div><i>☎</i></div>
         <label className="journey-confirm"><input type="checkbox" checked={Boolean(data.practice_confirmed)} onChange={(event) => update({ practice_confirmed: event.target.checked })} />직접 눌러 보는 방법을 확인했어요</label>
       </>}

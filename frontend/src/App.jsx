@@ -77,6 +77,7 @@ export default function App() {
   // 한 번 고른 역할은 기기에 남아 다음부터 바로 본 화면으로 간다.
   const [booted, setBooted] = useState(false);
   const [account, setAccount] = useState(null);
+  const [demoMode, setDemoMode] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [role, setRole] = useState(() => {
     const saved = readLocal(KEY_ROLE);
@@ -134,6 +135,11 @@ export default function App() {
       setRoleOnboarded(null);
       return;
     }
+    if (demoMode) {
+      setRoleOnboarded(true);
+      setLinked("elder_001");
+      return;
+    }
     let alive = true;
     api.getOnboarding(role).then((saved) => {
       if (!alive) return;
@@ -153,7 +159,7 @@ export default function App() {
       }
     }).catch(() => setRoleOnboarded(false));
     return () => { alive = false; };
-  }, [account, role]);
+  }, [account, role, demoMode]);
 
   useScreenWakeLock(phase === "calling" || phase === "human" || phase === "connecting" || phase === "incall");
 
@@ -321,12 +327,40 @@ export default function App() {
           return;
         }
 
+        if (current.state === "ai_takeover") {
+          // 다른 폴링이나 사용자의 버튼이 먼저 전환을 끝낸 경우다.
+          // 이미 열린 통화가 있으면 그대로 사용하고, 응답만 놓쳤다면 새 AI
+          // 세션으로 조용히 복구해 중복 takeover 요청을 보내지 않는다.
+          await releaseHumanTransport(false);
+          if (!call) await connectAI(target?.persona_id);
+          return;
+        }
+
         if (current.should_take_over) {
-          await releaseHumanTransport();
-          const res = await api.takeOverInvite(inviteId);
-          if (!alive) return;
-          setInvite(res.invite);
-          enterCall(res);
+          if (takeoverInFlight.current) {
+            timer = setTimeout(tick, RING_POLL_MS);
+            return;
+          }
+          takeoverInFlight.current = true;
+          try {
+            await releaseHumanTransport(false);
+            const res = await api.takeOverInvite(inviteId);
+            if (!alive) return;
+            setError("");
+            setInvite(res.invite);
+            enterCall(res);
+          } catch (reason) {
+            if (!alive) return;
+            // 서버 전환은 끝났지만 응답이 유실된 경쟁 상황도 통화 실패로
+            // 보이지 않게 새 AI 세션으로 이어 준다.
+            if (String(reason?.message || "").includes("ai_takeover")) {
+              await connectAI(target?.persona_id);
+            } else {
+              throw reason;
+            }
+          } finally {
+            takeoverInFlight.current = false;
+          }
           return;
         }
 
@@ -354,7 +388,7 @@ export default function App() {
       clearTimeout(timer);
     };
   }, [
-    phase, invite?.invite_id, target?.persona_id, connectAI, enterCall,
+    phase, invite?.invite_id, call, target?.persona_id, connectAI, enterCall,
     fallBackFromHuman, releaseHumanTransport,
   ]);
 
@@ -442,30 +476,38 @@ export default function App() {
   }
 
   async function chooseAIWhileWaiting() {
+    if (takeoverInFlight.current) return;
     setError("");
+    takeoverInFlight.current = true;
     try {
       await releaseHumanTransport(false);
       if (invite?.invite_id) {
-        const result = await api.takeOverInvite(invite.invite_id);
+        const current = await api.getInvite(invite.invite_id).catch(() => invite);
+        if (current?.state === "ai_takeover") {
+          if (call) {
+            callingMorphDoneRef.current = true;
+            phaseRef.current = "incall";
+            setPhase("incall");
+          } else {
+            await connectAI(target?.persona_id);
+          }
+          return;
+        }
+        const result = await api.takeOverInvite(invite.invite_id, "user_selected_ai");
         setInvite(result.invite);
         enterCall(result);
       } else {
         await connectAI(target?.persona_id);
       }
     } catch (reason) {
-      setError(`다소니 연결을 준비하지 못했어요. (${reason.message})`);
+      if (String(reason?.message || "").includes("ai_takeover")) {
+        await connectAI(target?.persona_id);
+      } else {
+        setError(`다소니 연결을 준비하지 못했어요. (${reason.message})`);
+      }
+    } finally {
+      takeoverInFlight.current = false;
     }
-  }
-
-  async function cancelCalling() {
-    if (invite?.invite_id) await api.cancelInvite(invite.invite_id).catch(() => {});
-    if (call?.call_id) await api.endCall(call.call_id, "user_cancelled").catch(() => {});
-    await releaseHumanTransport(false);
-    setInvite(null);
-    setCall(null);
-    setTarget(null);
-    phaseRef.current = "idle";
-    setPhase("idle");
   }
 
   function answerIncoming() {
@@ -479,6 +521,7 @@ export default function App() {
 
   function reset() {
     setTarget(null);
+    setError("");
     // 통화가 끝난 직후에 곧바로 다시 걸려오면 성가시다.
     // 약이 확인되었으면 어차피 due 가 false 가 되므로 울리지 않는다.
     cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
@@ -586,6 +629,7 @@ export default function App() {
   };
 
   const acceptAccount = (user) => {
+    setDemoMode(false);
     setAccount(user);
     setRole(null);
     setRoleOnboarded(null);
@@ -596,6 +640,18 @@ export default function App() {
     removeLocal(KEY_LINKED);
     removeLocal(KEY_GUARDIAN_ONBOARDING);
     removeLocal(KEY_MY_PERSONA);
+  };
+
+  const skipLogin = () => {
+    api.saveAuthToken("");
+    setDemoMode(true);
+    setAccount({ user_id: "demo", display_name: "체험 사용자" });
+    setRole(null);
+    setRoleOnboarded(null);
+    setLinked("elder_001");
+    setGuardianOnboarded(true);
+    setMyPersonaId(null);
+    removeLocal(KEY_ROLE);
   };
 
   const finishLink = (nextElderId) => {
@@ -655,10 +711,10 @@ export default function App() {
     return wrap(<div className="screen"><p className="hint">계정을 확인하는 중…</p></div>);
 
   if (!directElder && !account)
-    return wrap(<LoginScreen onAuthenticated={acceptAccount} />, { wide: true, shell: "login" });
+    return wrap(<LoginScreen onAuthenticated={acceptAccount} onSkip={skipLogin} />, { wide: true, shell: "login" });
 
   if (!directElder && !role)
-    return wrap(<RoleScreen account={account} onPick={chooseRole} onLogout={async () => { await api.logoutAccount().catch(() => {}); api.saveAuthToken(""); setAccount(null); setRole(null); removeLocal(KEY_ROLE); }} />, { wide: true, shell: "roles" });
+    return wrap(<RoleScreen account={account} onPick={chooseRole} onLogout={async () => { if (!demoMode) await api.logoutAccount().catch(() => {}); api.saveAuthToken(""); setDemoMode(false); setAccount(null); setRole(null); removeLocal(KEY_ROLE); }} />, { wide: true, shell: "roles" });
 
   if (!directElder && roleOnboarded === null)
     return wrap(<div className="screen"><p className="hint">완료한 설정을 확인하는 중…</p></div>);
@@ -720,7 +776,6 @@ export default function App() {
         name={profile?.persona?.display_name ?? "가족"}
         announcement={call?.announcement ?? "연결하고 있어요"}
         onChooseAI={chooseAIWhileWaiting}
-        onCancel={cancelCalling}
       />,
       { shell: "elder" }
     );
@@ -751,7 +806,6 @@ export default function App() {
           morphUrl={profile?.morph_url ?? null}
           onMorphEnded={finishCallingMorph}
           onChooseAI={chooseAIWhileWaiting}
-          onCancel={cancelCalling}
         />}
       </div>,
       { shell: "elder" }

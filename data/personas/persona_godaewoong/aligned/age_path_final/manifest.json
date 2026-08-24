@@ -1,0 +1,1254 @@
+{
+  "version": 1,
+  "created_at": "2026-08-20T09:48:01.926963+00:00",
+  "purpose": "RIFE-ready selected age keyframes",
+  "order": "youngest_to_current",
+  "canvas": {
+    "width": 768,
+    "height": 1024
+  },
+  "alignment": {
+    "type": "eye-center global scale and translation",
+    "target_eye_center": [
+      383.9381,
+      410.4543
+    ],
+    "target_eye_span": 121.43113,
+    "target_eye_angle_degrees": -3.28719,
+    "rotation_alignment_enabled": false,
+    "nonrigid_face_warp": false,
+    "photometric_normalization": false,
+    "child_torso_stabilization": {
+      "enabled": true,
+      "endpoint_ages": [
+        8,
+        17
+      ],
+      "scope": "monotonic same-image remap below y=620/1024",
+      "face_pixels_changed": false
+    }
+  },
+  "rows": [
+    {
+      "index": 1,
+      "age": 8,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age08_selected.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/01_age08.png",
+      "output_name": "01_age08.png",
+      "detection_score_before": 0.937616,
+      "detection_score_after": 0.935481,
+      "source_landmarks": [
+        [
+          308.45047,
+          429.93118
+        ],
+        [
+          428.77277,
+          422.05042
+        ],
+        [
+          371.93579,
+          495.7572
+        ],
+        [
+          326.47589,
+          558.70544
+        ],
+        [
+          425.57428,
+          551.53296
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          319.5621,
+          415.0062
+        ],
+        [
+          452.31329,
+          409.207
+        ],
+        [
+          388.59909,
+          487.84271
+        ],
+        [
+          335.81375,
+          551.48395
+        ],
+        [
+          448.54633,
+          547.67554
+        ]
+      ],
+      "source_eye": [
+        368.61162,
+        425.9908,
+        120.5801,
+        -3.74736,
+        239.44449,
+        297.48016,
+        266.40906,
+        353.04306
+      ],
+      "aligned_eye": [
+        385.9377,
+        412.1066,
+        132.8778,
+        -2.50136,
+        252.14534,
+        271.97134,
+        268.21152,
+        378.2522
+      ],
+      "transform": [
+        [
+          1.00706,
+          0.0,
+          12.72491
+        ],
+        [
+          -0.0,
+          1.00706,
+          -18.54304
+        ]
+      ],
+      "scale": 1.007058,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": {
+        "collar_x": 395.0818512076259,
+        "collar_apex": 745.2499016139681,
+        "shoulder_left": 747.0,
+        "shoulder_right": 740.0,
+        "shoulder_mean": 743.5,
+        "shoulder_delta": 7.0,
+        "collar_nose_offset": 6.482760631454028
+      },
+      "torso_metrics_target": {
+        "collar_apex": 745.2499016139681,
+        "shoulder_mean": 743.5,
+        "shoulder_delta": 7.0,
+        "collar_nose_offset": 6.482760631454028
+      },
+      "torso_metrics_after": {
+        "collar_x": 395.0818512076259,
+        "collar_apex": 745.2499016139681,
+        "shoulder_left": 747.0,
+        "shoulder_right": 740.0,
+        "shoulder_mean": 743.5,
+        "shoulder_delta": 7.0,
+        "collar_nose_offset": 6.482760631454028
+      },
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 2,
+      "age": 9,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age09_route_c.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/02_age09.png",
+      "output_name": "02_age09.png",
+      "detection_score_before": 0.937354,
+      "detection_score_after": 0.937146,
+      "source_landmarks": [
+        [
+          320.75522,
+          437.47214
+        ],
+        [
+          444.31351,
+          427.09976
+        ],
+        [
+          391.0188,
+          505.17847
+        ],
+        [
+          344.46448,
+          571.17737
+        ],
+        [
+          444.32019,
+          562.29236
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          328.36005,
+          409.5741
+        ],
+        [
+          447.0206,
+          410.25626
+        ],
+        [
+          384.60245,
+          484.83603
+        ],
+        [
+          337.81073,
+          545.32941
+        ],
+        [
+          431.21881,
+          544.93707
+        ]
+      ],
+      "source_eye": [
+        382.53436,
+        432.28595,
+        123.99289,
+        -4.79857,
+        250.92915,
+        297.63507,
+        260.51004,
+        367.3959
+      ],
+      "aligned_eye": [
+        387.69032,
+        409.91518,
+        118.66251,
+        0.32938,
+        257.98871,
+        277.46588,
+        262.25137,
+        357.59335
+      ],
+      "transform": [
+        [
+          0.97934,
+          0.0,
+          9.30711
+        ],
+        [
+          -0.0,
+          0.97934,
+          -12.90039
+        ]
+      ],
+      "scale": 0.979339,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": true,
+      "torso_metrics_before": {
+        "collar_x": 392.86495172979306,
+        "collar_apex": 740.2041743272354,
+        "shoulder_left": 745.0,
+        "shoulder_right": 744.0,
+        "shoulder_mean": 744.5,
+        "shoulder_delta": 1.0,
+        "collar_nose_offset": 8.251975655574313
+      },
+      "torso_metrics_target": {
+        "collar_apex": 749.0280652037476,
+        "shoulder_mean": 744.5555555555555,
+        "shoulder_delta": 7.333333333333333,
+        "collar_nose_offset": 6.145483198352268
+      },
+      "torso_metrics_after": {
+        "collar_x": 391.06656099600525,
+        "collar_apex": 748.4764305140591,
+        "shoulder_left": 748.0,
+        "shoulder_right": 742.0,
+        "shoulder_mean": 745.0,
+        "shoulder_delta": 6.0,
+        "collar_nose_offset": 6.464113486239626
+      },
+      "torso_remap_passes": [
+        {
+          "dx_body": -2.10649,
+          "dy_body": 0.05556,
+          "collar_residual": 8.76834,
+          "shoulder_delta_change": 6.33333,
+          "unchanged_through_y": 620
+        },
+        {
+          "dx_body": 0.7258,
+          "dy_body": -1.16667,
+          "collar_residual": 0.66905,
+          "shoulder_delta_change": -1.0,
+          "unchanged_through_y": 620
+        },
+        {
+          "dx_body": 0.20622,
+          "dy_body": -0.86667,
+          "collar_residual": 0.85136,
+          "shoulder_delta_change": -1.6,
+          "unchanged_through_y": 620
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "index": 3,
+      "age": 10,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age10_route_c.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/03_age10.png",
+      "output_name": "03_age10.png",
+      "detection_score_before": 0.937422,
+      "detection_score_after": 0.935904,
+      "source_landmarks": [
+        [
+          319.37534,
+          437.84064
+        ],
+        [
+          445.41153,
+          430.49689
+        ],
+        [
+          388.84143,
+          509.38379
+        ],
+        [
+          339.52594,
+          578.13995
+        ],
+        [
+          441.43671,
+          571.94617
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          329.36575,
+          407.04492
+        ],
+        [
+          446.68085,
+          409.36517
+        ],
+        [
+          383.95468,
+          482.46829
+        ],
+        [
+          337.64459,
+          544.48523
+        ],
+        [
+          428.71552,
+          545.46478
+        ]
+      ],
+      "source_eye": [
+        382.39343,
+        434.16876,
+        126.24996,
+        -3.33468,
+        248.44359,
+        295.84106,
+        264.40738,
+        383.30502
+      ],
+      "aligned_eye": [
+        388.0233,
+        408.20505,
+        117.33804,
+        1.13305,
+        258.35794,
+        277.40125,
+        261.11133,
+        357.05417
+      ],
+      "transform": [
+        [
+          0.96183,
+          0.0,
+          16.14024
+        ],
+        [
+          -0.0,
+          0.96183,
+          -7.14268
+        ]
+      ],
+      "scale": 0.961831,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": true,
+      "torso_metrics_before": {
+        "collar_x": 392.661350278797,
+        "collar_apex": 738.9526586115512,
+        "shoulder_left": 747.0,
+        "shoulder_right": 749.0,
+        "shoulder_mean": 748.0,
+        "shoulder_delta": -2.0,
+        "collar_nose_offset": 8.674961118640738
+      },
+      "torso_metrics_target": {
+        "collar_apex": 752.8062287935271,
+        "shoulder_mean": 745.6111111111111,
+        "shoulder_delta": 7.666666666666667,
+        "collar_nose_offset": 5.808205765250509
+      },
+      "torso_metrics_after": {
+        "collar_x": 389.5988484938796,
+        "collar_apex": 751.9824842700533,
+        "shoulder_left": 751.0,
+        "shoulder_right": 743.0,
+        "shoulder_mean": 747.0,
+        "shoulder_delta": 8.0,
+        "collar_nose_offset": 5.644167097395211
+      },
+      "torso_remap_passes": [
+        {
+          "dx_body": -2.86676,
+          "dy_body": -2.38889,
+          "collar_residual": 16.24246,
+          "shoulder_delta_change": 9.66667,
+          "unchanged_through_y": 620
+        },
+        {
+          "dx_body": 1.04881,
+          "dy_body": -2.63333,
+          "collar_residual": 1.58789,
+          "shoulder_delta_change": -2.6,
+          "unchanged_through_y": 620
+        },
+        {
+          "dx_body": 0.14226,
+          "dy_body": -1.13333,
+          "collar_residual": 1.2928,
+          "shoulder_delta_change": 0.4,
+          "unchanged_through_y": 620
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "index": 4,
+      "age": 11,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age11_route_c.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/04_age11.png",
+      "output_name": "04_age11.png",
+      "detection_score_before": 0.933314,
+      "detection_score_after": 0.935588,
+      "source_landmarks": [
+        [
+          320.87683,
+          439.03149
+        ],
+        [
+          448.27643,
+          432.0578
+        ],
+        [
+          391.09921,
+          512.41046
+        ],
+        [
+          342.3967,
+          582.58899
+        ],
+        [
+          444.36383,
+          576.39056
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          330.12115,
+          408.84384
+        ],
+        [
+          444.17026,
+          411.23697
+        ],
+        [
+          383.67819,
+          482.2673
+        ],
+        [
+          338.4465,
+          544.36664
+        ],
+        [
+          426.7056,
+          545.57043
+        ]
+      ],
+      "source_eye": [
+        384.57663,
+        435.54465,
+        127.59032,
+        -3.13317,
+        250.27695,
+        293.04068,
+        261.52734,
+        388.64136
+      ],
+      "aligned_eye": [
+        387.14571,
+        410.04041,
+        114.07421,
+        1.20208,
+        260.40439,
+        278.3735,
+        253.36322,
+        354.93878
+      ],
+      "transform": [
+        [
+          0.95173,
+          0.0,
+          17.92621
+        ],
+        [
+          -0.0,
+          0.95173,
+          -4.06522
+        ]
+      ],
+      "scale": 0.951727,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": true,
+      "torso_metrics_before": {
+        "collar_x": 392.18798448496034,
+        "collar_apex": 736.3251574441452,
+        "shoulder_left": 751.0,
+        "shoulder_right": 758.0,
+        "shoulder_mean": 754.5,
+        "shoulder_delta": -7.0,
+        "collar_nose_offset": 8.534267443944714
+      },
+      "torso_metrics_target": {
+        "collar_apex": 756.5843923833067,
+        "shoulder_mean": 746.6666666666666,
+        "shoulder_delta": 8.0,
+        "collar_nose_offset": 5.47092833214875
+      },
+      "torso_metrics_after": {
+        "collar_x": 388.9064994790361,
+        "collar_apex": 755.1414902750287,
+        "shoulder_left": 753.0,
+        "shoulder_right": 744.0,
+        "shoulder_mean": 748.5,
+        "shoulder_delta": 9.0,
+        "collar_nose_offset": 5.228307340364211
+      },
+      "torso_remap_passes": [
+        {
+          "dx_body": -3.06334,
+          "dy_body": -7.83333,
+          "collar_residual": 28.0,
+          "shoulder_delta_change": 15.0,
+          "unchanged_through_y": 620
+        },
+        {
+          "dx_body": 1.52978,
+          "dy_body": -3.8,
+          "collar_residual": 2.45085,
+          "shoulder_delta_change": -2.4,
+          "unchanged_through_y": 620
+        },
+        {
+          "dx_body": 0.25284,
+          "dy_body": -2.0,
+          "collar_residual": 2.14951,
+          "shoulder_delta_change": 0.0,
+          "unchanged_through_y": 620
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "index": 5,
+      "age": 12,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age12_corrected_v2.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/05_age12.png",
+      "output_name": "05_age12.png",
+      "detection_score_before": 0.933391,
+      "detection_score_after": 0.93578,
+      "source_landmarks": [
+        [
+          321.49637,
+          438.13016
+        ],
+        [
+          447.13306,
+          432.91418
+        ],
+        [
+          390.62247,
+          511.03696
+        ],
+        [
+          341.13458,
+          578.91486
+        ],
+        [
+          441.21716,
+          574.41174
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          329.37009,
+          407.7384
+        ],
+        [
+          445.05823,
+          410.25775
+        ],
+        [
+          383.35995,
+          482.04013
+        ],
+        [
+          337.53879,
+          544.67554
+        ],
+        [
+          426.53589,
+          546.00739
+        ]
+      ],
+      "source_eye": [
+        384.31471,
+        435.52217,
+        125.74492,
+        -2.37734,
+        250.202,
+        296.58502,
+        261.16064,
+        378.09207
+      ],
+      "aligned_eye": [
+        387.21416,
+        408.99808,
+        115.71557,
+        1.24754,
+        259.27426,
+        276.81018,
+        255.68733,
+        357.80246
+      ],
+      "transform": [
+        [
+          0.96569,
+          0.0,
+          12.80763
+        ],
+        [
+          -0.0,
+          0.96569,
+          -10.12691
+        ]
+      ],
+      "scale": 0.965694,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": true,
+      "torso_metrics_before": {
+        "collar_x": 392.1629351560878,
+        "collar_apex": 742.737897059706,
+        "shoulder_left": 753.0,
+        "shoulder_right": 760.0,
+        "shoulder_mean": 756.5,
+        "shoulder_delta": -7.0,
+        "collar_nose_offset": 8.856752294759701
+      },
+      "torso_metrics_target": {
+        "collar_apex": 760.3625559730863,
+        "shoulder_mean": 747.7222222222222,
+        "shoulder_delta": 8.333333333333334,
+        "collar_nose_offset": 5.13365089904699
+      },
+      "torso_metrics_after": {
+        "collar_x": 388.5063317069002,
+        "collar_apex": 758.9360861760266,
+        "shoulder_left": 753.0,
+        "shoulder_right": 746.0,
+        "shoulder_mean": 749.5,
+        "shoulder_delta": 7.0,
+        "collar_nose_offset": 5.146376872915823
+      },
+      "torso_remap_passes": [
+        {
+          "dx_body": -3.7231,
+          "dy_body": -8.77778,
+          "collar_residual": 26.40244,
+          "shoulder_delta_change": 15.33333,
+          "unchanged_through_y": 620
+        },
+        {
+          "dx_body": 1.57983,
+          "dy_body": -4.06667,
+          "collar_residual": 2.50109,
+          "shoulder_delta_change": -2.8,
+          "unchanged_through_y": 620
+        },
+        {
+          "dx_body": 0.30023,
+          "dy_body": -1.96667,
+          "collar_residual": 2.13617,
+          "shoulder_delta_change": -1.0,
+          "unchanged_through_y": 620
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "index": 6,
+      "age": 15,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age15_selected.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/06_age15.png",
+      "output_name": "06_age15.png",
+      "detection_score_before": 0.935655,
+      "detection_score_after": 0.938773,
+      "source_landmarks": [
+        [
+          327.06305,
+          398.09198
+        ],
+        [
+          449.14978,
+          391.18143
+        ],
+        [
+          390.81036,
+          466.04108
+        ],
+        [
+          346.7579,
+          526.99432
+        ],
+        [
+          447.17029,
+          520.58472
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          332.38373,
+          410.59564
+        ],
+        [
+          448.63934,
+          413.08194
+        ],
+        [
+          386.16705,
+          484.07443
+        ],
+        [
+          340.49435,
+          544.14136
+        ],
+        [
+          431.74487,
+          545.61328
+        ]
+      ],
+      "source_eye": [
+        388.10641,
+        394.6367,
+        122.28216,
+        -3.23969,
+        264.0589,
+        260.97064,
+        255.8324,
+        357.54791
+      ],
+      "aligned_eye": [
+        390.51154,
+        411.83879,
+        116.2822,
+        1.22517,
+        263.52966,
+        284.13342,
+        255.77165,
+        350.46323
+      ],
+      "transform": [
+        [
+          0.99304,
+          0.0,
+          -1.46728
+        ],
+        [
+          -0.0,
+          0.99304,
+          18.56408
+        ]
+      ],
+      "scale": 0.99304,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": true,
+      "torso_metrics_before": {
+        "collar_x": 388.90891688932845,
+        "collar_apex": 758.7324140413272,
+        "shoulder_left": 745.0,
+        "shoulder_right": 738.0,
+        "shoulder_mean": 741.5,
+        "shoulder_delta": 7.0,
+        "collar_nose_offset": 2.9010738717503273
+      },
+      "torso_metrics_target": {
+        "collar_apex": 771.697046742425,
+        "shoulder_mean": 750.8888888888889,
+        "shoulder_delta": 9.333333333333334,
+        "collar_nose_offset": 4.121818599741712
+      },
+      "torso_metrics_after": {
+        "collar_x": 389.5976619357334,
+        "collar_apex": 771.5029626730737,
+        "shoulder_left": 757.0,
+        "shoulder_right": 747.0,
+        "shoulder_mean": 752.0,
+        "shoulder_delta": 10.0,
+        "collar_nose_offset": 3.430608713077163
+      },
+      "torso_remap_passes": [
+        {
+          "dx_body": 1.22074,
+          "dy_body": 9.38889,
+          "collar_residual": 3.57574,
+          "shoulder_delta_change": 2.33333,
+          "unchanged_through_y": 620
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "index": 7,
+      "age": 17,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age17_selected.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/07_age17.png",
+      "output_name": "07_age17.png",
+      "detection_score_before": 0.936942,
+      "detection_score_after": 0.93591,
+      "source_landmarks": [
+        [
+          328.37155,
+          394.26035
+        ],
+        [
+          444.65732,
+          395.57526
+        ],
+        [
+          388.08896,
+          464.67569
+        ],
+        [
+          338.15106,
+          523.5174
+        ],
+        [
+          430.38882,
+          523.82703
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          326.76044,
+          399.85043
+        ],
+        [
+          447.93588,
+          408.1814
+        ],
+        [
+          378.07172,
+          486.41104
+        ],
+        [
+          324.99338,
+          545.42126
+        ],
+        [
+          424.11203,
+          553.08264
+        ]
+      ],
+      "source_eye": [
+        386.51443,
+        394.9178,
+        116.2932,
+        0.64785,
+        253.55022,
+        260.51578,
+        264.35696,
+        355.73016
+      ],
+      "aligned_eye": [
+        387.34816,
+        404.01591,
+        121.46149,
+        3.93297,
+        249.2701,
+        277.0379,
+        275.02402,
+        374.03024
+      ],
+      "transform": [
+        [
+          1.04418,
+          0.0,
+          -19.65286
+        ],
+        [
+          -0.0,
+          1.04418,
+          -1.91129
+        ]
+      ],
+      "scale": 1.044181,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": {
+        "collar_x": 381.51898004213194,
+        "collar_apex": 779.253373921984,
+        "shoulder_left": 758.0,
+        "shoulder_right": 748.0,
+        "shoulder_mean": 753.0,
+        "shoulder_delta": 10.0,
+        "collar_nose_offset": 3.4472637335381933
+      },
+      "torso_metrics_target": {
+        "collar_apex": 779.253373921984,
+        "shoulder_mean": 753.0,
+        "shoulder_delta": 10.0,
+        "collar_nose_offset": 3.4472637335381933
+      },
+      "torso_metrics_after": {
+        "collar_x": 381.51898004213194,
+        "collar_apex": 779.253373921984,
+        "shoulder_left": 758.0,
+        "shoulder_right": 748.0,
+        "shoulder_mean": 753.0,
+        "shoulder_delta": 10.0,
+        "collar_nose_offset": 3.4472637335381933
+      },
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 8,
+      "age": 20,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age20_selected.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/08_age20.png",
+      "output_name": "08_age20.png",
+      "detection_score_before": 0.939091,
+      "detection_score_after": 0.939939,
+      "source_landmarks": [
+        [
+          322.88568,
+          331.28232
+        ],
+        [
+          440.61746,
+          323.36591
+        ],
+        [
+          386.14484,
+          397.15057
+        ],
+        [
+          343.16055,
+          459.40775
+        ],
+        [
+          438.83032,
+          452.21255
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          324.72345,
+          412.48907
+        ],
+        [
+          449.23767,
+          410.85617
+        ],
+        [
+          388.8259,
+          484.34412
+        ],
+        [
+          335.81293,
+          548.38879
+        ],
+        [
+          442.26273,
+          547.05408
+        ]
+      ],
+      "source_eye": [
+        381.75157,
+        327.32411,
+        117.99763,
+        -3.84684,
+        257.28821,
+        195.11423,
+        254.12865,
+        354.37701
+      ],
+      "aligned_eye": [
+        386.98056,
+        411.67262,
+        124.52493,
+        -0.75135,
+        254.733,
+        272.5954,
+        256.70392,
+        374.94943
+      ],
+      "transform": [
+        [
+          1.0291,
+          0.0,
+          -8.92168
+        ],
+        [
+          -0.0,
+          1.0291,
+          73.60571
+        ]
+      ],
+      "scale": 1.029098,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": {
+        "collar_x": 390.6670499980404,
+        "collar_apex": 758.1279918029583,
+        "shoulder_left": 746.0,
+        "shoulder_right": 743.0,
+        "shoulder_mean": 744.5,
+        "shoulder_delta": 3.0,
+        "collar_nose_offset": 1.8411527812435224
+      },
+      "torso_metrics_target": null,
+      "torso_metrics_after": {
+        "collar_x": 390.6670499980404,
+        "collar_apex": 758.1279918029583,
+        "shoulder_left": 746.0,
+        "shoulder_right": 743.0,
+        "shoulder_mean": 744.5,
+        "shoulder_delta": 3.0,
+        "collar_nose_offset": 1.8411527812435224
+      },
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 9,
+      "age": 24,
+      "source_path": "data/personas/persona_godaewoong/age_candidates/age24_selected.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/09_age24.png",
+      "output_name": "09_age24.png",
+      "detection_score_before": 0.939275,
+      "detection_score_after": 0.9386,
+      "source_landmarks": [
+        [
+          325.3378,
+          325.23395
+        ],
+        [
+          441.78519,
+          321.71591
+        ],
+        [
+          388.09628,
+          395.21667
+        ],
+        [
+          340.4913,
+          458.49118
+        ],
+        [
+          433.12909,
+          455.59863
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          324.47659,
+          414.0625
+        ],
+        [
+          444.08502,
+          413.49429
+        ],
+        [
+          387.19485,
+          487.81958
+        ],
+        [
+          335.90085,
+          550.18329
+        ],
+        [
+          431.6777,
+          550.16016
+        ]
+      ],
+      "source_eye": [
+        383.56149,
+        323.47493,
+        116.50052,
+        -1.73046,
+        252.78163,
+        189.62839,
+        257.06668,
+        362.86938
+      ],
+      "aligned_eye": [
+        384.28081,
+        413.7784,
+        119.60978,
+        -0.27218,
+        248.547,
+        277.21762,
+        261.83154,
+        371.26465
+      ],
+      "transform": [
+        [
+          1.04232,
+          0.0,
+          -15.85673
+        ],
+        [
+          -0.0,
+          1.04232,
+          73.28905
+        ]
+      ],
+      "scale": 1.042323,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": {
+        "collar_x": 384.48014012933186,
+        "collar_apex": 760.8257046196503,
+        "shoulder_left": 749.0,
+        "shoulder_right": 748.0,
+        "shoulder_mean": 748.5,
+        "shoulder_delta": 1.0,
+        "collar_nose_offset": -2.7147146069962673
+      },
+      "torso_metrics_target": null,
+      "torso_metrics_after": {
+        "collar_x": 384.48014012933186,
+        "collar_apex": 760.8257046196503,
+        "shoulder_left": 749.0,
+        "shoulder_right": 748.0,
+        "shoulder_mean": 748.5,
+        "shoulder_delta": 1.0,
+        "collar_nose_offset": -2.7147146069962673
+      },
+      "torso_remap_passes": [],
+      "warnings": []
+    },
+    {
+      "index": 10,
+      "age": 28,
+      "source_path": "data/personas/persona_godaewoong/source/age28_corrected_v2.png",
+      "output_path": "data/personas/persona_godaewoong/aligned/age_path_final/10_age28.png",
+      "output_name": "10_age28.png",
+      "detection_score_before": 0.933014,
+      "detection_score_after": 0.937531,
+      "source_landmarks": [
+        [
+          330.92764,
+          331.67596
+        ],
+        [
+          445.57855,
+          324.25763
+        ],
+        [
+          392.88474,
+          396.948
+        ],
+        [
+          350.36685,
+          456.12552
+        ],
+        [
+          442.13977,
+          449.39795
+        ]
+      ],
+      "aligned_landmarks": [
+        [
+          328.0293,
+          411.64188
+        ],
+        [
+          449.85712,
+          411.25882
+        ],
+        [
+          391.95709,
+          484.02948
+        ],
+        [
+          336.58029,
+          546.3728
+        ],
+        [
+          440.15466,
+          546.51746
+        ]
+      ],
+      "source_eye": [
+        388.2531,
+        327.9668,
+        114.89066,
+        -3.70209,
+        264.62827,
+        202.66994,
+        248.10094,
+        338.36002
+      ],
+      "aligned_eye": [
+        388.94321,
+        411.45035,
+        121.82842,
+        -0.18015,
+        251.61293,
+        274.85065,
+        260.27249,
+        370.17795
+      ],
+      "transform": [
+        [
+          1.05693,
+          0.0,
+          -26.4174
+        ],
+        [
+          -0.0,
+          1.05693,
+          63.81707
+        ]
+      ],
+      "scale": 1.056928,
+      "rotation_degrees": 0.0,
+      "torso_stabilized": false,
+      "torso_metrics_before": {
+        "collar_x": 391.2791837756408,
+        "collar_apex": 762.4579225136508,
+        "shoulder_left": 747.0,
+        "shoulder_right": 748.0,
+        "shoulder_mean": 747.5,
+        "shoulder_delta": -1.0,
+        "collar_nose_offset": -0.6779085095154755
+      },
+      "torso_metrics_target": null,
+      "torso_metrics_after": {
+        "collar_x": 391.2791837756408,
+        "collar_apex": 762.4579225136508,
+        "shoulder_left": 747.0,
+        "shoulder_right": 748.0,
+        "shoulder_mean": 747.5,
+        "shoulder_delta": -1.0,
+        "collar_nose_offset": -0.6779085095154755
+      },
+      "torso_remap_passes": [],
+      "warnings": []
+    }
+  ]
+}

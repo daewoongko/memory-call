@@ -11,6 +11,10 @@ const summary = readFileSync(new URL("../src/screens/SummaryScreen.jsx", import.
 const familyDashboard = readFileSync(new URL("../src/screens/DasoniHomeTab.jsx", import.meta.url), "utf8");
 const child = readFileSync(new URL("../src/screens/ChildScreen.jsx", import.meta.url), "utf8");
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+const call = readFileSync(new URL("../src/screens/CallScreen.jsx", import.meta.url), "utf8");
+const humanCall = readFileSync(new URL("../src/screens/HumanCallScreen.jsx", import.meta.url), "utf8");
+const callControls = readFileSync(new URL("../src/components/CallControls.jsx", import.meta.url), "utf8");
+const calling = readFileSync(new URL("../src/screens/CallingScreen.jsx", import.meta.url), "utf8");
 
 test("새 다소니 캐릭터를 모든 화면의 공통 브랜드 자산으로 사용한다", () => {
   assert.ok(existsSync(new URL("../public/brand/dasoni-mascot.png", import.meta.url)));
@@ -49,10 +53,33 @@ test("어르신 홈은 큰 가족 사진과 간결한 선택 안내를 사용한
   assert.doesNotMatch(elderHome, /media-ready-note|media-readiness-panel/);
   assert.match(elderHome, /className="family-face"/);
   assert.match(elderHome, /마이크 연결이 안 됐어요/);
+  assert.match(elderHome, /className="elder-topbar-actions"[\s\S]*?className="elder-topbar-clock"[\s\S]*?className="elder-view-button"/);
+  assert.doesNotMatch(elderHome, /<p>\{dateLabel\} · \{timeLabel\}<\/p>/);
+  assert.match(theme, /\.elder-topbar-clock \{[\s\S]*?white-space: nowrap/);
   assert.match(theme, /family-face \{ width: 112px; height: 112px;/);
   assert.match(theme, /family-face \{ width: 108px; height: 108px;/);
   assert.match(theme, /family-face \{ width: 96px; height: 96px;/);
   assert.match(theme, /family-grid[^}]+overflow: hidden/);
+});
+
+test("모핑 연결 안내는 화면 안쪽 하단 카드로 고정된다", () => {
+  assert.match(theme, /\.call-stack \.calling-morph-status \{[\s\S]*?inset: auto 16px calc\(18px \+ env\(safe-area-inset-bottom\)\);[\s\S]*?width: auto;[\s\S]*?transform: none;/);
+  assert.match(theme, /\.call-stack \.calling-morph-status \.who \{[\s\S]*?overflow-wrap: anywhere/);
+});
+
+test("어르신 통화 화면은 상태별 안내와 글자가 있는 원형 조작을 사용한다", () => {
+  assert.doesNotMatch(calling, /다른 가족 선택/);
+  assert.match(call, /잘 듣지 못했어요\. 다시 말씀해 주세요/);
+  assert.match(call, /말하고 있어요/);
+  assert.match(call, /생각하고 있어요/);
+  assert.match(call, /듣고 있어요/);
+  assert.match(call, /label=\{muted \? "마이크 꺼짐" : "마이크"\}/);
+  assert.match(call, /label="글자로 말하기"/);
+  assert.match(call, /label="통화 종료"/);
+  assert.match(callControls, /통화를 끝낼까요\?/);
+  assert.match(humanCall, /setConfirmingEnd\(true\)/);
+  assert.match(theme, /\.call-controls \.call-control,[\s\S]*?border-radius: 50%/);
+  assert.match(theme, /\.call-voice-wave/);
 });
 
 test("일반 실행은 스플래시 뒤 역할 선택과 실제 연동 흐름으로 이어진다", () => {
@@ -64,7 +91,7 @@ test("일반 실행은 스플래시 뒤 역할 선택과 실제 연동 흐름으
 test("가족 메인 홈은 이동 카드 없이 오늘의 핵심 정보만 요약한다", () => {
   assert.match(familyDashboard, /오늘의 핵심 수치/);
   assert.match(familyDashboard, /직접 확인/);
-  assert.match(familyDashboard, /표시 예시/);
+  assert.doesNotMatch(familyDashboard, /표시 예시/);
   assert.match(familyDashboard, /약 복용 확인/);
   assert.doesNotMatch(familyDashboard, /오늘의 기록|최근 통화/);
   assert.doesNotMatch(familyDashboard, /<button/);
@@ -83,10 +110,18 @@ test("role typography stays consistent throughout each screen tree", () => {
   assert.match(app, /font-role-\$\{fontRole\}/);
   assert.match(app, /shell === "family" \|\| shell === "journey-child" \? "family" : "readable"/);
   assert.match(app, /shell: role === "child" \? "family" : role === "care" \? "care" : "elder"/);
-  assert.match(theme, /--font-readable: "Gowun Dodum"/);
-  assert.match(theme, /--font-family: "Gaegu"/);
+  assert.match(theme, /--font-readable: "Pretendard Variable", Pretendard, "Noto Sans KR", "Malgun Gothic", sans-serif/);
+  assert.match(theme, /--font-family: "Dasoni Forest Letter", "Gaegu", "Gowun Dodum", "Malgun Gothic", sans-serif/);
+  assert.match(theme, /@font-face[\s\S]*?font-family: "Dasoni Forest Letter"[\s\S]*?local\("숲을지나서"\)/);
   assert.match(theme, /\.font-role-readable,\s*\.font-role-readable \*\s*\{\s*font-family: var\(--font-readable\) !important;/);
   assert.match(theme, /\.font-role-family,\s*\.font-role-family \*\s*\{\s*font-family: var\(--font-family\) !important;/);
+});
+
+test("family settings removes the redundant outer box and expands the primary controls", () => {
+  assert.match(theme, /\.app-device-family \.child-family-settings \{ padding: 2px 6px 28px; border: 0; border-radius: 0; background: transparent; \}/);
+  assert.match(theme, /\.app-device-family \.family-legacy-picker \{ padding: 0; border: 0; background: transparent; \}/);
+  assert.match(theme, /\.app-device-family \.family-profile-photo \{ width: 88px; height: 88px;/);
+  assert.match(theme, /\.app-device-family \.family-voice-settings,[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
 });
 
 test("the phone-sized login shell always uses a single-column layout", () => {

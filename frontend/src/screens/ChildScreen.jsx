@@ -9,6 +9,7 @@ import CallTranscriptModal from "./CallTranscriptModal.jsx";
 import DasoniHomeTab from "./DasoniHomeTab.jsx";
 import { useCallMediaReadiness } from "../useCallMediaReadiness.js";
 import { useScreenWakeLock } from "../useScreenWakeLock.js";
+import AppDatePicker from "../components/AppDatePicker.jsx";
 
 function TabGlyph({ children }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
@@ -62,6 +63,41 @@ const CALL_TYPES = {
   ai_to_direct: { label: "AI 통화 후 가족이 이어받음", filterLabel: "이어받음", mark: "연결" },
 };
 
+const DEMO_DIARIES = [
+  {
+    date: "2026-07-12",
+    image: "/diary/country-market-memory.png",
+    title: "아버지와 걷던 장날",
+    writing: "여름 장터에서 아버지와 복숭아를 골랐다. 집으로 돌아오는 길에 나란히 걷던 시간이 참 든든했다.",
+    insight: "아버지는 가족과 함께 장터를 걷던 평범한 시간이 오래도록 따뜻하게 남아 있는 것 같아.",
+    weather: "포근함",
+  },
+  {
+    date: "2026-08-08",
+    image: "/diary/persimmon-yard-memory.png",
+    title: "감나무 아래의 오후",
+    writing: "마당 감나무 아래에서 어린 정훈이에게 잘 익은 감을 건넸다. 아이가 웃는 모습을 보며 함께 웃었다.",
+    insight: "아버지는 어린 정훈이에게 감을 건네주던 순간을 떠올릴 때 마음이 한결 편안해지는 것 같아.",
+    weather: "따뜻함",
+  },
+  {
+    date: "2026-08-24",
+    image: "/diary/haeundae-family-drawing.png",
+    title: "고향 집 앞 냇가",
+    writing: "젊은 시절 살던 고향 집 앞에 냇가가 있었고, 가족과 그 시절 이야기를 나누었습니다.",
+    insight: "할아버지의 가장 따뜻한 기억엔\n언제나 대웅이가 함께 있어.",
+    weather: "맑음",
+  },
+  {
+    date: "2026-09-05",
+    image: "/diary/autumn-riverside-picnic.png",
+    title: "가을 강가의 소풍",
+    writing: "가을 강가에서 딸과 손주들과 김밥을 나누어 먹었다. 물소리를 들으며 오래 이야기를 나누었다.",
+    insight: "할아버지는 온 가족이 둘러앉아 음식을 나누던 가을 소풍을 무척 소중하게 기억하시는 것 같아.",
+    weather: "다정함",
+  },
+];
+
 export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", onMyPersonaChange, onDisplaySettings }) {
   const [picked, setPicked] = useState(null);
   const [selectedDate, setSelectedDate] = useState(() => localDateKey());
@@ -104,7 +140,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       api.getPeriodSummary(1, picked.elder_id, { start: selectedDate, end: selectedDate }),
       api.getMemories(picked.elder_id),
       api.getPersonas(picked.elder_id),
-      api.getReports(picked.elder_id, 120),
+      api.getReports(picked.elder_id, 120, selectedDate),
     ]).then(([nextSummary, memoryData, personaData, reportData]) => {
       if (!alive) return;
       setSummary(nextSummary);
@@ -117,6 +153,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   }, [picked, selectedDate]);
 
   const latest = (summary?.daily_reports || []).find((day) => day.date === selectedDate) || null;
+  const demoDiary = DEMO_DIARIES.find((entry) => entry.date === selectedDate) || null;
   const heart = latest?.heart_report;
   const verifiedMemories = useMemo(() => memories.filter((memory) => memory.status === "verified"), [memories]);
   const artwork = useMemo(() => verifiedMemories.find((memory) => memory.artwork?.status === "approved" && memoryImage(memory))
@@ -149,15 +186,15 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     || artwork?.title || "오늘의 마음";
   const diaryArtworkLabel = heart?.visual_story?.status_label
     || (heart?.memory_banner ? "확인된 가족 기억 기반" : diaryImage ? "가족이 확인한 추억" : "");
-  const diaryDisplayImage = diaryImage || "/diary/haeundae-family-drawing.png";
-  const diaryDisplayAlt = diaryImage ? diaryImageAlt : "할아버지와 손자가 해변에서 모래성을 만드는 그림일기 삽화";
-  const diaryDisplayTitle = hasCalls ? diaryTitle : "할아버지와 만든 모래성";
+  const diaryDisplayImage = demoDiary?.image || diaryImage || "/diary/haeundae-family-drawing.png";
+  const diaryDisplayAlt = demoDiary ? `${demoDiary.title} 기억을 그린 그림일기 삽화` : diaryImage ? diaryImageAlt : "할아버지와 손자가 해변에서 모래성을 만드는 그림일기 삽화";
+  const diaryDisplayTitle = demoDiary?.title || (hasCalls ? diaryTitle : "할아버지와 만든 모래성");
   const diaryTitleFit = Math.min(1, 9 / Math.max(diaryDisplayTitle.replace(/\s/g, "").length, 1));
-  const diaryWritingText = (hasCalls
+  const diaryWritingText = (demoDiary?.writing || (hasCalls
     ? heartQuote
-    : "2012년 여름 할아버지와 해운대에 갔다. 둘이 모래성을 만들고 파도를 보며 함께 웃었다.")
+    : "2012년 여름 할아버지와 해운대에 갔다. 둘이 모래성을 만들고 파도를 보며 함께 웃었다."))
     .replace(/[“”"]/g, "").trim();
-  const familyInsight = heart?.day_translation?.family
+  const familyInsight = demoDiary?.insight || heart?.day_translation?.family
     || `${withTopicParticle(elderCallName)} 대웅이와 갔던 해운대 바다가 아직도 많이 생각나시는 것 같아.`;
   const quotedFamilyInsight = `“${familyInsight.replace(/[“”"]/g, "").trim()}”`;
   const urgent = (latest?.risks || []).filter((risk) => !risk.acknowledged);
@@ -283,7 +320,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
         <button type="button" className="child-view-settings" onClick={onDisplaySettings} aria-label="글자 크기와 화면 명암 설정">
           <span aria-hidden="true">Aa</span>
         </button>
-        <label className="child-date-picker"><span>날짜</span><input type="date" value={selectedDate} max={todayKey} onChange={(event) => setSelectedDate(event.target.value)} /></label>
+        <AppDatePicker className="child-date-picker" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
       </div>}
     </header>
 
@@ -316,7 +353,17 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
 
         {tab === "today" && <section className="child-today">
           <article className="child-day-diary">
-            <header className="child-diary-meta"><time dateTime={selectedDate}>{shortDate(selectedDate)}</time><span>오늘의 마음 날씨 · 맑음</span></header>
+            <header className="child-diary-meta">
+              <AppDatePicker
+                className="child-diary-date"
+                value={selectedDate}
+                displayValue={shortDate(selectedDate)}
+                showValue
+                ariaLabel="그림일기 날짜 선택"
+                onChange={(event) => setSelectedDate(event.target.value)}
+              />
+              <span>오늘의 마음 날씨 · {demoDiary?.weather || "맑음"}</span>
+            </header>
             <figure className="child-diary-art">
               <img src={diaryDisplayImage} alt={diaryDisplayAlt} />
               {diaryImage && diaryArtworkLabel && <figcaption>{diaryArtworkLabel}</figcaption>}

@@ -151,15 +151,16 @@ export function useSpeech({
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
 
-  // 브라우저가 지원하면 ElevenLabs 실시간 STT를 단일 경로로 사용한다.
-  // 기존 브라우저 STT는 실시간 스트리밍을 지원하지 않는 환경의 폴백이다.
+  // Galaxy Chrome처럼 브라우저 음성 인식이 있는 기기에서는 기기 경로를
+  // 우선 사용한다. ElevenLabs 실시간 STT는 Web Speech API가 없는 브라우저의
+  // 대체 경로로 남겨, 외부 WebSocket 장애가 통화 전체를 막지 않게 한다.
   const serverStt = useRealtimeTranscription({
     enabled: true,
     lang,
     silenceMs,
     onFinal: (text) => onFinalRef.current?.(text),
   });
-  const usesServerStt = serverStt.supported;
+  const usesServerStt = serverStt.supported && !Recognition;
   const supported = Boolean(Recognition) || usesServerStt;
 
   const clearSilence = () => {

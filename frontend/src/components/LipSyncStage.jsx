@@ -15,7 +15,42 @@ export default function LipSyncStage({
   const backdropRef = useRef(null);
 
   useEffect(() => {
-    if (!anamActive) setMediaReady(false);
+    const video = anamVideoRef?.current;
+    if (!video) return undefined;
+
+    if (!anamActive) {
+      const hasLiveVideoTrack = Boolean(
+        video.srcObject
+          ?.getVideoTracks?.()
+          .some((track) => track.readyState !== "ended")
+      );
+      if (!hasLiveVideoTrack) setMediaReady(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const syncMediaState = () => {
+      if (cancelled) return;
+      const hasLiveVideoTrack = Boolean(
+        video.srcObject
+          ?.getVideoTracks?.()
+          .some((track) => track.readyState !== "ended")
+      );
+      if (hasLiveVideoTrack || video.readyState >= 2) {
+        setMediaReady(true);
+        video.play?.().catch(() => {});
+      }
+    };
+
+    syncMediaState();
+    const timer = setInterval(syncMediaState, 120);
+    const stopTimer = setTimeout(() => clearInterval(timer), 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      clearTimeout(stopTimer);
+    };
   }, [anamActive]);
 
   useEffect(() => {
@@ -59,6 +94,7 @@ export default function LipSyncStage({
         className="face anam-media"
         autoPlay
         playsInline
+        onLoadedMetadata={markReady}
         onLoadedData={markReady}
         onCanPlay={markReady}
         onPlaying={markReady}

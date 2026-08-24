@@ -71,12 +71,14 @@ export default function FamilyScreen({ elderId = "elder_001", onPick, error, med
           <BrandMark size={42} />
           <span><b>다소니</b></span>
         </button>
-        <button type="button" className="elder-view-button" onClick={onOpenSettings} aria-label="글자 크기와 화면 명암 설정"><span>Aa</span></button>
+        <div className="elder-topbar-actions">
+          <time className="elder-topbar-clock" dateTime={now.toISOString()}>{dateLabel} · {timeLabel}</time>
+          <button type="button" className="elder-view-button" onClick={onOpenSettings} aria-label="글자 크기와 화면 명암 설정"><span>Aa</span></button>
+        </div>
       </header>
 
       <section className="reassurance-family">
         <header>
-          <p>{dateLabel} · {timeLabel}</p>
           <h1>누구와 이야기해 볼까요?</h1>
         </header>
         <div className="family-grid">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import SelfView from "../components/SelfView.jsx";
+import { CallControlButton, CallEndConfirm } from "../components/CallControls.jsx";
 import { useRemotePlayback } from "../useRemotePlayback.js";
 
 /**
@@ -23,6 +24,7 @@ export default function HumanCallScreen({
   name, face, answeredAt, localStream, remoteStream, onEnd,
 }) {
   const [seconds, setSeconds] = useState(0);
+  const [confirmingEnd, setConfirmingEnd] = useState(false);
   const {
     mediaRef: remoteRef, blocked, playing, rendered, play,
   } = useRemotePlayback(remoteStream);
@@ -62,8 +64,18 @@ export default function HumanCallScreen({
       <SelfView stream={localStream} />
 
       <div className="controls">
-        <button className="round danger" onClick={onEnd}>끊기</button>
+        <CallControlButton
+          type="end"
+          label="통화 종료"
+          className="danger"
+          onClick={() => setConfirmingEnd(true)}
+        />
       </div>
+      <CallEndConfirm
+        open={confirmingEnd}
+        onCancel={() => setConfirmingEnd(false)}
+        onConfirm={onEnd}
+      />
     </div>
   );
 }

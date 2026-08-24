@@ -161,8 +161,8 @@ function RecorderCard({ prompt, phase, disabled, saved, onSaved, maxSeconds = 90
 
   return <article className={`voice-recorder-card ${saved ? "is-saved" : ""}`}>
     <header>
-      <div><small>{phase === "ivc" ? "필수 녹음" : "선택 녹음"}</small><h3>{prompt.label}</h3></div>
-      <span>{saved ? "저장 완료" : recording ? formatDuration(elapsed) : "약 1분"}</span>
+      <div>{phase === "ivc" && <small>필수 녹음</small>}<h3>{prompt.label}</h3></div>
+      {(saved || recording) && <span>{saved ? "저장 완료" : formatDuration(elapsed)}</span>}
     </header>
     <p className="voice-script">{prompt.script}</p>
     <div className="voice-recorder-actions">
@@ -294,12 +294,12 @@ export default function VoiceProfilePanel({ elderId, personaId, persona }) {
 
     {approved && <div className="voice-pvc-area">
       <div className="voice-active-summary">
-        <div><small>현재 통화 목소리</small><h3>{persona?.display_name || "가족"}님의 승인된 목소리</h3><p>통화에는 지금 승인한 IVC 목소리가 계속 사용됩니다.</p></div>
+        <div><h3>{persona?.display_name || "가족"}님의 승인된 목소리</h3><p>통화에는 지금 승인한 IVC 목소리가 계속 사용됩니다.</p></div>
         <button type="button" onClick={preview} disabled={busy}>다시 듣기</button>
         {previewUrl && <audio controls autoPlay src={previewUrl} />}
       </div>
       <div className="voice-progress-card">
-        <header><div><small>선택 사항 · 전문 음성 준비</small><h3>좋은 녹음을 천천히 더 모을 수 있어요</h3></div><strong>{pvcMinutes}분 / 권장 60분</strong></header>
+        <header><div><h3>좋은 녹음을 천천히 더 모을 수 있어요</h3></div><strong>{pvcMinutes}분 / 권장 60분</strong></header>
         <div className="voice-progress"><i style={{ width: `${pvcPercent}%` }} /></div>
         <div className="voice-progress-marks"><span>현재</span><span className={profile.pvc_eligible ? "reached" : ""}>30분 · 신청 가능</span><span className={profile.pvc_recommended ? "reached" : ""}>60분 · 권장</span></div>
         <p>PVC는 녹음이 충분해도 자동으로 바뀌지 않습니다. 별도의 본인 인증과 최종 승인을 거친 뒤에만 전환합니다.</p>

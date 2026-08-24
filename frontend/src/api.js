@@ -437,8 +437,11 @@ export const addMedicationReview = (scheduleId, body, elderId = "elder_001") =>
 export const removeMedication = (scheduleId) =>
   request(`/api/medications/${scheduleId}`, { method: "DELETE" });
 
-export const getReports = (elderId = "elder_001", limit = 120) =>
-  request(`/api/elders/${elderId}/reports?limit=${limit}`);
+export const getReports = (elderId = "elder_001", limit = 120, onDate = "") => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (onDate) params.set("on", onDate);
+  return request(`/api/elders/${elderId}/reports?${params}`);
+};
 
 export const getReport = (callId) => request(`/api/calls/${callId}/report`);
 

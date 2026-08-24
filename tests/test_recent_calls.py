@@ -46,6 +46,38 @@ class RecentCallsTest(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0]["call_type"], "direct")
 
+    def test_recent_can_be_scoped_to_one_selected_day(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
+            database = Path(directory) / "recent-day.sqlite"
+            with patch.object(db, "DB_PATH", database):
+                with db.connect() as conn:
+                    db.init_schema(conn)
+                    db.insert(conn, "elder_profiles", {
+                        "elder_id": "elder_001",
+                        "name": "고길동",
+                    })
+                    for call_id, started_at in (
+                        ("call_july", "2026-07-07T09:00:00+09:00"),
+                        ("call_august", "2026-08-08T09:00:00+09:00"),
+                    ):
+                        db.insert(conn, "calls", {
+                            "call_id": call_id,
+                            "elder_id": "elder_001",
+                            "call_type": "ai",
+                            "started_at": started_at,
+                            "ended_at": started_at,
+                            "duration_sec": 30,
+                            "status": "ended",
+                        })
+                    conn.commit()
+
+                calls = report.recent(
+                    "elder_001", 120, on_date="2026-07-07"
+                )
+            gc.collect()
+
+        self.assertEqual([row["call_id"] for row in calls], ["call_july"])
+
 
 if __name__ == "__main__":
     unittest.main()

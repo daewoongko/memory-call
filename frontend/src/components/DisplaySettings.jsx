@@ -30,8 +30,6 @@ export default function DisplaySettings({ theme, size, onTheme, onSize, onClose,
             </button>
           ))}
         </div>
-        <p className="display-hint">기기의 실제 밝기는 Windows 또는 휴대폰의 밝기 설정에서 조절해 주세요.</p>
-
         {onRole && <button className="sheet-role-switch" onClick={onRole}>
           역할 선택으로 돌아가기
         </button>}

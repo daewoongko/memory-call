@@ -13,7 +13,6 @@ export default function CallingScreen({
   morphUrl = null,
   onMorphEnded,
   onChooseAI,
-  onCancel,
 }) {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -28,7 +27,6 @@ export default function CallingScreen({
       : "아직 연결을 기다리고 있어요. 원하시면 다소니와 먼저 이야기할 수 있어요.";
   const options = elapsed >= 16 && <div className="calling-wait-options">
     {onChooseAI && <button type="button" onClick={onChooseAI}>다소니와 먼저 이야기하기</button>}
-    {onCancel && <button type="button" onClick={onCancel}>다른 가족 선택</button>}
   </div>;
   if (morphUrl) {
     return (

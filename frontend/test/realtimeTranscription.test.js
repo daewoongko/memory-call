@@ -5,6 +5,9 @@ import {
   resampleTo16k,
   voiceConnectionError,
 } from "../src/useRealtimeTranscription.js";
+import { readFileSync } from "node:fs";
+
+const speechHook = readFileSync(new URL("../src/useSpeech.js", import.meta.url), "utf8");
 
 test("48 kHz microphone frames are downsampled to 16 kHz", () => {
   const input = Float32Array.from({ length: 4800 }, (_, index) => Math.sin(index / 20));
@@ -29,4 +32,8 @@ test("the fallback connection message is not duplicated", () => {
     voiceConnectionError("일시적인 네트워크 오류"),
     "음성 인식에 잠시 연결하지 못했습니다. 일시적인 네트워크 오류",
   );
+});
+
+test("Galaxy Chrome uses its available speech recognition before external realtime STT", () => {
+  assert.match(speechHook, /const usesServerStt = serverStt\.supported && !Recognition;/);
 });

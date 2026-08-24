@@ -16,6 +16,7 @@ from difflib import SequenceMatcher
 
 import db
 import llm
+import safety
 import schemas
 from analysis import medication as medication_metrics
 from analysis import rates as rate_metrics
@@ -979,9 +980,12 @@ def _canonical_care_groups(care_summary: dict | None) -> dict[str, list[dict]]:
     return groups
 
 
-def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
+def recent(elder_id: str = "elder_001", limit: int = 20,
+           on_date: str | None = None) -> list[dict]:
     """보호자 화면 목록용. 통화별 한 줄 요약."""
     with db.connect() as conn:
+        date_clause = "AND substr(c.started_at, 1, 10) = ? " if on_date else ""
+        params = (elder_id, on_date, limit) if on_date else (elder_id, limit)
         rows = conn.execute(
             "SELECT c.call_id, c.started_at, c.duration_sec, c.call_type, "
             "       c.counterpart_name, c.counterpart_relation, c.report_title, "
@@ -989,8 +993,9 @@ def recent(elder_id: str = "elder_001", limit: int = 20) -> list[dict]:
             "       r.meaningful_moments, r.care_summary "
             "FROM calls c LEFT JOIN reports r ON r.call_id = c.call_id "
             "WHERE c.elder_id = ? AND c.status = 'ended' "
+            + date_clause +
             "ORDER BY c.started_at DESC LIMIT ?",
-            (elder_id, limit),
+            params,
         ).fetchall()
     out = []
     for r in rows:
@@ -1150,7 +1155,7 @@ TOPIC_RULES = (
     ("일·학교", (r"회사", r"직장", r"출근", r"학교", r"수업", r"선생")),
     ("식사·약", (r"밥", r"식사", r"점심", r"아침", r"저녁", r"약", r"복용")),
     ("집·물건", (r"집", r"지갑", r"안경", r"리모컨", r"가방", r"열쇠")),
-    ("건강", (r"아프", r"어지", r"넘어", r"잠", r"피", r"기운")),
+    ("건강", (r"아프", r"가슴", r"어지", r"넘어", r"잠", r"피", r"기운")),
 )
 
 RESPONSE_EMOTION_GROUPS = (
@@ -1531,8 +1536,12 @@ def _call_analytics(
             "response_signals": Counter(),
             "warmth_signals": Counter(),
             "quotes": [],
+            "risk_hits": [],
             "turn_positions": [],
         })
+        hit = safety.direct_risk(row["transcript"])
+        if hit:
+            slot["risk_hits"].append(hit)
         first_topic_turn_in_call = row["call_id"] not in slot["call_ids"]
         slot["call_ids"].add(row["call_id"])
         if set(signals_by_call.get(row["call_id"], {})) & TENDENCY_BURDEN_SIGNALS:
@@ -1588,6 +1597,8 @@ def _call_analytics(
             "agitation_calls": agitation_calls,
             "burden_calls": burden_calls,
             "burden_ratio": round(burden_calls / max(1, call_count), 3),
+            "risk_count": len(slot["risk_hits"]),
+            "risk_types": sorted({hit["type"] for hit in slot["risk_hits"]}),
         })
     topics.sort(key=lambda row: (row["calls"], row["turns"]), reverse=True)
 
@@ -2182,6 +2193,12 @@ def period(
             "SELECT birth_date FROM elder_profiles WHERE elder_id = ?", (elder_id,)
         ).fetchone())
 
+    risk_quote_by_utterance = {
+        row["utterance_id"]: _short_quote(row.get("transcript") or "")
+        for row in analytics_utterances
+        if row.get("utterance_id") is not None
+    }
+
     by_day: dict[str, dict] = {}
     for c in calls:
         day = (c["started_at"] or "")[:10]
@@ -2302,6 +2319,8 @@ def period(
                 "at": r["started_at"],
                 "acknowledged": bool(r["acknowledged"]),
                 **(r.get("payload") or {}),
+                "quote": risk_quote_by_utterance.get(r.get("utterance_id"))
+                or (r.get("payload") or {}).get("evidence", ""),
             }
             for r in risks
         ],

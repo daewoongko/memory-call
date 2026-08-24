@@ -30,6 +30,8 @@ test("care manager uses one Aa display control instead of the wide display dock"
   assert.match(theme, /\.care-view-settings/);
   assert.match(theme, /\.manager-stat-grid\.manager-stat-strip \{[\s\S]*?overflow: visible/);
   assert.match(theme, /grid-template-columns: repeat\(6,minmax\(0,1fr\)\)/);
+  assert.match(theme, /\.app-device-care \.sidebar-elder-panel \{[\s\S]*?grid-template-columns: minmax\(0,1fr\) 50px/);
+  assert.match(theme, /\.app-device-care \.radar-average \{ stroke: #d98a3f; \}/);
 });
 
 test("voice registration heading replaces the redundant my voice label", () => {
@@ -39,7 +41,7 @@ test("voice registration heading replaces the redundant my voice label", () => {
 });
 
 test("family settings raises the small supporting text sizes", () => {
-  assert.match(theme, /\.app-device-family \.family-self-identity p \{ font-size: calc\(13px/);
+  assert.match(theme, /\.app-device-family \.family-self-identity h1 > span/);
   assert.match(theme, /\.app-device-family \.family-speech-settings label > span \{ font-size: calc\(11px/);
   assert.match(theme, /\.app-device-family \.family-speech-settings textarea \{ font-size: calc\(12px/);
 });
@@ -56,10 +58,13 @@ test("care checklist centers its count and omits the repeated date", () => {
 test("handover omits the repeated date and uses one readable task flow", () => {
   assert.doesNotMatch(handover, /\{SHIFT\[shift\]\} 근무 · \{date\}/);
   assert.doesNotMatch(handover, /handover-columns/);
+  assert.doesNotMatch(handover, /<header><h2>인계<\/h2><\/header>/);
   assert.match(handover, /className="handover-groups"/);
   assert.match(handover, /className="handover-group pending"/);
-  assert.match(styles, /\.handover-item \{ display:grid; grid-template-columns:86px minmax\(0,1fr\) auto/);
-  assert.match(styles, /@media \(max-width:430px\) \{ \.handover-item/);
+  assert.match(handover, /<details className=\{`handover-item/);
+  assert.match(handover, /className="handover-item-detail"/);
+  assert.match(styles, /\.handover-item > summary \{ display:grid; grid-template-columns:86px minmax\(0,1fr\) auto 18px/);
+  assert.match(styles, /\.handover-item-detail \{ display:grid;/);
 });
 
 test("care insight shows the eight-domain radar before the observation summary", () => {
@@ -76,14 +81,46 @@ test("care insight shows the eight-domain radar before the observation summary",
   assert.match(theme, /\.care-domain-radar \.radar-label \{ font-size: 12px; \}/);
 });
 
-test("emotion topic analysis keeps the four summaries and responsive bubble matrix", () => {
-  assert.match(careReports, /<TendencyFourSummary tendency=\{tendency\} \/>/);
+test("emotion topic analysis uses conditional findings, three statuses, and one grounded risk quote", () => {
+  assert.match(careReports, /const TOPIC_STATUS = \{/);
+  assert.match(careReports, /color: "#b8332a"/);
+  assert.match(careReports, /color: "#bd7d0e"/);
+  assert.match(careReports, /color: "#0f8a70"/);
+  assert.match(careReports, /function TopicFindings\(\{ tendency, topics, risks \}\)/);
+  assert.match(careReports, /burden\?\.eligible && Number\(burden\.burden_ratio \|\| 0\) >= \.2/);
+  assert.match(careReports, /Number\(hardest\?\.rate_per_100 \|\| 0\) >= 1/);
+  assert.match(careReports, /눈에 띄는 부담 신호 없음/);
+  assert.doesNotMatch(careReports, /className="topic-tendency-four"/);
   assert.match(careReports, /className="topic-scatter"/);
   assert.match(careReports, /viewBox="0 0 790 525"/);
-  assert.match(careReports, /className="topic-emotion-legend"/);
+  assert.match(careReports, /className=\{`topic-quote/);
+  assert.match(careReports, /latestRisk\.quote \|\| latestRisk\.evidence/);
+  assert.match(careReports, /className="topic-risk-ring"/);
+  assert.match(careReports, /\{item\.calls\}통 · 부담 \{Math\.round\(item\.burden \* 100\)\}%/);
+  assert.doesNotMatch(careReports, /TOPIC_EMOTION_COLOR|TOPIC_EMOTION_ACTION|topic-emotion-legend/);
+  assert.doesNotMatch(careReports, /topic-grid-line/);
+  assert.doesNotMatch(careReports, /환경으로 해결|일상 확인|정서적 갈망/);
+  assert.match(careReports, /durationSpan = Math\.max\(actualDurationMax - actualDurationMin, medianDuration \* \.3, 1\)/);
+  assert.match(careReports, /burdenSpan = Math\.max\(actualBurdenMax - actualBurdenMin, \.1\)/);
   assert.match(theme, /\.emotion-topic-analysis \.topic-scatter \{ width: calc\(100% \+ 24px\); min-width: 0; margin-left: -12px; \}/);
-  assert.match(theme, /\.emotion-topic-analysis \.topic-tendency-four \{[\s\S]*?grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
-  assert.match(theme, /\.emotion-topic-analysis \.topic-emotion-legend \{[\s\S]*?grid-template-columns: repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles, /\.topic-findings \{ display:grid;/);
+  assert.match(styles, /\.topic-finding-row \{ display:grid; grid-template-columns:88px minmax\(0,1fr\) auto/);
+  assert.match(styles, /\.topic-quote \{ display:grid;/);
+  assert.match(styles, /\.topic-point \.topic-risk-ring \{ fill:none; stroke:#b8332a; stroke-width:2\.5/);
+  assert.doesNotMatch(theme, /topic-tendency-four|topic-emotion-legend/);
+  assert.doesNotMatch(careReports, /원의 크기/);
+  assert.match(theme, /\.app-device-care \.emotion-topic-analysis \.topic-point-label \{ font-size: 17px; \}/);
+  assert.doesNotMatch(careReports, /30일 중앙값 \{Math\.round\(medianBurden \* 100\)\}%/);
+  assert.doesNotMatch(careReports, /①|②|③|④/);
+  assert.doesNotMatch(careReports, /짧게 이어짐|오래 이어짐/);
+  assert.match(careReports, /const preferredDirection = item\.sourceIndex % 2 === 0 \? -1 : 1/);
+  assert.match(emotionSeed, /어제 넘어져서 일어나기가 힘들었어/);
+  assert.match(emotionSeed, /가슴이 답답하고 아파/);
   assert.match(emotionSeed, /"calls": len\(call_ids\)/);
   assert.match(emotionSeed, /"topics": len\(analytics\["emotion_topics"\]\)/);
+});
+
+test("time regression keeps the evidence inside its highlighted life-stage summary", () => {
+  assert.match(careReports, /className="life-road-summary"[\s\S]*?<blockquote>“\{destination\.quote\}”<span>\{destination\.count\}회 관찰<\/span><\/blockquote>/);
+  assert.doesNotMatch(careReports, /className="journey-evidence"/);
 });

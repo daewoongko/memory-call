@@ -249,6 +249,8 @@ CREATE TABLE IF NOT EXISTS calls (
     status       TEXT DEFAULT 'active'
                  CHECK (status IN ('requested','active','ended','failed'))
 );
+CREATE INDEX IF NOT EXISTS idx_calls_elder_started
+    ON calls(elder_id, started_at);
 
 -- 통화 중 발화 한 줄. Gemini가 신고한 JSON 필드를 그대로 보관한다.
 CREATE TABLE IF NOT EXISTS utterances (

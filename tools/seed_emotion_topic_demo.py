@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 
 import db  # noqa: E402
 import report  # noqa: E402
+import safety  # noqa: E402
 
 
 ELDER_ID = "elder_002"
@@ -86,6 +87,26 @@ TOPICS = (
         "hour": 6,
         "duration": 145,
     },
+    {
+        "title": "넘어진 뒤 몸 상태 확인",
+        "text": "어제 넘어져서 일어나기가 힘들었어.",
+        "reply": "많이 놀라셨겠어요. 움직이지 말고 곁에 있는 담당자에게 바로 알려 확인을 받으세요.",
+        "signals": ("fear",),
+        "moments": (),
+        "hour": 19,
+        "duration": 190,
+        "samples": 1,
+    },
+    {
+        "title": "가슴 통증 확인",
+        "text": "가슴이 답답하고 아파.",
+        "reply": "지금 바로 곁에 있는 담당자에게 알리고 안전한 자세로 도움을 기다려 주세요.",
+        "signals": ("fear",),
+        "moments": (),
+        "hour": 20,
+        "duration": 175,
+        "samples": 1,
+    },
 )
 
 
@@ -105,13 +126,14 @@ def seed() -> dict:
             "SELECT call_id FROM calls WHERE call_id LIKE ?", (f"{PREFIX}%",)
         ).fetchall()]
         for call_id in old_ids:
+            conn.execute("DELETE FROM call_events WHERE call_id = ?", (call_id,))
             conn.execute("DELETE FROM reports WHERE call_id = ?", (call_id,))
             conn.execute("DELETE FROM utterances WHERE call_id = ?", (call_id,))
             conn.execute("DELETE FROM calls WHERE call_id = ?", (call_id,))
 
         call_ids = []
         for topic_index, topic in enumerate(TOPICS):
-            for sample_index in range(5):
+            for sample_index in range(topic.get("samples", 5)):
                 call_id = f"{PREFIX}{topic_index + 1}_{sample_index + 1}"
                 days_ago = (topic_index * 4 + sample_index * 6) % 30
                 started = (now - timedelta(days=days_ago)).replace(
@@ -145,7 +167,7 @@ def seed() -> dict:
                     "transcript": topic["text"],
                     "created_at": (started + timedelta(seconds=16)).isoformat(timespec="seconds"),
                 })
-                db.insert(conn, "utterances", {
+                ai_utterance_id = db.insert(conn, "utterances", {
                     "call_id": call_id,
                     "seq": 2,
                     "speaker": "ai",
@@ -153,6 +175,15 @@ def seed() -> dict:
                     "intent": "emotional",
                     "created_at": (started + timedelta(seconds=38)).isoformat(timespec="seconds"),
                 })
+                risk = safety.direct_risk(topic["text"])
+                if risk:
+                    db.insert(conn, "call_events", {
+                        "call_id": call_id,
+                        "utterance_id": elder_utterance_id,
+                        "ai_utterance_id": ai_utterance_id,
+                        "event_type": "risk",
+                        "payload": risk,
+                    })
 
                 care_rows = [{
                     "signal": signal,

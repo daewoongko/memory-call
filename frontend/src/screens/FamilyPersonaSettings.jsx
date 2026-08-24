@@ -88,7 +88,7 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
     applyCallStyle(defaults.result, defaults.answers);
   }
 
-  if (!personaId) return <div className="child-empty-card family-settings-empty"><b>내 가족 프로필을 확인할 수 없어요</b><p>가족 연결을 다시 진행해 본인 프로필을 선택해 주세요.</p></div>;
+  if (!personaId) return <div className="child-empty-card family-settings-empty"><b>본인 가족 정보를 확인할 수 없어요</b><p>가족 연결을 다시 진행해 본인 정보를 선택해 주세요.</p></div>;
   if (!persona) return <p className="hint">내 통화 설정을 불러오는 중…</p>;
 
   return <div className="family-persona-settings">
@@ -98,14 +98,12 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
           {summary?.face ? <img src={summary.face} alt="" /> : <span className="family-self-placeholder">{persona.display_name?.slice(0, 1)}</span>}
         </button>
         <span className="family-self-identity">
-        <small>내 가족 프로필</small>
-        <h1>{persona.display_name}<i className="child-me-badge">나</i></h1>
-        <p>{persona.relationship_type || summary?.relationship}</p>
+        <h1><span>{persona.relationship_type || summary?.relationship}</span><b>{persona.display_name}</b></h1>
         </span>
       </div>
       <button type="button" className="family-style-current" onClick={() => setQuizOpen((open) => !open)} aria-expanded={quizOpen}>
         <small>말투 카드</small>
-        <strong>{persona.call_style_name || "미설정"}{persona.call_style_code && <em>({persona.call_style_code})</em>}</strong>
+        <strong><span>{persona.call_style_name || "미설정"}</span>{persona.call_style_code && <em>({persona.call_style_code})</em>}</strong>
         <span>{quizOpen ? "설정 닫기" : persona.call_style_code ? "다시 설정하기" : "설정하기"} <b aria-hidden="true">›</b></span>
       </button>
     </article>
@@ -124,7 +122,7 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
     <VoiceProfilePanel elderId={elderId} personaId={personaId} persona={persona} />
 
     <section className="family-speech-settings">
-      <header><span>가족 표현</span><h2>우리 가족이 실제로 쓰는 표현을 알려주세요</h2></header>
+      <header><h2>우리 가족이 실제로 쓰는 표현을 알려주세요</h2></header>
       <div className="family-speech-grid">
         <label>
           <b>자주 쓰는 말</b>

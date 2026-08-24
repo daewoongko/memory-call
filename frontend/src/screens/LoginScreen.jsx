@@ -2,7 +2,7 @@ import { useState } from "react";
 import * as api from "../api.js";
 import BrandMark from "../components/BrandMark.jsx";
 
-export default function LoginScreen({ onAuthenticated }) {
+export default function LoginScreen({ onAuthenticated, onSkip }) {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ phone: "", display_name: "", pin: "" });
   const [busy, setBusy] = useState(false);
@@ -64,6 +64,10 @@ export default function LoginScreen({ onAuthenticated }) {
       {mode === "register" && <p className="login-security-note">문자 본인 인증 공급자 연결 전 내부 운영용 로그인입니다. 다른 서비스와 같은 간편번호는 사용하지 마세요.</p>}
       {error && <p className="error" role="alert">{error}</p>}
       <button className="login-submit" disabled={!ready || busy}>{busy ? "확인하는 중…" : mode === "login" ? "로그인" : "계정 만들기"}</button>
+      {onSkip && <button type="button" className="login-skip" onClick={onSkip} disabled={busy}>
+        <b>일단 둘러보기</b>
+        <small>계정 없이 데모 화면으로 넘어갈게요</small>
+      </button>}
     </form>
   </main>;
 }

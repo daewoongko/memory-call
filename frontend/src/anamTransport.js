@@ -90,13 +90,29 @@ export function createAnamTransport({
       const cleanupReadyListeners = () => {
         clearTimeout(readyTimer);
         nextClient.removeListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
+        nextClient.removeListener?.("VIDEO_PLAY_STARTED", onVideoPlayStarted);
       };
-      const onVideoStarted = () => {
+      const markVideoReady = () => {
         if (readySettled) return;
         readySettled = true;
         cleanupReadyListeners();
         resolveReady();
       };
+      const onVideoStarted = (videoStream) => {
+        // Mobile browsers can miss media-element events when the WebRTC track
+        // arrives while the calling transition is still covering the stage.
+        // Re-attach the track defensively and request playback; the SDK already
+        // does this in the normal path, so this is harmless when it succeeded.
+        const videoElement = globalThis.document?.getElementById?.(videoElementId);
+        if (videoElement && videoStream) {
+          if (videoElement.srcObject !== videoStream) {
+            videoElement.srcObject = videoStream;
+          }
+          videoElement.play?.().catch(() => {});
+        }
+        markVideoReady();
+      };
+      const onVideoPlayStarted = () => markVideoReady();
       const onConnectionClosed = (reason, details) => {
         const error = new Error(
           `Anam connection closed${reason ? ` (${reason})` : ""}${details ? `: ${details}` : ""}`
@@ -113,6 +129,7 @@ export function createAnamTransport({
       };
 
       nextClient.addListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
+      nextClient.addListener?.("VIDEO_PLAY_STARTED", onVideoPlayStarted);
       nextClient.addListener?.("CONNECTION_CLOSED", onConnectionClosed);
       abortPendingConnection = () => {
         if (readySettled) return;

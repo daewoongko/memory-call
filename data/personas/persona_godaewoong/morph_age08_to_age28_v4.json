@@ -1,0 +1,558 @@
+{
+  "version": 2,
+  "created_at": "2026-08-20T11:17:38.105307+00:00",
+  "purpose": "memory-call youngest-to-current RIFE morph",
+  "video": {
+    "path": "data/personas/persona_godaewoong/morph.mp4",
+    "file": "morph.mp4",
+    "validated_staging_path": "data/personas/persona_godaewoong/morph_age08_to_age28_v4.next.mp4",
+    "sha256": "d735c69c6e8d5c2ec5f4b1a01fab3f4079a4d0e44f591f8ed01098d6f57cf323",
+    "size_bytes": 5891610,
+    "codec_fourcc": "h264",
+    "width": 768,
+    "height": 1024,
+    "fps": 30.0,
+    "declared_frame_count": 714,
+    "decoded_frame_count": 714,
+    "duration_seconds": 23.8,
+    "pixel_format_required": "yuv420p",
+    "audio_required": false
+  },
+  "generator": {
+    "name": "RIFE arbitrary-timestep interpolation",
+    "model": {
+      "path": "backend/models/rife/RIFE_fp32_timestep.onnx",
+      "sha256": "4da60c1f20d42dba4f21503140940aa48a488585ead977532bf22e95a0319327",
+      "size_bytes": 21604567
+    },
+    "direction": "youngest_to_current",
+    "direct_timestep_inference": true
+  },
+  "source_manifest": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/manifest.json",
+  "source_sequence": [
+    {
+      "age": 8,
+      "file": "01_age08.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/01_age08.png",
+      "sha256": "30bb7c95a42a656fd5cf34693ae196de22357b8bd7b6417c76baa80e730634bd"
+    },
+    {
+      "age": 9,
+      "file": "02_age09.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/02_age09.png",
+      "sha256": "512cba7b7bb18310972ab2035fbbc75cac3b265c01784cf91db1d5f54e432a29"
+    },
+    {
+      "age": 10,
+      "file": "03_age10.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/03_age10.png",
+      "sha256": "465ebd321ec146b1697a6e8304d3d4fee1f8387d8d61c66acca3ba06074598c4"
+    },
+    {
+      "age": 11,
+      "file": "04_age11.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/04_age11.png",
+      "sha256": "af172cfd9f34c5f0dc079f16435c4941310ae19d6ba2b8a73a8568b1f72dfd06"
+    },
+    {
+      "age": 12,
+      "file": "05_age12.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/05_age12.png",
+      "sha256": "93b958ad65299c6d351322ebb481828bcb2ae41168f65956100af78312004537"
+    },
+    {
+      "age": 15,
+      "file": "06_age15.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/06_age15.png",
+      "sha256": "7d4808a494b1c27a6e9bbb2524a07db4a39e0d42077957a33cbdee50015c1a7e"
+    },
+    {
+      "age": 17,
+      "file": "07_age17.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/07_age17.png",
+      "sha256": "151158fc587938149fc18e200f8f7c1a8e10fde61b21068ff69a33d9dc1dfd7f"
+    },
+    {
+      "age": 20,
+      "file": "08_age20.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/08_age20.png",
+      "sha256": "1c6aef842e9394dc2444d9d0325214ad7051b9f92e5e1c9a2cb431c5e5234f9e"
+    },
+    {
+      "age": 24,
+      "file": "09_age24.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/09_age24.png",
+      "sha256": "e3b7b54b5a700a90f2f7c4d4b569768ec49b6701f5fa295b08de9d2218ebb3b2"
+    },
+    {
+      "age": 28,
+      "file": "10_age28.png",
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/10_age28.png",
+      "sha256": "7f64bbade818fb533d930aad1ad03c34c5cfac27b90bf152bb08cbc271c5c4b1"
+    }
+  ],
+  "timing": {
+    "fps": 30.0,
+    "timing_mode": "age-weighted",
+    "seconds_per_year": 1.0,
+    "child_slowdown_until": 12,
+    "child_slowdown": 1.5,
+    "lead_hold_seconds": 0.6,
+    "lead_hold_frames": 18,
+    "tail_hold_seconds": 1.2,
+    "tail_hold_frames": 36,
+    "segments": [
+      {
+        "from_age": 8,
+        "to_age": 9,
+        "duration_seconds": 1.5,
+        "interpolated_frame_count": 45,
+        "source_hit_frame": 0,
+        "first_output_frame": 18,
+        "target_hit_frame": 62,
+        "elapsed_at_target_seconds": 2.1
+      },
+      {
+        "from_age": 9,
+        "to_age": 10,
+        "duration_seconds": 1.5,
+        "interpolated_frame_count": 45,
+        "source_hit_frame": 62,
+        "first_output_frame": 63,
+        "target_hit_frame": 107,
+        "elapsed_at_target_seconds": 3.6
+      },
+      {
+        "from_age": 10,
+        "to_age": 11,
+        "duration_seconds": 1.5,
+        "interpolated_frame_count": 45,
+        "source_hit_frame": 107,
+        "first_output_frame": 108,
+        "target_hit_frame": 152,
+        "elapsed_at_target_seconds": 5.1
+      },
+      {
+        "from_age": 11,
+        "to_age": 12,
+        "duration_seconds": 1.5,
+        "interpolated_frame_count": 45,
+        "source_hit_frame": 152,
+        "first_output_frame": 153,
+        "target_hit_frame": 197,
+        "elapsed_at_target_seconds": 6.6
+      },
+      {
+        "from_age": 12,
+        "to_age": 15,
+        "duration_seconds": 3.0,
+        "interpolated_frame_count": 90,
+        "source_hit_frame": 197,
+        "first_output_frame": 198,
+        "target_hit_frame": 287,
+        "elapsed_at_target_seconds": 9.6
+      },
+      {
+        "from_age": 15,
+        "to_age": 17,
+        "duration_seconds": 2.0,
+        "interpolated_frame_count": 60,
+        "source_hit_frame": 287,
+        "first_output_frame": 288,
+        "target_hit_frame": 347,
+        "elapsed_at_target_seconds": 11.6
+      },
+      {
+        "from_age": 17,
+        "to_age": 20,
+        "duration_seconds": 3.0,
+        "interpolated_frame_count": 90,
+        "source_hit_frame": 347,
+        "first_output_frame": 348,
+        "target_hit_frame": 437,
+        "elapsed_at_target_seconds": 14.6
+      },
+      {
+        "from_age": 20,
+        "to_age": 24,
+        "duration_seconds": 4.0,
+        "interpolated_frame_count": 120,
+        "source_hit_frame": 437,
+        "first_output_frame": 438,
+        "target_hit_frame": 557,
+        "elapsed_at_target_seconds": 18.6
+      },
+      {
+        "from_age": 24,
+        "to_age": 28,
+        "duration_seconds": 4.0,
+        "interpolated_frame_count": 120,
+        "source_hit_frame": 557,
+        "first_output_frame": 558,
+        "target_hit_frame": 677,
+        "elapsed_at_target_seconds": 22.6
+      }
+    ],
+    "anchors": [
+      {
+        "age": 8,
+        "hit_frame": 0,
+        "elapsed_seconds": 0.0
+      },
+      {
+        "age": 9,
+        "hit_frame": 62,
+        "elapsed_seconds": 2.1
+      },
+      {
+        "age": 10,
+        "hit_frame": 107,
+        "elapsed_seconds": 3.6
+      },
+      {
+        "age": 11,
+        "hit_frame": 152,
+        "elapsed_seconds": 5.1
+      },
+      {
+        "age": 12,
+        "hit_frame": 197,
+        "elapsed_seconds": 6.6
+      },
+      {
+        "age": 15,
+        "hit_frame": 287,
+        "elapsed_seconds": 9.6
+      },
+      {
+        "age": 17,
+        "hit_frame": 347,
+        "elapsed_seconds": 11.6
+      },
+      {
+        "age": 20,
+        "hit_frame": 437,
+        "elapsed_seconds": 14.6
+      },
+      {
+        "age": 24,
+        "hit_frame": 557,
+        "elapsed_seconds": 18.6
+      },
+      {
+        "age": 28,
+        "hit_frame": 677,
+        "elapsed_seconds": 22.6
+      }
+    ],
+    "expected_frame_count": 714,
+    "expected_duration_seconds": 23.8,
+    "transition_end_frame": 677
+  },
+  "validation": {
+    "passed": true,
+    "format_checks": {
+      "codec_h264": true,
+      "width_768": true,
+      "height_1024": true,
+      "fps_30_cfr": true,
+      "declared_frame_count_matches_plan": true,
+      "decoded_frame_count_matches_plan": true,
+      "declared_and_decoded_counts_match": true
+    },
+    "content_checks": {
+      "no_black_frames": true,
+      "no_blank_frames": true,
+      "no_unexpected_frozen_frames": true,
+      "no_severe_pixel_jumps": true,
+      "no_severe_face_jumps": true,
+      "approved_endpoints_match": true,
+      "face_detected_in_every_frame": true
+    },
+    "thresholds": {
+      "black_mean_luma_below": 6.0,
+      "black_pixel_fraction_above": 0.98,
+      "blank_luma_std_below": 2.0,
+      "unexpected_frozen_mean_absdiff_below": 0.025,
+      "unexpected_frozen_minimum_continuous_frames": 8,
+      "pixel_jump_mean_absdiff_above": 12.0,
+      "severe_pixel_jump_mean_absdiff_above": 28.0,
+      "face_center_jump_normalized_above": 0.018,
+      "face_scale_log_jump_above": 0.055,
+      "endpoint_psnr_db_min": 30.0,
+      "endpoint_ssim_min": 0.97,
+      "yunet_score_min": 0.65
+    },
+    "statistics": {
+      "luma_mean_min": 119.063918,
+      "luma_mean_max": 124.116486,
+      "luma_std_min": 71.347801,
+      "pixel_diff_median": 0.147583,
+      "pixel_diff_mad": 0.074768,
+      "low_motion_frame_count": 13,
+      "longest_low_motion_run_frames": 7,
+      "face_center_jump_median": 0.00018967,
+      "face_center_jump_mad": 0.00010847,
+      "face_scale_jump_median": 0.00102357,
+      "face_scale_jump_mad": 0.00073342
+    },
+    "flagged_frames": {
+      "black": [],
+      "blank": [],
+      "advisory_low_motion": [
+        439,
+        440,
+        554,
+        555,
+        559,
+        562,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674
+      ],
+      "unexpected_frozen": [],
+      "pixel_jump": [],
+      "severe_pixel_jump": [],
+      "no_face": [],
+      "multiple_faces": [],
+      "low_face_confidence": [],
+      "face_center_jump": [],
+      "face_scale_jump": [
+        171
+      ],
+      "severe_face_jump": []
+    },
+    "endpoint_similarity": {
+      "youngest_age": 8,
+      "current_age": 28,
+      "first_frame_to_youngest": {
+        "mse": 7.389484,
+        "psnr_db": 39.4447,
+        "ssim": 0.9887
+      },
+      "last_frame_to_current": {
+        "mse": 6.739332,
+        "psnr_db": 39.8446,
+        "ssim": 0.98932
+      }
+    },
+    "face_detector": {
+      "enabled": true,
+      "model": "backend/models/face_detection_yunet_2023mar.onnx",
+      "model_sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+      "detection_input_size": [
+        480,
+        640
+      ],
+      "observed_frames": 714,
+      "minimum_score": 0.929942,
+      "anchor_observations": [
+        {
+          "frame": 0,
+          "score": 0.936918,
+          "detections": 1,
+          "box": [
+            240.0869,
+            271.6107,
+            292.7132,
+            366.3492
+          ],
+          "center": [
+            386.4434,
+            454.7853
+          ],
+          "eye_midpoint": [
+            390.8584,
+            411.9024
+          ],
+          "eye_span": 130.5939
+        },
+        {
+          "frame": 62,
+          "score": 0.940016,
+          "detections": 1,
+          "box": [
+            245.9801,
+            274.6225,
+            280.9056,
+            354.9729
+          ],
+          "center": [
+            386.4329,
+            452.1089
+          ],
+          "eye_midpoint": [
+            392.4009,
+            410.6587
+          ],
+          "eye_span": 126.5427
+        },
+        {
+          "frame": 107,
+          "score": 0.935251,
+          "detections": 1,
+          "box": [
+            246.5244,
+            274.4693,
+            276.622,
+            352.253
+          ],
+          "center": [
+            384.8354,
+            450.5958
+          ],
+          "eye_midpoint": [
+            388.9082,
+            411.2085
+          ],
+          "eye_span": 125.7793
+        },
+        {
+          "frame": 152,
+          "score": 0.93554,
+          "detections": 1,
+          "box": [
+            248.8451,
+            283.8503,
+            267.3751,
+            336.6304
+          ],
+          "center": [
+            382.5326,
+            452.1655
+          ],
+          "eye_midpoint": [
+            385.5684,
+            413.4148
+          ],
+          "eye_span": 123.0644
+        },
+        {
+          "frame": 197,
+          "score": 0.934191,
+          "detections": 1,
+          "box": [
+            257.3645,
+            279.2546,
+            261.2072,
+            340.7596
+          ],
+          "center": [
+            387.9681,
+            449.6344
+          ],
+          "eye_midpoint": [
+            385.953,
+            411.7877
+          ],
+          "eye_span": 118.14
+        },
+        {
+          "frame": 287,
+          "score": 0.933363,
+          "detections": 1,
+          "box": [
+            257.3895,
+            280.6167,
+            268.4896,
+            348.4457
+          ],
+          "center": [
+            391.6343,
+            454.8396
+          ],
+          "eye_midpoint": [
+            390.6628,
+            415.2192
+          ],
+          "eye_span": 117.8985
+        },
+        {
+          "frame": 347,
+          "score": 0.935602,
+          "detections": 1,
+          "box": [
+            245.8472,
+            267.0149,
+            279.2344,
+            373.4769
+          ],
+          "center": [
+            385.4644,
+            453.7534
+          ],
+          "eye_midpoint": [
+            377.8125,
+            405.1615
+          ],
+          "eye_span": 129.8089
+        },
+        {
+          "frame": 437,
+          "score": 0.934553,
+          "detections": 1,
+          "box": [
+            253.9156,
+            275.4768,
+            270.6464,
+            357.3888
+          ],
+          "center": [
+            389.2388,
+            454.1712
+          ],
+          "eye_midpoint": [
+            391.71,
+            414.7546
+          ],
+          "eye_span": 117.5333
+        },
+        {
+          "frame": 557,
+          "score": 0.934303,
+          "detections": 1,
+          "box": [
+            256.6091,
+            280.7991,
+            262.336,
+            358.8364
+          ],
+          "center": [
+            387.7771,
+            460.2173
+          ],
+          "eye_midpoint": [
+            385.9041,
+            411.0224
+          ],
+          "eye_span": 122.0552
+        },
+        {
+          "frame": 677,
+          "score": 0.932729,
+          "detections": 1,
+          "box": [
+            258.8836,
+            276.2705,
+            261.3318,
+            359.0944
+          ],
+          "center": [
+            389.5495,
+            455.8176
+          ],
+          "eye_midpoint": [
+            385.7529,
+            407.3501
+          ],
+          "eye_span": 121.971
+        }
+      ]
+    },
+    "qc_contact_sheet": "data/personas/persona_godaewoong/morph_age08_to_age28_v4.qc.png"
+  }
+}

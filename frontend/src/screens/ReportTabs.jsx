@@ -230,10 +230,10 @@ function CareDomainRadar({ todayItems, averageItems }) {
       <svg viewBox="0 0 520 400" role="img" aria-label={`8개 영역 오늘 총 ${total}건, 최근 30일 하루 평균과 비교`}>
         {[.25, .5, .75, 1].map((ratio) => <polygon key={ratio} className={`radar-grid ${ratio === 1 ? "level-100" : ""}`} points={gridPolygon(ratio)} />)}
         {todayItems.map((_, index) => { const [x, y] = point(index, maxValue); return <line key={index} className="radar-axis" x1={centerX} y1={centerY} x2={x} y2={y} />; })}
-        <polygon className="radar-average" points={polygon(averageItems)} />
         <polygon className="radar-today" points={polygon(todayItems)} />
-        {averageItems.map((item, index) => { const [x, y] = point(index, item.value); return <circle key={`average-${item.key}`} className="radar-average-dot" cx={x} cy={y} r="3" />; })}
+        <polygon className="radar-average" points={polygon(averageItems)} />
         {todayItems.map((item, index) => { const [x, y] = point(index, item.value); return <circle key={`today-${item.key}`} className="radar-today-dot" cx={x} cy={y} r="4" />; })}
+        {averageItems.map((item, index) => { const [x, y] = point(index, item.value); return <circle key={`average-${item.key}`} className="radar-average-dot" cx={x} cy={y} r="3" />; })}
         {todayItems.map((item, index) => {
           const angle = -Math.PI / 2 + index * Math.PI / 4;
           const x = centerX + Math.cos(angle) * labelRadius;
@@ -506,52 +506,88 @@ function TimeRegressionJourney({ data = {} }) {
         {destinationPoint && <g className="life-regression-marker" transform={`translate(${destinationPoint.x} ${destinationPoint.y})`}><circle r="13" /><circle r="5" /><text y="-22">{destination.label} 발화</text></g>}
         <g className="life-current-marker" transform={`translate(${currentPoint.x} ${currentPoint.y})`}><circle r="14" /><circle r="5" /><text y="-23">현재 {currentAge}세</text></g>
       </svg>
-      {destination && <div className="life-road-summary"><small>이번 기록에서 가장 많이 연결된 시절</small><strong>{destination.label}<em>{destination.age_from}~{destination.age_to}세 무렵</em></strong><p>현재 시점에서 인생길을 따라 약 {Math.max(0, currentAge - destination.age)}년 전 역할의 발화가 관찰됐습니다.</p></div>}
+      {destination && <div className="life-road-summary"><small>이번 기록에서 가장 많이 연결된 시절</small><strong>{destination.label}<em>{destination.age_from}~{destination.age_to}세 무렵</em></strong><p>현재 시점에서 인생길을 따라 약 {Math.max(0, currentAge - destination.age)}년 전 역할의 발화가 관찰됐습니다.</p><blockquote>“{destination.quote}”<span>{destination.count}회 관찰</span></blockquote></div>}
     </div>
-    {destination ? <div className="journey-evidence"><b>{destination.label} 근거</b><blockquote>“{destination.quote}”</blockquote><span>{destination.count}회 관찰</span></div> : <p className="empty-state">과거 역할과 연결되는 직접 발화가 확인되지 않았습니다.</p>}
+    {!destination && <p className="empty-state">과거 역할과 연결되는 직접 발화가 확인되지 않았습니다.</p>}
   </section>;
 }
 
-const TOPIC_EMOTION_COLOR = {
-  "불안·두려움": "#e5963d",
-  "초조·분노": "#d7583c",
-  "의심·망상": "#8a5aa8",
-  "가라앉음": "#4f78a8",
-  "따뜻함": "#2f936a",
-  "확인·탐색": "#2e8691",
-  "도움 요청": "#b7832f",
-  "회상·역할": "#66738f",
+const TOPIC_STATUS = {
+  now: { key: "now", label: "즉시 확인", color: "#b8332a", hint: "위험 발화가 나온 주제" },
+  watch: { key: "watch", label: "지켜보기", color: "#bd7d0e", hint: "부담 표현이 잦음" },
+  calm: { key: "calm", label: "편안함", color: "#0f8a70", hint: "" },
 };
 
-const TOPIC_EMOTION_ACTION = {
-  "불안·두려움": "다가가 안심",
-  "초조·분노": "자극 줄이고 거리 두기",
-  "의심·망상": "사실 논쟁 없이 절차 안내",
-  "가라앉음": "말 걸고 활성화",
-  "따뜻함": "가족에게 전달",
-  "확인·탐색": "사실과 현재 맥락 확인",
-  "도움 요청": "한 단계씩 직접 지원",
-  "회상·역할": "현재를 짧게 안내",
-};
-
-function TendencyFourSummary({ tendency }) {
-  const insufficient = !tendency?.sufficient_period;
-  const reason = "관찰 기간이 짧아 경향을 정리하지 않았습니다.";
-  const burdens = (tendency?.burden_ranking || []).map((item) => item.category).join(" > ");
-  const inward = Number(tendency?.expression?.inward_count || 0);
-  const outward = Number(tendency?.expression?.outward_count || 0);
-  const calming = tendency?.calming_resource;
-  const hardest = tendency?.hardest_time;
-  const rows = [
-    ["무엇에 힘들어하시나", insufficient ? reason : (burdens || "근거가 충분한 부담 주제가 아직 없습니다.")],
-    ["어떻게 나타나나", insufficient ? reason : `불안·가라앉음 ${inward}건 · 초조·분노 ${outward}건`],
-    ["무엇으로 편안해지시나", insufficient ? reason : (calming ? `${calming.topic} — 평균 ${calming.average_minutes}분, 부담 표현이 적은 대화` : "편안하게 이어진 주제가 아직 확인되지 않았습니다.")],
-    ["언제 힘들어하시나", insufficient ? reason : (hardest ? `${hardest.label} · 발화 100건당 ${hardest.rate_per_100}건` : "시간대별 변화가 아직 확인되지 않았습니다.")],
-  ];
-  return <dl className="topic-tendency-four">{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
+function topicStatus(item, medianBurden) {
+  if (Number(item.risk_count || 0) > 0) return TOPIC_STATUS.now;
+  if (Number(item.burden_ratio || 0) >= Math.max(.2, medianBurden)) return TOPIC_STATUS.watch;
+  return TOPIC_STATUS.calm;
 }
 
-function EmotionTopicMap({ topics = [], tendency = null }) {
+function compactDay(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function compactRiskStamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${date.getMonth() + 1}/${date.getDate()} ${hour}:${minute}`;
+}
+
+function TopicFindings({ tendency, topics, risks }) {
+  const findings = [];
+  const riskTopic = topics.slice().sort((a, b) => Number(b.risk_count || 0) - Number(a.risk_count || 0))[0];
+  const riskDates = [...new Set(risks.map((risk) => compactDay(risk.at)))].slice(0, 3).join(", ");
+  if (risks.length) {
+    findings.push({
+      status: TOPIC_STATUS.now,
+      text: `${riskTopic?.risk_count ? riskTopic.topic : "건강"} 이야기에서 위험 발화${riskDates ? ` · ${riskDates}` : ""}`,
+      metric: `${risks.length}건`,
+    });
+  }
+
+  if (tendency?.sufficient_period) {
+    const burden = tendency?.burden_ranking?.[0];
+    if (burden?.eligible && Number(burden.burden_ratio || 0) >= .2) {
+      findings.push({
+        status: TOPIC_STATUS.watch,
+        text: `${burden.category} 이야기 중 부담 표현 · ${burden.calls}통 중 ${burden.burden_calls}통`,
+        metric: `${Math.round(Number(burden.burden_ratio) * 100)}%`,
+      });
+    }
+    const hardest = tendency?.hardest_time;
+    if (Number(hardest?.rate_per_100 || 0) >= 1) {
+      const startHour = Number(hardest.start_hour || 0);
+      const dayPart = startHour < 5 ? "새벽" : startHour < 12 ? "아침" : startHour < 18 ? "오후" : "저녁";
+      const timeLabel = `${dayPart} ${String(hardest.label || "").replace(/:00/g, "")}시`;
+      findings.push({
+        status: TOPIC_STATUS.watch,
+        text: `${timeLabel}에 몰림`,
+        metric: `100발화당 ${hardest.rate_per_100}건`,
+      });
+    }
+  }
+
+  if (!findings.length) {
+    const days = Number(tendency?.period_days || 30);
+    findings.push({
+      status: TOPIC_STATUS.calm,
+      text: `지난 ${days}일 · 눈에 띄는 부담 신호 없음`,
+      metric: `통화 ${Number(tendency?.total_calls || 0)}건 기준`,
+    });
+  }
+
+  return <div className="topic-findings">
+    {findings.map((finding, index) => <div className={`topic-finding-row ${finding.status.key}`} key={`${finding.status.key}-${index}`}>
+      <span>{finding.status.label}</span><p>{finding.text}</p><strong>{finding.metric}</strong>
+    </div>)}
+  </div>;
+}
+
+function EmotionTopicMap({ topics = [], tendency = null, risks = [] }) {
   const maxCalls = Math.max(1, ...topics.map((item) => item.calls || 0));
   const median = (values) => {
     const ordered = values.filter(Number.isFinite).slice().sort((a, b) => a - b);
@@ -566,10 +602,18 @@ function EmotionTopicMap({ topics = [], tendency = null }) {
   }));
   const medianDuration = median(points.map((item) => item.duration));
   const medianBurden = median(points.map((item) => item.burden));
-  const durationMin = Math.min(...points.map((item) => item.duration), medianDuration);
-  const durationMax = Math.max(...points.map((item) => item.duration), medianDuration);
-  const burdenMin = Math.min(...points.map((item) => item.burden), medianBurden);
-  const burdenMax = Math.max(...points.map((item) => item.burden), medianBurden);
+  const actualDurationMin = Math.min(...points.map((item) => item.duration), medianDuration);
+  const actualDurationMax = Math.max(...points.map((item) => item.duration), medianDuration);
+  const durationSpan = Math.max(actualDurationMax - actualDurationMin, medianDuration * .3, 1);
+  const durationCenter = (actualDurationMin + actualDurationMax) / 2;
+  const durationMin = durationCenter - durationSpan / 2;
+  const durationMax = durationCenter + durationSpan / 2;
+  const actualBurdenMin = Math.min(...points.map((item) => item.burden), medianBurden);
+  const actualBurdenMax = Math.max(...points.map((item) => item.burden), medianBurden);
+  const burdenSpan = Math.max(actualBurdenMax - actualBurdenMin, .1);
+  const burdenCenter = (actualBurdenMin + actualBurdenMax) / 2;
+  const burdenMin = burdenCenter - burdenSpan / 2;
+  const burdenMax = burdenCenter + burdenSpan / 2;
   const plot = { left: 72, right: 718, top: 54, bottom: 438, midX: 395, midY: 246 };
   const scaleAroundMedian = (value, split, min, max, low, middle, high) => {
     if (value === split) return middle;
@@ -582,63 +626,81 @@ function EmotionTopicMap({ topics = [], tendency = null }) {
     const y = scaleAroundMedian(item.burden, medianBurden, burdenMin, burdenMax, plot.bottom - radius, plot.midY, plot.top + radius);
     return {
       ...item,
+      status: topicStatus(item, medianBurden),
       radius,
       x,
       y,
-      labelSide: x >= plot.midX ? 1 : -1,
+      labelSide: x < plot.left + 130 ? 1 : x > plot.right - 130 ? -1 : x >= plot.midX ? 1 : -1,
       sourceIndex: index,
     };
   }).sort((a, b) => b.radius - a.radius);
   const labelByTopic = new Map();
   [-1, 1].forEach((side) => {
-    const sidePoints = plotted.filter((item) => item.labelSide === side).sort((a, b) => a.y - b.y);
-    let nextY = plot.top + 12;
+    const sidePoints = plotted.filter((item) => item.labelSide === side).sort((a, b) => b.radius - a.radius);
+    const occupied = [];
+    const topLimit = plot.top + 20;
+    const bottomLimit = plot.bottom - 24;
     sidePoints.forEach((item) => {
-      const y = Math.min(plot.bottom - 8, Math.max(item.y, nextY));
+      const preferredDirection = item.sourceIndex % 2 === 0 ? -1 : 1;
+      const nearOffset = item.radius + 18;
+      const rawCandidates = [
+        item.y + preferredDirection * nearOffset,
+        item.y - preferredDirection * nearOffset,
+        item.y + preferredDirection * (nearOffset + 34),
+        item.y - preferredDirection * (nearOffset + 34),
+      ];
+      const scanCandidates = Array.from({ length: 12 }, (_, index) => topLimit + index * ((bottomLimit - topLimit) / 11))
+        .sort((left, right) => Math.abs(left - item.y) - Math.abs(right - item.y));
+      const candidates = [...rawCandidates, ...scanCandidates]
+        .map((value) => Math.max(topLimit, Math.min(bottomLimit, value)));
+      const y = candidates.find((candidate) => occupied.every((taken) => Math.abs(taken - candidate) >= 34))
+        ?? candidates.reduce((best, candidate) => {
+          const distance = occupied.length ? Math.min(...occupied.map((taken) => Math.abs(taken - candidate))) : Infinity;
+          return distance > best.distance ? { value: candidate, distance } : best;
+        }, { value: Math.max(topLimit, Math.min(bottomLimit, item.y)), distance: -1 }).value;
+      occupied.push(y);
       labelByTopic.set(item.topic, { y, x: item.x + side * (item.radius + 13), side });
-      nextY = y + 29;
     });
   });
-  const xTickValues = [...new Set([durationMin, medianDuration, durationMax].map((value) => Math.round(value * 10) / 10))];
-  const yTickValues = [...new Set([burdenMin, medianBurden, burdenMax].map((value) => Math.round(value * 100) / 100))];
+  const orderedRisks = risks.slice().sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+  const latestRisk = orderedRisks.find((risk) => !risk.acknowledged) || orderedRisks[0] || null;
+  const latestRiskTopic = latestRisk
+    ? points.find((item) => (item.risk_types || []).includes(latestRisk.type))?.topic || "건강"
+    : "";
   return <section className="dashboard-card emotion-topic-analysis">
     <header><div><span>03</span><h2>정서 유발 주제</h2></div></header>
-    <TendencyFourSummary tendency={tendency} />
+    <TopicFindings tendency={tendency} topics={points} risks={risks} />
     {topics.length ? <>
       <div className="topic-scatter-wrap">
         <svg className="topic-scatter" viewBox="0 0 790 525" role="img" aria-label="주제별 평균 통화 시간과 부담 표현 비율 버블 산점도">
           <rect className="topic-plot-bg" x={plot.left} y={plot.top} width={plot.right - plot.left} height={plot.bottom - plot.top} rx="8" />
-          {[.25, .5, .75].map((ratio) => <g key={ratio}><line className="topic-grid-line" x1={plot.left} x2={plot.right} y1={plot.top + (plot.bottom - plot.top) * ratio} y2={plot.top + (plot.bottom - plot.top) * ratio} /><line className="topic-grid-line" y1={plot.top} y2={plot.bottom} x1={plot.left + (plot.right - plot.left) * ratio} x2={plot.left + (plot.right - plot.left) * ratio} /></g>)}
           <line className="topic-median-line" x1={plot.left} x2={plot.right} y1={plot.midY} y2={plot.midY} />
           <line className="topic-median-line" y1={plot.top} y2={plot.bottom} x1={plot.midX} x2={plot.midX} />
           <text className="topic-median-caption x" x={plot.midX + 8} y={plot.bottom - 7}>30일 중앙값 {medianDuration}분</text>
-          <text className="topic-median-caption y" x={plot.left + 8} y={plot.midY - 8}>30일 중앙값 {Math.round(medianBurden * 100)}%</text>
-          <text className="topic-quadrant-label" x={plot.left + 14} y={plot.top + 22}>③ 환경으로 해결</text>
-          <text className="topic-quadrant-label right" x={plot.right - 14} y={plot.top + 22}>④ 개입 필요</text>
-          <text className="topic-quadrant-label" x={plot.left + 14} y={plot.bottom - 13}>① 일상 확인</text>
-          <text className="topic-quadrant-label right" x={plot.right - 14} y={plot.bottom - 13}>② 정서적 갈망</text>
-          {yTickValues.map((value) => { const y = scaleAroundMedian(value, medianBurden, burdenMin, burdenMax, plot.bottom, plot.midY, plot.top); return <g key={`y-${value}`}><line className="topic-tick" x1={plot.left - 5} x2={plot.left} y1={y} y2={y} /><text className="topic-tick-label y" x={plot.left - 9} y={y + 4}>{Math.round(value * 100)}%</text></g>; })}
-          {xTickValues.map((value) => { const x = scaleAroundMedian(value, medianDuration, durationMin, durationMax, plot.left, plot.midX, plot.right); return <g key={`x-${value}`}><line className="topic-tick" x1={x} x2={x} y1={plot.bottom} y2={plot.bottom + 5} /><text className="topic-tick-label" x={x} y={plot.bottom + 19}>{value}분</text></g>; })}
+          <text className="topic-quadrant-label right" x={plot.right - 14} y={plot.top + 22}>개입 필요</text>
           {plotted.map((item) => {
             const label = labelByTopic.get(item.topic);
             const lineStartX = item.x + label.side * item.radius * .72;
             return <g className="topic-point" key={item.topic} tabIndex="0" role="img" aria-label={`${item.topic}, ${item.calls}통`}>
               <title>{`${item.topic} · ${item.calls}통 · 평균 ${item.duration}분 · 부담 표현 ${Math.round(item.burden * 100)}% · ${item.emotion}`}</title>
-              <circle cx={item.x} cy={item.y} r={item.radius} fill={TOPIC_EMOTION_COLOR[item.emotion] || TOPIC_EMOTION_COLOR["확인·탐색"]} />
+              {item.status.key === "now" && <circle className="topic-risk-ring" cx={item.x} cy={item.y} r={item.radius + 6} />}
+              <circle cx={item.x} cy={item.y} r={item.radius} fill={item.status.color} />
               <line className="topic-label-leader" x1={lineStartX} x2={label.x} y1={item.y} y2={label.y} />
               <text className={`topic-point-label outside ${label.side > 0 ? "right" : "left"}`} x={label.x + label.side * 4} y={label.y - 2}>{item.topic}</text>
-              <text className={`topic-point-count outside ${label.side > 0 ? "right" : "left"}`} x={label.x + label.side * 4} y={label.y + 11}>{item.calls}통 · {item.duration}분</text>
+              <text className={`topic-point-count outside ${label.side > 0 ? "right" : "left"}`} x={label.x + label.side * 4} y={label.y + 11}>{item.calls}통 · 부담 {Math.round(item.burden * 100)}%</text>
             </g>;
           })}
           <text className="topic-axis-title y" transform="translate(18 246) rotate(-90)">부담 표현 비율</text>
           <text className="topic-axis-end y-top" x="53" y={plot.top + 4}>많음</text><text className="topic-axis-end y-bottom" x="53" y={plot.bottom}>적음</text>
-          <text className="topic-axis-end" x={plot.left} y="490">짧게 이어짐</text><text className="topic-axis-end right" x={plot.right} y="490">오래 이어짐</text>
           <text className="topic-axis-title" x={(plot.left + plot.right) / 2} y="490">주제가 나온 통화의 평균 시간</text>
         </svg>
       </div>
+      {latestRisk && <blockquote className={`topic-quote ${latestRisk.level === "high" ? "high" : "medium"}`}>
+        <header><span>{RISK_LABEL[latestRisk.type] || latestRisk.type}</span><time>{compactRiskStamp(latestRisk.at)} · {latestRiskTopic}</time></header>
+        <p>“{latestRisk.quote || latestRisk.evidence}”</p>
+      </blockquote>}
       <div className="topic-legend">
-        <span className="topic-size-key"><i /><b>원의 크기</b> 통화 수</span>
-        <div className="topic-emotion-legend">{Object.entries(TOPIC_EMOTION_COLOR).map(([label, color]) => <span key={label}><i style={{ background: color }} /><b>{label}</b><small>{TOPIC_EMOTION_ACTION[label]}</small></span>)}</div>
+        {Object.values(TOPIC_STATUS).map((status) => <span key={status.key}><i style={{ background: status.color }} /><b>{status.label}</b>{status.hint && <small>— {status.hint}</small>}</span>)}
       </div>
     </> : <p className="empty-state">주제를 비교할 통화 기록이 더 필요합니다.</p>}
   </section>;
@@ -795,7 +857,7 @@ export default function ReportTabs({
         </aside>
       </div>
 
-      <section className="dashboard-card compact-rhythm-report"><header><div><h2>최근 30일 통화 습관</h2></div><button onClick={() => openHeatmapPreview(activeDaySummary?.since || summary.since)}>선택일 보기 ›</button></header><WeekdayTimeHeatmap baselineSummary={activeBaseline} selectedDate={activeDaySummary?.since} onSelectDate={openHeatmapPreview} /></section>
+      <section className="dashboard-card compact-rhythm-report"><header><div><h2>최근 30일 통화 습관</h2></div></header><WeekdayTimeHeatmap baselineSummary={activeBaseline} selectedDate={activeDaySummary?.since} onSelectDate={openHeatmapPreview} /></section>
 
     </>}
 
@@ -804,7 +866,11 @@ export default function ReportTabs({
       <div className="talk-analysis-triad">
         <ResponseRetentionChart data={activeBaseline.call_analytics?.response_retention} />
         <TimeRegressionJourney data={activeBaseline.call_analytics?.time_regression} />
-        <EmotionTopicMap topics={activeBaseline.call_analytics?.emotion_topics || []} tendency={activeBaseline.call_analytics?.tendency_summary} />
+        <EmotionTopicMap
+          topics={activeBaseline.call_analytics?.emotion_topics || []}
+          tendency={activeBaseline.call_analytics?.tendency_summary}
+          risks={activeBaseline.risks || []}
+        />
       </div>
     </>}
 

@@ -47,6 +47,7 @@ data/experiments/godaewoong_morph_*/
 data/personas/*/lipsync_trials/
 output/
 tmp/
+*.ffmpeg.log
 
 # Media is private by default. Only the finalized, explicitly listed paths below
 # are published (large binaries are stored with Git LFS).

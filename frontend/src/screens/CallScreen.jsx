@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import FaceStage from "../components/FaceStage.jsx";
 import LipSyncStage from "../components/LipSyncStage.jsx";
 import SelfView from "../components/SelfView.jsx";
+import { CallControlButton, CallEndConfirm } from "../components/CallControls.jsx";
 import { useSpeech } from "../useSpeech.js";
 import { emitSpeechTiming, speechNow } from "../speechPipeline.js";
 
@@ -38,6 +39,7 @@ export default function CallScreen({
   const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState("");
   const [muted, setMuted] = useState(false);
+  const [confirmingEnd, setConfirmingEnd] = useState(false);
   const inputRef = useRef(null);
   const speechRef = useRef(null);
   const listenTimerRef = useRef(null);
@@ -207,22 +209,25 @@ export default function CallScreen({
 
   // 마이크 버튼은 상태에 따라 글과 색이 바뀐다. 노인이 지금 무엇을 해야 하는지
   // 화면만 보고 알 수 있어야 한다 (명세 NFR-02).
+  const recognitionFailed = Boolean(error || speech.error);
   const status = muted
     ? "마이크 꺼짐"
+    : recognitionFailed
+      ? "잘 듣지 못했어요. 다시 말씀해 주세요"
     : speech.playing
-      ? `${name || "AI 가족"}이 말하는 중`
+      ? "말하고 있어요"
       : speech.speaking
-        ? "목소리를 준비하는 중"
+        ? "생각하고 있어요"
         : speech.transcribing
-          ? "말씀을 확인하는 중"
+          ? "생각하고 있어요"
           : pending
-            ? "잠시만요"
+            ? "생각하고 있어요"
           : speech.listening
             ? "듣고 있어요"
             : speech.starting
               ? "마이크 연결 중"
               : speech.active
-                ? "듣기를 다시 연결하는 중"
+                ? "듣고 있어요"
                 : "마이크 꺼짐";
   const liveCaption = speech.listening ? speech.interim.trim() : "";
   const captionText = liveCaption || (pending ? said : spoken);
@@ -254,19 +259,20 @@ export default function CallScreen({
         {captionText && <div className={`call-caption${liveCaption ? " live" : ""}`} aria-live="polite">
           <b>{captionSpeaker}</b>
           <p>{captionText}</p>
-          {pending && <span className="thinking">답변을 준비하고 있어요</span>}
         </div>}
-        <p className="call-status">{status}</p>
-        {(error || speech.error) && <p className="error">{error || speech.error}</p>}
-
-        {(speech.mode === "server" || speech.mode === "realtime") && speech.listening && (
-          <div className="call-mic-meter" aria-label="마이크 입력 크기">
-            <span>마이크 입력</span>
-            <b>
-              <i style={{ width: `${Math.min(100, (speech.inputLevel || 0) * 1800)}%` }} />
-            </b>
-          </div>
-        )}
+        <div className={`call-state${recognitionFailed ? " failed" : ""}`} aria-live="polite">
+          <p className="call-status">{status}</p>
+          {speech.listening && !recognitionFailed && !muted && (
+            <div className="call-voice-wave" aria-label="음성을 듣고 있어요">
+              {[0.7, 1, 0.82, 1.15, 0.76].map((weight, index) => (
+                <i
+                  key={index}
+                  style={{ height: `${Math.min(28, 7 + (speech.inputLevel || 0.05) * 105 * weight)}px` }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
         {typing && (
           <div className="composer">
@@ -284,35 +290,35 @@ export default function CallScreen({
           </div>
         )}
 
-        <div className="controls">
-          {speech.supported ? (
-            <button
-              className={`round${speech.listening ? " listening" : ""}`}
-              onClick={toggleMute}
-            >
-              {muted
-                ? "마이크 켜기"
-                : "마이크 끄기"}
-            </button>
-          ) : (
-            <button
-              className={`round${typing ? " active" : ""}`}
-              onClick={() => setTyping((t) => !t)}
-            >
-              글자로 말하기
-            </button>
-          )}
-          <button className="round danger" onClick={hangup}>끊기</button>
+        <div className="controls call-controls">
+          <CallControlButton
+            type="microphone"
+            label={muted ? "마이크 꺼짐" : "마이크"}
+            className={`${muted ? " muted" : ""}${speech.listening ? " listening" : ""}`}
+            onClick={toggleMute}
+            disabled={!speech.supported}
+            aria-pressed={muted}
+          />
+          <CallControlButton
+            type="keyboard"
+            label="글자로 말하기"
+            className={typing ? "active" : ""}
+            onClick={() => setTyping((t) => !t)}
+            aria-expanded={typing}
+          />
+          <CallControlButton
+            type="end"
+            label="통화 종료"
+            className="danger"
+            onClick={() => setConfirmingEnd(true)}
+          />
         </div>
-
-        {speech.supported && (
-          <div className="dev">
-            <button onClick={() => setTyping((t) => !t)}>
-              {typing ? "글자 입력 닫기" : "글자로 입력"}
-            </button>
-          </div>
-        )}
       </div>
+      <CallEndConfirm
+        open={confirmingEnd}
+        onCancel={() => setConfirmingEnd(false)}
+        onConfirm={hangup}
+      />
     </div>
   );
 }

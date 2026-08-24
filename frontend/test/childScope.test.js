@@ -10,6 +10,7 @@ const dasoniHome = readFileSync(new URL("../src/screens/DasoniHomeTab.jsx", impo
 const clothesline = readFileSync(new URL("../src/screens/FamilyMemoryClothesline.jsx", import.meta.url), "utf8");
 const seedCareDemo = readFileSync(new URL("../../tools/seed_care_demo.py", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+const datePicker = readFileSync(new URL("../src/components/AppDatePicker.jsx", import.meta.url), "utf8");
 
 test("가족 화면은 연결된 어르신과 본인 가족 식별자를 받는다", () => {
   assert.match(child, /ChildScreen\(\{ elderId = "elder_001", myPersonaId = "", onMyPersonaChange, onDisplaySettings \}\)/);
@@ -20,8 +21,12 @@ test("가족 화면은 연결된 어르신과 본인 가족 식별자를 받는�
 
 test("가족 화면의 날짜는 일별 조회와 통화 필터에 사용된다", () => {
   assert.match(child, /getPeriodSummary\(1, picked\.elder_id, \{ start: selectedDate, end: selectedDate \}\)/);
+  assert.match(child, /getReports\(picked\.elder_id, 120, selectedDate\)/);
   assert.match(child, /slice\(0, 10\) === selectedDate/);
-  assert.match(child, /type="date" value=\{selectedDate\}/);
+  assert.match(child, /<AppDatePicker className="child-date-picker" value=\{selectedDate\}/);
+  assert.match(datePicker, /<input type="date" value=\{value\}/);
+  assert.match(datePicker, /className="app-date-value"/);
+  assert.match(styles, /\.app-device-family \.child-date-picker/);
 });
 
 test("통화 화면은 직접·AI·이어받기 유형과 시간순 목록 및 대화 팝업을 제공한다", () => {
@@ -74,6 +79,13 @@ test("가족 홈은 대표 그림과 통화 일기 및 고정 4등분 하단 탭
   assert.doesNotMatch(child, /--insight-fit/);
   assert.match(child, /\/diary\/haeundae-family-drawing\.png/);
   assert.ok(existsSync(new URL("../public/diary/haeundae-family-drawing.png", import.meta.url)));
+  assert.match(child, /const DEMO_DIARIES = \[/);
+  assert.doesNotMatch(child, /className="child-diary-picker"/);
+  assert.match(child, /className="child-diary-date"/);
+  assert.match(child, /displayValue=\{shortDate\(selectedDate\)\}/);
+  assert.ok(existsSync(new URL("../public/diary/country-market-memory.png", import.meta.url)));
+  assert.ok(existsSync(new URL("../public/diary/persimmon-yard-memory.png", import.meta.url)));
+  assert.ok(existsSync(new URL("../public/diary/autumn-riverside-picnic.png", import.meta.url)));
   assert.match(child, /heart\?\.visual_story\?\.status_label/);
   assert.match(styles, /\.app-device-family \.child-tabs \{[\s\S]*grid-template-columns: repeat\(4,minmax\(0,1fr\)\)/);
   assert.match(styles, /\.child-diary-art/);
@@ -130,17 +142,19 @@ test("가족 추억함의 확인 대기 바구니는 접었다 펼칠 수 있다
   assert.match(clothesline, /펼치기/);
 });
 
-test("설정의 본인 가족 카드에는 나 배지가 표시된다", () => {
+test("설정의 본인 가족 카드는 관계와 이름을 한 줄에 표시한다", () => {
   assert.match(child, /readyPersonas\.find\(\(item\) => item\.persona_id === myPersonaId\)/);
   assert.match(child, /<FamilyPersonaSettings[\s\S]*personaId=\{myPersona\?\.persona_id/);
-  assert.match(familySettings, /child-me-badge/);
+  assert.doesNotMatch(familySettings, /child-me-badge|내 가족 프로필/);
+  assert.match(familySettings, /persona\.relationship_type \|\| summary\?\.relationship/);
 });
 
-test("가족 설정은 말투 카드와 가족 표현만 편집한다", () => {
+test("가족 설정은 말투 카드와 실제 표현을 편집한다", () => {
   assert.doesNotMatch(child, /AI FAMILY|통화에 등장할 가족이에요|안전한 기본값/);
   assert.match(familySettings, /다시 설정하기/);
   assert.match(familySettings, /CallStyleQuiz/);
-  assert.match(familySettings, /가족 표현/);
+  assert.doesNotMatch(familySettings, />가족 표현</);
+  assert.match(familySettings, /우리 가족이 실제로 쓰는 표현을 알려주세요/);
   assert.match(familySettings, /자주 쓰는 말/);
   assert.match(familySettings, /쓰면 안 되는 말/);
   assert.doesNotMatch(familySettings, /말의 속도, 높임말과 반말/);

@@ -14,6 +14,14 @@ test("root journey requires a server session before role selection", () => {
   assert.match(api, /Authorization: `Bearer \$\{token\}`/);
 });
 
+test("the login screen offers a session-only demo path", () => {
+  assert.match(login, /onSkip/);
+  assert.match(login, /일단 둘러보기/);
+  assert.match(app, /const \[demoMode, setDemoMode\]/);
+  assert.match(app, /setAccount\(\{ user_id: "demo", display_name: "체험 사용자" \}\)/);
+  assert.match(app, /if \(demoMode\) \{\s*setRoleOnboarded\(true\)/);
+});
+
 test("every role resumes server-saved onboarding before its existing home", () => {
   assert.match(app, /getOnboarding\(role\)/);
   assert.match(app, /<RoleOnboardingScreen/);
@@ -37,5 +45,5 @@ test("the elder waiting screen exposes honest delayed-call choices", () => {
   assert.match(calling, /전화벨이 울리고 있어요/);
   assert.match(calling, /아직 연결을 기다리고 있어요/);
   assert.match(calling, /다소니와 먼저 이야기하기/);
-  assert.match(calling, /다른 가족 선택/);
+  assert.doesNotMatch(calling, /다른 가족 선택/);
 });

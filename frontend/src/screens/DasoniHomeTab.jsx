@@ -46,7 +46,7 @@ export default function DasoniHomeTab({
         {visibleAttentionItems.map((item) => <article className={`dasoni-attention-item${item.example ? " example" : ""}`} key={item.id}>
           <span className="dasoni-attention-icon"><HomeGlyph /></span>
           <div>
-            <small>{item.example ? "표시 예시" : "통화에서 발견"}</small>
+            {!item.example && <small>통화에서 발견</small>}
             <h3>{item.label || "가족 확인이 필요해요"}</h3>
             <blockquote>“{item.evidence}”</blockquote>
             <p>{item.action || "현재 상태를 직접 확인해 주세요."}</p>

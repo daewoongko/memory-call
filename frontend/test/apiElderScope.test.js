@@ -42,6 +42,9 @@ test("가족 카드 통화는 호출을 만든 뒤 서버 상태에 따라 사�
   assert.match(app, /current\.state === "answered"/);
   assert.match(app, /current\.should_take_over/);
   assert.match(app, /api\.takeOverInvite\(inviteId\)/);
+  assert.match(app, /current\.state === "ai_takeover"/);
+  assert.match(app, /if \(takeoverInFlight\.current\) return/);
+  assert.match(app, /setError\(""\);[\s\S]*?cooldownUntil\.current/);
   assert.doesNotMatch(app, /setSecondsLeft|secondsLeft=/);
 });
 
