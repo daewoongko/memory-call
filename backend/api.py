@@ -816,11 +816,11 @@ def tts_health():
         ),
     }
     try:
-        try:
-            default_voice_ready = bool(_ready_voice_id(DEFAULT_FACE_PERSONA_ID))
-        except (HTTPException, elevenlabs_tts.ElevenLabsNotConfigured,
-                elevenlabs_tts.ElevenLabsUnavailable):
-            default_voice_ready = False
+        default_voice_ready = bool(_ready_voice_id(DEFAULT_FACE_PERSONA_ID))
+    except (HTTPException, elevenlabs_tts.ElevenLabsNotConfigured,
+            elevenlabs_tts.ElevenLabsUnavailable):
+        default_voice_ready = False
+    try:
         return {
             "tts": {**tts_status, "default_voice_ready": default_voice_ready},
             "anam": {
@@ -834,7 +834,7 @@ def tts_health():
     except tts_proxy.TTSUnavailable as exc:
         # 립싱크 워커가 꺼져 있어도 순수 ElevenLabs 음성 통화는 정상 경로다.
         return {
-            "tts": {**tts_status, "default_voice_ready": False},
+            "tts": {**tts_status, "default_voice_ready": default_voice_ready},
             "anam": {
                 "configured": anam_mod.configured(),
                 "default_avatar_ready": bool(

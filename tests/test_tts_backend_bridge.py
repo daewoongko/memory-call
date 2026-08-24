@@ -353,6 +353,7 @@ class TTSApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertTrue(body["tts"]["configured"])
+        self.assertTrue(body["tts"]["default_voice_ready"])
         self.assertEqual(body["tts"]["engine"], "elevenlabs")
         self.assertFalse(body["lipsync"]["available"])
 
