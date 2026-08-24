@@ -188,6 +188,36 @@ class PersonaAvatarTests(unittest.TestCase):
                     "RENDER": "",
                     "RENDER_SERVICE_ID": "",
                     "DEMO_SEED_MODE": "high_volume",
+                    "STORAGE_DIR": "",
+                },
+                clear=False,
+            ),
+            patch.object(
+                persona_avatar.anam,
+                "find_avatar_by_name",
+                return_value={
+                    "avatar_id": "existing-private-avatar",
+                    "avatar_model": "cara-4",
+                },
+            ) as find,
+        ):
+            selected = persona_avatar.active_avatar("persona_test")
+
+        self.assertEqual(selected["avatar_model"], "cara-4")
+        find.assert_called_once_with("daewoongko")
+
+    def test_existing_render_storage_configuration_recovers_demo_avatar(self):
+        with (
+            patch.object(persona_avatar, "DEFAULT_FACE_PERSONA_ID", "persona_test"),
+            patch.dict(
+                "os.environ",
+                {
+                    "ANAM_AVATAR_ID": "",
+                    "ANAM_AVATAR_NAME": "",
+                    "RENDER": "",
+                    "RENDER_SERVICE_ID": "",
+                    "DEMO_SEED_MODE": "",
+                    "STORAGE_DIR": "/app/storage",
                 },
                 clear=False,
             ),
