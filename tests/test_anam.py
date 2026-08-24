@@ -196,7 +196,13 @@ class AnamApiTests(unittest.TestCase):
     def test_default_persona_can_use_deployment_voice_id(self):
         with (
             patch.object(api.voice_mod, "active_voice_id", return_value=None),
-            patch.dict("os.environ", {"ELEVENLABS_VOICE_ID": "deployment-voice"}),
+            patch.dict(
+                "os.environ",
+                {
+                    "ELEVENLABS_VOICE_ID": "deployment-voice",
+                    "ELEVENLABS_VOICE_NAME": "",
+                },
+            ),
         ):
             self.assertEqual(
                 api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID),
@@ -212,7 +218,11 @@ class AnamApiTests(unittest.TestCase):
 
     def test_default_persona_recovers_voice_id_by_deployment_name(self):
         with (
-            patch.object(api.voice_mod, "active_voice_id", return_value=None),
+            patch.object(
+                api.voice_mod,
+                "active_voice_id",
+                return_value="stale-profile-voice",
+            ),
             patch.object(
                 api.elevenlabs_tts,
                 "resolve_voice_id_by_name",
@@ -220,7 +230,10 @@ class AnamApiTests(unittest.TestCase):
             ) as resolve,
             patch.dict(
                 "os.environ",
-                {"ELEVENLABS_VOICE_NAME": "memory-call-user-voice-2"},
+                {
+                    "ELEVENLABS_VOICE_ID": "stale-deployment-voice",
+                    "ELEVENLABS_VOICE_NAME": "memory-call-user-voice-2",
+                },
                 clear=True,
             ),
         ):
@@ -326,7 +339,7 @@ class AnamApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"\x01\x02\x03\x04")
-        self.assertEqual(response.headers["x-audio-sample-rate"], "16000")
+        self.assertEqual(response.headers["x-audio-sample-rate"], "24000")
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertTrue(upstream.closed)
         open_stream.assert_called_once_with(

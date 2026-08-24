@@ -848,13 +848,17 @@ def tts_health():
 def _ready_voice_id(persona_id: str | None) -> str:
     if not persona_id:
         raise HTTPException(409, "통화할 가족을 먼저 선택해 주세요.")
-    voice_id = voice_mod.active_voice_id(persona_id)
-    if not voice_id and persona_id == DEFAULT_FACE_PERSONA_ID:
-        voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
-    if not voice_id and persona_id == DEFAULT_FACE_PERSONA_ID:
+    voice_id = None
+    if persona_id == DEFAULT_FACE_PERSONA_ID:
+        # Resolve the named Daewoong clone in the current ElevenLabs account
+        # before using an id that may belong to an older API-key/account pair.
         voice_name = os.getenv("ELEVENLABS_VOICE_NAME", "").strip()
         if voice_name:
             voice_id = elevenlabs_tts.resolve_voice_id_by_name(voice_name)
+        if not voice_id:
+            voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+    if not voice_id:
+        voice_id = voice_mod.active_voice_id(persona_id)
     if not voice_id:
         raise HTTPException(409, "선택한 가족의 승인된 목소리를 먼저 등록해 주세요.")
     return voice_id

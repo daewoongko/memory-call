@@ -1,4 +1,4 @@
-const SAMPLE_RATE = 16000;
+const SAMPLE_RATE = 24000;
 const BYTES_PER_SAMPLE = 2;
 const PLAYBACK_TAIL_MS = 350;
 const CONNECTION_TIMEOUT_MS = 20000;
@@ -81,6 +81,8 @@ export function createAnamTransport({
       // caller onto the audio-only fallback, so wait for the real video track.
       let readyTimer = null;
       let readySettled = false;
+      let videoReady = false;
+      let sessionReady = false;
       let resolveReady;
       let rejectReady;
       const ready = new Promise((resolve, reject) => {
@@ -91,9 +93,11 @@ export function createAnamTransport({
         clearTimeout(readyTimer);
         nextClient.removeListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
         nextClient.removeListener?.("VIDEO_PLAY_STARTED", onVideoPlayStarted);
+        nextClient.removeListener?.("SESSION_READY", onSessionReady);
+        nextClient.removeListener?.("DATA_CHANNEL_OPEN", onSessionReady);
       };
-      const markVideoReady = () => {
-        if (readySettled) return;
+      const markReadyWhenComplete = () => {
+        if (readySettled || !videoReady || !sessionReady) return;
         readySettled = true;
         cleanupReadyListeners();
         resolveReady();
@@ -110,9 +114,17 @@ export function createAnamTransport({
           }
           videoElement.play?.().catch(() => {});
         }
-        markVideoReady();
+        videoReady = true;
+        markReadyWhenComplete();
       };
-      const onVideoPlayStarted = () => markVideoReady();
+      const onVideoPlayStarted = () => {
+        videoReady = true;
+        markReadyWhenComplete();
+      };
+      const onSessionReady = () => {
+        sessionReady = true;
+        markReadyWhenComplete();
+      };
       const onConnectionClosed = (reason, details) => {
         const error = new Error(
           `Anam connection closed${reason ? ` (${reason})` : ""}${details ? `: ${details}` : ""}`
@@ -130,6 +142,10 @@ export function createAnamTransport({
 
       nextClient.addListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
       nextClient.addListener?.("VIDEO_PLAY_STARTED", onVideoPlayStarted);
+      nextClient.addListener?.("SESSION_READY", onSessionReady);
+      // Older Anam gateways can open the passthrough channel before emitting
+      // SESSION_READY. Either event proves that agent-audio signalling is safe.
+      nextClient.addListener?.("DATA_CHANNEL_OPEN", onSessionReady);
       nextClient.addListener?.("CONNECTION_CLOSED", onConnectionClosed);
       abortPendingConnection = () => {
         if (readySettled) return;
@@ -217,7 +233,7 @@ export function createAnamTransport({
         }
         bytes += value.byteLength;
         // Fetch is allowed to coalesce server chunks.  Keep every Anam push at
-        // roughly 64 ms of PCM so mouth poses are not updated in 256 ms jumps.
+        // roughly 43 ms of PCM so mouth poses are updated frequently.
         for (let offset = 0; offset < value.byteLength; offset += 2048) {
           audioInput.sendAudioChunk(value.subarray(offset, offset + 2048));
         }

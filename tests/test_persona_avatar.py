@@ -113,7 +113,11 @@ class PersonaAvatarTests(unittest.TestCase):
             patch.object(persona_avatar, "DEFAULT_FACE_PERSONA_ID", "persona_test"),
             patch.dict(
                 "os.environ",
-                {"ANAM_AVATAR_ID": "deployment-avatar", "ANAM_AVATAR_MODEL": "cara-4"},
+                {
+                    "ANAM_AVATAR_ID": "deployment-avatar",
+                    "ANAM_AVATAR_NAME": "",
+                    "ANAM_AVATAR_MODEL": "cara-4",
+                },
                 clear=False,
             ),
         ):
@@ -128,7 +132,7 @@ class PersonaAvatarTests(unittest.TestCase):
             patch.dict(
                 "os.environ",
                 {
-                    "ANAM_AVATAR_ID": "",
+                    "ANAM_AVATAR_ID": "stale-private-avatar",
                     "ANAM_AVATAR_NAME": "daewoongko",
                 },
                 clear=False,

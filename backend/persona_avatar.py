@@ -69,31 +69,10 @@ def public_profile(persona_id: str, elder_id: str | None = None) -> dict:
 def active_avatar(persona_id: str | None) -> dict | None:
     if not persona_id:
         return None
-    with db.connect() as conn:
-        row = conn.execute(
-            "SELECT avatar_id, avatar_model FROM persona_avatar_profiles "
-            "WHERE persona_id = ? AND avatar_status = 'ready'",
-            (persona_id,),
-        ).fetchone()
-    if row and row["avatar_id"]:
-        return {
-            "avatar_id": str(row["avatar_id"]),
-            "avatar_model": str(row["avatar_model"] or anam.DEFAULT_AVATAR_MODEL),
-        }
-
     # Render's free container can start from a fresh SQLite database on each
     # deploy. Keep the default demo persona usable without committing provider
     # ids to the public repository; the ids stay in secret environment values.
     if persona_id == DEFAULT_FACE_PERSONA_ID:
-        avatar_id = os.getenv("ANAM_AVATAR_ID", "").strip()
-        if avatar_id:
-            return {
-                "avatar_id": avatar_id,
-                "avatar_model": (
-                    os.getenv("ANAM_AVATAR_MODEL", "").strip()
-                    or anam.DEFAULT_AVATAR_MODEL
-                ),
-            }
         avatar_name = os.getenv("ANAM_AVATAR_NAME", "").strip()
         if not avatar_name and (
             os.getenv("RENDER", "").strip().lower() == "true"
@@ -108,11 +87,36 @@ def active_avatar(persona_id: str | None) -> dict | None:
             avatar_name = DEFAULT_RENDER_AVATAR_NAME
         if avatar_name:
             try:
-                return anam.find_avatar_by_name(avatar_name)
+                selected = anam.find_avatar_by_name(avatar_name)
+                if selected:
+                    return selected
             except (anam.AnamNotConfigured, anam.AnamUnavailable):
                 # Health and call-list endpoints must remain available while
                 # the optional avatar provider is temporarily unreachable.
-                return None
+                pass
+        # Provider ids are account-scoped. After ANAM_API_KEY changes, prefer
+        # the name lookup above and keep the configured id only as a fallback.
+        avatar_id = os.getenv("ANAM_AVATAR_ID", "").strip()
+        if avatar_id:
+            return {
+                "avatar_id": avatar_id,
+                "avatar_model": (
+                    os.getenv("ANAM_AVATAR_MODEL", "").strip()
+                    or anam.DEFAULT_AVATAR_MODEL
+                ),
+            }
+
+    with db.connect() as conn:
+        row = conn.execute(
+            "SELECT avatar_id, avatar_model FROM persona_avatar_profiles "
+            "WHERE persona_id = ? AND avatar_status = 'ready'",
+            (persona_id,),
+        ).fetchone()
+    if row and row["avatar_id"]:
+        return {
+            "avatar_id": str(row["avatar_id"]),
+            "avatar_model": str(row["avatar_model"] or anam.DEFAULT_AVATAR_MODEL),
+        }
     return None
 
 

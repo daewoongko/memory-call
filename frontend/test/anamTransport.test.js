@@ -30,7 +30,10 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
       return {
         async streamToVideoElement(target) {
           streamTarget = target;
-          queueMicrotask(() => listeners.get("VIDEO_STREAM_STARTED")?.());
+          queueMicrotask(() => {
+            listeners.get("VIDEO_STREAM_STARTED")?.();
+            listeners.get("SESSION_READY")?.();
+          });
         },
         addListener(event, callback) {
           listeners.set(event, callback);
@@ -41,7 +44,7 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
         createAgentAudioInputStream(config) {
           assert.deepEqual(config, {
             encoding: "pcm_s16le",
-            sampleRate: 16000,
+            sampleRate: 24000,
             channels: 1,
           });
           return {
@@ -134,7 +137,10 @@ test("Anam transport splits coalesced PCM into low-latency avatar pushes", async
     }),
     createClientImpl: () => ({
       async streamToVideoElement() {
-        queueMicrotask(() => listeners.get("VIDEO_STREAM_STARTED")?.());
+        queueMicrotask(() => {
+          listeners.get("VIDEO_STREAM_STARTED")?.();
+          listeners.get("SESSION_READY")?.();
+        });
       },
       addListener(event, callback) { listeners.set(event, callback); },
       removeListener(event, callback) {
@@ -184,7 +190,10 @@ test("Anam transport reattaches a mobile video track and requests playback", asy
       }),
       createClientImpl: () => ({
         async streamToVideoElement() {
-          queueMicrotask(() => listeners.get("VIDEO_STREAM_STARTED")?.(stream));
+          queueMicrotask(() => {
+            listeners.get("VIDEO_STREAM_STARTED")?.(stream);
+            listeners.get("DATA_CHANNEL_OPEN")?.();
+          });
         },
         addListener(event, callback) { listeners.set(event, callback); },
         removeListener(event, callback) {
@@ -218,7 +227,10 @@ test("Anam transport also accepts the SDK video-play readiness event", async () 
     }),
     createClientImpl: () => ({
       async streamToVideoElement() {
-        queueMicrotask(() => listeners.get("VIDEO_PLAY_STARTED")?.());
+        queueMicrotask(() => {
+          listeners.get("VIDEO_PLAY_STARTED")?.();
+          listeners.get("SESSION_READY")?.();
+        });
       },
       addListener(event, callback) { listeners.set(event, callback); },
       removeListener(event, callback) {
