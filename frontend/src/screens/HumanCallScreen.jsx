@@ -28,6 +28,9 @@ export default function HumanCallScreen({
   const {
     mediaRef: remoteRef, blocked, playing, rendered, play,
   } = useRemotePlayback(remoteStream);
+  const hasRemoteVideo = Boolean(
+    remoteStream?.getVideoTracks?.().some((track) => track.readyState === "live"),
+  );
 
   useEffect(() => {
     const started = new Date(answeredAt).getTime();
@@ -40,26 +43,29 @@ export default function HumanCallScreen({
   }, [answeredAt]);
 
   return (
-    <div className="screen human-call">
+    <div className={`screen human-call${rendered ? " remote-visible" : ""}`}>
       <video
         ref={remoteRef}
-        className={`human-remote-video${remoteStream ? " live" : ""}`}
+        className={`human-remote-video${hasRemoteVideo ? " live" : ""}`}
         autoPlay
         playsInline
         poster={face || undefined}
       />
-      {remoteStream && (!playing || !rendered) && (
+      {blocked && (
         <button className="remote-sound-enable" onClick={play}>
-          {blocked ? "소리·영상 재생" : "통화 연결하기"}
+          소리 켜기
         </button>
       )}
+      {!rendered && !blocked && (
+        <p className="remote-video-status">
+          {hasRemoteVideo && playing ? "영상을 불러오고 있어요" : "영상 연결 중"}
+        </p>
+      )}
 
-      <div className="who">
-        {name}
-        <small>지금 통화 중</small>
+      <div className="human-call-meta">
+        <strong>{name}</strong>
+        <span>통화 중 · {clock(seconds)}</span>
       </div>
-
-      <p className="countdown">{clock(seconds)}</p>
 
       <SelfView stream={localStream} />
 

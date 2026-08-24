@@ -843,6 +843,7 @@ export default function App() {
       <HumanCallScreen
         name={profile?.persona?.display_name ?? "가족"}
         face={profile?.faces?.at(-1)?.url}
+        answeredAt={invite.answered_at}
         localStream={humanLocalStream}
         remoteStream={humanRemoteStream}
         onEnd={endHumanCall}

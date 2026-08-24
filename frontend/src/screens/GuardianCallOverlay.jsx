@@ -43,6 +43,9 @@ export default function GuardianCallOverlay({
   const {
     mediaRef: remoteRef, blocked, playing, rendered, play,
   } = useRemotePlayback(remoteStream);
+  const hasRemoteVideo = Boolean(
+    remoteStream?.getVideoTracks?.().some((track) => track.readyState === "live"),
+  );
 
   useEffect(() => {
     if (!connected?.invite_id) {
@@ -134,11 +137,11 @@ export default function GuardianCallOverlay({
   return (
     <div className="guardian-call-scrim" role="dialog" aria-live="assertive"
          aria-label={introPending ? "나의 AI 영상을 재생 중" : connected ? `${who}와 통화 중` : `${who}에게서 전화`}>
-      <div className={`guardian-call${connected ? " on" : ""}${introPending ? " preparing" : ""}`}>
-        <span className="guardian-call-tag">
-          {introPending ? "연결 준비 중" : connected ? "통화 중" : "지금 전화가 왔어요"}
-        </span>
-        <h2>{introPending ? "나의 AI 영상을 재생 중" : who}</h2>
+      <div className={`guardian-call${connected ? " on" : ""}${introPending ? " preparing" : ""}${rendered ? " remote-visible" : ""}`}>
+        {(!connected || introPending) && <span className="guardian-call-tag">
+          {introPending ? "연결 준비 중" : "지금 전화가 왔어요"}
+        </span>}
+        {(!connected || introPending) && <h2>{introPending ? "나의 AI 영상을 재생 중" : who}</h2>}
 
         {introPending ? (
           <div className="guardian-ai-playback">
@@ -149,15 +152,28 @@ export default function GuardianCallOverlay({
         ) : connected ? (
           <>
             <div className="guardian-media-stage">
-              <video ref={remoteRef} autoPlay playsInline />
-              {remoteStream && (!playing || !rendered) && (
+              <video
+                ref={remoteRef}
+                className={hasRemoteVideo ? "live" : ""}
+                autoPlay
+                playsInline
+              />
+              {blocked && (
                 <button className="remote-sound-enable" onClick={play}>
-                  {blocked ? "소리·영상 재생" : "통화 연결하기"}
+                  소리 켜기
                 </button>
               )}
+              {!rendered && !blocked && (
+                <p className="remote-video-status">
+                  {hasRemoteVideo && playing ? "영상을 불러오고 있어요" : "영상 연결 중"}
+                </p>
+              )}
+              <div className="guardian-call-meta">
+                <strong>{who}</strong>
+                <span>통화 중 · {clock(seconds)}</span>
+              </div>
               <SelfView stream={localStream} />
             </div>
-            <p className="guardian-call-timer">{clock(seconds)}</p>
           </>
         ) : (
           <p className="guardian-call-note">

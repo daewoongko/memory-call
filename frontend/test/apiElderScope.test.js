@@ -9,6 +9,8 @@ const onboarding = readFileSync(new URL("../src/screens/GuardianOnboardingScreen
 const guardianCall = readFileSync(new URL("../src/screens/GuardianCallOverlay.jsx", import.meta.url), "utf8");
 const calling = readFileSync(new URL("../src/screens/CallingScreen.jsx", import.meta.url), "utf8");
 const melody = readFileSync(new URL("../src/waitingMelody.js", import.meta.url), "utf8");
+const remotePlayback = readFileSync(new URL("../src/useRemotePlayback.js", import.meta.url), "utf8");
+const transport = readFileSync(new URL("../src/callTransport.js", import.meta.url), "utf8");
 
 test("프로필 조회는 elder_id와 선택한 persona_id를 함께 보낸다", () => {
   assert.match(source, /getProfile\s*=\s*\(personaId, elderId = "elder_001"\)/);
@@ -65,6 +67,16 @@ test("가족이 받아도 24초 AI 영상·대기 음악 뒤에 사람 통화를
   assert.match(app, /HUMAN_CONNECT_GRACE_MS = 20000/);
   assert.match(melody, /const NOTES = \[/);
   assert.match(melody, /export function startWaitingMelody/);
+});
+
+test("24초 안내 전에 도착한 실제 영상도 안내 종료 뒤 화면에 다시 붙인다", () => {
+  assert.match(remotePlayback, /const \[mediaNode, setMediaNode\] = useState\(null\)/);
+  assert.match(remotePlayback, /const mediaRef = useCallback\(\(node\)/);
+  assert.match(remotePlayback, /\[mediaNode, stream, playWithVideoFallback, refresh\]/);
+  assert.match(remotePlayback, /media\.muted = true;[\s\S]*?await media\.play\(\)/);
+  assert.match(transport, /new MediaStream\(remoteStream\.getTracks\(\)\)/);
+  assert.match(guardianCall, /className=\{`guardian-call[\s\S]*?remote-visible/);
+  assert.doesNotMatch(guardianCall, /remoteStream && \(!playing \|\| !rendered\)/);
 });
 
 test("어르신 통화 대기 화면은 연결된 어르신의 가족만 조회한다", () => {

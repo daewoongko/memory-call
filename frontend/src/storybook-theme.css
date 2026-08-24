@@ -2299,3 +2299,157 @@ h3,
   .app-device-family .voice-pvc-area > .voice-progress-card,
   .app-device-family .voice-pvc-area > .voice-recorder-card { padding: 13px 14px; }
 }
+
+/* Person-to-person calls use the camera feed as the screen, not a card laid on
+   top of it. This also keeps Android's browser bars from squeezing a 4:3 modal
+   into a tall phone viewport. */
+.human-call {
+  position: relative;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  color: #fff;
+  background: #10241c;
+}
+.human-call .human-remote-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #10241c;
+}
+.human-call .human-call-meta,
+.guardian-call .guardian-call-meta {
+  position: absolute;
+  z-index: 4;
+  top: calc(16px + env(safe-area-inset-top));
+  left: 16px;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  padding: 9px 13px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 15px;
+  color: #fff;
+  background: rgba(6,29,21,.62);
+  box-shadow: 0 7px 22px rgba(0,0,0,.18);
+  backdrop-filter: blur(9px);
+}
+.human-call-meta strong,
+.guardian-call-meta strong { font-size: clamp(16px,4.4vw,20px); line-height: 1.15; }
+.human-call-meta span,
+.guardian-call-meta span { font-size: clamp(12px,3.2vw,14px); font-variant-numeric: tabular-nums; }
+.human-call > .selfview {
+  position: absolute;
+  z-index: 5;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 16px;
+  width: clamp(82px,24vw,104px);
+  height: clamp(112px,32vw,140px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+.human-call > .controls {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  left: 0;
+}
+.remote-video-status {
+  position: absolute !important;
+  z-index: 3 !important;
+  left: 50%;
+  bottom: calc(136px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 9px 14px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(7,31,23,.64);
+  font-size: clamp(14px,3.7vw,17px);
+  font-weight: 750;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+.remote-sound-enable {
+  top: auto;
+  bottom: calc(136px + env(safe-area-inset-bottom));
+  padding: 11px 17px;
+  transform: translateX(-50%);
+}
+
+.guardian-call.on:not(.preparing) {
+  position: fixed;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: var(--app-height,100dvh);
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  background: #10241c;
+  box-shadow: none;
+}
+.guardian-call.on:not(.preparing) .guardian-media-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0;
+  background: #10241c;
+}
+.guardian-call.on:not(.preparing) .guardian-media-stage > video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.guardian-call.on:not(.preparing) .guardian-media-stage .selfview {
+  position: absolute;
+  z-index: 5;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 16px;
+  bottom: auto;
+  width: clamp(82px,24vw,104px);
+  height: clamp(112px,32vw,140px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+.guardian-call.on:not(.preparing) .guardian-call-actions {
+  position: absolute;
+  z-index: 7;
+  right: 0;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  left: 0;
+  justify-content: center;
+  margin: 0;
+}
+.guardian-call.on:not(.preparing) .guardian-call-actions button {
+  flex: 0 0 94px;
+  width: 94px;
+  min-height: 94px;
+  padding: 12px;
+  border-radius: 50%;
+  font-size: clamp(14px,3.7vw,17px);
+  line-height: 1.2;
+}
+.guardian-call.on:not(.preparing) > .error {
+  position: absolute;
+  z-index: 8;
+  right: 18px;
+  bottom: calc(128px + env(safe-area-inset-bottom));
+  left: 18px;
+  margin: 0;
+  padding: 10px 13px;
+  border-radius: 14px;
+  background: rgba(255,242,238,.94);
+}

@@ -34,7 +34,13 @@ export function createTransport({ inviteId, role, localStream, iceServers }) {
   let connected = false;
 
   const emitState = (state) => stateListeners.forEach((cb) => cb(state));
-  const emitStream = () => streamListeners.forEach((cb) => cb(remoteStream));
+  // React ignores setState calls that reuse the same MediaStream object. Emit a
+  // fresh snapshot whenever a track arrives so audio-first/video-second WebRTC
+  // delivery reliably re-attaches the complete stream on Android.
+  const emitStream = () => {
+    const snapshot = new MediaStream(remoteStream.getTracks());
+    streamListeners.forEach((cb) => cb(snapshot));
+  };
   const recordFailure = (kind, reason) => {
     const key = `${kind}Failures`;
     diagnostics[key] = (diagnostics[key] || 0) + 1;
@@ -42,7 +48,11 @@ export function createTransport({ inviteId, role, localStream, iceServers }) {
     diagnosticListeners.forEach((cb) => cb({ ...diagnostics }));
   };
 
-  localStream?.getTracks().forEach((track) => pc.addTrack(track, localStream));
+  localStream?.getTracks().forEach((track) => {
+    if (track.kind === "audio" && "contentHint" in track) track.contentHint = "speech";
+    if (track.kind === "video" && "contentHint" in track) track.contentHint = "motion";
+    pc.addTrack(track, localStream);
+  });
 
   pc.ontrack = (event) => {
     const source = event.streams?.[0];
@@ -55,6 +65,7 @@ export function createTransport({ inviteId, role, localStream, iceServers }) {
     } else if (event.track) {
       remoteStream.addTrack(event.track);
     }
+    event.track?.addEventListener?.("unmute", emitStream, { once: true });
     emitStream();
   };
 
@@ -178,7 +189,7 @@ export function createTransport({ inviteId, role, localStream, iceServers }) {
     disconnect,
     onRemoteStream(cb) {
       streamListeners.add(cb);
-      if (remoteStream.getTracks().length) cb(remoteStream);
+      if (remoteStream.getTracks().length) cb(new MediaStream(remoteStream.getTracks()));
       return () => streamListeners.delete(cb);
     },
     onStateChange(cb) {
@@ -200,6 +211,7 @@ const AUDIO_CONSTRAINTS = {
   echoCancellation: true,
   noiseSuppression: true,
   autoGainControl: true,
+  channelCount: { ideal: 1 },
 };
 
 const VIDEO_CONSTRAINTS = {
