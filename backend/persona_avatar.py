@@ -98,6 +98,7 @@ def active_avatar(persona_id: str | None) -> dict | None:
         if not avatar_name and (
             os.getenv("RENDER", "").strip().lower() == "true"
             or os.getenv("RENDER_SERVICE_ID", "").strip()
+            or os.getenv("DEMO_SEED_MODE", "").strip() == "high_volume"
         ):
             # The public demo persona and this already-approved provider avatar
             # are the same person. Render Blueprint value changes are not

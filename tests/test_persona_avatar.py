@@ -177,6 +177,34 @@ class PersonaAvatarTests(unittest.TestCase):
         self.assertEqual(selected["avatar_model"], "cara-4")
         find.assert_called_once_with("daewoongko")
 
+    def test_deployed_demo_recovers_without_render_metadata(self):
+        with (
+            patch.object(persona_avatar, "DEFAULT_FACE_PERSONA_ID", "persona_test"),
+            patch.dict(
+                "os.environ",
+                {
+                    "ANAM_AVATAR_ID": "",
+                    "ANAM_AVATAR_NAME": "",
+                    "RENDER": "",
+                    "RENDER_SERVICE_ID": "",
+                    "DEMO_SEED_MODE": "high_volume",
+                },
+                clear=False,
+            ),
+            patch.object(
+                persona_avatar.anam,
+                "find_avatar_by_name",
+                return_value={
+                    "avatar_id": "existing-private-avatar",
+                    "avatar_model": "cara-4",
+                },
+            ) as find,
+        ):
+            selected = persona_avatar.active_avatar("persona_test")
+
+        self.assertEqual(selected["avatar_model"], "cara-4")
+        find.assert_called_once_with("daewoongko")
+
     def test_provider_failure_is_visible_without_exposing_provider_id(self):
         with (
             patch.object(persona_avatar.anam, "configured", return_value=True),
