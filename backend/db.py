@@ -24,6 +24,7 @@ JSON_COLUMNS = {
     "care_summary", "meaningful_moments", "family_mentions",
     "care_baseline", "medical_cautions",
     "monitoring_points", "observed_flags",
+    "progress_data",
 }
 
 # CREATE TABLE IF NOT EXISTS 는 이미 있는 테이블에 새 컬럼을 붙이지 않는다.
@@ -121,7 +122,7 @@ def _migrate_call_invite_reasons(conn: sqlite3.Connection) -> None:
             from_device TEXT, to_device TEXT,
             state TEXT NOT NULL CHECK (state IN
                 ('ringing','answered','declined','timeout','ai_takeover','ended','cancelled')),
-            ring_timeout_sec INTEGER NOT NULL DEFAULT 15,
+            ring_timeout_sec INTEGER NOT NULL DEFAULT 25,
             no_live_device INTEGER DEFAULT 0,
             takeover_reason TEXT CHECK (takeover_reason IN
                 ('declined','timeout','no_device','transport_failed','media_permission_denied')),

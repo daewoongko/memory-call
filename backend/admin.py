@@ -8,6 +8,7 @@
 사진은 파일로 다루므로 여기서만 디스크를 만진다.
 """
 
+import json
 import re
 import shutil
 import subprocess
@@ -101,6 +102,37 @@ def create_elder(name: str, call_name: str = "할아버지",
         })
         conn.commit()
     return {"elder_id": elder_id, "name": name}
+
+
+def create_persona(elder_id: str, display_name: str, relationship: str,
+                   elder_calls_family: str, family_calls_elder: str) -> dict:
+    """연결된 어르신에게 새 가족 프로필을 만든다.
+
+    얼굴·목소리 승인이 끝나기 전에는 통화 대상에 나타나지 않도록 active=0으로
+    시작한다. 최초 설정의 마지막 검토에서 명시적으로 활성화한다.
+    """
+    persona_id = f"persona_{uuid.uuid4().hex[:12]}"
+    with db.connect() as conn:
+        elder = conn.execute(
+            "SELECT 1 FROM elder_profiles WHERE elder_id = ?", (elder_id,)
+        ).fetchone()
+        if elder is None:
+            raise ValueError("연결할 어르신을 찾지 못했습니다.")
+        db.insert(conn, "personas", {
+            "persona_id": persona_id,
+            "elder_id": elder_id,
+            "display_name": display_name,
+            "relationship_type": relationship,
+            "family_calls_elder": family_calls_elder,
+            "elder_calls_family": elder_calls_family,
+            "tone": "따뜻하고 편안하게, 서두르지 않고 천천히 말한다.",
+            "frequent_phrases": [],
+            "forbidden_phrases": ["왜 또 물어봐?", "아까 말했잖아."],
+            "sensitive_policy": "감정 중심으로 대응하고 확인되지 않은 사실은 단정하지 않는다.",
+            "active": 0,
+        })
+        conn.commit()
+    return profile(elder_id, persona_id)
 
 
 def profile(elder_id: str = "elder_001", persona_id: str | None = None) -> dict:
@@ -282,6 +314,26 @@ def delete_identity_photo(name: str, persona_id: str | None = None) -> None:
     target = _admin_paths(persona_id).source / Path(name).name
     if target.exists() and target.suffix.lower() in ALLOWED_SUFFIX:
         target.unlink()
+
+
+def confirm_identity_photo(name: str, persona_id: str) -> dict:
+    """통화 카드와 아바타에 쓸 대표 가족 사진을 명시적으로 확정한다."""
+    safe = Path(name).name
+    paths = _admin_paths(persona_id)
+    target = paths.source / safe
+    if safe != name or not target.is_file():
+        raise ValueError("확정할 가족 사진을 찾을 수 없습니다.")
+    manifest = paths.root / "profile.json"
+    try:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        payload = {}
+    payload["representative_photo"] = f"source/{safe}"
+    manifest.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return {"name": safe, "url": _asset_url(persona_id, "source", safe)}
 
 def faces(persona_id: str | None = None) -> dict:
     """등록된 사진과 생성물 상태.

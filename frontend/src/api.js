@@ -1,6 +1,18 @@
 // FastAPI 호출부. Vite 프록시 덕분에 상대 경로만 쓴다.
 
 const TRANSIENT_STATUSES = new Set([502, 503, 504]);
+const AUTH_TOKEN_KEY = "dasoni.authToken";
+
+export function authToken() {
+  try { return window.localStorage.getItem(AUTH_TOKEN_KEY) || ""; } catch { return ""; }
+}
+
+export function saveAuthToken(token) {
+  try {
+    if (token) window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+    else window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch { /* this session can still continue in memory */ }
+}
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -9,10 +21,16 @@ function wait(ms) {
 async function request(path, options = {}) {
   let res;
   const attempts = (options.method || "GET") === "GET" ? 3 : 1;
+  const { headers: optionHeaders = {}, ...fetchOptions } = options;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const token = authToken();
     res = await fetch(path, {
-      headers: { "Content-Type": "application/json" },
-      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...optionHeaders,
+      },
+      ...fetchOptions,
     });
     if (!TRANSIENT_STATUSES.has(res.status) || attempt === attempts - 1) break;
     await wait(700 * (attempt + 1));
@@ -29,6 +47,28 @@ async function request(path, options = {}) {
   return res.json();
 }
 
+export const registerAccount = (body) =>
+  request("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
+
+export const loginAccount = (body) =>
+  request("/api/auth/login", { method: "POST", body: JSON.stringify(body) });
+
+export const getCurrentAccount = () => request("/api/auth/me");
+
+export const logoutAccount = () =>
+  request("/api/auth/logout", { method: "POST" });
+
+export const getOnboarding = (role) => request(`/api/onboarding/${role}`);
+
+export const saveOnboarding = (role, body) =>
+  request(`/api/onboarding/${role}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+
+export const saveConsents = (body) =>
+  request("/api/consents", { method: "POST", body: JSON.stringify(body) });
+
 export const getProfile = (personaId, elderId = "elder_001") => {
   const params = new URLSearchParams({ elder_id: elderId });
   if (personaId) params.set("persona_id", personaId);
@@ -42,6 +82,12 @@ export const getElders = () => request("/api/elders");
 
 export const addElder = (body) =>
   request("/api/elders", { method: "POST", body: JSON.stringify(body) });
+
+export const addPersona = (elderId, body) =>
+  request(`/api/elders/${encodeURIComponent(elderId)}/personas`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 
 export const issueLinkCode = (elderId = "elder_001") =>
   request(`/api/link/code?elder_id=${elderId}`, { method: "POST" });
@@ -287,6 +333,12 @@ export const getAvatarProfile = (personaId, elderId = "elder_001") =>
 export const syncAvatarProfile = (personaId, elderId = "elder_001") =>
   request(`/api/personas/${encodeURIComponent(personaId)}/avatar/sync?elder_id=${encodeURIComponent(elderId)}`, {
     method: "POST",
+  });
+
+export const confirmAvatarPhoto = (personaId, photoName, elderId = "elder_001") =>
+  request(`/api/personas/${encodeURIComponent(personaId)}/avatar/confirmed-photo`, {
+    method: "POST",
+    body: JSON.stringify({ elder_id: elderId, photo_name: photoName }),
   });
 
 export const selectAgeCandidate = (age, filename, personaId) =>

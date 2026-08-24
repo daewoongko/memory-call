@@ -259,6 +259,9 @@ h3,
 .calling-morph-status { left: 50%; bottom: 24px; width: calc(100% - 32px); max-width: 520px; padding: 15px 18px; border: 1px solid rgba(255,255,255,.62); border-radius: 20px; background: rgba(255, 254, 249, .90); box-shadow: 0 12px 32px rgba(24, 44, 34, .16); backdrop-filter: blur(14px); }
 .calling-morph-status .who { color: var(--brand-deep); }
 .calling-morph-status p { color: var(--muted); }
+.calling-wait-options { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:14px; }
+.calling-wait-options button { padding:10px 13px; border:1px solid var(--line); border-radius:999px; color:var(--brand-deep); background:rgba(255,254,249,.92); font:700 calc(11px * var(--font-scale)) "Gowun Dodum",sans-serif; }
+.calling-wait-options button:first-child { color:#fff; border-color:var(--brand); background:var(--brand); }
 .call-screen { background: #1e2b24; }
 .call-screen .topbar { padding: 16px; }
 .call-meta .badge { border: 1px solid rgba(255,255,255,.20); background: rgba(24, 44, 34, .72); backdrop-filter: blur(10px); }
@@ -400,6 +403,165 @@ h3,
   .child-diary-page > p { font-size: calc(16px * var(--font-scale)); }
   .child-diary-page > p:first-of-type { font-size: calc(18px * var(--font-scale)); }
   .controls .round { width: 104px; min-width: 104px; }
+}
+
+/* ── 로그인과 역할별 최초 설정 ─────────────────────────────── */
+.app-device-login,
+.app-device-journey-elder,
+.app-device-journey-child,
+.app-device-journey-care { background: radial-gradient(circle at 88% 4%, rgba(219,235,239,.9), transparent 28%), var(--bg); }
+
+.login-screen { min-height:100%; display:grid; grid-template-columns:minmax(0,1.05fr) minmax(360px,.85fr); align-items:center; gap:clamp(32px,7vw,100px); padding:clamp(30px,7vw,84px); overflow-y:auto; }
+.login-welcome { max-width:570px; }
+.login-welcome .brandmark { margin-bottom:25px; filter:drop-shadow(0 18px 25px rgba(189,136,44,.16)); }
+.login-welcome .eyebrow { margin:0 0 12px; color:var(--brand); font-family:"Gowun Dodum",sans-serif; font-size:16px; font-weight:700; }
+.login-welcome h1 { margin:0; color:var(--brand-deep); font-family:"Gaegu",sans-serif; font-size:clamp(48px,6vw,76px); line-height:.98; }
+.login-welcome > p:last-child { max-width:460px; margin:22px 0 0; color:var(--muted); font-family:"Gowun Dodum",sans-serif; font-size:17px; line-height:1.7; }
+.login-card { width:100%; max-width:480px; justify-self:end; padding:clamp(25px,4vw,42px); border:1px solid var(--line); border-radius:28px; background:rgba(255,252,244,.92); box-shadow:0 24px 70px rgba(48,56,45,.12); font-family:"Gowun Dodum",sans-serif; }
+.login-tabs { display:grid; grid-template-columns:1fr 1fr; gap:5px; padding:5px; border-radius:15px; background:rgba(75,125,102,.08); }
+.login-tabs button { padding:11px; border-radius:11px; color:var(--muted); font:700 15px "Gowun Dodum",sans-serif; }
+.login-tabs button.on { color:#fff; background:var(--brand); box-shadow:0 7px 18px rgba(75,125,102,.2); }
+.login-card header { margin:27px 0 22px; }
+.login-card h2 { margin:0 0 7px; color:var(--brand-deep); font:700 31px "Gaegu",sans-serif; }
+.login-card header p,.login-security-note { margin:0; color:var(--muted); font-size:13px; line-height:1.55; }
+.login-card > label { display:grid; gap:8px; margin:15px 0; color:var(--brand-deep); font-size:13px; font-weight:700; }
+.login-card input { width:100%; padding:15px 16px; border:1px solid var(--line); border-radius:14px; color:var(--text); background:#fffdf7; font:16px "Gowun Dodum",sans-serif; outline:0; }
+.login-card input:focus { border-color:var(--brand); box-shadow:0 0 0 3px rgba(75,125,102,.12); }
+.login-security-note { padding:12px 13px; border-radius:12px; background:rgba(224,139,58,.08); }
+.login-submit { width:100%; margin-top:18px; padding:15px; border-radius:15px; color:#fff; background:var(--brand); font:700 17px "Gowun Dodum",sans-serif; }
+.login-submit:disabled { opacity:.42; }
+.role-account-line { width:min(900px,100%); display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-4px auto 8px; color:var(--muted); font:14px "Gowun Dodum",sans-serif; }
+.role-account-line b { color:var(--brand-deep); }
+.role-account-line button { padding:7px 11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; font:12px "Gowun Dodum",sans-serif; }
+
+.journey-screen { width:min(960px,100%); height:100%; margin:0 auto; padding:25px clamp(16px,4vw,38px) 48px; overflow-y:auto; color:var(--text); font-family:"Gowun Dodum",sans-serif; scrollbar-width:thin; }
+.journey-loading { display:grid; place-content:center; justify-items:center; gap:18px; color:var(--muted); }
+.journey-header { display:grid; grid-template-columns:46px 58px minmax(0,1fr) auto; align-items:center; gap:12px; }
+.journey-header > button { width:42px; height:42px; border:1px solid var(--line); border-radius:50%; color:var(--brand-deep); background:var(--surface); font-size:20px; }
+.journey-header > div { display:grid; gap:3px; min-width:0; }
+.journey-header small { color:var(--muted); font-size:12px; }
+.journey-header b { overflow:hidden; color:var(--brand-deep); font:700 clamp(19px,3vw,29px) "Gaegu",sans-serif; text-overflow:ellipsis; white-space:nowrap; }
+.journey-header > span { color:var(--brand); font-size:13px; font-weight:700; }
+.journey-progress { height:6px; margin:18px 0 22px; overflow:hidden; border-radius:999px; background:rgba(75,125,102,.11); }
+.journey-progress i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,var(--brand),#83a98e); transition:width .3s ease; }
+.journey-card { padding:clamp(24px,5vw,50px); border:1px solid var(--line); border-radius:28px; background:rgba(255,252,244,.94); box-shadow:0 22px 65px rgba(48,56,45,.09); }
+.journey-copy { max-width:720px; }
+.journey-copy .eyebrow { margin:0 0 10px; color:var(--brand); font-size:13px; font-weight:700; letter-spacing:.04em; }
+.journey-copy h2 { margin:0; color:var(--brand-deep); font:700 clamp(32px,5vw,47px) "Gaegu",sans-serif; line-height:1.02; }
+.journey-copy > p:last-child { margin:17px 0 0; color:var(--muted); font-size:15px; line-height:1.75; }
+.journey-summary-list { display:grid; grid-template-columns:44px minmax(0,1fr); gap:13px 15px; margin:32px 0 5px; }
+.journey-summary-list > span { width:40px; height:40px; display:grid; place-items:center; border-radius:50%; color:#fff; background:var(--brand); font-weight:700; }
+.journey-summary-list p { display:grid; gap:3px; margin:0; }
+.journey-summary-list b { color:var(--brand-deep); font-size:17px; }
+.journey-summary-list small { color:var(--muted); font-size:13px; }
+.journey-mode-grid,.journey-tone-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:25px 0; }
+.journey-choice { min-width:0; display:grid; grid-template-columns:27px minmax(0,1fr); align-items:center; gap:11px; padding:17px; text-align:left; border:1px solid var(--line); border-radius:17px; color:var(--text); background:var(--bg); }
+.journey-choice.selected { border-color:var(--brand); background:rgba(75,125,102,.09); box-shadow:0 0 0 2px rgba(75,125,102,.1); }
+.journey-choice-check { width:25px; height:25px; display:grid; place-items:center; border:1px solid var(--line); border-radius:50%; color:#fff; font-weight:700; }
+.journey-choice.selected .journey-choice-check { border-color:var(--brand); background:var(--brand); }
+.journey-choice > span:nth-child(2) { display:grid; gap:4px; min-width:0; }
+.journey-choice b { color:var(--brand-deep); font-size:15px; }
+.journey-choice small { color:var(--muted); font-size:12px; line-height:1.45; }
+.consent-list { display:grid; gap:9px; margin:23px 0 11px; }
+.consent-list label { display:grid; grid-template-columns:26px minmax(0,1fr); gap:12px; align-items:start; padding:15px 16px; border:1px solid var(--line); border-radius:15px; background:var(--bg); }
+.consent-list input,.journey-confirm input { width:20px; height:20px; accent-color:var(--brand); }
+.consent-list span { display:grid; gap:4px; }
+.consent-list b { color:var(--brand-deep); font-size:14px; }
+.consent-list small { color:var(--muted); font-size:12px; line-height:1.5; }
+.consent-all { padding:10px 14px; border:1px solid var(--brand); border-radius:999px; color:var(--brand); font:700 13px "Gowun Dodum",sans-serif; }
+.journey-legal { margin:15px 0 0; color:var(--muted); font-size:11px; line-height:1.6; }
+.journey-family-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:29px 0 18px; }
+.journey-family-grid article { display:grid; justify-items:center; gap:5px; padding:14px 8px; border:1px solid var(--line); border-radius:17px; background:var(--bg); }
+.journey-family-grid img,.journey-family-grid article > span { width:86px; height:86px; display:grid; place-items:center; border-radius:50%; object-fit:cover; color:#fff; background:var(--brand); font-size:30px; }
+.journey-family-grid b { color:var(--brand-deep); font-size:16px; }
+.journey-family-grid small { color:var(--muted); font-size:12px; }
+.journey-empty-family { display:flex; align-items:center; gap:16px; margin:27px 0 16px; padding:17px; border:1px dashed rgba(75,125,102,.32); border-radius:18px; background:rgba(75,125,102,.05); }
+.journey-empty-family p { display:grid; gap:4px; margin:0; }
+.journey-empty-family b { color:var(--brand-deep); font-size:15px; }
+.journey-empty-family small { color:var(--muted); font-size:12px; line-height:1.5; }
+.journey-confirm { display:flex; align-items:center; gap:10px; margin:18px 0; padding:15px; border-radius:14px; background:rgba(75,125,102,.08); color:var(--brand-deep); font-size:14px; font-weight:700; }
+.journey-fields { display:grid; gap:15px; margin:27px 0; }
+.journey-fields.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.journey-fields label,.journey-code { display:grid; gap:8px; color:var(--brand-deep); font-size:13px; font-weight:700; }
+.journey-fields input,.journey-code input { width:100%; padding:14px 15px; border:1px solid var(--line); border-radius:13px; background:#fffdf7; font:15px "Gowun Dodum",sans-serif; }
+.journey-practice { display:grid; grid-template-columns:86px minmax(0,1fr) 46px; align-items:center; gap:17px; margin:30px 0; padding:18px; border:1px solid var(--line); border-radius:22px; background:#eef2e9; }
+.journey-practice > span { width:86px; height:86px; display:grid; place-items:center; border-radius:50%; color:#fff; background:var(--brand); font:700 25px "Gaegu",sans-serif; }
+.journey-practice div { display:grid; gap:5px; }
+.journey-practice b { color:var(--brand-deep); font-size:20px; }
+.journey-practice small { color:var(--muted); font-size:13px; }
+.journey-practice i { width:46px; height:46px; display:grid; place-items:center; border:1px solid rgba(75,125,102,.25); border-radius:50%; color:var(--brand); background:#fff; font-size:22px; font-style:normal; }
+.journey-elder-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:27px 0; }
+.journey-code { margin-top:16px; }
+.journey-code-large { max-width:470px; margin:34px auto 10px; text-align:center; }
+.journey-code-large input { padding:18px; text-align:center; font-size:28px; font-weight:700; letter-spacing:.28em; }
+.journey-link-issue { display:flex; align-items:center; justify-content:space-between; gap:15px; margin:15px 0; padding:16px; border:1px solid var(--line); border-radius:16px; background:var(--bg); }
+.journey-link-issue > div { display:grid; gap:4px; }
+.journey-link-issue b { color:var(--brand-deep); font-size:14px; }
+.journey-link-issue small { color:var(--muted); font-size:12px; }
+.journey-link-issue button { padding:10px 13px; border:1px solid var(--brand); border-radius:999px; color:var(--brand); font-weight:700; }
+.journey-link-issue strong { color:var(--brand-deep); font-size:25px; letter-spacing:.18em; }
+.journey-photo-upload { min-height:260px; display:grid; place-items:center; margin:27px 0 16px; overflow:hidden; border:2px dashed rgba(75,125,102,.35); border-radius:22px; cursor:pointer; background:rgba(75,125,102,.05); }
+.journey-photo-upload img { width:100%; max-height:360px; object-fit:contain; }
+.journey-photo-upload > span { display:grid; justify-items:center; gap:7px; color:var(--brand); font-size:38px; }
+.journey-photo-upload small { font-size:14px; }
+.journey-photo-candidates { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:12px 0 16px; }
+.journey-photo-candidates button { position:relative; min-width:0; overflow:hidden; border:2px solid transparent; border-radius:15px; background:var(--bg); }
+.journey-photo-candidates button.selected { border-color:var(--brand); }
+.journey-photo-candidates img { width:100%; aspect-ratio:1/1; object-fit:cover; }
+.journey-photo-candidates span { position:absolute; right:6px; bottom:6px; padding:4px 7px; border-radius:999px; color:#fff; background:rgba(42,75,60,.82); font-size:11px; }
+.journey-job { display:flex; align-items:center; gap:12px; padding:15px; border-radius:15px; background:rgba(75,125,102,.08); }
+.journey-job > i { width:13px; height:13px; flex:0 0 auto; border-radius:50%; background:#e0a84d; box-shadow:0 0 0 6px rgba(224,168,77,.13); }
+.journey-job.ready > i { background:#50a37e; }
+.journey-job span { display:grid; gap:3px; }
+.journey-job b { color:var(--brand-deep); font-size:14px; }
+.journey-job small { color:var(--muted); font-size:12px; }
+.journey-card .family-voice-settings { margin-top:25px; padding:0; border:0; background:transparent; }
+.journey-card .voice-settings-heading { display:none; }
+.journey-review { display:grid; margin:28px 0 5px; border-top:1px solid var(--line); }
+.journey-review > div { display:grid; grid-template-columns:145px minmax(0,1fr); gap:20px; padding:15px 3px; border-bottom:1px solid var(--line); }
+.journey-review dt { color:var(--muted); }
+.journey-review dd { margin:0; color:var(--brand-deep); font-weight:700; }
+.journey-error { margin:18px 0 0; }
+.journey-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:32px; padding-top:20px; border-top:1px solid var(--line); }
+.journey-actions button { min-width:140px; padding:14px 18px; border-radius:14px; font:700 15px "Gowun Dodum",sans-serif; }
+.journey-secondary { color:var(--muted); border:1px solid var(--line); }
+.journey-primary { color:#fff; background:var(--brand); box-shadow:0 10px 25px rgba(75,125,102,.18); }
+.journey-primary:disabled { opacity:.48; }
+
+@media (max-width:760px) {
+  .login-screen { grid-template-columns:1fr; align-content:start; gap:20px; padding:28px 20px 38px; }
+  .login-welcome { display:grid; grid-template-columns:92px minmax(0,1fr); align-items:center; column-gap:16px; }
+  .login-welcome .brandmark { grid-row:1/4; width:92px !important; height:92px !important; margin:0; }
+  .login-welcome .eyebrow { margin:0 0 4px; font-size:12px; }
+  .login-welcome h1 { font-size:38px; }
+  .login-welcome > p:last-child { display:none; }
+  .login-card { justify-self:center; padding:24px 20px; border-radius:23px; }
+  .journey-screen { padding:18px 14px 36px; }
+  .journey-header { grid-template-columns:40px 48px minmax(0,1fr) auto; gap:8px; }
+  .journey-header > button { width:38px; height:38px; }
+  .journey-header .brandmark { width:48px !important; height:48px !important; }
+  .journey-header b { font-size:19px; }
+  .journey-card { padding:25px 18px; border-radius:23px; }
+  .journey-copy h2 { font-size:34px; }
+  .journey-copy > p:last-child { font-size:14px; }
+  .journey-mode-grid,.journey-tone-grid,.journey-elder-list,.journey-fields.two { grid-template-columns:1fr; }
+  .journey-family-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .journey-family-grid img,.journey-family-grid article > span { width:78px; height:78px; }
+  .journey-photo-upload { min-height:220px; }
+  .journey-review > div { grid-template-columns:105px minmax(0,1fr); gap:12px; }
+  .journey-actions { position:sticky; bottom:-25px; margin-inline:-18px; padding:16px 18px 0; background:linear-gradient(0deg,var(--surface) 75%,transparent); }
+  .journey-actions button { flex:1; min-width:0; }
+}
+
+@media (max-width:380px) {
+  .login-screen { padding-inline:13px; }
+  .login-welcome { grid-template-columns:74px minmax(0,1fr); }
+  .login-welcome .brandmark { width:74px !important; height:74px !important; }
+  .login-welcome h1 { font-size:32px; }
+  .journey-header small { display:none; }
+  .journey-header b { font-size:17px; }
+  .journey-card { padding-inline:14px; }
+  .journey-copy h2 { font-size:31px; }
 }
 
 @media (max-width: 350px) {
@@ -1695,3 +1857,6 @@ h3,
   .app-device-care .task-heading .task-view-toggle { grid-column: 1; justify-self: center; }
   .app-device-family .voice-settings-heading h2 { font-size: clamp(13px,3.7vw,calc(16px * var(--font-scale))); }
 }
+
+/* 연결 대기 안내는 모핑 영상에서도 하단의 작은 상태 카드로 유지한다. */
+.call-stack .calling-morph-status { display:block; }

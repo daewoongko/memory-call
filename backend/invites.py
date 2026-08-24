@@ -35,8 +35,9 @@ from datetime import datetime
 
 import db
 
-# 벨이 울리는 기본 시간. 명세 FR-01 의 가족 응답 대기 시간이다.
-DEFAULT_RING_SEC = 15
+# 벨이 울리는 기본 시간. 20~30초 사이에서 가족이 받을 시간을 주되,
+# 그 동안 화면은 연결 상태를 단계별로 알려 어르신이 멈춘 것으로 오해하지 않게 한다.
+DEFAULT_RING_SEC = 25
 
 # 받을 기기가 하나도 없을 때의 대기 시간. 아무도 없는데 15초를 기다리게 할
 # 이유는 없지만, 0초로 만들면 어르신이 전화를 건 감각을 잃는다.
@@ -301,7 +302,7 @@ def decline(invite_id: str, device_id: str | None = None,
     """보호자가 거절한다.
 
     거절은 실패가 아니다. 이 서비스에서 거절은 AI 가 대신 받으라는 뜻이고,
-    15초를 기다리지 않고 곧바로 넘어간다.
+    전체 벨 시간을 기다리지 않고 곧바로 넘어간다.
     """
     resolved = reason or "declined"
     if resolved not in {"declined", "media_permission_denied"}:

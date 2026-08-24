@@ -3,6 +3,52 @@
 
 PRAGMA foreign_keys = ON;
 
+-- 앱 계정과 역할별 최초 설정. 휴대전화 소유권 확인은 SMS 공급자가 붙는
+-- 경계에서 수행하고, 서버에는 간편번호의 PBKDF2 해시와 세션 해시만 남긴다.
+CREATE TABLE IF NOT EXISTS app_users (
+    user_id       TEXT PRIMARY KEY,
+    phone         TEXT NOT NULL UNIQUE,
+    display_name  TEXT NOT NULL,
+    pin_salt      TEXT NOT NULL,
+    pin_hash      TEXT NOT NULL,
+    phone_verified_at TEXT,
+    created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS app_sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES app_users(user_id) ON DELETE CASCADE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_app_sessions_user
+    ON app_sessions(user_id, expires_at);
+
+CREATE TABLE IF NOT EXISTS user_role_onboarding (
+    user_id       TEXT NOT NULL REFERENCES app_users(user_id) ON DELETE CASCADE,
+    role          TEXT NOT NULL CHECK (role IN ('elder','child','care')),
+    current_step  TEXT NOT NULL DEFAULT 'intro',
+    progress_data TEXT NOT NULL DEFAULT '{}',
+    completed_at  TEXT,
+    updated_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, role)
+);
+
+CREATE TABLE IF NOT EXISTS consent_records (
+    consent_id      TEXT PRIMARY KEY,
+    user_id         TEXT NOT NULL REFERENCES app_users(user_id) ON DELETE CASCADE,
+    role            TEXT NOT NULL CHECK (role IN ('elder','child','care')),
+    elder_id        TEXT,
+    consent_type    TEXT NOT NULL,
+    consent_version TEXT NOT NULL,
+    consent_mode    TEXT NOT NULL DEFAULT 'self',
+    accepted_at     TEXT NOT NULL,
+    revoked_at      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_consent_user_role
+    ON consent_records(user_id, role, accepted_at);
+
 CREATE TABLE IF NOT EXISTS elder_profiles (
     elder_id            TEXT PRIMARY KEY,
     name                TEXT NOT NULL,
@@ -303,7 +349,7 @@ CREATE TABLE IF NOT EXISTS call_invites (
                   'ai_takeover','ended','cancelled')),
     -- 벨이 울릴 시간. 서버가 정해서 내려보낸다. 클라이언트에 15 를 박아 두면
     -- 받을 기기가 없을 때도 똑같이 기다리게 된다.
-    ring_timeout_sec INTEGER NOT NULL DEFAULT 15,
+    ring_timeout_sec INTEGER NOT NULL DEFAULT 25,
     -- 걸 때 살아 있는 보호자 기기가 하나도 없었는가.
     -- 타임아웃 사유를 no_device 와 timeout 으로 가르는 데 쓴다.
     no_live_device   INTEGER DEFAULT 0,
