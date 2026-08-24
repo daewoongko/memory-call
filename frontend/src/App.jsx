@@ -21,6 +21,9 @@ import { createTransport, openCallMedia } from "./callTransport.js";
 import { useCallMediaReadiness } from "./useCallMediaReadiness.js";
 import { useScreenWakeLock } from "./useScreenWakeLock.js";
 
+// The server owns the ringing deadline. Polling only mirrors that state so a
+// guardian answer, decline, or timeout is never inferred from a local timer.
+const RING_POLL_MS = 1500;
 const PENDING_POLL_MS = 20000;  // 복약 시간이 되었는지 주기적으로 확인
 const RING_COOLDOWN_MS = 300000; // 거절하거나 통화가 끝난 뒤 다시 걸기까지
 
@@ -238,6 +241,72 @@ export default function App() {
     }
   }, [fallBackFromHuman]);
 
+  /**
+   * Follow the server-owned invite while the current morph acts as the
+   * waiting screen. A direct answer wins immediately; AI is opened only after
+   * decline/timeout or when the person-to-person media path cannot connect.
+   */
+  useEffect(() => {
+    if (phase !== "calling" || !invite?.invite_id) return undefined;
+
+    let alive = true;
+    let timer = null;
+    const inviteId = invite.invite_id;
+
+    const tick = async () => {
+      if (!alive) return;
+      try {
+        const current = await api.getInvite(inviteId);
+        if (!alive) return;
+
+        if (current.state === "answered") {
+          setInvite(current);
+          if (transportFailed.current) {
+            fallBackFromHuman(inviteId);
+          } else {
+            phaseRef.current = "human";
+            setPhase("human");
+          }
+          return;
+        }
+
+        if (current.should_take_over) {
+          await releaseHumanTransport();
+          const res = await api.takeOverInvite(inviteId);
+          if (!alive) return;
+          setInvite(res.invite);
+          enterCall(res);
+          return;
+        }
+
+        if (current.state === "cancelled" || current.state === "ended") {
+          await releaseHumanTransport();
+          phaseRef.current = "idle";
+          setPhase("idle");
+          setInvite(null);
+          return;
+        }
+      } catch (reason) {
+        if (!alive) return;
+        await releaseHumanTransport();
+        setError(`연결 상태를 확인하지 못해 AI가 이어서 받을게요. (${reason.message})`);
+        connectAI(target?.persona_id);
+        return;
+      }
+
+      if (alive) timer = setTimeout(tick, RING_POLL_MS);
+    };
+
+    tick();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [
+    phase, invite?.invite_id, target?.persona_id, connectAI, enterCall,
+    fallBackFromHuman, releaseHumanTransport,
+  ]);
+
   // 보호자가 받은 뒤 12초 안에 미디어가 붙지 않으면 조용히 AI로 넘긴다.
   useEffect(() => {
     if (phase !== "human" || !invite?.invite_id || humanTransportState === "connected") {
@@ -303,9 +372,22 @@ export default function App() {
     phaseRef.current = "calling";
     setPhase("calling");
 
-    // 대기 시간은 가족 기기 응답 여부와 무관하게 24.2초 모핑 전체로 고정한다.
-    // AI 세션과 Anam은 지금 바로 뒤에서 준비하되 화면은 영상이 끝나야 열린다.
-    connectAI(person?.persona_id);
+    try {
+      const created = await api.ringFamily({
+        elder_id: elderId,
+        persona_id: person?.persona_id,
+        from_device: deviceId(),
+      });
+      setInvite(created);
+      // React state reaches the transport guard on the next render. Keep the
+      // ref in sync now so early media permission resolution is not discarded.
+      inviteRef.current = created;
+      // Gather ICE while the family phone is ringing to shorten answer time.
+      prepareHumanTransport(created.invite_id);
+    } catch (reason) {
+      setError(`가족에게 연결하지 못해 AI가 이어서 받을게요. (${reason.message})`);
+      connectAI(person?.persona_id);
+    }
   }
 
   function answerIncoming() {
