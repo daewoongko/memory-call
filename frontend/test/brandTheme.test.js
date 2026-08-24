@@ -88,3 +88,9 @@ test("role typography stays consistent throughout each screen tree", () => {
   assert.match(theme, /\.font-role-readable,\s*\.font-role-readable \*\s*\{\s*font-family: var\(--font-readable\) !important;/);
   assert.match(theme, /\.font-role-family,\s*\.font-role-family \*\s*\{\s*font-family: var\(--font-family\) !important;/);
 });
+
+test("the phone-sized login shell always uses a single-column layout", () => {
+  assert.match(theme, /\.app-device-login \.login-screen \{ grid-template-columns:1fr;/);
+  assert.match(theme, /\.app-device-login \.login-welcome \{ display:grid; grid-template-columns:92px minmax\(0,1fr\)/);
+  assert.match(theme, /\.app-device-login \.login-card \{ justify-self:center;/);
+});

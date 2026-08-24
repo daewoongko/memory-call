@@ -449,6 +449,20 @@ h3,
 .login-security-note { padding:12px 13px; border-radius:12px; background:rgba(224,139,58,.08); }
 .login-submit { width:100%; margin-top:18px; padding:15px; border-radius:15px; color:#fff; background:var(--brand); font:700 17px "Gowun Dodum",sans-serif; }
 .login-submit:disabled { opacity:.42; }
+
+/*
+ * 로그인은 430px 휴대폰 프레임 안에 렌더링된다. 브라우저 창이 넓어도
+ * 프레임 너비는 변하지 않으므로, viewport 미디어 쿼리가 아닌 프레임
+ * 클래스를 기준으로 한 열 레이아웃을 고정한다.
+ */
+.app-device-login .login-screen { grid-template-columns:1fr; align-content:start; gap:20px; padding:28px 20px 38px; }
+.app-device-login .login-welcome { display:grid; grid-template-columns:92px minmax(0,1fr); align-items:center; column-gap:16px; }
+.app-device-login .login-welcome .brandmark { grid-row:1/4; width:92px !important; height:92px !important; margin:0; }
+.app-device-login .login-welcome .eyebrow { margin:0 0 4px; font-size:12px; }
+.app-device-login .login-welcome h1 { font-size:38px; }
+.app-device-login .login-welcome > p:last-child { display:none; }
+.app-device-login .login-card { justify-self:center; padding:24px 20px; border-radius:23px; }
+
 .role-account-line { width:min(900px,100%); display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-4px auto 8px; color:var(--muted); font:14px "Gowun Dodum",sans-serif; }
 .role-account-line b { color:var(--brand-deep); }
 .role-account-line button { padding:7px 11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; font:12px "Gowun Dodum",sans-serif; }
@@ -581,6 +595,13 @@ h3,
   .journey-header b { font-size:17px; }
   .journey-card { padding-inline:14px; }
   .journey-copy h2 { font-size:31px; }
+}
+
+@media (max-width:380px) {
+  .app-device-login .login-screen { padding-inline:13px; }
+  .app-device-login .login-welcome { grid-template-columns:74px minmax(0,1fr); }
+  .app-device-login .login-welcome .brandmark { width:74px !important; height:74px !important; }
+  .app-device-login .login-welcome h1 { font-size:32px; }
 }
 
 @media (max-width: 350px) {
