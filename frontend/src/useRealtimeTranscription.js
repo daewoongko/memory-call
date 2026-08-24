@@ -9,6 +9,15 @@ const MAX_IDLE_MS = 15000;
 const MAX_UTTERANCE_MS = 20000;
 const MIN_START_THRESHOLD = 0.007;
 const COMMIT_TIMEOUT_MS = 6000;
+const VOICE_CONNECTION_ERROR = "음성 인식에 잠시 연결하지 못했습니다.";
+
+export function voiceConnectionError(message) {
+  const detail = String(message || "").trim();
+  if (!detail || detail.includes(VOICE_CONNECTION_ERROR)) {
+    return VOICE_CONNECTION_ERROR;
+  }
+  return `${VOICE_CONNECTION_ERROR} ${detail}`;
+}
 
 function recorderOptions() {
   if (typeof MediaRecorder === "undefined") return undefined;
@@ -193,7 +202,7 @@ export function useRealtimeTranscription({
     } catch (cause) {
       wantedRef.current = false;
       setTranscribing(false);
-      setError(`음성 인식에 잠시 연결하지 못했습니다. ${cause?.message || ""}`.trim());
+      setError(voiceConnectionError(cause?.message));
     }
   }, [finishRecorder, lang, release]);
 
