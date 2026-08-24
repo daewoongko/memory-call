@@ -27,6 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import admin as admin_mod
+import accounts as account_mod
 import anam as anam_mod
 import age_timeline
 import db
@@ -227,6 +228,11 @@ class VoiceApproveRequest(BaseModel):
     elder_id: str = "elder_001"
 
 
+class AvatarPhotoSelection(BaseModel):
+    elder_id: str = "elder_001"
+    photo_name: str = Field(min_length=1, max_length=180)
+
+
 class TTSBridgeRegistration(BaseModel):
     service_url: str = Field(min_length=1, max_length=2048)
 
@@ -273,6 +279,13 @@ class NewElder(BaseModel):
     relationship: str = Field(default="손자", max_length=20)
 
 
+class NewPersona(BaseModel):
+    display_name: str = Field(min_length=1, max_length=30)
+    relationship: str = Field(min_length=1, max_length=20)
+    elder_calls_family: str = Field(min_length=1, max_length=30)
+    family_calls_elder: str = Field(min_length=1, max_length=30)
+
+
 class LinkVerify(BaseModel):
     code: str = Field(pattern=r"^\d{6}$")
 
@@ -291,6 +304,7 @@ class PersonaPatch(BaseModel):
     call_style_scores: dict | None = None
     call_style_answers: dict[str, str] | None = None
     avatar_performance_style: Literal["calm", "natural", "lively"] | None = None
+    active: bool | None = None
 
 
 class ElderPatch(BaseModel):
@@ -422,6 +436,31 @@ class CareTaskDoseStatusRequest(CareTaskCompleteRequest):
     ]
 
 
+class AccountCredentials(BaseModel):
+    phone: str = Field(min_length=10, max_length=20)
+    pin: str = Field(pattern=r"^\d{6}$")
+
+
+class AccountRegistration(AccountCredentials):
+    display_name: str = Field(min_length=1, max_length=30)
+
+
+class OnboardingProgressRequest(BaseModel):
+    current_step: str = Field(default="intro", min_length=1, max_length=50)
+    data: dict = Field(default_factory=dict)
+    complete: bool = False
+
+
+class ConsentRecordRequest(BaseModel):
+    role: Literal["elder", "child", "care"]
+    consent_types: list[str] = Field(min_length=1, max_length=20)
+    consent_version: str = Field(default="2026-08-24.v1", min_length=1, max_length=30)
+    consent_mode: Literal[
+        "self", "with_guardian", "legal_representative", "staff"
+    ] = "self"
+    elder_id: str | None = Field(default=None, max_length=60)
+
+
 # ------------------------------------------------------------------ 헬퍼
 
 def _get(call_id: str) -> Session:
@@ -429,6 +468,19 @@ def _get(call_id: str) -> Session:
     if session is None:
         raise HTTPException(404, f"통화 {call_id} 를 찾을 수 없습니다. 이미 종료되었을 수 있습니다.")
     return session
+
+
+def _auth_token(request: Request) -> str | None:
+    value = request.headers.get("Authorization", "")
+    scheme, _, token = value.partition(" ")
+    return token.strip() if scheme.lower() == "bearer" else None
+
+
+def _current_user(request: Request) -> dict:
+    try:
+        return account_mod.authenticate(_auth_token(request))
+    except ValueError as exc:
+        raise HTTPException(401, str(exc)) from exc
 
 
 def _enforce_tts_rate_limit(request: Request, now: float | None = None) -> None:
@@ -572,6 +624,25 @@ def _face_urls(persona_id: str | None = None) -> list[dict]:
         if len(preview) > len(final_paths):
             return preview
 
+        # 최초 설정 직후에는 연령 경로가 아직 없어도 보호자가 확정한 현재
+        # 사진 한 장으로 통화를 시작할 수 있어야 한다.
+        manifest = persona_paths.root / "profile.json"
+        try:
+            profile_data = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            profile_data = {}
+        relative = Path(str(profile_data.get("representative_photo") or "")).as_posix()
+        representative = persona_paths.root / relative
+        try:
+            representative.resolve().relative_to(persona_paths.root.resolve())
+        except ValueError:
+            representative = Path()
+        if relative and representative.is_file():
+            return [{
+                "stage": "current",
+                "url": f"/persona-assets/{selected_persona_id}/{relative}",
+            }]
+
     paths = final_paths or [
         path for path in sorted(aligned_dir.glob("*.png"))
         if not path.name.startswith("_")
@@ -614,6 +685,69 @@ def _persona_face_url(persona_id: str) -> str | None:
 
 
 # ------------------------------------------------------------------ 엔드포인트
+
+@app.post("/api/auth/register")
+def register_account(req: AccountRegistration):
+    try:
+        return account_mod.register(req.phone, req.display_name, req.pin)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/auth/login")
+def login_account(req: AccountCredentials):
+    try:
+        return account_mod.login(req.phone, req.pin)
+    except ValueError as exc:
+        raise HTTPException(401, str(exc)) from exc
+
+
+@app.get("/api/auth/me")
+def current_account(request: Request):
+    return {"user": _current_user(request)}
+
+
+@app.post("/api/auth/logout")
+def logout_account(request: Request):
+    account_mod.logout(_auth_token(request))
+    return {"ok": True}
+
+
+@app.get("/api/onboarding/{role}")
+def read_onboarding(role: Literal["elder", "child", "care"], request: Request):
+    user = _current_user(request)
+    return account_mod.onboarding(user["user_id"], role)
+
+
+@app.patch("/api/onboarding/{role}")
+def update_onboarding(role: Literal["elder", "child", "care"],
+                      req: OnboardingProgressRequest, request: Request):
+    user = _current_user(request)
+    try:
+        return account_mod.save_onboarding(
+            user["user_id"], role, req.current_step, req.data, req.complete
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/consents/{role}")
+def read_consents(role: Literal["elder", "child", "care"], request: Request):
+    user = _current_user(request)
+    return {"consents": account_mod.consents(user["user_id"], role)}
+
+
+@app.post("/api/consents")
+def save_consents(req: ConsentRecordRequest, request: Request):
+    user = _current_user(request)
+    try:
+        rows = account_mod.record_consents(
+            user["user_id"], req.role, req.consent_types,
+            req.consent_version, req.consent_mode, req.elder_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"consents": rows}
 
 @app.get("/api/health")
 def health():
@@ -941,6 +1075,17 @@ def add_elder(req: NewElder):
     )
 
 
+@app.post("/api/elders/{elder_id}/personas")
+def add_persona(elder_id: str, req: NewPersona):
+    try:
+        return admin_mod.create_persona(
+            elder_id, req.display_name, req.relationship,
+            req.elder_calls_family, req.family_calls_elder,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 @app.post("/api/link/code")
 def issue_link_code(elder_id: str = "elder_001"):
     """보호자 기기에서 연결 코드를 만든다."""
@@ -1077,6 +1222,27 @@ def sync_avatar_profile(persona_id: str, elder_id: str = "elder_001"):
         return avatar_mod.sync_from_confirmed_photo(
             persona_id, photo_name, elder_id, force=True,
         )
+    except avatar_mod.AvatarProfileError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/personas/{persona_id}/avatar/confirmed-photo")
+def create_avatar_from_confirmed_photo(persona_id: str,
+                                       req: AvatarPhotoSelection,
+                                       background_tasks: BackgroundTasks):
+    """확정 사진으로 아바타 생성을 시작하고 다음 온보딩 단계는 바로 연다."""
+    try:
+        avatar_mod.public_profile(persona_id, req.elder_id)
+        photo_name = Path(req.photo_name).name
+        source = ensure_persona_face_directories(persona_id).source / photo_name
+        if photo_name != req.photo_name or not source.is_file():
+            raise avatar_mod.AvatarProfileError("확정한 가족 사진을 찾을 수 없습니다.")
+        admin_mod.confirm_identity_photo(photo_name, persona_id)
+        background_tasks.add_task(
+            avatar_mod.sync_from_confirmed_photo,
+            persona_id, photo_name, req.elder_id,
+        )
+        return {"status": "creating", "photo_name": photo_name}
     except avatar_mod.AvatarProfileError as exc:
         raise HTTPException(400, str(exc)) from exc
 

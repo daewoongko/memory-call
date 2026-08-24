@@ -24,12 +24,14 @@ const ROLES = [
   },
 ];
 
-export default function RoleScreen({ onPick }) {
+export default function RoleScreen({ account, onPick, onLogout }) {
   return <main className="role-gateway role-gateway-simple">
     <header className="role-gateway-brand">
       <BrandMark size={162} />
       <div><b>다소니</b><p className="role-gateway-subtitle">누구로 시작할까요?</p></div>
     </header>
+
+    {account && <div className="role-account-line"><span><b>{account.display_name}</b>님, 어떤 역할로 시작할까요?</span>{onLogout && <button type="button" onClick={onLogout}>로그아웃</button>}</div>}
 
     <section className="role-list" aria-label="사용 역할 선택">
       {ROLES.map((role) => <button

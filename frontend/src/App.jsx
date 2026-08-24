@@ -15,6 +15,8 @@ import SplashScreen from "./screens/SplashScreen.jsx";
 import RoleScreen from "./screens/RoleScreen.jsx";
 import LinkScreen from "./screens/LinkScreen.jsx";
 import GuardianOnboardingScreen from "./screens/GuardianOnboardingScreen.jsx";
+import LoginScreen from "./screens/LoginScreen.jsx";
+import RoleOnboardingScreen from "./screens/RoleOnboardingScreen.jsx";
 import HumanCallScreen from "./screens/HumanCallScreen.jsx";
 import NetTestScreen from "./screens/NetTestScreen.jsx";
 import { createTransport, openCallMedia } from "./callTransport.js";
@@ -74,6 +76,8 @@ export default function App() {
   // 앱을 처음 열면 스플래시 → 역할 선택 → 연동을 거친다.
   // 한 번 고른 역할은 기기에 남아 다음부터 바로 본 화면으로 간다.
   const [booted, setBooted] = useState(false);
+  const [account, setAccount] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [role, setRole] = useState(() => {
     const saved = readLocal(KEY_ROLE);
     return saved === "guardian" ? "care" : saved;
@@ -82,6 +86,7 @@ export default function App() {
   const [guardianOnboarded, setGuardianOnboarded] = useState(
     () => readLocal(KEY_GUARDIAN_ONBOARDING) === "done"
   );
+  const [roleOnboarded, setRoleOnboarded] = useState(null);
   const [myPersonaId, setMyPersonaId] = useState(() => readLocal(KEY_MY_PERSONA));
   const elderId = linked && linked !== "skipped" ? linked : "elder_001";
 
@@ -108,6 +113,47 @@ export default function App() {
   const [humanRemoteStream, setHumanRemoteStream] = useState(null);
   const [humanTransportState, setHumanTransportState] = useState("idle");
   const callMedia = useCallMediaReadiness(hash === "#elder" || role === "elder");
+  const elderAccessReady = Boolean(
+    (import.meta.env.DEV && hash === "#elder")
+    || (account && role === "elder" && roleOnboarded)
+  );
+
+  useEffect(() => {
+    if (!api.authToken()) {
+      setAuthChecked(true);
+      return;
+    }
+    api.getCurrentAccount()
+      .then(({ user }) => setAccount(user))
+      .catch(() => api.saveAuthToken(""))
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  useEffect(() => {
+    if (!account || !role) {
+      setRoleOnboarded(null);
+      return;
+    }
+    let alive = true;
+    api.getOnboarding(role).then((saved) => {
+      if (!alive) return;
+      setRoleOnboarded(Boolean(saved.complete));
+      const savedElder = saved.data?.elder_id;
+      if (saved.complete && savedElder) {
+        setLinked(savedElder);
+        writeLocal(KEY_LINKED, savedElder);
+      }
+      const savedPersona = saved.data?.persona_id;
+      if (saved.complete && role === "child" && savedPersona) {
+        setGuardianPersonaId(savedPersona);
+        setMyPersonaId(savedPersona);
+        writeLocal(KEY_MY_PERSONA, savedPersona);
+        setGuardianOnboarded(true);
+        writeLocal(KEY_GUARDIAN_ONBOARDING, "done");
+      }
+    }).catch(() => setRoleOnboarded(false));
+    return () => { alive = false; };
+  }, [account, role]);
 
   useScreenWakeLock(phase === "calling" || phase === "human" || phase === "connecting" || phase === "incall");
 
@@ -115,27 +161,32 @@ export default function App() {
   useEffect(() => { inviteRef.current = invite; }, [invite]);
 
   useEffect(() => {
+    if (!elderAccessReady) {
+      setProfile(null);
+      return undefined;
+    }
     api.getProfile(target?.persona_id, elderId).then(setProfile).catch((e) =>
       setError(`서버에 연결하지 못했어요. tools/serve.py 가 켜져 있는지 확인하세요. (${e.message})`)
     );
     return () => timers.current.forEach(clearTimeout);
-  }, [target, elderId]);
+  }, [target, elderId, elderAccessReady]);
 
   // 어르신 기기도 등록한다. 누가 걸었는지가 기록에 남아야 보호자 화면에서
   // "직접 거신 전화"와 "AI 가 먼저 건 전화"를 구분할 수 있다.
   useEffect(() => {
+    if (!elderAccessReady) return undefined;
     api.registerDevice({
       device_id: deviceId(), elder_id: elderId,
       role: "elder", label: deviceLabel(),
     }).catch(() => {
       // 등록에 실패해도 전화는 걸 수 있어야 한다. from_device 만 비게 된다.
     });
-  }, [elderId]);
+  }, [elderId, elderAccessReady]);
 
   // 복약 시간이 되면 AI 쪽에서 전화를 건다.
   // 대기 화면일 때만 확인한다. 통화 중에는 세션이 알아서 약을 먼저 꺼낸다.
   useEffect(() => {
-    if (phase !== "idle") return;
+    if (!elderAccessReady || phase !== "idle") return undefined;
     let alive = true;
     const check = () => {
       if (Date.now() < cooldownUntil.current) return;
@@ -158,7 +209,7 @@ export default function App() {
       alive = false;
       clearInterval(id);
     };
-  }, [phase, elderId]);
+  }, [phase, elderId, elderAccessReady]);
 
   const enterCall = useCallback((res) => {
     setCall(res);
@@ -390,6 +441,33 @@ export default function App() {
     }
   }
 
+  async function chooseAIWhileWaiting() {
+    setError("");
+    try {
+      await releaseHumanTransport(false);
+      if (invite?.invite_id) {
+        const result = await api.takeOverInvite(invite.invite_id);
+        setInvite(result.invite);
+        enterCall(result);
+      } else {
+        await connectAI(target?.persona_id);
+      }
+    } catch (reason) {
+      setError(`다소니 연결을 준비하지 못했어요. (${reason.message})`);
+    }
+  }
+
+  async function cancelCalling() {
+    if (invite?.invite_id) await api.cancelInvite(invite.invite_id).catch(() => {});
+    if (call?.call_id) await api.endCall(call.call_id, "user_cancelled").catch(() => {});
+    await releaseHumanTransport(false);
+    setInvite(null);
+    setCall(null);
+    setTarget(null);
+    phaseRef.current = "idle";
+    setPhase("idle");
+  }
+
   function answerIncoming() {
     setIncomingReason(null);
     setError("");
@@ -484,9 +562,37 @@ export default function App() {
     setRole(picked);
     setBooted(true);
     writeLocal(KEY_ROLE, picked);
+    setRoleOnboarded(null);
     // 역할 선택 뒤에는 데모용 직행 주소가 아니라 실제 앱의 연동·온보딩
     // 흐름을 탄다. 저장된 연동이 있으면 해당 역할의 홈으로 바로 이어진다.
     window.location.hash = "";
+  };
+
+  const finishRoleOnboarding = (result) => {
+    const nextElderId = result?.elderId || result?.elder_id || "elder_001";
+    setLinked(nextElderId);
+    writeLocal(KEY_LINKED, nextElderId);
+    if (result?.personaId) {
+      setGuardianPersonaId(result.personaId);
+      setMyPersonaId(result.personaId);
+      writeLocal(KEY_MY_PERSONA, result.personaId);
+      setGuardianOnboarded(true);
+      writeLocal(KEY_GUARDIAN_ONBOARDING, "done");
+    }
+    setRoleOnboarded(true);
+  };
+
+  const acceptAccount = (user) => {
+    setAccount(user);
+    setRole(null);
+    setRoleOnboarded(null);
+    setLinked(null);
+    setGuardianOnboarded(false);
+    setMyPersonaId(null);
+    removeLocal(KEY_ROLE);
+    removeLocal(KEY_LINKED);
+    removeLocal(KEY_GUARDIAN_ONBOARDING);
+    removeLocal(KEY_MY_PERSONA);
   };
 
   const finishLink = (nextElderId) => {
@@ -526,15 +632,15 @@ export default function App() {
 
   // 역할 선택 주소는 개발·사용자 전환용으로 바로 연다. 일반적인 첫 실행은
   // 스플래시를 본 뒤 아래의 역할 선택으로 이어진다.
-  if (hash === "#roles")
+  if (import.meta.env.DEV && hash === "#roles")
     return wrap(<RoleScreen onPick={chooseRole} />, { wide: true, shell: "roles" });
 
   // 주소로 직접 들어온 경우는 입구를 건너뛴다.
   // #elder는 이 브라우저에 저장된 보호자 역할과 무관하게 어르신 화면을 연다.
-  const directElder = hash === "#elder";
-  if (hash === "#care" || hash === "#guardian")
+  const directElder = import.meta.env.DEV && hash === "#elder";
+  if (import.meta.env.DEV && (hash === "#care" || hash === "#guardian"))
     return wrap(<CareManagerScreen onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "care" });
-  if (hash === "#child" || hash === "#family") {
+  if (import.meta.env.DEV && (hash === "#child" || hash === "#family")) {
     if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true, shell: "family" });
     return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "family" });
   }
@@ -542,8 +648,20 @@ export default function App() {
   if (!directElder && !booted)
     return wrap(<SplashScreen onDone={() => setBooted(true)} />);
 
+  if (!directElder && !authChecked)
+    return wrap(<div className="screen"><p className="hint">계정을 확인하는 중…</p></div>);
+
+  if (!directElder && !account)
+    return wrap(<LoginScreen onAuthenticated={acceptAccount} />, { wide: true, shell: "login" });
+
   if (!directElder && !role)
-    return wrap(<RoleScreen onPick={chooseRole} />, { wide: true, shell: "roles" });
+    return wrap(<RoleScreen account={account} onPick={chooseRole} onLogout={async () => { await api.logoutAccount().catch(() => {}); api.saveAuthToken(""); setAccount(null); setRole(null); removeLocal(KEY_ROLE); }} />, { wide: true, shell: "roles" });
+
+  if (!directElder && roleOnboarded === null)
+    return wrap(<div className="screen"><p className="hint">완료한 설정을 확인하는 중…</p></div>);
+
+  if (!directElder && !roleOnboarded)
+    return wrap(<RoleOnboardingScreen role={role} account={account} elderId={elderId} onDone={finishRoleOnboarding} onCancel={() => { setRole(null); setRoleOnboarded(null); removeLocal(KEY_ROLE); }} />, { wide: true, shell: `journey-${role}` });
 
   if (!directElder && !linked)
     return wrap(
@@ -597,6 +715,8 @@ export default function App() {
       <CallingScreen
         name={profile?.persona?.display_name ?? "가족"}
         announcement={call?.announcement ?? "연결하고 있어요"}
+        onChooseAI={chooseAIWhileWaiting}
+        onCancel={cancelCalling}
       />
     );
 
@@ -625,6 +745,8 @@ export default function App() {
           announcement={call?.announcement ?? "연결하고 있어요"}
           morphUrl={profile?.morph_url ?? null}
           onMorphEnded={finishCallingMorph}
+          onChooseAI={chooseAIWhileWaiting}
+          onCancel={cancelCalling}
         />}
       </div>
     );

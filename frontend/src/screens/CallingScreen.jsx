@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import MorphStage from "../components/MorphStage.jsx";
 import BrandMark from "../components/BrandMark.jsx";
 
@@ -11,7 +12,24 @@ export default function CallingScreen({
   announcement,
   morphUrl = null,
   onMorphEnded,
+  onChooseAI,
+  onCancel,
 }) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const status = elapsed < 5
+    ? `${name}에게 연결을 요청하고 있어요.`
+    : elapsed < 16
+      ? "전화벨이 울리고 있어요. 천천히 기다려 주세요."
+      : "아직 연결을 기다리고 있어요. 원하시면 다소니와 먼저 이야기할 수 있어요.";
+  const options = elapsed >= 16 && <div className="calling-wait-options">
+    {onChooseAI && <button type="button" onClick={onChooseAI}>다소니와 먼저 이야기하기</button>}
+    {onCancel && <button type="button" onClick={onCancel}>다른 가족 선택</button>}
+  </div>;
   if (morphUrl) {
     return (
       <div className="screen calling-screen calling-with-morph">
@@ -31,7 +49,8 @@ export default function CallingScreen({
           <div className="who">
             {`${name}과 연결하는 중`}
           </div>
-          <p>기억 속 얼굴을 만나고 있어요</p>
+          <p>{status}</p>
+          {options}
         </div>
       </div>
     );
@@ -49,7 +68,8 @@ export default function CallingScreen({
       <div className="who">
         {`${name}과 연결하는 중`}
       </div>
-      <p className="hint">{announcement}</p>
+      <p className="hint">{elapsed < 5 ? announcement : status}</p>
+      {options}
     </div>
   );
 }

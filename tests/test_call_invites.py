@@ -78,13 +78,14 @@ class CallInviteTest(unittest.TestCase):
     # -------------------------------------------------------------- 벨
 
     def test_ring_is_shortened_when_no_guardian_device_is_listening(self):
-        """받을 기기가 없는데 15초를 기다리게 할 이유가 없다."""
+        """받을 기기가 없는데 전체 벨 시간을 기다리게 할 이유가 없다."""
         invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["state"], invites.RINGING)
         self.assertEqual(invite["ring_timeout_sec"], invites.NO_DEVICE_RING_SEC)
         self.assertEqual(invite["no_live_device"], 1)
 
     def test_full_ring_when_a_guardian_device_is_listening(self):
+        self.assertEqual(invites.DEFAULT_RING_SEC, 25)
         self._guardian()
         invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["ring_timeout_sec"], invites.DEFAULT_RING_SEC)
