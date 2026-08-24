@@ -1,4 +1,4 @@
-const STATIC_CACHE = "dasoni-static-v2";
+const STATIC_CACHE = "dasoni-static-v3";
 
 self.addEventListener("install", () => self.skipWaiting());
 

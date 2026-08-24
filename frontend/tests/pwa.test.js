@@ -10,6 +10,8 @@ test("manifest는 다소니를 세로형 standalone 앱으로 설치한다", asy
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.orientation, "portrait");
   assert.equal(manifest.start_url, "/");
+  assert.equal(manifest.theme_color, "#faf7f2");
+  assert.ok(manifest.icons.some((icon) => icon.src === "/icons/dasoni-app-192.png"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable"));
 });
 
@@ -25,5 +27,6 @@ test("설치 문서는 manifest와 iOS 아이콘을 함께 선언한다", async 
   const html = await read("../index.html");
   assert.match(html, /rel="manifest" href="\/manifest\.webmanifest"/);
   assert.match(html, /rel="apple-touch-icon"/);
+  assert.match(html, /dasoni-apple-touch-icon\.png/);
   assert.match(html, /apple-mobile-web-app-capable/);
 });
