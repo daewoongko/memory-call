@@ -243,6 +243,27 @@ class AnamApiTests(unittest.TestCase):
             )
         resolve.assert_called_once_with("memory-call-user-voice-2")
 
+    def test_named_default_voice_never_falls_back_to_a_stale_id(self):
+        with (
+            patch.object(api.voice_mod, "active_voice_id", return_value=None),
+            patch.object(
+                api.elevenlabs_tts,
+                "resolve_voice_id_by_name",
+                return_value=None,
+            ),
+            patch.dict(
+                "os.environ",
+                {
+                    "ELEVENLABS_VOICE_ID": "stale-deployment-voice",
+                    "ELEVENLABS_VOICE_NAME": "memory-call-user-voice-2",
+                },
+                clear=True,
+            ),
+        ):
+            with self.assertRaises(api.HTTPException) as raised:
+                api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID)
+        self.assertEqual(raised.exception.status_code, 409)
+
     def test_session_token_requires_matching_active_call(self):
         with (
             patch.object(

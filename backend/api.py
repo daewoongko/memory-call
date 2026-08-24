@@ -855,7 +855,12 @@ def _ready_voice_id(persona_id: str | None) -> str:
         voice_name = os.getenv("ELEVENLABS_VOICE_NAME", "").strip()
         if voice_name:
             voice_id = elevenlabs_tts.resolve_voice_id_by_name(voice_name)
-        if not voice_id:
+            if not voice_id:
+                raise HTTPException(
+                    409,
+                    "설정된 대웅 목소리를 현재 ElevenLabs 계정에서 찾지 못했습니다.",
+                )
+        else:
             voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
     if not voice_id:
         voice_id = voice_mod.active_voice_id(persona_id)
