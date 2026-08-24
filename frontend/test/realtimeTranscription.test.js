@@ -34,6 +34,9 @@ test("the fallback connection message is not duplicated", () => {
   );
 });
 
-test("Galaxy Chrome uses its available speech recognition before external realtime STT", () => {
-  assert.match(speechHook, /const usesServerStt = serverStt\.supported && !Recognition;/);
+test("Galaxy Chrome uses realtime STT instead of unreliable browser recognition", () => {
+  assert.match(
+    speechHook,
+    /const usesServerStt = serverStt\.supported && \(!Recognition \|\| ANDROID_BROWSER\);/,
+  );
 });

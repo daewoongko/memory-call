@@ -122,13 +122,16 @@ Quick Tunnel 주소는 재시작할 때 바뀌므로 고정 사용은 Render 배
 | `LLM_FAST_MODEL`, `LLM_FAST_REASONING_EFFORT` | 실시간 통화용 저지연 모델·추론 수준 |
 | `ELEVENLABS_API_KEY` | 실시간 STT와 가족별 음성 복제·TTS |
 | `ANAM_API_KEY` | 확정된 가족 사진으로 아바타 생성 및 실시간 립싱크 |
+| `ANAM_AVATAR_ID` | 무료 배포 DB가 초기화될 때 기본 대웅 아바타를 복구하는 선택 값 |
+| `TURN_URLS`, `TURN_SHARED_SECRET` | 휴대폰 NAT·공유기 격리 환경의 사람 통화 중계(coturn REST) |
 | `STORAGE_DIR` | 배포 환경의 영속 DB·비공개 자산 저장 위치 |
 | `TTS_BRIDGE_TOKEN` | 선택적 로컬 MuseTalk 브리지 인증 |
 | `DEMO_SEED_MODE=high_volume` | 공개 데모 DB에 30일 통화·비교 환자·정서 주제 예시를 최초 1회 적재 |
 
-전역 `ANAM_AVATAR_ID`나 전역 가족 `voice_id`는 사용하지 않습니다. 사진·목소리가
-승인될 때 공급자 ID를 가족별로 생성해 SQLite에 저장하며, 브라우저에는 짧은
-세션 토큰만 전달합니다. 전체 예시는 [`.env.example`](.env.example)에 있습니다.
+사진·목소리가 승인될 때 공급자 ID를 가족별로 SQLite에 저장하며 브라우저에는
+짧은 세션 토큰만 전달합니다. 영속 디스크가 없는 데모 배포만 기본 대웅의
+`ANAM_AVATAR_ID`를 복구 값으로 사용할 수 있습니다. 전체 예시는
+[`.env.example`](.env.example)에 있습니다.
 
 ## 얼굴 연령 변화
 
@@ -173,7 +176,7 @@ npm run build
 ```
 
 평가·데모 보조 명령은 [`docs/demo_script.md`](docs/demo_script.md)에 있습니다.
-사람 통화 구조와 STUN only 결정 근거는
+사람 통화 구조와 STUN/TURN 결정 근거는
 [`docs/call_transport_decision.md`](docs/call_transport_decision.md)에 기록했습니다.
 
 ## 주요 문서

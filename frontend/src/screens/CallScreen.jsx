@@ -28,7 +28,7 @@ function elapsedText(seconds) {
 
 export default function CallScreen({
   faces, opening, name, personaId, callId, api, onEnded,
-  conversationEnabled = true, performanceStyle = "calm",
+  conversationEnabled = true, performanceStyle = "calm", anamReady = true,
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [said, setSaid] = useState("");
@@ -100,6 +100,7 @@ export default function CallScreen({
     callId,
     performanceStyle,
     prepareAnam: true,
+    anamReady,
     // 오프닝의 나이 모핑을 끝낸 뒤에만 현재 얼굴 립싱크로 전환한다.
     preferLipSync: conversationReady,
     onFinal: async (text) => {

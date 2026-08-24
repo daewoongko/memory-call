@@ -10,6 +10,9 @@ React 화면(D5-B)이 이 API만 보고 동작하도록 응답 형태를 고정�
 
 from collections import Counter, defaultdict, deque
 from datetime import date, datetime, timedelta
+import base64
+import hashlib
+import hmac
 import json
 import logging
 import math
@@ -69,6 +72,11 @@ FACES_DIR = ALIGNED_FACES_DIR
 MEDIA_DIR = FACES_ROOT
 MORPH = MORPH_PATH
 LOGGER = logging.getLogger(__name__)
+
+DEFAULT_STUN_URLS = [
+    "stun:stun.l.google.com:19302",
+    "stun:stun.cloudflare.com:3478",
+]
 
 app = FastAPI(title="기억이음 Call API", version="0.1.0")
 
@@ -754,6 +762,49 @@ def health():
     return {"ok": True, "model": llm.MODEL, "active_calls": len(SESSIONS)}
 
 
+def _env_urls(name: str) -> list[str]:
+    return [item.strip() for item in os.getenv(name, "").split(",") if item.strip()]
+
+
+@app.get("/api/call-media-config")
+def call_media_config():
+    """Return ICE servers without exposing the permanent TURN shared secret.
+
+    Direct STUN is enough on permissive networks, but carrier NAT, AP isolation,
+    and many phone hotspots require a relay.  Coturn's REST credential format
+    lets the browser receive a one-hour HMAC credential while the shared secret
+    remains on the server.  Static credentials are accepted for managed TURN
+    services that do not support the REST mechanism.
+    """
+    stun_urls = _env_urls("STUN_URLS") or DEFAULT_STUN_URLS
+    ice_servers: list[dict] = [{"urls": stun_urls}]
+    turn_urls = _env_urls("TURN_URLS")
+    shared_secret = os.getenv("TURN_SHARED_SECRET", "").strip()
+    username = os.getenv("TURN_USERNAME", "").strip()
+    credential = os.getenv("TURN_CREDENTIAL", "").strip()
+
+    if turn_urls and shared_secret:
+        try:
+            ttl = max(300, min(86400, int(os.getenv("TURN_TTL_SECONDS", "3600"))))
+        except ValueError:
+            ttl = 3600
+        username = f"{int(time.time()) + ttl}:memory-call"
+        credential = base64.b64encode(
+            hmac.new(shared_secret.encode(), username.encode(), hashlib.sha1).digest()
+        ).decode()
+    if turn_urls and username and credential:
+        ice_servers.append({
+            "urls": turn_urls,
+            "username": username,
+            "credential": credential,
+        })
+
+    return {
+        "ice_servers": ice_servers,
+        "turn_configured": len(ice_servers) > 1,
+    }
+
+
 @app.get("/api/tts/health")
 def tts_health():
     """ElevenLabs 설정과 선택형 MuseTalk 립싱크 워커 상태를 확인한다."""
@@ -767,14 +818,24 @@ def tts_health():
     try:
         return {
             "tts": tts_status,
-            "anam": {"configured": anam_mod.configured()},
+            "anam": {
+                "configured": anam_mod.configured(),
+                "default_avatar_ready": bool(
+                    avatar_mod.active_avatar(DEFAULT_FACE_PERSONA_ID)
+                ),
+            },
             "lipsync": tts_proxy.health(),
         }
     except tts_proxy.TTSUnavailable as exc:
         # 립싱크 워커가 꺼져 있어도 순수 ElevenLabs 음성 통화는 정상 경로다.
         return {
             "tts": tts_status,
-            "anam": {"configured": anam_mod.configured()},
+            "anam": {
+                "configured": anam_mod.configured(),
+                "default_avatar_ready": bool(
+                    avatar_mod.active_avatar(DEFAULT_FACE_PERSONA_ID)
+                ),
+            },
             "lipsync": {"available": False, "detail": str(exc)},
         }
 
@@ -1691,6 +1752,9 @@ def _open_ai_session(elder_id: str, persona_id: str | None) -> dict:
         "faces": _face_urls(selected_persona_id),
         "morph_url": _morph_url(selected_persona_id),
         "loops": _loop_urls(selected_persona_id),
+        # The API key alone is not enough: Anam also needs a provider avatar.
+        # Let the phone skip the connection retries when that avatar is absent.
+        "anam_ready": bool(avatar_mod.active_avatar(selected_persona_id)),
     }
 
 
@@ -1703,13 +1767,40 @@ def start_call(req: StartCallRequest):
 @app.post("/api/calls/{call_id}/prepare")
 def prepare_call(call_id: str):
     """Hide the live model's first connection behind the age-morph wait."""
-    _get(call_id)
+    session = _get(call_id)
+    session_persona_id = getattr(session, "persona_id", None)
+    session_elder_id = getattr(session, "elder_id", None)
+    avatar_ready = bool(avatar_mod.active_avatar(session_persona_id))
+    if session_persona_id and not avatar_ready and anam_mod.configured():
+        try:
+            profile = avatar_mod.public_profile(session_persona_id, session_elder_id)
+            plan = age_timeline.get_plan(session_persona_id)
+            # A fresh Render filesystem has no avatar profile row.  Rebuild the
+            # confirmed demo avatar during the already-visible intro instead
+            # of letting every phone retry a session token that cannot exist.
+            requested_avatar_model = (
+                os.getenv("ANAM_AVATAR_MODEL", "").strip()
+                or anam_mod.DEFAULT_AVATAR_MODEL
+            )
+            retryable_avatar = profile.get("avatar_status") == "unregistered" or (
+                profile.get("avatar_status") == "failed"
+                and profile.get("avatar_model") != requested_avatar_model
+            )
+            if retryable_avatar and plan.get("current_photo"):
+                avatar_mod.sync_from_confirmed_photo(
+                    session_persona_id,
+                    plan["current_photo"],
+                    session_elder_id,
+                )
+            avatar_ready = bool(avatar_mod.active_avatar(session_persona_id))
+        except Exception as exc:  # noqa: BLE001 - audio fallback stays usable
+            LOGGER.warning("avatar preparation failed for %s: %s", call_id, exc)
     try:
         result = llm.warm_fast_model()
     except Exception as exc:  # noqa: BLE001 - warm-up must never block a call
         LOGGER.warning("live model warm-up failed for %s: %s", call_id, exc)
-        return {"ready": False, "performed": False}
-    return {"ready": True, **result}
+        return {"ready": False, "performed": False, "anam_ready": avatar_ready}
+    return {"ready": True, "anam_ready": avatar_ready, **result}
 
 
 # ---------------------------------------------------------------- 기기와 호출

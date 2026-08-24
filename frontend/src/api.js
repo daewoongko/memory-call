@@ -197,6 +197,19 @@ export const pollCallSignal = (inviteId, sender, since = 0) =>
   request(`/api/call-invites/${encodeURIComponent(inviteId)}/signal`
     + `?sender=${encodeURIComponent(sender)}&since=${since}`);
 
+/** STUN/TURN configuration. TURN credentials are short-lived when supported. */
+let callMediaConfigPromise = null;
+export const getCallMediaConfig = () => {
+  if (!callMediaConfigPromise) {
+    callMediaConfigPromise = request("/api/call-media-config")
+      .catch((error) => {
+        callMediaConfigPromise = null;
+        throw error;
+      });
+  }
+  return callMediaConfigPromise;
+};
+
 // ── P2P 진단 ──────────────────────────────────────────────
 // 서버는 SDP·ICE 를 방 단위로 전달만 한다. 내용은 보지 않는다.
 

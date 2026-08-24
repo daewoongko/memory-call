@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createTransport, openCallMedia } from "../callTransport.js";
+import * as api from "../api.js";
 import SelfView from "../components/SelfView.jsx";
 import { useRemotePlayback } from "../useRemotePlayback.js";
 
@@ -103,10 +104,12 @@ export default function GuardianCallOverlay({
         return;
       }
       setLocalStream(stream);
+      const mediaConfig = await api.getCallMediaConfig().catch(() => null);
       transport = createTransport({
         inviteId: connected.invite_id,
         role: "answerer",
         localStream: stream,
+        iceServers: mediaConfig?.ice_servers,
       });
       transport.onRemoteStream((next) => alive && setRemoteStream(next));
       transport.onStateChange((state) => {

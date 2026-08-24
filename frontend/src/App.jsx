@@ -231,7 +231,12 @@ export default function App() {
     // The fixed age-morph wait is useful preparation time. Warm only the
     // low-latency answer model here; failure is harmless because sendTurn can
     // still make the normal first request.
-    api.prepareCall(res.call_id).catch(() => {});
+    api.prepareCall(res.call_id).then((prepared) => {
+      if (typeof prepared?.anam_ready !== "boolean") return;
+      setCall((current) => current?.call_id === res.call_id
+        ? { ...current, anam_ready: prepared.anam_ready }
+        : current);
+    }).catch(() => {});
     if (phaseRef.current === "calling") {
       if (callingIntroDoneRef.current) {
         phaseRef.current = "incall";
@@ -288,8 +293,10 @@ export default function App() {
         return;
       }
       setHumanLocalStream(stream);
+      const mediaConfig = await api.getCallMediaConfig().catch(() => null);
       const transport = createTransport({
         inviteId, role: "caller", localStream: stream,
+        iceServers: mediaConfig?.ice_servers,
       });
       humanTransport.current = transport;
       transport.onRemoteStream(setHumanRemoteStream);
@@ -811,6 +818,7 @@ export default function App() {
           callId={call.call_id}
           api={api}
           conversationEnabled={conversationEnabled}
+          anamReady={Boolean(call.anam_ready)}
           performanceStyle={profile?.persona?.avatar_performance_style ?? "calm"}
           onEnded={(s) => {
             setSummary(s);

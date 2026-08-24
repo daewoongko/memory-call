@@ -134,6 +134,10 @@ def sync_from_confirmed_photo(
     if not source.is_file():
         raise AvatarProfileError("확정한 가족 사진을 찾을 수 없습니다.")
     source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+    requested_model = (
+        os.getenv("ANAM_AVATAR_MODEL", "").strip()
+        or anam.DEFAULT_AVATAR_MODEL
+    )
 
     with db.connect() as conn:
         _ensure_profile(conn, persona_id)
@@ -149,10 +153,10 @@ def sync_from_confirmed_photo(
             conn.commit()
             return public_profile(persona_id, elder_id)
         conn.execute(
-            "UPDATE persona_avatar_profiles SET avatar_id = NULL, "
+            "UPDATE persona_avatar_profiles SET avatar_id = NULL, avatar_model = ?, "
             "source_photo_name = ?, source_sha256 = ?, avatar_status = 'creating', "
             "last_error = NULL, updated_at = CURRENT_TIMESTAMP WHERE persona_id = ?",
-            (safe_name, source_hash, persona_id),
+            (requested_model, safe_name, source_hash, persona_id),
         )
         conn.commit()
 

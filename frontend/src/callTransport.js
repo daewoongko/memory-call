@@ -9,12 +9,14 @@ const SIGNAL_POLL_MS = 500;
  * 화면은 RTCPeerConnection이나 신호 순서를 알지 않는다. TURN 또는 다른
  * 전송 계층으로 바꾸더라도 이 인터페이스만 유지하면 된다.
  */
-export function createTransport({ inviteId, role, localStream }) {
+export function createTransport({ inviteId, role, localStream, iceServers }) {
   if (!inviteId) throw new Error("inviteId가 필요합니다.");
   if (!['caller', 'answerer'].includes(role)) throw new Error("role이 올바르지 않습니다.");
 
   const pc = new RTCPeerConnection({
-    iceServers: [{ urls: STUN_SERVERS }],
+    iceServers: Array.isArray(iceServers) && iceServers.length
+      ? iceServers
+      : [{ urls: STUN_SERVERS }],
     iceCandidatePoolSize: 2,
   });
   const sender = role;

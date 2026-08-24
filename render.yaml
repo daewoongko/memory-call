@@ -36,6 +36,14 @@ services:
       - key: ANAM_AVATAR_ID
         sync: false
       - key: ANAM_AVATAR_MODEL
-        value: cara-4
+        value: cara-3
+      - key: TURN_URLS
+        sync: false
+      - key: TURN_SHARED_SECRET
+        sync: false
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_CREDENTIAL
+        sync: false
       - key: TTS_BRIDGE_TOKEN
         sync: false

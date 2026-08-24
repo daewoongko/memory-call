@@ -118,6 +118,7 @@ export function useSpeech({
   callId = null,
   performanceStyle = "calm",
   prepareAnam = false,
+  anamReady = true,
   preferLipSync = false,
   onFinal,
 } = {}) {
@@ -160,7 +161,13 @@ export function useSpeech({
     silenceMs,
     onFinal: (text) => onFinalRef.current?.(text),
   });
-  const usesServerStt = serverStt.supported && !Recognition;
+  // Android Chrome exposes webkitSpeechRecognition even when the backing
+  // Google speech service is unavailable to an installed PWA.  In that case
+  // feature detection succeeds but every recognition attempt ends with a
+  // network/service error.  Galaxy devices therefore use our authenticated
+  // realtime STT path first; MediaRecorder inside that hook still provides
+  // the existing file-transcription fallback if its WebSocket is blocked.
+  const usesServerStt = serverStt.supported && (!Recognition || ANDROID_BROWSER);
   const supported = Boolean(Recognition) || usesServerStt;
 
   const clearSilence = () => {
@@ -205,7 +212,7 @@ export function useSpeech({
   }, []);
 
   const getAnamTransport = useCallback(() => {
-    if (!ANAM_ENABLED || !callId || !personaId) return null;
+    if (!ANAM_ENABLED || !anamReady || !callId || !personaId) return null;
     const transportKey = `${callId}:${personaId}:${performanceStyle}`;
     if (
       anamTransportRef.current &&
@@ -232,7 +239,7 @@ export function useSpeech({
       });
     }
     return anamTransportRef.current;
-  }, [callId, performanceStyle, personaId]);
+  }, [anamReady, callId, performanceStyle, personaId]);
 
   const cancelSpeech = useCallback(() => {
     speechRunRef.current += 1;
@@ -938,7 +945,7 @@ export function useSpeech({
       let completedChunks = 0;
 
       try {
-        if (ANAM_ENABLED && preferLipSync && callId && personaId) {
+        if (ANAM_ENABLED && anamReady && preferLipSync && callId && personaId) {
           try {
             const handled = await speakWithAnam(text, runId);
             if (handled) return;
@@ -1005,6 +1012,7 @@ export function useSpeech({
     },
     [
       cancelSpeech,
+      anamReady,
       callId,
       fetchSpeechChunk,
       personaId,
@@ -1020,7 +1028,7 @@ export function useSpeech({
   // Prepare Anam behind the age morph. Visibility remains controlled by
   // preferLipSync, so a ready WebRTC stream never replaces the morph early.
   useEffect(() => {
-    if (!ANAM_ENABLED || !prepareAnam) return undefined;
+    if (!ANAM_ENABLED || !anamReady || !prepareAnam) return undefined;
     const transport = getAnamTransport();
     if (!transport) return undefined;
     let cancelled = false;
@@ -1045,7 +1053,7 @@ export function useSpeech({
       cancelled = true;
       clearTimeout(retryTimer);
     };
-  }, [getAnamTransport, prepareAnam]);
+  }, [anamReady, getAnamTransport, prepareAnam]);
 
   useEffect(
     () => () => {
