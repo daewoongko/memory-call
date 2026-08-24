@@ -17,6 +17,8 @@ import anam
 import db
 from storage import DEFAULT_FACE_PERSONA_ID, persona_face_storage
 
+DEFAULT_RENDER_AVATAR_NAME = "daewoongko"
+
 
 class AvatarProfileError(ValueError):
     pass
@@ -93,6 +95,15 @@ def active_avatar(persona_id: str | None) -> dict | None:
                 ),
             }
         avatar_name = os.getenv("ANAM_AVATAR_NAME", "").strip()
+        if not avatar_name and (
+            os.getenv("RENDER", "").strip().lower() == "true"
+            or os.getenv("RENDER_SERVICE_ID", "").strip()
+        ):
+            # The public demo persona and this already-approved provider avatar
+            # are the same person. Render Blueprint value changes are not
+            # guaranteed to mutate an existing service's environment, so keep
+            # the non-secret lookup name as a production-only fallback.
+            avatar_name = DEFAULT_RENDER_AVATAR_NAME
         if avatar_name:
             try:
                 return anam.find_avatar_by_name(avatar_name)
