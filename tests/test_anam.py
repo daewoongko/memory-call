@@ -141,6 +141,40 @@ class AnamConfigTests(unittest.TestCase):
         self.assertIn("multipart/form-data", captured["content_type"])
         self.assertIn(b'filename="avatar.jpg"', captured["body"])
 
+    def test_existing_avatar_lookup_returns_only_id_and_active_model(self):
+        captured = {}
+
+        def fake_urlopen(req, timeout):
+            captured["authorization"] = req.get_header("Authorization")
+            captured["url"] = req.full_url
+            return _Response(json.dumps({
+                "data": [{
+                    "id": "private-existing-avatar",
+                    "displayName": "daewoongko",
+                    "activeVersion": "cara-4",
+                    "privateProviderField": "must-not-leak",
+                }],
+                "meta": {"next": None},
+            }).encode("utf-8"))
+
+        anam._find_avatar_by_name_cached.cache_clear()
+        try:
+            with (
+                patch.dict("os.environ", {"ANAM_API_KEY": "permanent-secret"}, clear=True),
+                patch.object(anam.request, "urlopen", side_effect=fake_urlopen),
+            ):
+                result = anam.find_avatar_by_name(" DaewoongKo ")
+        finally:
+            anam._find_avatar_by_name_cached.cache_clear()
+
+        self.assertEqual(result, {
+            "avatar_id": "private-existing-avatar",
+            "avatar_model": "cara-4",
+        })
+        self.assertEqual(captured["authorization"], "Bearer permanent-secret")
+        self.assertIn("page=1", captured["url"])
+        self.assertNotIn("privateProviderField", result)
+
 
 class AnamApiTests(unittest.TestCase):
     def setUp(self):

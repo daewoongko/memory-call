@@ -92,6 +92,14 @@ def active_avatar(persona_id: str | None) -> dict | None:
                     or anam.DEFAULT_AVATAR_MODEL
                 ),
             }
+        avatar_name = os.getenv("ANAM_AVATAR_NAME", "").strip()
+        if avatar_name:
+            try:
+                return anam.find_avatar_by_name(avatar_name)
+            except (anam.AnamNotConfigured, anam.AnamUnavailable):
+                # Health and call-list endpoints must remain available while
+                # the optional avatar provider is temporarily unreachable.
+                return None
     return None
 
 

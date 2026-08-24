@@ -10,15 +10,17 @@ import json
 import mimetypes
 import os
 import uuid
+from functools import lru_cache
 from pathlib import Path
 from urllib import error, request
+from urllib.parse import urlencode
 
 
 API_URL = "https://api.anam.ai/v1/auth/session-token"
 AVATAR_API_URL = "https://api.anam.ai/v1/avatars"
-# cara-4-latest is gated by organization access. cara-3 is the stable model
-# accepted by ordinary custom-avatar accounts.
-DEFAULT_AVATAR_MODEL = "cara-3"
+# Use the active model of an existing avatar whenever possible. cara-4 is the
+# model currently attached to the deployment's approved custom avatar.
+DEFAULT_AVATAR_MODEL = "cara-4"
 DEFAULT_TIMEOUT_SECONDS = 12.0
 DEFAULT_DIRECTOR_STYLE = (
     "Keep steady eye contact and remain calm, gentle, and attentive. "
@@ -69,6 +71,76 @@ def _director_notes(expressivity: float | None = None) -> dict[str, str | float]
         "customStylePrompt": style,
         "expressivity": expressivity,
     }
+
+
+@lru_cache(maxsize=8)
+def _find_avatar_by_name_cached(display_name: str) -> tuple[str, str] | None:
+    """Find an existing account avatar without exposing provider metadata.
+
+    Render's ephemeral database cannot retain the avatar id across deploys.
+    Looking it up by a non-secret display name lets the server recover the id
+    while keeping that id and the provider response out of the browser.
+    """
+    api_key = _api_key()
+    page = 1
+    while page <= 20:
+        url = f"{AVATAR_API_URL}?{urlencode({'page': page, 'perPage': 100})}"
+        req = request.Request(
+            url,
+            method="GET",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Accept": "application/json",
+            },
+        )
+        try:
+            with request.urlopen(req, timeout=_timeout_seconds()) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            raise AnamUnavailable(f"Anam avatar lookup failed ({exc.code})") from exc
+        except (error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            raise AnamUnavailable("Anam avatar lookup is unavailable") from exc
+
+        avatars = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(avatars, list):
+            raise AnamUnavailable("Anam returned an invalid avatar list")
+        for avatar in avatars:
+            if not isinstance(avatar, dict):
+                continue
+            candidate_name = avatar.get("displayName") or avatar.get("display_name")
+            avatar_id = avatar.get("id") or avatar.get("avatarId")
+            if (
+                isinstance(candidate_name, str)
+                and candidate_name.strip().casefold() == display_name.casefold()
+                and isinstance(avatar_id, str)
+                and avatar_id.strip()
+            ):
+                model = avatar.get("activeVersion") or avatar.get("avatarModel")
+                return avatar_id.strip(), (
+                    model.strip() if isinstance(model, str) and model.strip()
+                    else DEFAULT_AVATAR_MODEL
+                )
+
+        meta = payload.get("meta") if isinstance(payload, dict) else None
+        next_page = meta.get("next") if isinstance(meta, dict) else None
+        if not next_page:
+            return None
+        try:
+            page = int(next_page)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def find_avatar_by_name(display_name: str) -> dict[str, str] | None:
+    normalized = display_name.strip()
+    if not normalized:
+        return None
+    selected = _find_avatar_by_name_cached(normalized)
+    if not selected:
+        return None
+    avatar_id, avatar_model = selected
+    return {"avatar_id": avatar_id, "avatar_model": avatar_model}
 
 
 def create_session_token(
