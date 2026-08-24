@@ -77,15 +77,15 @@ class CallInviteTest(unittest.TestCase):
 
     # -------------------------------------------------------------- 벨
 
-    def test_ring_is_shortened_when_no_guardian_device_is_listening(self):
-        """받을 기기가 없는데 전체 벨 시간을 기다리게 할 이유가 없다."""
+    def test_no_guardian_still_keeps_the_full_intro(self):
+        """기기가 없어도 어르신의 음악·AI 영상은 같은 24초 동안 재생한다."""
         invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["state"], invites.RINGING)
-        self.assertEqual(invite["ring_timeout_sec"], invites.NO_DEVICE_RING_SEC)
+        self.assertEqual(invite["ring_timeout_sec"], invites.DEFAULT_RING_SEC)
         self.assertEqual(invite["no_live_device"], 1)
 
     def test_full_ring_when_a_guardian_device_is_listening(self):
-        self.assertEqual(invites.DEFAULT_RING_SEC, 25)
+        self.assertEqual(invites.DEFAULT_RING_SEC, 24)
         self._guardian()
         invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["ring_timeout_sec"], invites.DEFAULT_RING_SEC)
@@ -143,6 +143,21 @@ class CallInviteTest(unittest.TestCase):
         self.assertEqual(answered["to_device"], "dev_guardian")
         self.assertIsNotNone(answered["answered_at"])
         self.assertFalse(answered["should_take_over"])
+        self.assertFalse(answered["intro_complete"])
+        self.assertGreater(answered["intro_seconds_left"], 0)
+
+    def test_answer_waits_for_the_shared_intro_before_connecting(self):
+        """받기는 예약되고 사람 통화 공개 시점은 24초 재생 뒤다."""
+        self._guardian()
+        invite = invites.create("elder_test", "persona_godaewoong")
+        answered = invites.answer(invite["invite_id"], "dev_guardian")
+        self.assertFalse(answered["intro_complete"])
+
+        self._age(invite["invite_id"], invites.INTRO_DURATION_SEC + 1)
+        ready = invites.get(invite["invite_id"])
+        self.assertEqual(ready["state"], invites.ANSWERED)
+        self.assertTrue(ready["intro_complete"])
+        self.assertEqual(ready["intro_seconds_left"], 0)
 
     def test_decline_hands_over_immediately_without_waiting_out_the_ring(self):
         """거절은 실패가 아니라 'AI 가 대신 받아라'는 뜻이다."""

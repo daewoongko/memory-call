@@ -35,13 +35,15 @@ from datetime import datetime
 
 import db
 
-# 벨이 울리는 기본 시간. 20~30초 사이에서 가족이 받을 시간을 주되,
-# 그 동안 화면은 연결 상태를 단계별로 알려 어르신이 멈춘 것으로 오해하지 않게 한다.
-DEFAULT_RING_SEC = 25
+# 어르신에게 재생하는 가족 AI 영상·대기 음악의 고정 길이. 가족이 중간에
+# 받더라도 이 구간이 끝난 뒤 사람 통화로 전환하고, 받지 않았을 때도 이 시점에
+# AI가 이어받는다. 양쪽 기기가 같은 서버 값을 사용해야 타이머가 엇갈리지 않는다.
+INTRO_DURATION_SEC = 24
+DEFAULT_RING_SEC = INTRO_DURATION_SEC
 
-# 받을 기기가 하나도 없을 때의 대기 시간. 아무도 없는데 15초를 기다리게 할
-# 이유는 없지만, 0초로 만들면 어르신이 전화를 건 감각을 잃는다.
-NO_DEVICE_RING_SEC = 6
+# 이전 코드와 기록 분석의 이름은 유지하되, 기기 유무와 상관없이 같은 24초를
+# 보장한다. no_live_device는 무응답 사유를 구분하는 데만 사용한다.
+NO_DEVICE_RING_SEC = INTRO_DURATION_SEC
 
 # 이 시간 안에 수신 폴링을 한 기기만 살아 있다고 본다.
 # 프론트가 1.5초 주기로 물어보므로 몇 번 놓쳐도 죽었다고 판정하지 않는다.
@@ -176,7 +178,7 @@ def create(elder_id: str, persona_id: str | None,
             "persona_id": persona_id,
             "from_device": from_device,
             "state": RINGING,
-            "ring_timeout_sec": DEFAULT_RING_SEC if live else NO_DEVICE_RING_SEC,
+            "ring_timeout_sec": DEFAULT_RING_SEC,
             "no_live_device": 0 if live else 1,
             "created_at": _now(),
         })
@@ -227,9 +229,15 @@ def _decorate(row: dict) -> dict:
     remaining = 0.0
     if row["state"] == RINGING:
         remaining = max(0.0, row["ring_timeout_sec"] - _elapsed(row["created_at"]))
+    intro_remaining = max(
+        0.0, INTRO_DURATION_SEC - _elapsed(row.get("created_at")),
+    )
     return {
         **row,
         "seconds_left": round(remaining, 1),
+        "intro_duration_sec": INTRO_DURATION_SEC,
+        "intro_seconds_left": round(intro_remaining, 1),
+        "intro_complete": intro_remaining <= 0,
         # 화면은 이 값만 보고 분기하면 된다. 상태 이름을 화면마다 해석하면
         # 규칙이 흩어져서 어긋난다.
         "should_take_over": row["state"] in (DECLINED, TIMEOUT),

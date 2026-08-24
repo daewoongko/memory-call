@@ -234,6 +234,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
           setConnected(null);
           return;
         }
+        setConnected(current);
       } catch {
         // 잠깐의 통신 오류로 진행 중인 통화 화면을 먼저 닫지 않는다.
       }
@@ -288,8 +289,9 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   }, [connected]);
 
   const handleTransportFailed = useCallback(() => {
-    // 어르신 쪽이 AI 인계를 확정한다. 보호자 화면은 조용히 통화창만 닫는다.
-    setConnected(null);
+    // 어르신 쪽이 24초 재생 뒤 AI 인계를 확정한다. 그 전에는 보호자도 같은
+    // 준비 화면을 유지해 두 기기의 진행 상태가 서로 달라 보이지 않게 한다.
+    setCallError("직접 통화 연결을 준비하지 못했어요. 재생이 끝나면 다소니가 이어받아요.");
     setCallBusy(false);
   }, []);
 

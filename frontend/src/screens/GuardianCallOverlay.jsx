@@ -34,6 +34,7 @@ export default function GuardianCallOverlay({
 }) {
   const call = connected || invite;
   const [seconds, setSeconds] = useState(() => elapsed(connected?.answered_at));
+  const [introClock, setIntroClock] = useState({ inviteId: null, seconds: 0 });
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const {
@@ -41,11 +42,36 @@ export default function GuardianCallOverlay({
   } = useRemotePlayback(remoteStream);
 
   useEffect(() => {
-    if (!connected) return undefined;
-    setSeconds(elapsed(connected.answered_at));
-    const id = setInterval(() => setSeconds(elapsed(connected.answered_at)), 1000);
+    if (!connected?.invite_id) {
+      setIntroClock({ inviteId: null, seconds: 0 });
+      return undefined;
+    }
+    const initial = Math.max(0, Number(connected.intro_seconds_left || 0));
+    const deadline = Date.now() + initial * 1000;
+    const tick = () => setIntroClock({
+      inviteId: connected.invite_id,
+      seconds: Math.max(0, Math.ceil((deadline - Date.now()) / 1000)),
+    });
+    tick();
+    const id = setInterval(tick, 250);
     return () => clearInterval(id);
-  }, [connected]);
+  }, [connected?.invite_id]);
+
+  const introSeconds = introClock.inviteId === connected?.invite_id
+    ? introClock.seconds
+    : Math.max(0, Math.ceil(Number(connected?.intro_seconds_left || 0)));
+  const introPending = Boolean(connected && introSeconds > 0);
+  useEffect(() => {
+    if (!connected || introPending) {
+      setSeconds(0);
+      return undefined;
+    }
+    const started = Date.now();
+    const tick = () => setSeconds(Math.max(0, Math.floor((Date.now() - started) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [connected?.invite_id, introPending]);
 
   useEffect(() => {
     if (!connected?.invite_id) return undefined;
@@ -96,14 +122,20 @@ export default function GuardianCallOverlay({
 
   return (
     <div className="guardian-call-scrim" role="dialog" aria-live="assertive"
-         aria-label={connected ? `${who}와 통화 중` : `${who}에게서 전화`}>
-      <div className={`guardian-call${connected ? " on" : ""}`}>
+         aria-label={introPending ? "나의 AI 영상을 재생 중" : connected ? `${who}와 통화 중` : `${who}에게서 전화`}>
+      <div className={`guardian-call${connected ? " on" : ""}${introPending ? " preparing" : ""}`}>
         <span className="guardian-call-tag">
-          {connected ? "통화 중" : "지금 전화가 왔어요"}
+          {introPending ? "연결 준비 중" : connected ? "통화 중" : "지금 전화가 왔어요"}
         </span>
-        <h2>{who}</h2>
+        <h2>{introPending ? "나의 AI 영상을 재생 중" : who}</h2>
 
-        {connected ? (
+        {introPending ? (
+          <div className="guardian-ai-playback">
+            <div className="ring-dots" aria-hidden="true"><i /><i /><i /></div>
+            <strong>{introSeconds}초</strong>
+            <p>어르신에게 대기 음악과 AI 영상이 재생되고 있어요.<br />재생이 끝나면 통화가 자동으로 연결됩니다.</p>
+          </div>
+        ) : connected ? (
           <>
             <div className="guardian-media-stage">
               <video ref={remoteRef} autoPlay playsInline />
@@ -127,7 +159,7 @@ export default function GuardianCallOverlay({
         {connected ? (
           <div className="guardian-call-actions">
             <button className="guardian-call-end" onClick={onEnd} disabled={busy}>
-              통화 끝내기
+              {introPending ? "연결 취소" : "통화 끝내기"}
             </button>
           </div>
         ) : (

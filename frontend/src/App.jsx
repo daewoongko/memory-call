@@ -22,6 +22,7 @@ import NetTestScreen from "./screens/NetTestScreen.jsx";
 import { createTransport, openCallMedia } from "./callTransport.js";
 import { useCallMediaReadiness } from "./useCallMediaReadiness.js";
 import { useScreenWakeLock } from "./useScreenWakeLock.js";
+import { startWaitingMelody, stopWaitingMelody } from "./waitingMelody.js";
 
 // The server owns the ringing deadline. Polling only mirrors that state so a
 // guardian answer, decline, or timeout is never inferred from a local timer.
@@ -106,7 +107,7 @@ export default function App() {
   const timers = useRef([]);
   const phaseRef = useRef(phase);
   const inviteRef = useRef(invite);
-  const callingMorphDoneRef = useRef(false);
+  const callingIntroDoneRef = useRef(false);
   const humanTransport = useRef(null);
   const transportFailed = useRef(false);
   const takeoverInFlight = useRef(false);
@@ -165,6 +166,10 @@ export default function App() {
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { inviteRef.current = invite; }, [invite]);
+  useEffect(() => {
+    if (phase !== "calling") stopWaitingMelody();
+  }, [phase]);
+  useEffect(() => () => stopWaitingMelody(), []);
 
   useEffect(() => {
     if (!elderAccessReady) {
@@ -224,7 +229,7 @@ export default function App() {
     // still make the normal first request.
     api.prepareCall(res.call_id).catch(() => {});
     if (phaseRef.current === "calling") {
-      if (callingMorphDoneRef.current) {
+      if (callingIntroDoneRef.current) {
         phaseRef.current = "incall";
         setPhase("incall");
       }
@@ -318,6 +323,11 @@ export default function App() {
 
         if (current.state === "answered") {
           setInvite(current);
+          if (!current.intro_complete) {
+            timer = setTimeout(tick, RING_POLL_MS);
+            return;
+          }
+          stopWaitingMelody();
           if (transportFailed.current) {
             fallBackFromHuman(inviteId);
           } else {
@@ -439,11 +449,13 @@ export default function App() {
 
   async function startCalling(picked) {
     const person = picked ?? target;
+    startWaitingMelody(24000);
     if (!callMedia.ready) {
       try {
         const prepared = await callMedia.prepare();
         if (!prepared?.ready) throw new Error("microphone unavailable");
       } catch {
+        stopWaitingMelody();
         setError("마이크 연결이 안 됐어요. 마이크 권한과 연결 상태를 확인해 주세요.");
         return;
       }
@@ -453,7 +465,7 @@ export default function App() {
     setCall(null);
     setSummary(null);
     setInvite(null);
-    callingMorphDoneRef.current = false;
+    callingIntroDoneRef.current = false;
     phaseRef.current = "calling";
     setPhase("calling");
 
@@ -485,7 +497,7 @@ export default function App() {
         const current = await api.getInvite(invite.invite_id).catch(() => invite);
         if (current?.state === "ai_takeover") {
           if (call) {
-            callingMorphDoneRef.current = true;
+            callingIntroDoneRef.current = true;
             phaseRef.current = "incall";
             setPhase("incall");
           } else {
@@ -533,12 +545,13 @@ export default function App() {
     setInvite(null);
     setCall(null);
     setSummary(null);
-    callingMorphDoneRef.current = false;
+    callingIntroDoneRef.current = false;
     setPhase("idle");
   }
 
-  function finishCallingMorph() {
-    callingMorphDoneRef.current = true;
+  function finishCallingIntro() {
+    callingIntroDoneRef.current = true;
+    stopWaitingMelody();
     if (!call) return;
     phaseRef.current = "incall";
     setPhase("incall");
@@ -775,7 +788,6 @@ export default function App() {
       <CallingScreen
         name={profile?.persona?.display_name ?? "가족"}
         announcement={call?.announcement ?? "연결하고 있어요"}
-        onChooseAI={chooseAIWhileWaiting}
       />,
       { shell: "elder" }
     );
@@ -804,8 +816,8 @@ export default function App() {
           name={profile?.persona?.display_name ?? "가족"}
           announcement={call?.announcement ?? "연결하고 있어요"}
           morphUrl={profile?.morph_url ?? null}
-          onMorphEnded={finishCallingMorph}
-          onChooseAI={chooseAIWhileWaiting}
+          introDurationSec={invite?.intro_duration_sec ?? 24}
+          onWaitEnded={finishCallingIntro}
         />}
       </div>,
       { shell: "elder" }
@@ -817,7 +829,6 @@ export default function App() {
       <HumanCallScreen
         name={profile?.persona?.display_name ?? "가족"}
         face={profile?.faces?.at(-1)?.url}
-        answeredAt={invite.answered_at}
         localStream={humanLocalStream}
         remoteStream={humanRemoteStream}
         onEnd={endHumanCall}

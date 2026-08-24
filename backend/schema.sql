@@ -351,7 +351,7 @@ CREATE TABLE IF NOT EXISTS call_invites (
                   'ai_takeover','ended','cancelled')),
     -- 벨이 울릴 시간. 서버가 정해서 내려보낸다. 클라이언트에 15 를 박아 두면
     -- 받을 기기가 없을 때도 똑같이 기다리게 된다.
-    ring_timeout_sec INTEGER NOT NULL DEFAULT 25,
+    ring_timeout_sec INTEGER NOT NULL DEFAULT 24,
     -- 걸 때 살아 있는 보호자 기기가 하나도 없었는가.
     -- 타임아웃 사유를 no_device 와 timeout 으로 가르는 데 쓴다.
     no_live_device   INTEGER DEFAULT 0,

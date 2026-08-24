@@ -1,41 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MorphStage from "../components/MorphStage.jsx";
 import BrandMark from "../components/BrandMark.jsx";
 
 /**
  * 가족을 호출하는 구간. 대웅의 연령 변화 영상은 이 대기 시간을 대신한다.
- * 가족이 직접 받으면 즉시 사람 통화로 넘어가고, AI가 대신 받는 경우에는
- * 모핑 마지막 프레임까지 보여준 뒤 Anam 통화 화면을 연다.
+ * 가족이 중간에 받아도 24초 준비 재생을 마친 뒤 사람 통화로 넘어간다.
+ * 받지 않은 경우에도 같은 시점에 AI가 이어받아 두 기기의 흐름이 어긋나지 않는다.
  */
 export default function CallingScreen({
   name,
   announcement,
   morphUrl = null,
-  onMorphEnded,
-  onChooseAI,
+  introDurationSec = 24,
+  onWaitEnded,
 }) {
   const [elapsed, setElapsed] = useState(0);
+  const onWaitEndedRef = useRef(onWaitEnded);
+  useEffect(() => { onWaitEndedRef.current = onWaitEnded; }, [onWaitEnded]);
   useEffect(() => {
     const started = Date.now();
     const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+    const done = window.setTimeout(
+      () => onWaitEndedRef.current?.(), Math.max(1, introDurationSec) * 1000,
+    );
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(done);
+    };
+  }, [introDurationSec]);
+  const remaining = Math.max(0, introDurationSec - elapsed);
   const status = elapsed < 5
     ? `${name}에게 연결을 요청하고 있어요.`
-    : elapsed < 16
-      ? "전화벨이 울리고 있어요. 천천히 기다려 주세요."
-      : "아직 연결을 기다리고 있어요. 원하시면 다소니와 먼저 이야기할 수 있어요.";
-  const options = elapsed >= 16 && <div className="calling-wait-options">
-    {onChooseAI && <button type="button" onClick={onChooseAI}>다소니와 먼저 이야기하기</button>}
-  </div>;
+    : "전화벨이 울리고 있어요. 잔잔한 음악을 들으며 잠시 기다려 주세요.";
   if (morphUrl) {
     return (
       <div className="screen calling-screen calling-with-morph">
         <MorphStage
           src={morphUrl}
           speaking={false}
-          onEnded={onMorphEnded}
-          onFail={onMorphEnded}
         />
 
         <div className="calling-morph-status">
@@ -48,7 +50,7 @@ export default function CallingScreen({
             {`${name}과 연결하는 중`}
           </div>
           <p>{status}</p>
-          {options}
+          <small className="calling-intro-count">{remaining}초 후 연결돼요</small>
         </div>
       </div>
     );
@@ -67,7 +69,7 @@ export default function CallingScreen({
         {`${name}과 연결하는 중`}
       </div>
       <p className="hint">{elapsed < 5 ? announcement : status}</p>
-      {options}
+      <small className="calling-intro-count">{remaining}초 후 연결돼요</small>
     </div>
   );
 }

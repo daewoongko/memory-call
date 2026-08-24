@@ -6,6 +6,9 @@ const source = readFileSync(new URL("../src/api.js", import.meta.url), "utf8");
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const family = readFileSync(new URL("../src/screens/FamilyScreen.jsx", import.meta.url), "utf8");
 const onboarding = readFileSync(new URL("../src/screens/GuardianOnboardingScreen.jsx", import.meta.url), "utf8");
+const guardianCall = readFileSync(new URL("../src/screens/GuardianCallOverlay.jsx", import.meta.url), "utf8");
+const calling = readFileSync(new URL("../src/screens/CallingScreen.jsx", import.meta.url), "utf8");
+const melody = readFileSync(new URL("../src/waitingMelody.js", import.meta.url), "utf8");
 
 test("프로필 조회는 elder_id와 선택한 persona_id를 함께 보낸다", () => {
   assert.match(source, /getProfile\s*=\s*\(personaId, elderId = "elder_001"\)/);
@@ -46,6 +49,19 @@ test("가족 카드 통화는 호출을 만든 뒤 서버 상태에 따라 사�
   assert.match(app, /if \(takeoverInFlight\.current\) return/);
   assert.match(app, /setError\(""\);[\s\S]*?cooldownUntil\.current/);
   assert.doesNotMatch(app, /setSecondsLeft|secondsLeft=/);
+});
+
+test("가족이 받아도 24초 AI 영상·대기 음악 뒤에 사람 통화를 연다", () => {
+  assert.match(app, /startWaitingMelody\(24000\)/);
+  assert.match(app, /current\.state === "answered"[\s\S]*?!current\.intro_complete[\s\S]*?setTimeout\(tick, RING_POLL_MS\)/);
+  assert.match(app, /introDurationSec=\{invite\?\.intro_duration_sec \?\? 24\}/);
+  assert.match(calling, /introDurationSec = 24/);
+  assert.match(calling, /onWaitEndedRef\.current\?\.\(\)/);
+  assert.match(calling, /잔잔한 음악을 들으며 잠시 기다려 주세요/);
+  assert.match(guardianCall, /나의 AI 영상을 재생 중/);
+  assert.match(guardianCall, /재생이 끝나면 통화가 자동으로 연결됩니다/);
+  assert.match(melody, /const NOTES = \[/);
+  assert.match(melody, /export function startWaitingMelody/);
 });
 
 test("어르신 통화 대기 화면은 연결된 어르신의 가족만 조회한다", () => {
