@@ -31,6 +31,8 @@ services:
         sync: false
       - key: ELEVENLABS_VOICE_ID
         sync: false
+      - key: ELEVENLABS_VOICE_NAME
+        value: memory-call-user-voice-2
       - key: ANAM_API_KEY
         sync: false
       - key: ANAM_AVATAR_ID

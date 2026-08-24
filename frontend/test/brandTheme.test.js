@@ -60,6 +60,9 @@ test("어르신 홈은 큰 가족 사진과 간결한 선택 안내를 사용한
   assert.match(theme, /family-face \{ width: 108px; height: 108px;/);
   assert.match(theme, /family-face \{ width: 96px; height: 96px;/);
   assert.match(theme, /family-grid[^}]+overflow: hidden/);
+  assert.match(theme, /\.app-device-default \.reassurance-home-simple \.family-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?grid-template-rows: repeat\(4, minmax\(0, 1fr\)\);/);
+  assert.match(main, /window\.visualViewport\?\.height \|\| window\.innerHeight/);
+  assert.match(main, /--app-height/);
 });
 
 test("모핑 연결 안내는 화면 안쪽 하단 카드로 고정된다", () => {

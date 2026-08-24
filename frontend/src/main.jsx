@@ -7,6 +7,20 @@ import App from "./App.jsx";
 import "./styles.css";
 import "./storybook-theme.css";
 
+// Android's status and navigation bars are outside the web viewport.  Keep a
+// pixel-accurate height variable so installed PWAs do not lay out against the
+// physical screen height and lose the fourth family card behind system UI.
+function syncAppViewportHeight() {
+  const height = window.visualViewport?.height || window.innerHeight;
+  if (height > 0) {
+    document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
+  }
+}
+
+syncAppViewportHeight();
+window.addEventListener("resize", syncAppViewportHeight, { passive: true });
+window.visualViewport?.addEventListener("resize", syncAppViewportHeight, { passive: true });
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App />

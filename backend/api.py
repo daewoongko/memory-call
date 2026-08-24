@@ -816,8 +816,13 @@ def tts_health():
         ),
     }
     try:
+        try:
+            default_voice_ready = bool(_ready_voice_id(DEFAULT_FACE_PERSONA_ID))
+        except (HTTPException, elevenlabs_tts.ElevenLabsNotConfigured,
+                elevenlabs_tts.ElevenLabsUnavailable):
+            default_voice_ready = False
         return {
-            "tts": tts_status,
+            "tts": {**tts_status, "default_voice_ready": default_voice_ready},
             "anam": {
                 "configured": anam_mod.configured(),
                 "default_avatar_ready": bool(
@@ -829,7 +834,7 @@ def tts_health():
     except tts_proxy.TTSUnavailable as exc:
         # 립싱크 워커가 꺼져 있어도 순수 ElevenLabs 음성 통화는 정상 경로다.
         return {
-            "tts": tts_status,
+            "tts": {**tts_status, "default_voice_ready": False},
             "anam": {
                 "configured": anam_mod.configured(),
                 "default_avatar_ready": bool(
@@ -846,6 +851,10 @@ def _ready_voice_id(persona_id: str | None) -> str:
     voice_id = voice_mod.active_voice_id(persona_id)
     if not voice_id and persona_id == DEFAULT_FACE_PERSONA_ID:
         voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+    if not voice_id and persona_id == DEFAULT_FACE_PERSONA_ID:
+        voice_name = os.getenv("ELEVENLABS_VOICE_NAME", "").strip()
+        if voice_name:
+            voice_id = elevenlabs_tts.resolve_voice_id_by_name(voice_name)
     if not voice_id:
         raise HTTPException(409, "선택한 가족의 승인된 목소리를 먼저 등록해 주세요.")
     return voice_id

@@ -20,10 +20,13 @@ import os
 import time
 import wave
 from dataclasses import dataclass
+from functools import lru_cache
 from urllib import error, request
+from urllib.parse import urlencode
 
 
 API_BASE = "https://api.elevenlabs.io"
+VOICES_API_URL = f"{API_BASE}/v2/voices"
 SAMPLE_RATE = 24000
 MAX_PCM_BYTES = 25 * 1024 * 1024  # MuseTalk의 WAV 상한과 맞춘다.
 
@@ -122,6 +125,67 @@ def _require_voice_id(voice_id: str | None = None) -> str:
             "가족 설정에서 목소리를 먼저 등록해 주세요."
         )
     return selected
+
+
+@lru_cache(maxsize=8)
+def _resolve_voice_id_by_name_cached(api_key: str, display_name: str) -> str | None:
+    """Resolve a deployment voice by its account-scoped display name.
+
+    Render's free filesystem and SQLite database are ephemeral.  The demo
+    persona therefore needs the same recovery path as its Anam avatar: keep a
+    non-secret display name in configuration and recover the provider id after
+    a deploy.  The id remains server-side and the lookup is cached per process.
+    """
+    page_token = ""
+    for _ in range(20):
+        params = {"page_size": 100}
+        if page_token:
+            params["next_page_token"] = page_token
+        req = request.Request(
+            f"{VOICES_API_URL}?{urlencode(params)}",
+            method="GET",
+            headers={"xi-api-key": api_key, "Accept": "application/json"},
+        )
+        try:
+            with request.urlopen(req, timeout=_timeout_seconds()) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            raise ElevenLabsUnavailable(
+                f"ElevenLabs voice lookup failed ({exc.code})"
+            ) from exc
+        except (error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            raise ElevenLabsUnavailable("ElevenLabs voice lookup is unavailable") from exc
+
+        voices = payload.get("voices") if isinstance(payload, dict) else None
+        if not isinstance(voices, list):
+            raise ElevenLabsUnavailable("ElevenLabs returned an invalid voice list")
+        for voice in voices:
+            if not isinstance(voice, dict):
+                continue
+            name = voice.get("name")
+            voice_id = voice.get("voice_id")
+            if (
+                isinstance(name, str)
+                and name.strip().casefold() == display_name.casefold()
+                and isinstance(voice_id, str)
+                and voice_id.strip()
+            ):
+                return voice_id.strip()
+
+        if not payload.get("has_more"):
+            return None
+        token = payload.get("next_page_token")
+        if not isinstance(token, str) or not token:
+            return None
+        page_token = token
+    return None
+
+
+def resolve_voice_id_by_name(display_name: str) -> str | None:
+    normalized = display_name.strip()
+    if not normalized:
+        return None
+    return _resolve_voice_id_by_name_cached(_require_api_key(), normalized)
 
 
 def _clamp_speed(rate: float) -> float:

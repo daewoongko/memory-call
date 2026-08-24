@@ -63,6 +63,34 @@ class ElevenLabsConfigTests(unittest.TestCase):
                 elevenlabs_tts.synthesize_with_metadata("안녕하세요", 1.0, voice_id="voice-123")
 
 
+class ElevenLabsVoiceLookupTests(unittest.TestCase):
+    def tearDown(self):
+        elevenlabs_tts._resolve_voice_id_by_name_cached.cache_clear()
+
+    def test_resolves_deployment_voice_by_exact_account_name(self):
+        payload = json.dumps({
+            "voices": [
+                {"name": "another-voice", "voice_id": "voice-other"},
+                {"name": "memory-call-user-voice-2", "voice_id": "voice-demo"},
+            ],
+            "has_more": False,
+        }).encode("utf-8")
+        with (
+            patch.dict(
+                "os.environ", {"ELEVENLABS_API_KEY": "sk_test-key"}, clear=True
+            ),
+            patch.object(
+                elevenlabs_tts.request, "urlopen", return_value=_Response(payload)
+            ) as open_remote,
+        ):
+            resolved = elevenlabs_tts.resolve_voice_id_by_name(
+                "memory-call-user-voice-2"
+            )
+
+        self.assertEqual(resolved, "voice-demo")
+        self.assertIn("/v2/voices", open_remote.call_args.args[0].full_url)
+
+
 class ElevenLabsSynthesisTests(unittest.TestCase):
     def setUp(self):
         self.env = patch.dict(
