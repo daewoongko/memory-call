@@ -5,6 +5,8 @@
 
 :root,
 [data-theme="light"] {
+  --font-readable: "Gowun Dodum", "Malgun Gothic", sans-serif;
+  --font-family: "Gaegu", "Gowun Dodum", "Malgun Gothic", sans-serif;
   --brand: #3b8163;
   --brand-deep: #285b46;
   --brand-soft: #76a98d;
@@ -27,6 +29,23 @@
   --storybook-green: #dcebdd;
   --storybook-paper: #fffdf6;
   --storybook-shadow: 0 16px 38px rgba(54, 77, 63, .10);
+}
+
+/*
+ * 폰트는 화면이 아닌 사용 역할을 기준으로 결정한다.
+ * 어르신·요양 담당자·공통 화면은 가독성 중심의 고운돋움,
+ * 가족 화면과 가족 최초 설정은 다소니의 부드러운 개구를 사용한다.
+ * 하위 컴포넌트의 개별 폰트 지정이 역할 폰트를 다시 섞지 않도록
+ * 입력창·모달·버튼을 포함한 전체 하위 트리에 적용한다.
+ */
+.font-role-readable,
+.font-role-readable * {
+  font-family: var(--font-readable) !important;
+}
+
+.font-role-family,
+.font-role-family * {
+  font-family: var(--font-family) !important;
 }
 
 [data-theme="contrast"] {
