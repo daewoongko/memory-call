@@ -31,10 +31,18 @@ test("앱의 프로필·예약 통화·통화 시작은 모두 연결된 어르�
   assert.match(app, /<FamilyScreen\s+elderId=\{elderId\}/);
 });
 
-test("통화 대기는 초 단위 벨 타이머 없이 모핑 전체를 재생한다", () => {
-  assert.match(app, /connectAI\(person\?\.persona_id\)/);
+test("가족 카드 통화는 호출을 만든 뒤 서버 상태에 따라 사람 또는 AI로 연결한다", () => {
+  const start = app.slice(
+    app.indexOf("async function startCalling"),
+    app.indexOf("function answerIncoming"),
+  );
+  assert.match(start, /api\.ringFamily\(\{/);
+  assert.match(start, /persona_id: person\?\.persona_id/);
+  assert.match(start, /prepareHumanTransport\(created\.invite_id\)/);
+  assert.match(app, /current\.state === "answered"/);
+  assert.match(app, /current\.should_take_over/);
+  assert.match(app, /api\.takeOverInvite\(inviteId\)/);
   assert.doesNotMatch(app, /setSecondsLeft|secondsLeft=/);
-  assert.doesNotMatch(app, /15000/);
 });
 
 test("어르신 통화 대기 화면은 연결된 어르신의 가족만 조회한다", () => {
