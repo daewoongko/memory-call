@@ -311,12 +311,15 @@ h3,
 .human-call .controls .call-control span { max-width: 72px; font-size: clamp(12px,3.4vw,15px); font-weight: 800; line-height: 1.05; text-align: center; word-break: keep-all; }
 .call-controls .call-control.listening { background: var(--brand); }
 .call-controls .call-control.muted { color: #34443b; background: rgba(238,240,235,.94); }
+.human-call .controls .call-control.muted,
+.guardian-human-controls .call-control.muted { color: #34443b; background: rgba(238,240,235,.94); }
 .call-controls .call-control.active { box-shadow: 0 0 0 4px rgba(157,224,182,.22),0 9px 24px rgba(0,0,0,.24); }
 .call-controls .call-control.danger,
 .human-call .controls .call-control.danger { background: var(--end); }
 .call-controls .call-control:disabled { opacity: .5; }
 .call-confirm-backdrop { position: absolute; inset: 0; z-index: 90; display: grid; place-items: end center; padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); background: rgba(8,20,14,.66); backdrop-filter: blur(7px); }
-.human-call > .call-confirm-backdrop { position: absolute; }
+.human-call > .call-confirm-backdrop,
+.guardian-call > .call-confirm-backdrop { position: absolute; z-index: 100; }
 .call-confirm { width: min(100%,440px); padding: 24px 20px 20px; border: 1px solid rgba(255,255,255,.68); border-radius: 24px; color: var(--text); background: var(--surface); box-shadow: 0 20px 60px rgba(0,0,0,.35); text-align: center; }
 .call-confirm h2 { margin: 0; color: var(--brand-deep); font-size: clamp(24px,6vw,31px); }
 .call-confirm p { margin: 9px 0 20px; color: var(--muted); font-size: clamp(14px,3.8vw,18px); line-height: 1.5; word-break: keep-all; }
@@ -2356,6 +2359,7 @@ h3,
   bottom: calc(22px + env(safe-area-inset-bottom));
   left: 0;
 }
+.human-call > .human-call-controls { display: flex; justify-content: center; gap: clamp(14px,5vw,24px); }
 .remote-video-status {
   position: absolute !important;
   z-index: 3 !important;
@@ -2441,6 +2445,37 @@ h3,
   border-radius: 50%;
   font-size: clamp(14px,3.7vw,17px);
   line-height: 1.2;
+}
+.guardian-call.on:not(.preparing) .guardian-human-controls { gap: clamp(14px,5vw,24px); }
+.guardian-call.on:not(.preparing) .guardian-human-controls .call-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(55,86,69,.94);
+  box-shadow: 0 9px 24px rgba(0,0,0,.24);
+}
+.guardian-call.on:not(.preparing) .guardian-human-controls .call-control.danger { background: var(--end); }
+.guardian-call.on:not(.preparing) .guardian-human-controls .call-control.muted { color: #34443b; background: rgba(238,240,235,.94); }
+.guardian-call.on:not(.preparing) .guardian-human-controls .call-control svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.guardian-call.on:not(.preparing) .guardian-human-controls .call-control span {
+  max-width: 72px;
+  font-size: clamp(12px,3.4vw,15px);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  word-break: keep-all;
 }
 .guardian-call.on:not(.preparing) > .error {
   position: absolute;

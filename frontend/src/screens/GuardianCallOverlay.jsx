@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createTransport, openCallMedia } from "../callTransport.js";
 import * as api from "../api.js";
 import SelfView from "../components/SelfView.jsx";
+import { CallControlButton, CallEndConfirm } from "../components/CallControls.jsx";
 import { useRemotePlayback } from "../useRemotePlayback.js";
 
 /**
@@ -40,6 +41,8 @@ export default function GuardianCallOverlay({
   const [introClock, setIntroClock] = useState({ inviteId: null, seconds: 0 });
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [muted, setMuted] = useState(false);
+  const [confirmingEnd, setConfirmingEnd] = useState(false);
   const {
     mediaRef: remoteRef, blocked, playing, rendered, play,
   } = useRemotePlayback(remoteStream);
@@ -130,6 +133,19 @@ export default function GuardianCallOverlay({
     };
   }, [connected?.invite_id, onTransportFailed]);
 
+  useEffect(() => {
+    localStream?.getAudioTracks?.().forEach((track) => {
+      track.enabled = !muted;
+    });
+  }, [localStream, muted]);
+
+  useEffect(() => {
+    if (!connected?.invite_id) {
+      setMuted(false);
+      setConfirmingEnd(false);
+    }
+  }, [connected?.invite_id]);
+
   if (!call) return null;
 
   const who = `${elderName || "어르신"} 어르신`;
@@ -184,10 +200,21 @@ export default function GuardianCallOverlay({
         {error && !introPending && <p className="error">{error}</p>}
 
         {connected ? (
-          <div className="guardian-call-actions">
-            <button className="guardian-call-end" onClick={onEnd} disabled={busy}>
-              {introPending ? "연결 취소" : "통화 끝내기"}
-            </button>
+          !confirmingEnd && <div className="guardian-call-actions guardian-human-controls">
+            {!introPending && <CallControlButton
+              type="microphone"
+              label={muted ? "마이크 꺼짐" : "마이크"}
+              className={muted ? "muted" : ""}
+              onClick={() => setMuted((current) => !current)}
+              aria-pressed={muted}
+            />}
+            <CallControlButton
+              type="end"
+              label={introPending ? "연결 취소" : "통화 종료"}
+              className="danger"
+              onClick={() => introPending ? onEnd() : setConfirmingEnd(true)}
+              disabled={busy}
+            />
           </div>
         ) : (
           <>
@@ -212,6 +239,14 @@ export default function GuardianCallOverlay({
             </p>
           </>
         )}
+        <CallEndConfirm
+          open={confirmingEnd}
+          onCancel={() => setConfirmingEnd(false)}
+          onConfirm={() => {
+            setConfirmingEnd(false);
+            onEnd();
+          }}
+        />
       </div>
     </div>
   );

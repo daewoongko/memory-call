@@ -24,6 +24,7 @@ export default function HumanCallScreen({
   name, face, answeredAt, localStream, remoteStream, onEnd,
 }) {
   const [seconds, setSeconds] = useState(0);
+  const [muted, setMuted] = useState(false);
   const [confirmingEnd, setConfirmingEnd] = useState(false);
   const {
     mediaRef: remoteRef, blocked, playing, rendered, play,
@@ -33,7 +34,11 @@ export default function HumanCallScreen({
   );
 
   useEffect(() => {
-    const started = new Date(answeredAt).getTime();
+    const rawAnsweredAt = String(answeredAt || "");
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawAnsweredAt);
+    const started = new Date(
+      rawAnsweredAt && !hasTimezone ? `${rawAnsweredAt}Z` : rawAnsweredAt,
+    ).getTime();
     const base = Number.isNaN(started) ? Date.now() : started;
     const tick = () =>
       setSeconds(Math.max(0, Math.floor((Date.now() - base) / 1000)));
@@ -41,6 +46,17 @@ export default function HumanCallScreen({
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [answeredAt]);
+
+  useEffect(() => {
+    localStream?.getAudioTracks?.().forEach((track) => {
+      track.enabled = !muted;
+    });
+  }, [localStream, muted]);
+
+  const finishCall = () => {
+    setConfirmingEnd(false);
+    onEnd?.();
+  };
 
   return (
     <div className={`screen human-call${rendered ? " remote-visible" : ""}`}>
@@ -69,18 +85,25 @@ export default function HumanCallScreen({
 
       <SelfView stream={localStream} />
 
-      <div className="controls">
+      {!confirmingEnd && <div className="controls human-call-controls">
+        <CallControlButton
+          type="microphone"
+          label={muted ? "마이크 꺼짐" : "마이크"}
+          className={muted ? "muted" : ""}
+          onClick={() => setMuted((current) => !current)}
+          aria-pressed={muted}
+        />
         <CallControlButton
           type="end"
           label="통화 종료"
           className="danger"
           onClick={() => setConfirmingEnd(true)}
         />
-      </div>
+      </div>}
       <CallEndConfirm
         open={confirmingEnd}
         onCancel={() => setConfirmingEnd(false)}
-        onConfirm={onEnd}
+        onConfirm={finishCall}
       />
     </div>
   );

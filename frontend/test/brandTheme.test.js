@@ -13,6 +13,7 @@ const child = readFileSync(new URL("../src/screens/ChildScreen.jsx", import.meta
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const call = readFileSync(new URL("../src/screens/CallScreen.jsx", import.meta.url), "utf8");
 const humanCall = readFileSync(new URL("../src/screens/HumanCallScreen.jsx", import.meta.url), "utf8");
+const guardianCall = readFileSync(new URL("../src/screens/GuardianCallOverlay.jsx", import.meta.url), "utf8");
 const callControls = readFileSync(new URL("../src/components/CallControls.jsx", import.meta.url), "utf8");
 const calling = readFileSync(new URL("../src/screens/CallingScreen.jsx", import.meta.url), "utf8");
 
@@ -81,6 +82,11 @@ test("어르신 통화 화면은 상태별 안내와 글자가 있는 원형 조
   assert.match(call, /label="통화 종료"/);
   assert.match(callControls, /통화를 끝낼까요\?/);
   assert.match(humanCall, /setConfirmingEnd\(true\)/);
+  assert.match(humanCall, /label=\{muted \? "마이크 꺼짐" : "마이크"\}/);
+  assert.match(humanCall, /!confirmingEnd && <div className="controls human-call-controls">/);
+  assert.match(guardianCall, /label=\{muted \? "마이크 꺼짐" : "마이크"\}/);
+  assert.match(guardianCall, /className="guardian-call-actions guardian-human-controls"/);
+  assert.match(guardianCall, /<CallEndConfirm/);
   assert.match(theme, /\.call-controls \.call-control,[\s\S]*?border-radius: 50%/);
   assert.match(theme, /\.call-voice-wave/);
 });

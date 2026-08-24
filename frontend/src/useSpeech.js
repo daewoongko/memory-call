@@ -960,6 +960,7 @@ export function useSpeech({
               "[Anam] 실시간 립싱크를 사용할 수 없어 기존 재생으로 전환합니다.",
               anamError
             );
+            setError("입 모양 연결이 되지 않아 음성으로만 이어갈게요.");
           }
         }
 

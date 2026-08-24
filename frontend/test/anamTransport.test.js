@@ -32,6 +32,8 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
           streamTarget = target;
           queueMicrotask(() => {
             listeners.get("VIDEO_STREAM_STARTED")?.();
+            listeners.get("VIDEO_PLAY_STARTED")?.();
+            listeners.get("AUDIO_STREAM_STARTED")?.({});
             listeners.get("SESSION_READY")?.();
           });
         },
@@ -44,7 +46,7 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
         createAgentAudioInputStream(config) {
           assert.deepEqual(config, {
             encoding: "pcm_s16le",
-            sampleRate: 24000,
+            sampleRate: 16000,
             channels: 1,
           });
           return {
@@ -139,6 +141,8 @@ test("Anam transport splits coalesced PCM into low-latency avatar pushes", async
       async streamToVideoElement() {
         queueMicrotask(() => {
           listeners.get("VIDEO_STREAM_STARTED")?.();
+          listeners.get("VIDEO_PLAY_STARTED")?.();
+          listeners.get("AUDIO_STREAM_STARTED")?.({});
           listeners.get("SESSION_READY")?.();
         });
       },
@@ -192,6 +196,8 @@ test("Anam transport reattaches a mobile video track and requests playback", asy
         async streamToVideoElement() {
           queueMicrotask(() => {
             listeners.get("VIDEO_STREAM_STARTED")?.(stream);
+            listeners.get("VIDEO_PLAY_STARTED")?.();
+            listeners.get("AUDIO_STREAM_STARTED")?.(stream);
             listeners.get("DATA_CHANNEL_OPEN")?.();
           });
         },
@@ -229,6 +235,7 @@ test("Anam transport also accepts the SDK video-play readiness event", async () 
       async streamToVideoElement() {
         queueMicrotask(() => {
           listeners.get("VIDEO_PLAY_STARTED")?.();
+          listeners.get("AUDIO_STREAM_STARTED")?.({});
           listeners.get("SESSION_READY")?.();
         });
       },
@@ -243,5 +250,44 @@ test("Anam transport also accepts the SDK video-play readiness event", async () 
 
   await transport.connect();
   assert.equal(transport.getState(), "connected");
+  await transport.disconnect();
+});
+
+test("Anam transport waits for a rendered frame and remote audio before sending PCM", async () => {
+  const listeners = new Map();
+  const transport = createAnamTransport({
+    callId: "call_12345678",
+    personaId: "persona_jeonghun",
+    videoElementId: "avatar-video",
+    fetchImpl: async () => new Response(JSON.stringify({ session_token: "token" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+    createClientImpl: () => ({
+      async streamToVideoElement() {
+        listeners.get("VIDEO_STREAM_STARTED")?.({});
+        listeners.get("SESSION_READY")?.();
+      },
+      addListener(event, callback) { listeners.set(event, callback); },
+      removeListener(event, callback) {
+        if (listeners.get(event) === callback) listeners.delete(event);
+      },
+      interruptPersona() {},
+      async stopStreaming() {},
+    }),
+  });
+
+  let connected = false;
+  const connecting = transport.connect().then(() => { connected = true; });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(connected, false);
+
+  listeners.get("VIDEO_PLAY_STARTED")?.();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(connected, false);
+
+  listeners.get("AUDIO_STREAM_STARTED")?.({});
+  await connecting;
+  assert.equal(connected, true);
   await transport.disconnect();
 });

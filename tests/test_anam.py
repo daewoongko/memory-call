@@ -360,7 +360,7 @@ class AnamApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"\x01\x02\x03\x04")
-        self.assertEqual(response.headers["x-audio-sample-rate"], "24000")
+        self.assertEqual(response.headers["x-audio-sample-rate"], "16000")
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertTrue(upstream.closed)
         open_stream.assert_called_once_with(

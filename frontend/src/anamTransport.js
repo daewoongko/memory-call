@@ -1,4 +1,6 @@
-const SAMPLE_RATE = 24000;
+// Keep the passthrough format that this avatar was originally verified with.
+// The backend requests the exact same raw PCM format.
+const SAMPLE_RATE = 16000;
 const BYTES_PER_SAMPLE = 2;
 const PLAYBACK_TAIL_MS = 350;
 const CONNECTION_TIMEOUT_MS = 20000;
@@ -82,7 +84,10 @@ export function createAnamTransport({
       let readyTimer = null;
       let readySettled = false;
       let videoReady = false;
+      let audioReady = false;
       let sessionReady = false;
+      let videoStream = null;
+      let audioStream = null;
       let resolveReady;
       let rejectReady;
       const ready = new Promise((resolve, reject) => {
@@ -93,32 +98,61 @@ export function createAnamTransport({
         clearTimeout(readyTimer);
         nextClient.removeListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
         nextClient.removeListener?.("VIDEO_PLAY_STARTED", onVideoPlayStarted);
+        nextClient.removeListener?.("AUDIO_STREAM_STARTED", onAudioStarted);
         nextClient.removeListener?.("SESSION_READY", onSessionReady);
         nextClient.removeListener?.("DATA_CHANNEL_OPEN", onSessionReady);
       };
       const markReadyWhenComplete = () => {
-        if (readySettled || !videoReady || !sessionReady) return;
+        if (readySettled || !videoReady || !audioReady || !sessionReady) return;
         readySettled = true;
         cleanupReadyListeners();
         resolveReady();
       };
-      const onVideoStarted = (videoStream) => {
+      const attachRemoteMedia = () => {
+        const videoElement = globalThis.document?.getElementById?.(videoElementId);
+        if (!videoElement || !videoStream) return;
+        let targetStream = videoStream;
+        const videoTracks = videoStream.getVideoTracks?.() ?? [];
+        const existingAudioTracks = videoStream.getAudioTracks?.() ?? [];
+        const remoteAudioTracks = audioStream?.getAudioTracks?.() ?? [];
+        if (
+          !existingAudioTracks.length
+          && remoteAudioTracks.length
+          && typeof globalThis.MediaStream === "function"
+        ) {
+          targetStream = new globalThis.MediaStream([
+            ...videoTracks,
+            ...remoteAudioTracks,
+          ]);
+        }
+        const streamChanged = videoElement.srcObject !== targetStream;
+        if (streamChanged) {
+          videoElement.srcObject = targetStream;
+        }
+        videoElement.volume = 1;
+        videoElement.muted = false;
+        if (streamChanged || videoElement.paused) {
+          videoElement.play?.().catch((error) => {
+            setState("playback-blocked", error);
+          });
+        }
+      };
+      const onVideoStarted = (stream) => {
         // Mobile browsers can miss media-element events when the WebRTC track
         // arrives while the calling transition is still covering the stage.
         // Re-attach the track defensively and request playback; the SDK already
         // does this in the normal path, so this is harmless when it succeeded.
-        const videoElement = globalThis.document?.getElementById?.(videoElementId);
-        if (videoElement && videoStream) {
-          if (videoElement.srcObject !== videoStream) {
-            videoElement.srcObject = videoStream;
-          }
-          videoElement.play?.().catch(() => {});
-        }
-        videoReady = true;
-        markReadyWhenComplete();
+        videoStream = stream || videoStream;
+        attachRemoteMedia();
       };
       const onVideoPlayStarted = () => {
         videoReady = true;
+        markReadyWhenComplete();
+      };
+      const onAudioStarted = (stream) => {
+        audioStream = stream || audioStream;
+        audioReady = Boolean(audioStream?.getAudioTracks?.().length ?? audioStream);
+        attachRemoteMedia();
         markReadyWhenComplete();
       };
       const onSessionReady = () => {
@@ -142,6 +176,7 @@ export function createAnamTransport({
 
       nextClient.addListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
       nextClient.addListener?.("VIDEO_PLAY_STARTED", onVideoPlayStarted);
+      nextClient.addListener?.("AUDIO_STREAM_STARTED", onAudioStarted);
       nextClient.addListener?.("SESSION_READY", onSessionReady);
       // Older Anam gateways can open the passthrough channel before emitting
       // SESSION_READY. Either event proves that agent-audio signalling is safe.
