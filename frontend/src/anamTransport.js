@@ -1,9 +1,28 @@
-// Keep the passthrough format that this avatar was originally verified with.
-// The backend requests the exact same raw PCM format.
-const SAMPLE_RATE = 16000;
+// Anam recommends 24 kHz mono PCM16 for audio passthrough. The backend asks
+// ElevenLabs for this exact format, so no browser resampling is involved.
+const SAMPLE_RATE = 24000;
 const BYTES_PER_SAMPLE = 2;
 const PLAYBACK_TAIL_MS = 350;
 const CONNECTION_TIMEOUT_MS = 20000;
+
+const HARD_SERVER_FAILURE = /usage[_ -]?limit|quota|billing|unauthori[sz]ed|forbidden/i;
+
+export function anamFailureMessage(error) {
+  const raw = `${error?.message ?? error ?? ""}`;
+  if (/usage[_ -]?limit[_ -]?reached|usage limit has been reached/i.test(raw)) {
+    return "ANAM 사용 한도에 도달해 입 모양 영상을 만들지 못했어요. ANAM 사용량과 결제 상태를 확인해 주세요.";
+  }
+  if (/quota|billing|payment|credit/i.test(raw)) {
+    return "ANAM 이용 크레딧을 확인해야 해요. 지금은 음성으로만 이어갈게요.";
+  }
+  if (/unauthori[sz]ed|forbidden|invalid.*token|401|403/i.test(raw)) {
+    return "ANAM API 키 또는 아바타 권한을 확인해야 해요. 지금은 음성으로만 이어갈게요.";
+  }
+  if (/avatar/i.test(raw) && /invalid|missing|not found|unsupported/i.test(raw)) {
+    return "대웅의 ANAM 아바타 설정을 확인해야 해요. 지금은 음성으로만 이어갈게요.";
+  }
+  return "입 모양 연결이 되지 않아 음성으로만 이어갈게요.";
+}
 
 const wait = (ms, signal) =>
   new Promise((resolve, reject) => {
@@ -173,6 +192,18 @@ export function createAnamTransport({
           setState("failed", error);
         }
       };
+      const onServerWarning = (message) => {
+        const warning = new Error(`Anam server warning: ${message || "unknown"}`);
+        // Quota and authentication failures cannot recover within this
+        // session. Surface them immediately instead of timing out and making
+        // an unmoving portrait look like a successful lip-sync connection.
+        if (HARD_SERVER_FAILURE.test(`${message ?? ""}`) && !readySettled) {
+          readySettled = true;
+          cleanupReadyListeners();
+          rejectReady(warning);
+        }
+        onStateChange("warning", warning);
+      };
 
       nextClient.addListener?.("VIDEO_STREAM_STARTED", onVideoStarted);
       nextClient.addListener?.("VIDEO_PLAY_STARTED", onVideoPlayStarted);
@@ -182,6 +213,7 @@ export function createAnamTransport({
       // SESSION_READY. Either event proves that agent-audio signalling is safe.
       nextClient.addListener?.("DATA_CHANNEL_OPEN", onSessionReady);
       nextClient.addListener?.("CONNECTION_CLOSED", onConnectionClosed);
+      nextClient.addListener?.("SERVER_WARNING", onServerWarning);
       abortPendingConnection = () => {
         if (readySettled) return;
         readySettled = true;
@@ -191,6 +223,7 @@ export function createAnamTransport({
       detachClientListeners = () => {
         cleanupReadyListeners();
         nextClient.removeListener?.("CONNECTION_CLOSED", onConnectionClosed);
+        nextClient.removeListener?.("SERVER_WARNING", onServerWarning);
       };
       readyTimer = setTimeout(() => {
         if (readySettled) return;

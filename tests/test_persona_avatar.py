@@ -179,7 +179,7 @@ class PersonaAvatarTests(unittest.TestCase):
             selected = persona_avatar.active_avatar("persona_test")
 
         self.assertEqual(selected["avatar_model"], "cara-4")
-        find.assert_called_once_with("daewoongko")
+        find.assert_called_once_with("28_daewoong")
 
     def test_deployed_demo_recovers_without_render_metadata(self):
         with (
@@ -208,7 +208,7 @@ class PersonaAvatarTests(unittest.TestCase):
             selected = persona_avatar.active_avatar("persona_test")
 
         self.assertEqual(selected["avatar_model"], "cara-4")
-        find.assert_called_once_with("daewoongko")
+        find.assert_called_once_with("28_daewoong")
 
     def test_existing_render_storage_configuration_recovers_demo_avatar(self):
         with (
@@ -237,7 +237,7 @@ class PersonaAvatarTests(unittest.TestCase):
             selected = persona_avatar.active_avatar("persona_test")
 
         self.assertEqual(selected["avatar_model"], "cara-4")
-        find.assert_called_once_with("daewoongko")
+        find.assert_called_once_with("28_daewoong")
 
     def test_provider_failure_is_visible_without_exposing_provider_id(self):
         with (

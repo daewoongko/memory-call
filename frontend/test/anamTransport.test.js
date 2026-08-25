@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createAnamTransport } from "../src/anamTransport.js";
+import {
+  anamFailureMessage,
+  createAnamTransport,
+} from "../src/anamTransport.js";
 
 test("Anam transport exchanges a short-lived token and streams PCM chunks", async () => {
   const requests = [];
@@ -46,7 +49,7 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
         createAgentAudioInputStream(config) {
           assert.deepEqual(config, {
             encoding: "pcm_s16le",
-            sampleRate: 16000,
+            sampleRate: 24000,
             channels: 1,
           });
           return {
@@ -123,6 +126,41 @@ test("Anam transport exposes token failures for the caller fallback", async () =
   await assert.rejects(transport.connect(), /Anam token 503/);
   assert.equal(transport.getState(), "failed");
   assert.deepEqual(states, ["connecting", "failed"]);
+});
+
+test("Anam transport explains provider usage limits instead of hiding them", () => {
+  assert.equal(
+    anamFailureMessage(new Error("[usage_limit_reached] Usage limit reached")),
+    "ANAM 사용 한도에 도달해 입 모양 영상을 만들지 못했어요. ANAM 사용량과 결제 상태를 확인해 주세요."
+  );
+});
+
+test("Anam transport rejects a hard server warning while connecting", async () => {
+  const listeners = new Map();
+  const transport = createAnamTransport({
+    callId: "call_12345678",
+    personaId: "persona_jeonghun",
+    videoElementId: "avatar-video",
+    fetchImpl: async () => new Response(JSON.stringify({ session_token: "token" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+    createClientImpl: () => ({
+      async streamToVideoElement() {
+        queueMicrotask(() => {
+          listeners.get("SERVER_WARNING")?.("usage_limit_reached");
+        });
+      },
+      addListener(event, callback) { listeners.set(event, callback); },
+      removeListener(event, callback) {
+        if (listeners.get(event) === callback) listeners.delete(event);
+      },
+      async stopStreaming() {},
+    }),
+  });
+
+  await assert.rejects(transport.connect(), /usage_limit_reached/);
+  assert.equal(transport.getState(), "failed");
 });
 
 test("Anam transport splits coalesced PCM into low-latency avatar pushes", async () => {

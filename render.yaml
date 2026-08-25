@@ -38,7 +38,7 @@ services:
       - key: ANAM_AVATAR_ID
         sync: false
       - key: ANAM_AVATAR_NAME
-        value: daewoongko
+        value: 28_daewoong
       - key: ANAM_AVATAR_MODEL
         value: cara-4
       - key: TURN_URLS

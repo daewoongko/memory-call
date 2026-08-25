@@ -17,7 +17,7 @@ import anam
 import db
 from storage import DEFAULT_FACE_PERSONA_ID, persona_face_storage
 
-DEFAULT_RENDER_AVATAR_NAME = "daewoongko"
+DEFAULT_RENDER_AVATAR_NAME = "28_daewoong"
 
 
 class AvatarProfileError(ValueError):

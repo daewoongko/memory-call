@@ -13,7 +13,7 @@ import {
   shouldFallbackFromLipSyncStatus,
 } from "./speechMedia.js";
 import { useRealtimeTranscription } from "./useRealtimeTranscription.js";
-import { createAnamTransport } from "./anamTransport.js";
+import { anamFailureMessage, createAnamTransport } from "./anamTransport.js";
 
 /**
  * 브라우저 음성 인식(STT)과 ElevenLabs API 음성 합성(TTS).
@@ -960,7 +960,7 @@ export function useSpeech({
               "[Anam] 실시간 립싱크를 사용할 수 없어 기존 재생으로 전환합니다.",
               anamError
             );
-            setError("입 모양 연결이 되지 않아 음성으로만 이어갈게요.");
+            setError(anamFailureMessage(anamError));
           }
         }
 
