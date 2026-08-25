@@ -79,7 +79,7 @@ test("가족 홈은 대표 그림과 통화 일기 및 고정 4등분 하단 탭
   assert.match(child, /className=\{letter === " " \? "blank" : ""\}/);
   assert.match(child, /completeDiaryWriting/);
   assert.match(theme, /child-diary-writing \{[\s\S]*background-color: #fffdf8/);
-  assert.match(child, /마음에는 대웅이와 걷던 해운대가 아직 따뜻하게 남아 있어요/);
+  assert.match(child, /할아버지의 따뜻한 기억엔 언제나 대웅이가 있어요/);
   assert.doesNotMatch(child, /--insight-fit/);
   assert.match(child, /\/diary\/haeundae-family-drawing\.png/);
   assert.ok(existsSync(new URL("../public/diary/haeundae-family-drawing.png", import.meta.url)));
@@ -174,7 +174,10 @@ test("보호자 화면은 그림일기와 다소니 발화만 손글씨로 구�
   assert.match(theme, /child-header-diary-note span[\s\S]*font-family: "Dasoni Forest Letter"/);
   assert.match(theme, /child-header-reachable strong[\s\S]*font-family: "Dasoni Forest Letter"/);
   assert.match(theme, /child-header-memory-title strong,[\s\S]*child-header-call-title strong,[\s\S]*font-size:calc\(20px/);
-  assert.match(theme, /child-header-diary-note span \{[\s\S]*-webkit-line-clamp: 2/);
+  assert.match(theme, /child-header-diary-note span \{[\s\S]*white-space: pre-line;[\s\S]*overflow: visible;[\s\S]*display: block/);
+  assert.doesNotMatch(child, /firstSentence\.slice\([^\n]+…/);
+  assert.match(child, /가장 따뜻한 기억엔\\n/);
+  assert.match(theme, /child-view-settings,[\s\S]*child-date-picker \{[\s\S]*min-height: 46px;[\s\S]*max-height: 46px/);
   assert.match(child, /compactDiaryInsight/);
 });
 

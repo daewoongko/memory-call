@@ -2044,9 +2044,12 @@ h3,
   cursor: pointer;
 }
 .app-device-family .child-date-picker {
+  box-sizing: border-box;
   width: 48px;
   min-width: 48px;
   height: 48px;
+  min-height: 48px;
+  max-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2164,11 +2167,8 @@ h3,
 .app-device-family .child-header-diary-note span {
   white-space: pre-line;
   text-wrap: initial;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  overflow: visible;
+  display: block;
   word-break: keep-all;
 }
 
@@ -2791,6 +2791,18 @@ h3,
     align-items:center;
     justify-content:flex-end;
     gap:0;
+  }
+  .app-device-family .child-view-settings,
+  .app-device-family .child-date-picker {
+    box-sizing: border-box;
+    width: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    max-height: 46px;
+    margin-top: 0;
+    margin-bottom: 0;
   }
   .app-device-family .child-view-settings {
     border-radius:15px 0 0 15px;
