@@ -197,7 +197,7 @@ test("가족 설정은 말투 이름과 실제 표현을 간결하게 편집한�
   assert.doesNotMatch(callStyleQuiz, /통화에서는 어르신 상태와 안전 규칙이 언제나 이보다 우선합니다/);
   assert.match(callStyleQuiz, /call-style-result-title/);
   assert.match(callStyleQuiz, /!showingResult && <div className="call-style-scene-progress"/);
-  assert.match(callStyleQuiz, /className="call-style-complete" onClick=\{\(\) => onApply\?\.\(result\)\}/);
+  assert.match(callStyleQuiz, /className="call-style-complete" onClick=\{\(\) => onApply\(result\)\}/);
   assert.match(theme, /family-style-quiz-wrap \.call-style-score-grid \{ grid-template-columns: minmax\(0,1fr\)/);
   assert.match(theme, /family-style-quiz-wrap \.call-style-result-actions \{[\s\S]*grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(theme, /call-style-result-actions > button\.save \{[\s\S]*width: 100%;[\s\S]*height: 56px;[\s\S]*min-width: 0;[\s\S]*min-height: 56px;[\s\S]*max-height: 56px/);

@@ -53,7 +53,9 @@ export default function CallStyleQuiz({
         <span>말투 카드</span>
       </div>
       {showingResult
-        ? <button type="button" className="call-style-complete" onClick={() => onApply?.(result)}>완료</button>
+        ? onApply
+          ? <button type="button" className="call-style-complete" onClick={() => onApply(result)}>완료</button>
+          : <b>완료</b>
         : <b>{`${Math.min(sceneIndex + 1, CALL_STYLE_TOTAL_SCENES)}/${CALL_STYLE_TOTAL_SCENES}`}</b>}
     </header>
 
@@ -110,7 +112,7 @@ export default function CallStyleQuiz({
       </div>
       <div className="call-style-result-actions">
         <button type="button" onClick={goBack}>선택 다시 보기</button>
-        <button type="button" className="save" onClick={() => onApply?.(result)}>{applyLabel}</button>
+        {onApply && <button type="button" className="save" onClick={() => onApply(result)}>{applyLabel}</button>}
       </div>
     </article>}
   </section>;

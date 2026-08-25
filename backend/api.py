@@ -864,6 +864,12 @@ def _ready_voice_id(persona_id: str | None) -> str:
             voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
     if not voice_id:
         voice_id = voice_mod.active_voice_id(persona_id)
+    if not voice_id and persona_id != DEFAULT_FACE_PERSONA_ID:
+        default_voice_name = os.getenv("ELEVENLABS_DEFAULT_VOICE_NAME", "").strip()
+        if default_voice_name:
+            voice_id = elevenlabs_tts.resolve_voice_id_by_name(default_voice_name)
+        if not voice_id:
+            voice_id = os.getenv("ELEVENLABS_DEFAULT_VOICE_ID", "").strip()
     if not voice_id:
         raise HTTPException(409, "선택한 가족의 승인된 목소리를 먼저 등록해 주세요.")
     return voice_id

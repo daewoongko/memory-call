@@ -22,6 +22,10 @@ test("새 다소니 캐릭터를 모든 화면의 공통 브랜드 자산으로 
   assert.match(brand, /src="\/brand\/dasoni-mascot\.png"/);
   assert.match(brand, /dasoni-mascot/);
   assert.match(role, /<BrandMark size=\{162\}/);
+  assert.match(role, /className="role-gateway-wordmark" src="\/brand\/dasoni-wordmark\.png"/);
+  assert.doesNotMatch(role, /<div><b>다소니<\/b>/);
+  assert.match(theme, /\.role-gateway-simple \.role-gateway-wordmark \{[^}]*transform:translateX\(20px\)/);
+  assert.match(theme, /\.role-gateway-simple \.role-gateway-subtitle \{ margin-top:12px; \}/);
   assert.match(role, /role-gateway-simple/);
   assert.match(role, /role-list-item/);
   assert.match(summary, /<BrandMark size=\{168\}/);

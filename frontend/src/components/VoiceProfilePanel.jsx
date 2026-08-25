@@ -184,7 +184,7 @@ function RecorderCard({ prompt, phase, disabled, saved, onSaved, maxSeconds = 90
   </article>;
 }
 
-export default function VoiceProfilePanel({ elderId, personaId, persona }) {
+export default function VoiceProfilePanel({ elderId, personaId, persona, useDefaultVoice = false, onUseDefaultVoice }) {
   const [profile, setProfile] = useState(null);
   const [quietReady, setQuietReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -294,6 +294,13 @@ export default function VoiceProfilePanel({ elderId, personaId, persona }) {
         </div>
       </div>}
     </>}
+
+    {!approved && onUseDefaultVoice && <div className="voice-default-start">
+      <button type="button" className={useDefaultVoice ? "selected" : ""} aria-pressed={useDefaultVoice} onClick={onUseDefaultVoice}>
+        {useDefaultVoice ? "기본 목소리로 시작할게요" : "기본 목소리로 시작하기"}
+      </button>
+      <small>내 목소리는 나중에 설정에서 등록할 수 있어요.</small>
+    </div>}
 
     {approved && <div className="voice-pvc-area">
       <div className="voice-active-summary">

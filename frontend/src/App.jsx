@@ -16,7 +16,7 @@ import RoleScreen from "./screens/RoleScreen.jsx";
 import LinkScreen from "./screens/LinkScreen.jsx";
 import GuardianOnboardingScreen from "./screens/GuardianOnboardingScreen.jsx";
 import LoginScreen from "./screens/LoginScreen.jsx";
-import RoleOnboardingScreen from "./screens/RoleOnboardingScreen.jsx";
+import RoleOnboardingScreen, { ONBOARDING_FLOW_VERSION } from "./screens/RoleOnboardingScreen.jsx";
 import HumanCallScreen from "./screens/HumanCallScreen.jsx";
 import NetTestScreen from "./screens/NetTestScreen.jsx";
 import { createTransport, openCallMedia } from "./callTransport.js";
@@ -148,7 +148,10 @@ export default function App() {
     let alive = true;
     api.getOnboarding(role).then((saved) => {
       if (!alive) return;
-      setRoleOnboarded(Boolean(saved.complete));
+      const currentFlowComplete = role === "care"
+        ? Boolean(saved.complete)
+        : Boolean(saved.complete && saved.data?.onboarding_version === ONBOARDING_FLOW_VERSION);
+      setRoleOnboarded(currentFlowComplete);
       const savedElder = saved.data?.elder_id;
       if (saved.complete && savedElder) {
         setLinked(savedElder);
@@ -746,7 +749,7 @@ export default function App() {
     return wrap(<div className="screen"><p className="hint">완료한 설정을 확인하는 중…</p></div>);
 
   if (!directElder && !roleOnboarded)
-    return wrap(<RoleOnboardingScreen role={role} account={account} elderId={elderId} onDone={finishRoleOnboarding} onCancel={() => { setRole(null); setRoleOnboarded(null); removeLocal(KEY_ROLE); }} />, { wide: true, shell: `journey-${role}` });
+    return wrap(<RoleOnboardingScreen role={role} account={account} elderId={elderId} theme={theme} size={size} onTheme={setTheme} onSize={setSize} onDone={finishRoleOnboarding} onCancel={() => { setRole(null); setRoleOnboarded(null); removeLocal(KEY_ROLE); }} />, { wide: true, shell: `journey-${role}` });
 
   if (!directElder && !linked)
     return wrap(

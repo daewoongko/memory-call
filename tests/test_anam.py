@@ -264,6 +264,20 @@ class AnamApiTests(unittest.TestCase):
                 api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID)
         self.assertEqual(raised.exception.status_code, 409)
 
+    def test_unregistered_family_can_start_with_the_configured_default_voice(self):
+        with (
+            patch.object(api.voice_mod, "active_voice_id", return_value=None),
+            patch.dict(
+                "os.environ",
+                {"ELEVENLABS_DEFAULT_VOICE_ID": "default-family-voice"},
+                clear=True,
+            ),
+        ):
+            self.assertEqual(
+                api._ready_voice_id("persona_new_family"),
+                "default-family-voice",
+            )
+
     def test_session_token_requires_matching_active_call(self):
         with (
             patch.object(

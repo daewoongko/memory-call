@@ -28,7 +28,7 @@ export default function RoleScreen({ account, onPick, onLogout }) {
   return <main className="role-gateway role-gateway-simple">
     <header className="role-gateway-brand">
       <BrandMark size={162} />
-      <div><b>다소니</b><p className="role-gateway-subtitle">누구로 시작할까요?</p></div>
+      <div><img className="role-gateway-wordmark" src="/brand/dasoni-wordmark.png" alt="다소니" /><p className="role-gateway-subtitle">누구로 시작할까요?</p></div>
     </header>
 
     {account && <div className="role-account-line"><span><b>{account.display_name}</b>님, 어떤 역할로 시작할까요?</span>{onLogout && <button type="button" onClick={onLogout}>로그아웃</button>}</div>}
