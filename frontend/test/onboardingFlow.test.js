@@ -10,13 +10,14 @@ const api = readFileSync(new URL("../src/api.js", import.meta.url), "utf8");
 test("root journey requires a server session before role selection", () => {
   assert.match(app, /getCurrentAccount/);
   assert.match(app, /<LoginScreen/);
-  assert.match(login, /휴대전화 번호와 숫자 6자리 간편번호/);
+  assert.match(login, /휴대전화 번호/);
+  assert.match(login, /간편번호 6자리/);
   assert.match(api, /Authorization: `Bearer \$\{token\}`/);
 });
 
 test("the login screen offers a session-only demo path", () => {
   assert.match(login, /onSkip/);
-  assert.match(login, /일단 둘러보기/);
+  assert.match(login, /체험 사용자로 둘러보기/);
   assert.match(app, /const \[demoMode, setDemoMode\]/);
   assert.match(app, /setAccount\(\{ user_id: "demo", display_name: "체험 사용자" \}\)/);
   assert.match(app, /if \(demoMode\) \{\s*setRoleOnboarded\(true\)/);
