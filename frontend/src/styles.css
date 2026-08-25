@@ -4411,6 +4411,7 @@ label.checkbox { color: var(--text); }
 .guardian-call-answer { background:#1b7654; }
 .guardian-call-decline { background:#5e6b63; }
 .guardian-call-end { background:#c43d32; }
+.guardian-call-cancel { background:var(--end); }
 .guardian-call .error { margin:12px 0 0; }
 .guardian-ai-playback { display:grid; justify-items:center; gap:12px; margin:22px 0 4px; padding:22px 18px; border-radius:20px; background:color-mix(in srgb,var(--brand) 7%,var(--surface)); }
 .guardian-ai-playback .ring-dots { display:flex; gap:8px; }

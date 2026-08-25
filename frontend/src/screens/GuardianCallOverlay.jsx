@@ -200,22 +200,35 @@ export default function GuardianCallOverlay({
         {error && !introPending && <p className="error">{error}</p>}
 
         {connected ? (
-          !confirmingEnd && <div className="guardian-call-actions guardian-human-controls">
-            {!introPending && <CallControlButton
-              type="microphone"
-              label={muted ? "마이크 꺼짐" : "마이크"}
-              className={muted ? "muted" : ""}
-              onClick={() => setMuted((current) => !current)}
-              aria-pressed={muted}
-            />}
-            <CallControlButton
-              type="end"
-              label={introPending ? "연결 취소" : "통화 종료"}
-              className="danger"
-              onClick={() => introPending ? onEnd() : setConfirmingEnd(true)}
-              disabled={busy}
-            />
-          </div>
+          !confirmingEnd && (introPending ? (
+            <div className="guardian-call-actions guardian-intro-actions">
+              <button
+                type="button"
+                className="guardian-call-cancel"
+                onClick={onEnd}
+                disabled={busy}
+              >
+                연결 취소
+              </button>
+            </div>
+          ) : (
+            <div className="guardian-call-actions guardian-human-controls">
+              <CallControlButton
+                type="microphone"
+                label={muted ? "마이크 꺼짐" : "마이크"}
+                className={muted ? "muted" : ""}
+                onClick={() => setMuted((current) => !current)}
+                aria-pressed={muted}
+              />
+              <CallControlButton
+                type="end"
+                label="통화 종료"
+                className="danger"
+                onClick={() => setConfirmingEnd(true)}
+                disabled={busy}
+              />
+            </div>
+          ))
         ) : (
           <>
             <div className="guardian-call-actions">
