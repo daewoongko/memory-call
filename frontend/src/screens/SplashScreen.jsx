@@ -12,7 +12,7 @@ export default function SplashScreen({ onDone, ms = 1300 }) {
     <div className="screen splash" onClick={onDone}>
       <BrandMark size={144} />
       <div className="wordmark">
-        다소니
+        <img className="splash-wordmark-logo" src="/brand/dasoni-wordmark.png" alt="다소니" />
         <small>따뜻한 하루를 함께해요</small>
       </div>
     </div>

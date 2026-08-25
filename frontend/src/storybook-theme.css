@@ -175,6 +175,14 @@ h3,
 }
 .splash .brandmark { width: min(48vw, 210px); height: min(48vw, 210px); }
 .splash .wordmark { color: var(--brand-deep); font-size: calc(58px * var(--font-scale)); }
+.splash .splash-wordmark-logo {
+  display: block;
+  width: clamp(172px, 42vw, 220px);
+  height: auto;
+  margin: 0 auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
 .splash .wordmark small { margin-top: 2px; color: var(--muted); font-family: "Gowun Dodum", sans-serif; font-size: calc(15px * var(--font-scale)); letter-spacing: 0; }
 
 .role-gateway {
