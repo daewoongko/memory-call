@@ -36,11 +36,8 @@ export default function CallScreen({
   const [pending, setPending] = useState(false);
   const [alert, setAlert] = useState(null);
   const [error, setError] = useState("");
-  const [typing, setTyping] = useState(false);
-  const [draft, setDraft] = useState("");
   const [muted, setMuted] = useState(false);
   const [confirmingEnd, setConfirmingEnd] = useState(false);
-  const inputRef = useRef(null);
   const speechRef = useRef(null);
   const listenTimerRef = useRef(null);
   const turnRunRef = useRef(0);
@@ -150,10 +147,6 @@ export default function CallScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationReady, speech.supported, resumeListening]);
 
-  useEffect(() => {
-    if (typing && !pending) inputRef.current?.focus();
-  }, [typing, pending]);
-
   // 마이크 감시.
   // 음성 인식은 잡음, 권한 변화, 브라우저 사정으로 조용히 꺼질 때가 있다.
   // 통화 중에 마이크가 닫혀 있으면 노인은 이유를 알 수 없으므로 스스로 되살린다.
@@ -173,15 +166,6 @@ export default function CallScreen({
     }, 3000);
     return () => clearInterval(id);
   }, [conversationReady, speech, pending, resumeListening]);
-
-  async function sendTyped() {
-    const text = draft.trim();
-    if (!text || pending) return;
-    setDraft("");
-    const reply = await send(text);
-    if (reply) await speech.speak(reply);
-    resumeListening();
-  }
 
   function toggleMute() {
     if (muted) {
@@ -275,41 +259,18 @@ export default function CallScreen({
           )}
         </div>
 
-        {typing && (
-          <div className="composer">
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendTyped()}
-              placeholder="하고 싶은 말"
-              disabled={pending}
-            />
-            <button onClick={sendTyped} disabled={pending || !draft.trim()}>
-              보내기
-            </button>
-          </div>
-        )}
-
         <div className="controls call-controls">
           <CallControlButton
             type="microphone"
-            label={muted ? "마이크 꺼짐" : "마이크"}
+            label={muted ? "소리 켜기" : "소리 끄기"}
             className={`${muted ? " muted" : ""}${speech.listening ? " listening" : ""}`}
             onClick={toggleMute}
             disabled={!speech.supported}
             aria-pressed={muted}
           />
           <CallControlButton
-            type="keyboard"
-            label="글자로 말하기"
-            className={typing ? "active" : ""}
-            onClick={() => setTyping((t) => !t)}
-            aria-expanded={typing}
-          />
-          <CallControlButton
             type="end"
-            label="통화 종료"
+            label="전화 끊기"
             className="danger"
             onClick={() => setConfirmingEnd(true)}
           />

@@ -88,14 +88,14 @@ export default function HumanCallScreen({
       {!confirmingEnd && <div className="controls human-call-controls">
         <CallControlButton
           type="microphone"
-          label={muted ? "마이크 꺼짐" : "마이크"}
+          label={muted ? "소리 켜기" : "소리 끄기"}
           className={muted ? "muted" : ""}
           onClick={() => setMuted((current) => !current)}
           aria-pressed={muted}
         />
         <CallControlButton
           type="end"
-          label="통화 종료"
+          label="전화 끊기"
           className="danger"
           onClick={() => setConfirmingEnd(true)}
         />

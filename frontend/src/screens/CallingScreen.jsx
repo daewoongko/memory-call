@@ -31,7 +31,7 @@ export default function CallingScreen({
   const remaining = Math.max(0, introDurationSec - elapsed);
   const status = elapsed < 5
     ? `${name}에게 연결을 요청하고 있어요.`
-    : "전화벨이 울리고 있어요. 잔잔한 음악을 들으며 잠시 기다려 주세요.";
+    : "잔잔한 음악을 들으며 잠시 기다려 주세요.";
   if (morphUrl) {
     return (
       <div className="screen calling-screen calling-with-morph">

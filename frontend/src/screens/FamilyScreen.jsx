@@ -4,8 +4,6 @@ import { useSpeech } from "../useSpeech.js";
 import { familyMatchPrompt, matchFamily, readyFamilyHint } from "../familyMatch.js";
 import BrandMark from "../components/BrandMark.jsx";
 
-const ORDINALS = ["첫째", "둘째", "셋째", "넷째", "다섯째", "여섯째", "일곱째", "여덟째"];
-
 const PhoneIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></svg>;
 const MicIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8" /></svg>;
 
@@ -82,7 +80,7 @@ export default function FamilyScreen({ elderId = "elder_001", onPick, error, med
           <h1>누구와 이야기해 볼까요?</h1>
         </header>
         <div className="family-grid">
-          {personas.map((persona, index) => (
+          {personas.map((persona) => (
             <button
               key={persona.persona_id}
               data-persona-id={persona.persona_id}
@@ -94,7 +92,7 @@ export default function FamilyScreen({ elderId = "elder_001", onPick, error, med
               <span className="family-face">
                 {persona.face ? <img src={persona.face} alt="" /> : <i>{persona.display_name.slice(0, 1)}</i>}
               </span>
-              <span className="family-card-text"><small>{ORDINALS[index] || `${index + 1}번째`} · {persona.ready ? persona.relationship : "등록 대기"}</small><b>{persona.display_name}</b></span>
+              <span className="family-card-text"><small>{persona.ready ? persona.relationship : "등록 대기"}</small><b>{persona.display_name}</b></span>
               <span className="family-call-icon" aria-hidden="true"><PhoneIcon /></span>
             </button>
           ))}

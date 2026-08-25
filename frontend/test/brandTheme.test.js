@@ -71,18 +71,19 @@ test("모핑 연결 안내는 화면 안쪽 하단 카드로 고정된다", () =
   assert.match(theme, /\.call-stack \.calling-morph-status \.who \{[\s\S]*?overflow-wrap: anywhere/);
 });
 
-test("어르신 통화 화면은 상태별 안내와 글자가 있는 원형 조작을 사용한다", () => {
+test("어르신 통화 화면은 상태별 안내와 두 개의 원형 조작만 사용한다", () => {
   assert.doesNotMatch(calling, /다른 가족 선택/);
   assert.match(call, /잘 듣지 못했어요\. 다시 말씀해 주세요/);
   assert.match(call, /말하고 있어요/);
   assert.match(call, /생각하고 있어요/);
   assert.match(call, /듣고 있어요/);
-  assert.match(call, /label=\{muted \? "마이크 꺼짐" : "마이크"\}/);
-  assert.match(call, /label="글자로 말하기"/);
-  assert.match(call, /label="통화 종료"/);
+  assert.match(call, /label=\{muted \? "소리 켜기" : "소리 끄기"\}/);
+  assert.doesNotMatch(call, /글자로 말하기|type="keyboard"|className="composer"/);
+  assert.match(call, /label="전화 끊기"/);
   assert.match(callControls, /통화를 끝낼까요\?/);
   assert.match(humanCall, /setConfirmingEnd\(true\)/);
-  assert.match(humanCall, /label=\{muted \? "마이크 꺼짐" : "마이크"\}/);
+  assert.match(humanCall, /label=\{muted \? "소리 켜기" : "소리 끄기"\}/);
+  assert.match(humanCall, /label="전화 끊기"/);
   assert.match(humanCall, /!confirmingEnd && <div className="controls human-call-controls">/);
   assert.match(guardianCall, /label=\{muted \? "마이크 꺼짐" : "마이크"\}/);
   assert.match(guardianCall, /className="guardian-call-actions guardian-human-controls"/);

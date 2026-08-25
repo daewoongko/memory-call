@@ -309,9 +309,9 @@ button:focus-visible {
 }
 
 .stage.lipsync-stage.anam-ready .face.anam-media {
-  object-fit: contain;
+  object-fit: cover;
   object-position: 50% 50%;
-  transform: scale(1.82);
+  transform: none;
   transform-origin: 50% 50%;
 }
 
@@ -321,8 +321,8 @@ button:focus-visible {
   transform: scale(1.12);
 }
 
-/* 정사각형 사진을 세로 화면에 넣으면 잘려나가므로,
-   같은 사진을 흐리게 깔아 배경을 채우고 원본은 잘리지 않게 얹는다. */
+/* 통화 상대의 얼굴은 화면 전체를 채운다. 남는 상하 여백보다
+   영상통화처럼 꽉 찬 화면을 우선하고 중앙 얼굴은 object-position으로 유지한다. */
 .stage video.blur,
 .stage video.face {
   display: block;
@@ -344,7 +344,8 @@ button:focus-visible {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: 50% 50%;
 }
 
 .stage .face,
@@ -504,44 +505,6 @@ button:focus-visible {
   color: var(--alert);
   font-size: calc(18px * var(--font-scale));
   margin-top: 8px;
-}
-
-.composer {
-  display: flex;
-  gap: 10px;
-  margin: 18px 0 14px;
-}
-
-.composer input {
-  flex: 1;
-  height: 60px;
-  border-radius: 999px;
-  border: 1px solid rgba(251, 247, 240, 0.22);
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  color: var(--paper);
-  font: inherit;
-  font-size: calc(21px * var(--font-scale));
-  padding: 0 22px;
-}
-
-.composer input:focus {
-  outline: none;
-  border-color: rgba(251, 247, 240, 0.5);
-}
-
-.composer button {
-  min-width: 88px;
-  border-radius: 999px;
-  background: var(--call);
-  font-size: calc(21px * var(--font-scale));
-  font-weight: 600;
-}
-
-.composer button:disabled {
-  background: rgba(251, 247, 240, 0.12);
-  color: var(--muted);
-  cursor: default;
 }
 
 .controls {

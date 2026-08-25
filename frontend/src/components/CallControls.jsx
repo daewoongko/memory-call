@@ -7,14 +7,6 @@ function ControlIcon({ type }) {
       </svg>
     );
   }
-  if (type === "keyboard") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="3" y="5" width="18" height="14" rx="2" />
-        <path d="M7 9h.01M11 9h.01M15 9h.01M18 9h.01M7 13h.01M11 13h.01M15 13h.01M18 13h.01M8 16h8" />
-      </svg>
-    );
-  }
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M5.2 4.5c.8-.8 2-.9 2.8-.2l2.2 1.9c.7.6.9 1.6.4 2.4l-1.3 2a14.2 14.2 0 0 0 4.1 4.1l2-1.3c.8-.5 1.8-.3 2.4.4l1.9 2.2c.7.8.6 2-.2 2.8l-1.2 1.2c-.9.9-2.2 1.2-3.4.8A19 19 0 0 1 3.2 9.1c-.4-1.2-.1-2.5.8-3.4l1.2-1.2Z" />
