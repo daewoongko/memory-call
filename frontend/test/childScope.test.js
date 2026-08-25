@@ -5,11 +5,13 @@ import { existsSync, readFileSync } from "node:fs";
 const child = readFileSync(new URL("../src/screens/ChildScreen.jsx", import.meta.url), "utf8");
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const familySettings = readFileSync(new URL("../src/screens/FamilyPersonaSettings.jsx", import.meta.url), "utf8");
+const callStyleQuiz = readFileSync(new URL("../src/components/CallStyleQuiz.jsx", import.meta.url), "utf8");
 const displaySettings = readFileSync(new URL("../src/components/DisplaySettings.jsx", import.meta.url), "utf8");
 const dasoniHome = readFileSync(new URL("../src/screens/DasoniHomeTab.jsx", import.meta.url), "utf8");
 const clothesline = readFileSync(new URL("../src/screens/FamilyMemoryClothesline.jsx", import.meta.url), "utf8");
 const seedCareDemo = readFileSync(new URL("../../tools/seed_care_demo.py", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+const theme = readFileSync(new URL("../src/storybook-theme.css", import.meta.url), "utf8");
 const datePicker = readFileSync(new URL("../src/components/AppDatePicker.jsx", import.meta.url), "utf8");
 
 test("가족 화면은 연결된 어르신과 본인 가족 식별자를 받는다", () => {
@@ -58,7 +60,7 @@ test("가족 추억함은 네 단계의 단일 보관 흐름과 사진 업로드
   assert.match(clothesline, /happened_year/);
   assert.match(clothesline, /uploadMemoryPhoto/);
   assert.match(clothesline, /아직 걸지 않은 이야기/);
-  assert.match(clothesline, /대화에서 잠시 뺀 추억/);
+  assert.match(clothesline, /금지된 이야기/);
   assert.doesNotMatch(clothesline, /빨랫줄|weekLabel/);
 });
 
@@ -75,7 +77,9 @@ test("가족 홈은 대표 그림과 통화 일기 및 고정 4등분 하단 탭
   assert.doesNotMatch(child, /child-diary-page[\s\S]{0,800}<footer>/);
   assert.match(child, /className="child-diary-writing"/);
   assert.match(child, /className=\{letter === " " \? "blank" : ""\}/);
-  assert.match(child, /해운대 바다가 아직도 많이 생각나시는 것 같아/);
+  assert.match(child, /completeDiaryWriting/);
+  assert.match(theme, /child-diary-writing \{[\s\S]*background-color: #fffdf8/);
+  assert.match(child, /마음에는 대웅이와 걷던 해운대가 아직 따뜻하게 남아 있어요/);
   assert.doesNotMatch(child, /--insight-fit/);
   assert.match(child, /\/diary\/haeundae-family-drawing\.png/);
   assert.ok(existsSync(new URL("../public/diary/haeundae-family-drawing.png", import.meta.url)));
@@ -126,6 +130,8 @@ test("오늘 화면의 중복 카드 두 개가 제거됐다", () => {
   assert.doesNotMatch(child, /가족이 해볼 일 하나/);
   assert.match(child, /child-day-diary/);
   assert.match(child, /오늘의 마음 날씨/);
+  assert.match(child, /diaryWeatherIcon/);
+  assert.match(child, /className="child-diary-weather"/);
   assert.doesNotMatch(child, /child-today-bento-simple/);
   assert.doesNotMatch(child, /선택한 날/);
   assert.match(child, /id: "today"/);
@@ -140,23 +146,69 @@ test("가족 추억함의 확인 대기 바구니는 접었다 펼칠 수 있다
   assert.match(clothesline, /aria-expanded=\{basketOpen\}/);
   assert.match(clothesline, /접기/);
   assert.match(clothesline, /펼치기/);
+  assert.match(clothesline, />확인</);
+  assert.match(clothesline, />일부만</);
+  assert.match(clothesline, />삭제</);
+  assert.doesNotMatch(clothesline, />나중에</);
+  assert.match(clothesline, /어르신과의 통화에 사용될 추억이에요/);
+  assert.match(clothesline, /시기를 잘 모르겠어요/);
+  assert.match(clothesline, /새로운 이야기/);
+  assert.match(clothesline, /함께 있던 사람 이름/);
+  assert.doesNotMatch(clothesline, /\{pending\.length\}건|\{drawer\.length\}건/);
+  assert.match(clothesline, /memory-icon-toggle memory-basket-toggle/);
+  assert.equal((clothesline.match(/<i[^>]*aria-hidden="true"[^>]*\/>/g) || []).length, 3);
+  assert.match(theme, /memory-section-toggle i::before,[\s\S]*memory-section-toggle i::after/);
+  assert.match(theme, /border-right: 1\.5px solid currentColor/);
 });
 
-test("설정의 본인 가족 카드는 관계와 이름을 한 줄에 표시한다", () => {
+test("보호자 모바일은 추억함 조작 크기를 통일하고 통화 상세를 위쪽에서 보여준다", () => {
+  assert.match(theme, /memory-icon-toggle,[\s\S]*width: 44px;[\s\S]*height: 44px/);
+  assert.match(clothesline, /memory-drawer-header/);
+  assert.match(clothesline, /memory-drawer-toggle/);
+  assert.match(theme, /memory-new-fields \{ grid-template-columns: 1fr/);
+  assert.match(theme, /child-call-modal \{[\s\S]*min-height:78dvh/);
+});
+
+test("보호자 화면은 그림일기와 다소니 발화만 손글씨로 구분한다", () => {
+  assert.match(theme, /child-diary-page[\s\S]*font-family: "Dasoni Forest Letter"/);
+  assert.match(theme, /child-header-diary-note span[\s\S]*font-family: "Dasoni Forest Letter"/);
+  assert.match(theme, /child-header-reachable strong[\s\S]*font-family: "Dasoni Forest Letter"/);
+  assert.match(theme, /child-header-memory-title strong,[\s\S]*child-header-call-title strong,[\s\S]*font-size:calc\(20px/);
+  assert.match(theme, /child-header-diary-note span \{[\s\S]*-webkit-line-clamp: 2/);
+  assert.match(child, /compactDiaryInsight/);
+});
+
+test("설정의 본인 가족 카드는 관계와 이름을 두 줄로 구분한다", () => {
   assert.match(child, /readyPersonas\.find\(\(item\) => item\.persona_id === myPersonaId\)/);
   assert.match(child, /<FamilyPersonaSettings[\s\S]*personaId=\{myPersona\?\.persona_id/);
   assert.doesNotMatch(familySettings, /child-me-badge|내 가족 프로필/);
   assert.match(familySettings, /persona\.relationship_type \|\| summary\?\.relationship/);
 });
 
-test("가족 설정은 말투 카드와 실제 표현을 편집한다", () => {
+test("가족 설정은 말투 이름과 실제 표현을 간결하게 편집한다", () => {
   assert.doesNotMatch(child, /AI FAMILY|통화에 등장할 가족이에요|안전한 기본값/);
-  assert.match(familySettings, /다시 설정하기/);
+  assert.doesNotMatch(familySettings, /다시 설정하기/);
   assert.match(familySettings, /CallStyleQuiz/);
+  assert.doesNotMatch(callStyleQuiz, /실제 통화에서 내가 더 자연스럽게 건넬 말을 골라주세요/);
+  assert.doesNotMatch(callStyleQuiz, /첫 말투 맞추기/);
+  assert.doesNotMatch(callStyleQuiz, /통화에서는 어르신 상태와 안전 규칙이 언제나 이보다 우선합니다/);
+  assert.match(callStyleQuiz, /call-style-result-title/);
+  assert.match(callStyleQuiz, /!showingResult && <div className="call-style-scene-progress"/);
+  assert.match(callStyleQuiz, /className="call-style-complete" onClick=\{\(\) => onApply\?\.\(result\)\}/);
+  assert.match(theme, /family-style-quiz-wrap \.call-style-score-grid \{ grid-template-columns: minmax\(0,1fr\)/);
+  assert.match(theme, /family-style-quiz-wrap \.call-style-result-actions \{[\s\S]*grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(theme, /call-style-result-actions > button\.save \{[\s\S]*width: 100%;[\s\S]*height: 56px;[\s\S]*min-width: 0;[\s\S]*min-height: 56px;[\s\S]*max-height: 56px/);
+  assert.match(familySettings, /persist\(next, "저장 완료"\)/);
+  assert.match(familySettings, /window\.setTimeout\(\(\) => setNote\(""\), 1600\)/);
+  assert.match(theme, /family-settings-note \{[\s\S]*position: fixed;[\s\S]*transform: translateX\(-50%\)/);
   assert.doesNotMatch(familySettings, />가족 표현</);
-  assert.match(familySettings, /우리 가족이 실제로 쓰는 표현을 알려주세요/);
+  assert.match(familySettings, /\{persona\.display_name \|\| "가족"\}님이 실제로 쓰는 표현을 알려주세요/);
+  assert.doesNotMatch(familySettings, /설정을 한 사람으로/);
+  assert.match(theme, /family-speech-settings header h2 \{[\s\S]*font-size: clamp\(14px,3\.25vw,calc\(17px \* var\(--font-scale\)\)\)/);
   assert.match(familySettings, /자주 쓰는 말/);
   assert.match(familySettings, /쓰면 안 되는 말/);
+  assert.doesNotMatch(familySettings, /<small>말투 카드<\/small>/);
+  assert.doesNotMatch(familySettings, /한 줄에 하나씩 입력하세요|상처나 부담이 될 표현을 적어주세요/);
   assert.doesNotMatch(familySettings, /말의 속도, 높임말과 반말/);
   assert.doesNotMatch(child, /id: "settings", mark: "설정", label: "설정"/);
   assert.match(child, /onMyPersonaChange\?\.\(persona\.persona_id\)/);
@@ -172,6 +224,7 @@ test("가족 사진 관리는 기존 연령 후보와 모핑 기능을 팝업으
   assert.match(personaPanel, /모핑 영상/);
   assert.match(familySettings, /family-profile-entry/);
   assert.match(familySettings, /className="family-style-current"/);
+  assert.match(familySettings, /aria-label=\{`\$\{persona\.call_style_name/);
   assert.doesNotMatch(familySettings, /안심 케어 내비게이터/);
   assert.match(personaPanel, /사진 크게 보기/);
   assert.match(personaPanel, /사진 추가하기/);

@@ -51,10 +51,10 @@ export default function CallStyleQuiz({
     <header className="call-style-head">
       <div>
         <span>말투 카드</span>
-        <h3>첫 말투 맞추기</h3>
-        <p>실제 통화에서 내가 더 자연스럽게 건넬 말을 골라주세요.</p>
       </div>
-      <b>{showingResult ? "완료" : `${Math.min(sceneIndex + 1, CALL_STYLE_TOTAL_SCENES)}/${CALL_STYLE_TOTAL_SCENES}`}</b>
+      {showingResult
+        ? <button type="button" className="call-style-complete" onClick={() => onApply?.(result)}>완료</button>
+        : <b>{`${Math.min(sceneIndex + 1, CALL_STYLE_TOTAL_SCENES)}/${CALL_STYLE_TOTAL_SCENES}`}</b>}
     </header>
 
     {onUseDefault && sceneIndex === 0 && answered === 0 && <div className="call-style-default">
@@ -62,9 +62,9 @@ export default function CallStyleQuiz({
       <button type="button" onClick={onUseDefault}>기본 말투로 시작</button>
     </div>}
 
-    <div className="call-style-scene-progress" aria-label={`${answered}개 카드 선택 완료`}>
+    {!showingResult && <div className="call-style-scene-progress" aria-label={`${answered}개 카드 선택 완료`}>
       {CALL_STYLE_SCENES.map((item, index) => <i key={item.id} className={cleanedAnswers[item.id] ? "done" : index === sceneIndex ? "current" : ""} />)}
-    </div>
+    </div>}
 
     {!showingResult ? <>
       <article className="call-style-scene">
@@ -91,13 +91,10 @@ export default function CallStyleQuiz({
       </div>
     </> : <article className="call-style-result">
       <div className="call-style-result-main">
-        <small>말투 시작점</small>
-        <h3>{result.summary.join(" · ")}</h3>
+        <h3 className="call-style-result-title"><small>말투 시작점</small><span>{result.name}</span><em>{result.code}</em></h3>
         <p>{result.description}</p>
         {result.frequent[0] && <blockquote><span>첫마디는 이렇게 나갑니다</span>“{result.frequent[0]}”</blockquote>}
-        <em>통화에서는 어르신 상태와 안전 규칙이 언제나 이보다 우선합니다.</em>
       </div>
-      <div className="call-style-code"><small>{result.name}</small><b>{result.code}</b></div>
       <div className="call-style-score-grid">
         {CALL_STYLE_DIMENSIONS.map((item) => {
           const score = result.scores[item.id];

@@ -162,12 +162,16 @@ function RecorderCard({ prompt, phase, disabled, saved, onSaved, maxSeconds = 90
   return <article className={`voice-recorder-card ${saved ? "is-saved" : ""}`}>
     <header>
       <div>{phase === "ivc" && <small>필수 녹음</small>}<h3>{prompt.label}</h3></div>
-      {(saved || recording) && <span>{saved ? "저장 완료" : formatDuration(elapsed)}</span>}
+      <div className="voice-recorder-heading-actions">
+        {(saved || recording) && <span>{saved ? "저장 완료" : formatDuration(elapsed)}</span>}
+        {phase === "pvc" && !recording && <button type="button" onClick={start} disabled={disabled || busy}>녹음 시작</button>}
+        {phase === "pvc" && recording && <button type="button" className="is-recording" onClick={stop}>녹음 마치기</button>}
+      </div>
     </header>
     <p className="voice-script">{prompt.script}</p>
     <div className="voice-recorder-actions">
-      {!recording && <button type="button" onClick={start} disabled={disabled || busy}>{saved ? "다시 녹음" : "녹음 시작"}</button>}
-      {recording && <button type="button" className="is-recording" onClick={stop}>녹음 마치기</button>}
+      {phase !== "pvc" && !recording && <button type="button" onClick={start} disabled={disabled || busy}>{saved ? "다시 녹음" : "녹음 시작"}</button>}
+      {phase !== "pvc" && recording && <button type="button" className="is-recording" onClick={stop}>녹음 마치기</button>}
       {capture?.url && <audio controls src={capture.url} />}
       {capture?.quality?.passed && <button type="button" className="primary" onClick={save} disabled={busy}>{busy ? "저장 중…" : "이 녹음 저장"}</button>}
     </div>
@@ -238,8 +242,8 @@ export default function VoiceProfilePanel({ elderId, personaId, persona }) {
     }
   }
 
-  async function removeVoice() {
-    if (!window.confirm("등록한 복제 목소리와 녹음 파일을 모두 삭제할까요? 삭제한 목소리는 되돌릴 수 없습니다.")) return;
+  async function restartVoiceRecording() {
+    if (!window.confirm("현재 승인된 목소리를 초기화하고 다시 녹음할까요? 기존 녹음은 되돌릴 수 없습니다.")) return;
     const result = await run(() => api.deleteVoiceProfile(personaId, elderId));
     if (!result) return;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -254,7 +258,6 @@ export default function VoiceProfilePanel({ elderId, personaId, persona }) {
       <div><h2>AI 통화에 사용할 목소리를 등록하세요</h2></div>
       <div className="voice-heading-actions">
         {!approved && <strong>{profile.voice_status === "ivc_ready" ? "미리 듣기" : `${readyPrompts.size}/2 녹음`}</strong>}
-        {profile.consented && <button type="button" className="danger-link" disabled={busy} onClick={removeVoice}>목소리 등록 삭제</button>}
       </div>
     </header>
 
@@ -294,15 +297,17 @@ export default function VoiceProfilePanel({ elderId, personaId, persona }) {
 
     {approved && <div className="voice-pvc-area">
       <div className="voice-active-summary">
-        <div><h3>{persona?.display_name || "가족"}님의 승인된 목소리</h3><p>통화에는 지금 승인한 IVC 목소리가 계속 사용됩니다.</p></div>
-        <button type="button" onClick={preview} disabled={busy}>다시 듣기</button>
-        {previewUrl && <audio controls autoPlay src={previewUrl} />}
+        <div className="voice-active-summary-copy"><h3>{persona?.display_name || "가족"}님의 승인된 목소리</h3></div>
+        <div className="voice-active-actions">
+          <button type="button" className="voice-headset-button" onClick={preview} disabled={busy} aria-label="다시 듣기">🎧</button>
+          <button type="button" onClick={restartVoiceRecording} disabled={busy} aria-label="다시 녹음하기">다시 녹음</button>
+        </div>
+        {previewUrl && <div className="voice-active-preview"><audio controls autoPlay src={previewUrl} /></div>}
       </div>
       <div className="voice-progress-card">
         <header><div><h3>좋은 녹음을 천천히 더 모을 수 있어요</h3></div><strong>{pvcMinutes}분 / 권장 60분</strong></header>
         <div className="voice-progress"><i style={{ width: `${pvcPercent}%` }} /></div>
         <div className="voice-progress-marks"><span>현재</span><span className={profile.pvc_eligible ? "reached" : ""}>30분 · 신청 가능</span><span className={profile.pvc_recommended ? "reached" : ""}>60분 · 권장</span></div>
-        <p>PVC는 녹음이 충분해도 자동으로 바뀌지 않습니다. 별도의 본인 인증과 최종 승인을 거친 뒤에만 전환합니다.</p>
       </div>
       <RecorderCard
         prompt={{ id: "pvc", label: "추가 목소리 모으기", script: "평소처럼 가족 이야기, 하루 일과, 기억에 남는 장소를 1~5분 동안 자연스럽게 말씀해 주세요. 같은 문장을 반복하기보다 여러 내용과 억양이 담기면 좋습니다." }}

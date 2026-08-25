@@ -58,6 +58,12 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [photoOpen]);
 
+  useEffect(() => {
+    if (!note) return undefined;
+    const timer = window.setTimeout(() => setNote(""), 1600);
+    return () => window.clearTimeout(timer);
+  }, [note]);
+
   async function persist(next, message) {
     setBusy(true);
     setError("");
@@ -79,7 +85,7 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
   async function applyCallStyle(result, appliedAnswers = answers) {
     if (!result || !persona) return;
     const next = { ...persona, ...callStylePersonaPatch(result, appliedAnswers) };
-    if (await persist(next, `${result.name} 말투 시작점을 저장했습니다.`)) setQuizOpen(false);
+    if (await persist(next, "저장 완료")) setQuizOpen(false);
   }
 
   function applyDefault() {
@@ -101,10 +107,8 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
         <h1><span>{persona.relationship_type || summary?.relationship}</span><b>{persona.display_name}</b></h1>
         </span>
       </div>
-      <button type="button" className="family-style-current" onClick={() => setQuizOpen((open) => !open)} aria-expanded={quizOpen}>
-        <small>말투 카드</small>
+      <button type="button" className="family-style-current" onClick={() => setQuizOpen((open) => !open)} aria-expanded={quizOpen} aria-label={`${persona.call_style_name || "말투"} 설정 ${quizOpen ? "닫기" : "열기"}`}>
         <strong><span>{persona.call_style_name || "미설정"}</span>{persona.call_style_code && <em>({persona.call_style_code})</em>}</strong>
-        <span>{quizOpen ? "설정 닫기" : persona.call_style_code ? "다시 설정하기" : "설정하기"} <b aria-hidden="true">›</b></span>
       </button>
     </article>
 
@@ -122,16 +126,14 @@ export default function FamilyPersonaSettings({ elderId, personaId, summary }) {
     <VoiceProfilePanel elderId={elderId} personaId={personaId} persona={persona} />
 
     <section className="family-speech-settings">
-      <header><h2>우리 가족이 실제로 쓰는 표현을 알려주세요</h2></header>
+      <header><h2>{persona.display_name || "가족"}님이 실제로 쓰는 표현을 알려주세요</h2></header>
       <div className="family-speech-grid">
         <label>
           <b>자주 쓰는 말</b>
-          <span>한 줄에 하나씩 입력하세요.</span>
           <textarea value={toLines(persona.frequent_phrases)} onChange={(event) => setPersona({ ...persona, frequent_phrases: event.target.value.split("\n") })} />
         </label>
         <label>
           <b>쓰면 안 되는 말</b>
-          <span>어르신께 상처나 부담이 될 표현을 적어주세요.</span>
           <textarea value={toLines(persona.forbidden_phrases)} onChange={(event) => setPersona({ ...persona, forbidden_phrases: event.target.value.split("\n") })} />
         </label>
       </div>

@@ -581,7 +581,7 @@ export default function App() {
   }
 
   const wrap = (node, { gear = false, wide = false, roleSwitch = false, displayDock = true, embeddedControls = false, shell = "default" } = {}) => {
-    const fontRole = shell === "family" || shell === "journey-child" ? "family" : "readable";
+    const fontRole = "readable";
     return (
     <div className={`frame app-shell app-shell-${shell}${wide ? " guardian-frame" : ""}`}>
       <div className={`device app-device app-device-${shell} font-role-${fontRole}${wide ? " guardian-device" : ""}`}>

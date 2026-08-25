@@ -40,6 +40,19 @@ test("voice registration heading replaces the redundant my voice label", () => {
   assert.match(theme, /\.app-device-family \.voice-settings-heading h2[\s\S]*?white-space: nowrap/);
 });
 
+test("approved voice preview and re-recording stay inside one stable card", () => {
+  assert.doesNotMatch(voiceProfile, /목소리 등록 삭제|PVC는 녹음이 충분해도 자동으로 바뀌지 않습니다/);
+  assert.doesNotMatch(voiceProfile, /통화에는 승인한 IVC 목소리가 계속 사용됩니다/);
+  assert.doesNotMatch(voiceProfile, /본인 최종 승인을 거친 뒤에만 녹음을 전환합니다/);
+  assert.match(voiceProfile, /restartVoiceRecording/);
+  assert.match(voiceProfile, /aria-label="다시 듣기">🎧/);
+  assert.match(voiceProfile, /aria-label="다시 녹음하기">다시 녹음/);
+  assert.match(voiceProfile, /voice-active-actions/);
+  assert.match(voiceProfile, /voice-active-preview/);
+  assert.match(voiceProfile, /voice-recorder-heading-actions/);
+  assert.match(theme, /voice-active-summary \{[\s\S]*grid-template-columns: minmax\(0,1fr\) auto/);
+});
+
 test("family settings raises the small supporting text sizes", () => {
   assert.match(theme, /\.app-device-family \.family-self-identity h1 > span/);
   assert.match(theme, /\.app-device-family \.family-speech-settings label > span \{ font-size: calc\(11px/);

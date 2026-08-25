@@ -57,6 +57,23 @@ function memoryImage(memory) {
   return memory?.artwork?.image_url || memory?.image_url || memory?.photo_url || "";
 }
 
+function compactDiaryInsight(value, fallback) {
+  const normalized = String(value || fallback || "")
+    .replace(/[“”"]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const firstSentence = normalized.match(/^.*?[.!?](?:\s|$)/)?.[0]?.trim() || normalized;
+  return firstSentence.length > 46 ? `${firstSentence.slice(0, 45).trim()}…` : firstSentence;
+}
+
+function completeDiaryWriting(value, title) {
+  let writing = String(value || "").replace(/[“”"]/g, "").replace(/\s+/g, " ").trim();
+  if (writing.length < 68) {
+    writing = `${writing} 오늘 통화에서 ${title}에 관한 이야기를 천천히 들려주셨다. 다소니는 그 장면을 오래 간직할 수 있도록 한 장의 그림일기로 정리했다.`.trim();
+  }
+  return writing.slice(0, 118).trim();
+}
+
 const CALL_TYPES = {
   direct: { label: "가족이 직접 통화", filterLabel: "가족 직접", mark: "나" },
   ai: { label: "다소니가 대신 통화", filterLabel: "다소니 AI", mark: "AI" },
@@ -68,32 +85,32 @@ const DEMO_DIARIES = [
     date: "2026-07-12",
     image: "/diary/country-market-memory.png",
     title: "아버지와 걷던 장날",
-    writing: "여름 장터에서 아버지와 복숭아를 골랐다. 집으로 돌아오는 길에 나란히 걷던 시간이 참 든든했다.",
-    insight: "아버지는 가족과 함께 장터를 걷던 평범한 시간이 오래도록 따뜻하게 남아 있는 것 같아.",
+    writing: "여름 장터에서 아버지와 복숭아를 골랐다. 집으로 돌아오는 길에는 나란히 천천히 걸었다. 손에 든 장바구니는 무거웠지만 아버지와 웃으며 걷던 시간이 참 든든하고 따뜻했다.",
+    insight: "아버지 마음에는 가족과 걷던 장터의 온기가 아직 남아 있어요.",
     weather: "포근함",
   },
   {
     date: "2026-08-08",
     image: "/diary/persimmon-yard-memory.png",
     title: "감나무 아래의 오후",
-    writing: "마당 감나무 아래에서 어린 정훈이에게 잘 익은 감을 건넸다. 아이가 웃는 모습을 보며 함께 웃었다.",
-    insight: "아버지는 어린 정훈이에게 감을 건네주던 순간을 떠올릴 때 마음이 한결 편안해지는 것 같아.",
+    writing: "마당 감나무 아래에서 어린 정훈이에게 잘 익은 감을 건넸다. 아이는 두 손으로 감을 받아 들고 환하게 웃었다. 아버지도 그 모습을 바라보며 함께 웃었고 마당에는 다정한 햇살이 오래 머물렀다.",
+    insight: "아버지는 정훈이에게 감을 건네던 날을 참 따뜻하게 기억하세요.",
     weather: "따뜻함",
   },
   {
     date: "2026-08-24",
     image: "/diary/haeundae-family-drawing.png",
     title: "고향 집 앞 냇가",
-    writing: "젊은 시절 살던 고향 집 앞에 냇가가 있었고, 가족과 그 시절 이야기를 나누었습니다.",
-    insight: "할아버지의 가장 따뜻한 기억엔\n언제나 대웅이가 함께 있어.",
+    writing: "젊은 시절 살던 고향 집 앞에는 맑은 냇가가 있었다. 여름이면 가족과 물가에 앉아 발을 담그고 오래 이야기를 나누었다. 물 흐르는 소리와 함께 웃던 그날의 풍경이 아직도 마음에 선명하게 남아 있다.",
+    insight: "할아버지의 따뜻한 기억 한가운데에는 언제나 대웅이가 있어요.",
     weather: "맑음",
   },
   {
     date: "2026-09-05",
     image: "/diary/autumn-riverside-picnic.png",
     title: "가을 강가의 소풍",
-    writing: "가을 강가에서 딸과 손주들과 김밥을 나누어 먹었다. 물소리를 들으며 오래 이야기를 나누었다.",
-    insight: "할아버지는 온 가족이 둘러앉아 음식을 나누던 가을 소풍을 무척 소중하게 기억하시는 것 같아.",
+    writing: "가을 강가에서 딸과 손주들과 김밥을 나누어 먹었다. 선선한 바람이 불고 물 위에는 햇빛이 반짝였다. 서로 음식을 건네며 웃었고 돌아오는 길에도 가족과 함께한 소풍 이야기를 오래 나누었다.",
+    insight: "할아버지는 온 가족이 함께한 가을 소풍을 참 소중히 간직하세요.",
     weather: "다정함",
   },
 ];
@@ -189,14 +206,17 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const diaryDisplayImage = demoDiary?.image || diaryImage || "/diary/haeundae-family-drawing.png";
   const diaryDisplayAlt = demoDiary ? `${demoDiary.title} 기억을 그린 그림일기 삽화` : diaryImage ? diaryImageAlt : "할아버지와 손자가 해변에서 모래성을 만드는 그림일기 삽화";
   const diaryDisplayTitle = demoDiary?.title || (hasCalls ? diaryTitle : "할아버지와 만든 모래성");
+  const diaryWeather = demoDiary?.weather || "맑음";
+  const diaryWeatherIcon = ({ 맑음: "☀️", 따뜻함: "🌤️", 포근함: "🌥️", 다정함: "☁️" })[diaryWeather] || "🌤️";
   const diaryTitleFit = Math.min(1, 9 / Math.max(diaryDisplayTitle.replace(/\s/g, "").length, 1));
-  const diaryWritingText = (demoDiary?.writing || (hasCalls
+  const diaryWritingText = completeDiaryWriting(demoDiary?.writing || (hasCalls
     ? heartQuote
-    : "2012년 여름 할아버지와 해운대에 갔다. 둘이 모래성을 만들고 파도를 보며 함께 웃었다."))
-    .replace(/[“”"]/g, "").trim();
-  const familyInsight = demoDiary?.insight || heart?.day_translation?.family
-    || `${withTopicParticle(elderCallName)} 대웅이와 갔던 해운대 바다가 아직도 많이 생각나시는 것 같아.`;
-  const quotedFamilyInsight = `“${familyInsight.replace(/[“”"]/g, "").trim()}”`;
+    : "2012년 여름 할아버지와 해운대에 갔다. 둘이 모래성을 만들고 파도를 보며 함께 웃었다."), diaryDisplayTitle);
+  const familyInsight = compactDiaryInsight(
+    demoDiary?.insight || heart?.day_translation?.family,
+    `${withTopicParticle(elderCallName)} 마음에는 대웅이와 걷던 해운대가 아직 따뜻하게 남아 있어요.`,
+  );
+  const quotedFamilyInsight = `“${familyInsight}”`;
   const urgent = (latest?.risks || []).filter((risk) => !risk.acknowledged);
   const callTypeCounts = useMemo(() => calls.reduce((counts, call) => {
     const type = CALL_TYPES[call.call_type] ? call.call_type : "ai";
@@ -364,7 +384,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
                 ariaLabel="그림일기 날짜 선택"
                 onChange={(event) => setSelectedDate(event.target.value)}
               />
-              <span>오늘의 마음 날씨 · {demoDiary?.weather || "맑음"}</span>
+              <span className="child-diary-weather">오늘의 마음 날씨 · <i aria-hidden="true">{diaryWeatherIcon}</i> {diaryWeather}</span>
             </header>
             <figure className="child-diary-art">
               <img src={diaryDisplayImage} alt={diaryDisplayAlt} />
