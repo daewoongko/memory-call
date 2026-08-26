@@ -3515,3 +3515,99 @@ h3,
     box-sizing: border-box;
   }
 }
+
+/* Android installed-app layout -------------------------------------------------
+   The theme file is loaded after styles.css, so its desktop device radius used
+   to win over the mobile edge-to-edge rules.  Keep the caregiver app flush with
+   the WebView and hide the workspace scrollbar that looked like an empty side
+   rail on Galaxy devices. */
+@media (max-width: 760px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: var(--app-height, 100dvh);
+    min-height: var(--app-height, 100dvh);
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .app-shell.app-shell-care,
+  .app-shell.app-shell-care.guardian-frame {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: var(--app-height, 100dvh);
+    min-height: var(--app-height, 100dvh);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0 !important;
+    outline: 0;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: none !important;
+    clip-path: none !important;
+  }
+
+  .app-shell-care > .app-device-care,
+  .app-shell-care > .app-device-care.guardian-device {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: var(--app-height, 100dvh);
+    min-height: var(--app-height, 100dvh);
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0 !important;
+    outline: 0;
+    overflow: hidden;
+    background: var(--bg);
+    box-shadow: none !important;
+    clip-path: none !important;
+  }
+
+  .app-device-care > .guardian,
+  .app-device-care .guardian-shell {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+    border: 0;
+    border-radius: 0 !important;
+    overflow: hidden;
+    box-shadow: none !important;
+    clip-path: none !important;
+  }
+
+  .app-device-care .guardian-sidebar,
+  .app-device-care .guardian-workspace {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .app-device-care .guardian-workspace {
+    overflow-x: clip;
+    overflow-y: auto;
+    contain: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .app-device-care .guardian-workspace::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
