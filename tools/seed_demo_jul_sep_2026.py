@@ -10,13 +10,17 @@ from __future__ import annotations
 import argparse
 from datetime import date, datetime, time, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import random
 import sqlite3
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DB = ROOT / "data" / "memory_call.sqlite"
+DEFAULT_DB = (
+    Path(os.getenv("STORAGE_DIR", str(ROOT / "data"))).expanduser().resolve()
+    / "memory_call.sqlite"
+)
 PREFIX = "demo789_"
 SEED_VERSION = "patient-profile-trends-v2"
 SEOUL = timezone(timedelta(hours=9))
