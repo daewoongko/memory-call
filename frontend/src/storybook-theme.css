@@ -3518,9 +3518,9 @@ h3,
 
 /* Android installed-app layout -------------------------------------------------
    The theme file is loaded after styles.css, so its desktop device radius used
-   to win over the mobile edge-to-edge rules.  Keep the caregiver app flush with
-   the WebView and hide the workspace scrollbar that looked like an empty side
-   rail on Galaxy devices. */
+   to win over the mobile edge-to-edge rules. Keep every signed-in role flush
+   with the WebView; the role-specific inner screens must not restore a rounded
+   preview frame on Galaxy devices. */
 @media (max-width: 760px) {
   html,
   body,
@@ -3535,7 +3535,11 @@ h3,
     overflow: hidden;
   }
 
+  .app-shell.app-shell-elder,
+  .app-shell.app-shell-family,
   .app-shell.app-shell-care,
+  .app-shell.app-shell-elder.guardian-frame,
+  .app-shell.app-shell-family.guardian-frame,
   .app-shell.app-shell-care.guardian-frame {
     box-sizing: border-box;
     width: 100%;
@@ -3554,7 +3558,11 @@ h3,
     clip-path: none !important;
   }
 
+  .app-shell-elder > .app-device-elder,
+  .app-shell-family > .app-device-family,
   .app-shell-care > .app-device-care,
+  .app-shell-elder > .app-device-elder.guardian-device,
+  .app-shell-family > .app-device-family.guardian-device,
   .app-shell-care > .app-device-care.guardian-device {
     box-sizing: border-box;
     width: 100%;
@@ -3569,6 +3577,24 @@ h3,
     outline: 0;
     overflow: hidden;
     background: var(--bg);
+    box-shadow: none !important;
+    clip-path: none !important;
+  }
+
+  .app-device-elder > .reassurance-home,
+  .app-device-elder > .screen,
+  .app-device-elder > .call-stack,
+  .app-device-family > .child-screen {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0 !important;
+    outline: 0;
     box-shadow: none !important;
     clip-path: none !important;
   }
