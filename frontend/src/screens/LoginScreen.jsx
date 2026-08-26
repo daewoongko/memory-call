@@ -58,7 +58,7 @@ export default function LoginScreen({ onAuthenticated, onSkip }) {
       <img className="login-wordmark" src="/brand/dasoni-wordmark.png" alt="다소니" />
     </header>
 
-    <form className="login-card" onSubmit={submit}>
+    <form className={`login-card login-card-${mode}`} onSubmit={submit}>
       <div className="login-tabs" role="tablist" aria-label="계정 시작 방식">
         <button
           type="button"
@@ -78,7 +78,6 @@ export default function LoginScreen({ onAuthenticated, onSkip }) {
 
       <header className="login-card-heading">
         <h1>{mode === "login" ? "오늘도 따뜻한 목소리로 연결할게요" : "소중한 가족을 위한 안심 첫걸음"}</h1>
-        <p>{mode === "login" ? "휴대전화 번호와 간편번호로 로그인해 주세요." : "다소니와 함께할 계정을 만들어 주세요."}</p>
       </header>
 
       {mode === "register" && <label>
@@ -115,7 +114,6 @@ export default function LoginScreen({ onAuthenticated, onSkip }) {
         />
       </label>
 
-      {mode === "register" && <p className="login-security-note">휴대전화 번호와 숫자 6자리 간편번호를 사용합니다.</p>}
       {error && <p className="login-feedback error" role="alert">{error}</p>}
       {notice && <p className="login-feedback" role="status">{notice}</p>}
 
@@ -141,7 +139,6 @@ export default function LoginScreen({ onAuthenticated, onSkip }) {
 
       {onSkip && <button type="button" className="login-skip" onClick={onSkip} disabled={busy}>
         <b>체험 사용자로 둘러보기</b>
-        <small>계정 없이 데모 화면으로 시작해요</small>
       </button>}
     </form>
   </main>;

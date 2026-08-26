@@ -143,7 +143,8 @@ test("family settings removes the redundant outer box and expands the primary co
 
 test("the phone-sized login shell always uses a single-column layout", () => {
   assert.match(theme, /\.app-device-login \{[\s\S]*?--app-preview-width: 430px;/);
+  assert.match(theme, /\.app-device-login \{[\s\S]*?border: 8px solid #0d563d/);
   assert.match(theme, /\.app-device-login \.login-brand \{[\s\S]*?justify-content: center;/);
-  assert.match(theme, /\.app-device-login \.login-card \{[\s\S]*?max-width: 382px;/);
+  assert.match(theme, /\.app-device-login \.login-card \{[\s\S]*?max-width: 352px;[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
   assert.match(theme, /\.app-device-login \.login-tabs \{[\s\S]*?grid-template-columns: 1fr 1fr;/);
 });
