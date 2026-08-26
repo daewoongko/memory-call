@@ -99,6 +99,10 @@ test("care checklist keeps the mobile viewport width and handover has one surfac
   assert.match(styles, /\.care-task-row \{ width:100%; min-width:0; max-width:100%;/);
   assert.match(styles, /\.dose-status-actions \{ min-width:0; max-width:100%;/);
   assert.match(theme, /\.app-device-care \.care-task-workspace,[\s\S]*?\.app-device-care \.handover-workspace \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
+  assert.ok(careManager.includes("care-manager-dashboard care-tab-${tab}"));
+  assert.match(theme, /\.care-manager-dashboard\.care-tab-checks \.guardian-workspace,[\s\S]*?scrollbar-width: none/);
+  assert.match(theme, /\.care-manager-dashboard\.care-tab-handover \.guardian-workspace::-webkit-scrollbar \{[\s\S]*?display: none/);
+  assert.match(theme, /\.care-manager-dashboard\.care-tab-handover \.handover-workspace \{[\s\S]*?border: 0 !important;[\s\S]*?background: transparent !important/);
 });
 
 test("care insight shows the eight-domain radar before the observation summary", () => {

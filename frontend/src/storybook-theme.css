@@ -3482,3 +3482,56 @@ h3,
     border-radius: 22px;
   }
 }
+
+/* Caregiver mobile workspaces use the app's single content column.  The
+   workspace remains scrollable, but its WebView scrollbar must not look like
+   a second card edge or steal horizontal space from checks and handover. */
+@media (max-width: 760px) {
+  .app-device-care .care-manager-dashboard.care-tab-checks .guardian-workspace,
+  .app-device-care .care-manager-dashboard.care-tab-handover .guardian-workspace {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding-inline: 8px;
+    overflow-x: clip;
+    overflow-y: auto;
+    contain: none;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .app-device-care .care-manager-dashboard.care-tab-checks .guardian-workspace::-webkit-scrollbar,
+  .app-device-care .care-manager-dashboard.care-tab-handover .guardian-workspace::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .app-device-care .care-manager-dashboard.care-tab-checks .care-task-workspace,
+  .app-device-care .care-manager-dashboard.care-tab-handover .handover-workspace {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0 !important;
+    border-radius: 0 !important;
+    outline: 0;
+    overflow: visible;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .app-device-care .care-manager-dashboard.care-tab-checks .task-subtabs,
+  .app-device-care .care-manager-dashboard.care-tab-checks .task-heading,
+  .app-device-care .care-manager-dashboard.care-tab-checks .care-task-groups,
+  .app-device-care .care-manager-dashboard.care-tab-handover .handover-groups,
+  .app-device-care .care-manager-dashboard.care-tab-handover .handover-note,
+  .app-device-care .care-manager-dashboard.care-tab-handover .handover-workspace > footer {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-inline: 0;
+    box-sizing: border-box;
+  }
+}

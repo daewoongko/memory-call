@@ -146,7 +146,7 @@ export default function CareManagerScreen({ onDisplaySettings }) {
 
   const pickedDiagnosis = patientProfile?.diagnosis_label || picked.diagnosis_label || "진단 정보 미등록";
 
-  return <main className="guardian guardian-dashboard care-manager-dashboard">
+  return <main className={`guardian guardian-dashboard care-manager-dashboard care-tab-${tab}`}>
     <div className="guardian-shell">
       <aside className="guardian-sidebar">
         <div className="sidebar-brand"><BrandMark size={32} /><div><b>다소니</b><span>요양원 케어 분석</span></div></div>
