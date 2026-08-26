@@ -49,6 +49,7 @@ PATIENTS = {
     "elder_001": {
         "name": "고길동",
         "diagnosis": "알츠하이머 치매 · 고혈압",
+        "residence": "요양원 1층 생활실",
         "personas": [
             ("persona_jeonghun", "정훈", "아들"),
             ("persona_miyeong", "미영", "딸"),
@@ -78,6 +79,7 @@ PATIENTS = {
     "elder_002": {
         "name": "박순자",
         "diagnosis": "루이소체 치매 · 파킨슨증",
+        "residence": "요양원 2층 생활실",
         "personas": [("persona_sunja_daughter", "지영", "딸")],
         "hours": [6, 7, 8, 10, 12, 13, 14, 15, 16, 17, 19, 20],
         "medication_rates": (0.82, 0.11, 0.02),
@@ -101,6 +103,7 @@ PATIENTS = {
     "elder_003": {
         "name": "이정호",
         "diagnosis": "혈관성 치매 · 고혈압 · 뇌경색 과거력",
+        "residence": "요양원 3층 생활실",
         "personas": [("persona_jeongho_son", "성민", "아들")],
         "hours": [6, 7, 8, 9, 10, 12, 14, 16, 17, 18, 20, 21],
         "medication_rates": (0.86, 0.09, 0.03),
@@ -349,14 +352,12 @@ def seed(conn):
         "CREATE INDEX IF NOT EXISTS idx_calls_elder_started "
         "ON calls(elder_id, started_at)"
     )
-    # 가족 호칭은 담당자 화면의 진단 정보가 아니다. 기존에 진단이 비어 있는
-    # 데모 환자만 등록된 진단명으로 보완하고, 사용자가 입력한 값은 보존한다.
+    # 세 시연 환자는 모두 요양원 담당자 화면에서 쓰이므로 진단과 생활실을
+    # 가족 호칭이나 자택 정보 대신 일관되게 표시한다.
     for elder_id, profile in PATIENTS.items():
         conn.execute(
-            "UPDATE elder_profiles SET diagnosis_label=? WHERE elder_id=? "
-            "AND (COALESCE(TRIM(diagnosis_label),'')='' OR "
-            "TRIM(diagnosis_label) IN ('할아버지','할머니','아버지','어머니','어르신'))",
-            (profile["diagnosis"], elder_id),
+            "UPDATE elder_profiles SET diagnosis_label=?, residence_type=? WHERE elder_id=?",
+            (profile["diagnosis"], profile["residence"], elder_id),
         )
     totals = {"calls": 0, "utterances": 0, "reports": 0, "events": 0, "medication_logs": 0}
     for elder_index, (elder_id, profile) in enumerate(PATIENTS.items(), start=1):

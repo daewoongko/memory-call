@@ -154,7 +154,7 @@ export default function CareManagerScreen({ onDisplaySettings }) {
           <button type="button" className="sidebar-elder-select" onClick={() => elders.length > 1 && setPicked(null)} aria-label="관리할 어르신 다시 선택">
             <span className="elder-face sm">{picked.name?.slice(0, 1)}</span>
             <span className="sidebar-elder-copy">
-              <span className="sidebar-elder-name"><b>{picked.name}</b><small>{picked.preferred_call_name}</small></span>
+              <span className="sidebar-elder-name"><b>{picked.name}</b></span>
               <em>{pickedDiagnosis}</em>
             </span>
             <i>⌄</i>

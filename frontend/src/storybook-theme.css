@@ -1656,6 +1656,12 @@ h3,
 .app-device-care .emotion-topic-analysis .topic-finding-row > span,
 .app-device-care .emotion-topic-analysis .topic-finding-row p,
 .app-device-care .emotion-topic-analysis .topic-finding-row strong { font-size: calc(10px * var(--font-scale)); }
+.app-device-care .emotion-topic-analysis .topic-finding-row.expandable > summary {
+  grid-template-columns: 84px minmax(0,1fr) auto;
+}
+.app-device-care .emotion-topic-analysis .topic-finding-row.expandable > summary > span,
+.app-device-care .emotion-topic-analysis .topic-finding-row.expandable > summary > p,
+.app-device-care .emotion-topic-analysis .topic-finding-row.expandable > summary > strong { font-size: calc(10px * var(--font-scale)); }
 .app-device-care .emotion-topic-analysis .topic-legend {
   display: flex;
   justify-content: flex-start;
@@ -1743,6 +1749,24 @@ h3,
   white-space: normal;
   word-break: keep-all;
   overflow-wrap: break-word;
+}
+.child-header-diary-note[data-attention="true"] {
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+}
+.child-header-diary-note[data-attention="true"] span {
+  color: #a34736;
+  white-space: pre-line;
+}
+.child-header-diary-note[data-attention="true"] > b {
+  min-width: 34px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #a34736;
+  background: rgba(213,96,73,.12);
+  font-size: calc(9px * var(--font-scale));
+  text-align: center;
 }
 .child-header-memory-title {
   min-width: 0;
@@ -1878,7 +1902,7 @@ h3,
   display: grid;
   grid-template-columns: repeat(var(--diary-cols),minmax(0,1fr));
   grid-template-rows: repeat(var(--diary-rows),minmax(0,1fr));
-  grid-auto-rows: calc(100% / var(--diary-rows));
+  grid-auto-rows: minmax(0,1fr);
   align-content: start;
   padding: 0;
   overflow: hidden;
@@ -2024,28 +2048,34 @@ h3,
 .app-device-care .sidebar-nav button:not(:has(> span)) { justify-content: center; text-align: center; }
 .app-device-care .task-heading {
   display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
+  grid-template-columns: auto minmax(0,1fr);
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
 }
 .app-device-care .task-heading-summary {
   min-width: 0;
-  justify-self: center;
-  text-align: center;
+  justify-self: start;
+  text-align: left;
 }
 .app-device-care .task-heading-summary h2 {
   display: flex;
   align-items: baseline;
-  justify-content: center;
-  flex-wrap: wrap;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
   gap: 4px 8px;
   margin: 0;
   line-height: 1.2;
   white-space: nowrap;
 }
 .app-device-care .task-heading-summary h2 span { color: var(--brand); }
-.app-device-care .task-heading-summary h2 small { color: var(--muted); font-size: .68em; font-weight: 600; }
-.app-device-care .task-heading .task-view-toggle { justify-self: center; }
+.app-device-care .task-heading .task-view-toggle { width: min(220px,100%); justify-self: end; }
+.app-device-care .care-task-workspace,
+.app-device-care .handover-workspace,
+.app-device-care .task-subtabs,
+.app-device-care .care-task-groups { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.app-device-care .care-task-workspace { overflow-x: clip; }
 
 /* 가족 설정의 안내와 조작 글자는 기본 크기에서도 또렷하게 보이도록 올린다. */
 .app-device-family .child-family-settings > header > p:last-child,
@@ -2122,9 +2152,9 @@ h3,
   .app-device-care .care-picker-head h1 { font-size: clamp(14px,4.2vw,calc(18px * var(--font-scale))); }
   .app-device-care .sidebar-elder-panel { grid-template-columns: minmax(0,1fr); gap: 0; }
   .app-device-care .sidebar-elder-date { grid-template-columns: minmax(0,1fr); margin-top: 8px; padding: 8px 0 0; border-top: 1px solid var(--line); border-left: 0; }
-  .app-device-care .task-heading { grid-template-columns: minmax(0,1fr); gap: 12px; }
-  .app-device-care .task-heading-summary,
-  .app-device-care .task-heading .task-view-toggle { grid-column: 1; justify-self: center; }
+  .app-device-care .task-heading { grid-template-columns: auto minmax(0,1fr); gap: 8px; }
+  .app-device-care .task-heading-summary { grid-column: 1; justify-self: start; }
+  .app-device-care .task-heading .task-view-toggle { grid-column: 2; width: 100%; justify-self: stretch; }
   .app-device-family .voice-settings-heading h2 { font-size: clamp(13px,3.7vw,calc(16px * var(--font-scale))); }
 }
 
@@ -2176,6 +2206,10 @@ h3,
 @media (max-width: 430px) {
   .app-device-care .care-picker-head h1 { font-size: clamp(14px,3.8vw,16px); }
   .app-device-care .emotion-topic-analysis .topic-finding-row {
+    grid-template-columns: 72px minmax(0,1fr) auto;
+    gap: 7px;
+  }
+  .app-device-care .emotion-topic-analysis .topic-finding-row.expandable > summary {
     grid-template-columns: 72px minmax(0,1fr) auto;
     gap: 7px;
   }
@@ -2259,12 +2293,12 @@ h3,
 /* 비교 기준은 오늘의 초록선과 즉시 구분되는 주황색으로 표시한다. */
 .app-device-care .radar-legend .average { color: #b96b24; }
 .app-device-care .radar-legend .average::before { border-top-color: #d98a3f; }
-.app-device-care .radar-average { stroke: #d98a3f; }
-.app-device-care .radar-average-dot { fill: var(--surface); stroke: #d98a3f; }
+.app-device-care .radar-average { fill: color-mix(in srgb,#d98a3f 16%,transparent); stroke: #d98a3f; stroke-width: 2.2; stroke-dasharray: none; }
+.app-device-care .radar-average-dot { fill: #fff8ee; stroke: #d98a3f; }
 
 /* 담당자 선택 화면은 긴 진단명까지 한 줄에서 비교할 수 있게 유지한다. */
 .app-device-care .care-picker-head h1 {
-  font-size: clamp(18px,3.5vw,24px);
+  font-size: clamp(19px,3.7vw,25px);
 }
 .app-device-care .elder-card {
   min-width: 0;
@@ -2303,7 +2337,7 @@ h3,
 
 @media (max-width: 430px) {
   .app-device-care .care-picker-head h1 {
-    font-size: 18px;
+    font-size: 19px;
     letter-spacing: -.065em;
   }
   .app-device-care .elder-card {
@@ -2317,7 +2351,8 @@ h3,
     height: 48px;
   }
   .app-device-care .elder-info small {
-    font-size: clamp(9px,2.55vw,10px);
+    font-size: clamp(9px,2.45vw,10px);
+    letter-spacing: -.06em;
   }
   .app-device-care .elder-card > .chev {
     margin-left: 0;

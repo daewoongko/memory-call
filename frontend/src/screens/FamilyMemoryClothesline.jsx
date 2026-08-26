@@ -165,12 +165,17 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
     <section className="memory-basket-section memory-step-section">
       <header><div><small>02</small><h2>아직 걸지 않은 이야기</h2></div><button type="button" className={`memory-icon-toggle memory-basket-toggle${basketOpen ? " open" : ""}`} aria-label={basketOpen ? "아직 걸지 않은 이야기 접기" : "아직 걸지 않은 이야기 펼치기"} aria-expanded={basketOpen} onClick={() => setBasketOpen((value) => !value)}><i aria-hidden="true" /></button></header>
       {basketOpen && <div className="memory-basket">
-        {pending.map((recall) => <article key={recall.utterance_id}>
-          <div className="candidate-artwork">{recall.artwork?.image_url ? <img src={recall.artwork.image_url} alt={recall.artwork.alt_text || "확인 전 그림"} /> : <span>이야기</span>}<i>확인 전 그림</i></div>
-          <div className="memory-basket-copy"><h3>{recall.summary || recall.quote || "새로운 이야기"}</h3>
+        {pending.map((recall) => {
+          const summary = String(recall.summary || "").trim();
+          const headline = summary && summary !== "새로운 이야기" && summary !== "이야기"
+            ? summary
+            : String(recall.quote || "").trim() || "내용을 확인해 주세요.";
+          return <article key={recall.utterance_id}>
+          <div className="candidate-artwork">{recall.artwork?.image_url ? <img src={recall.artwork.image_url} alt={recall.artwork.alt_text || "확인 전 사진"} /> : <span>사진</span>}<i>확인 전 사진</i></div>
+          <div className="memory-basket-copy"><h3>{headline}</h3>
             <nav><button className="approve" onClick={() => beginReview(recall, "verified")}>확인</button><button className="partial" onClick={() => beginReview(recall, "partial")}>일부만</button><button className="delete" onClick={() => run(() => api.reviewRecall(recall.utterance_id, { decision: "rejected" }, elderId))}>삭제</button></nav>
           </div>
-        </article>)}
+        </article>})}
         {!pending.length && <p>확인을 기다리는 새 이야기가 없습니다.</p>}
       </div>}
     </section>

@@ -31,7 +31,7 @@ test("care manager uses one Aa display control instead of the wide display dock"
   assert.match(theme, /\.manager-stat-grid\.manager-stat-strip \{[\s\S]*?overflow: visible/);
   assert.match(theme, /grid-template-columns: repeat\(6,minmax\(0,1fr\)\)/);
   assert.match(theme, /\.app-device-care \.sidebar-elder-panel \{[\s\S]*?grid-template-columns: minmax\(0,1fr\) 50px/);
-  assert.match(theme, /\.app-device-care \.radar-average \{ stroke: #d98a3f; \}/);
+  assert.match(theme, /\.app-device-care \.radar-average \{ fill: color-mix\(in srgb,#d98a3f 16%,transparent\); stroke: #d98a3f; stroke-width: 2\.2; stroke-dasharray: none; \}/);
   assert.match(careManager, /className="care-manager-loading" role="status"/);
   assert.match(theme, /\.app-device-care \.elder-info small \{[\s\S]*?white-space: nowrap/);
   assert.match(styles, /\.radar-average \{ fill:color-mix\(in srgb,#d98a3f 11%,transparent\); stroke:#d98a3f; stroke-dasharray:none/);
@@ -65,11 +65,14 @@ test("family settings raises the small supporting text sizes", () => {
 
 test("care checklist centers its count and omits the repeated date", () => {
   assert.doesNotMatch(careTasks, /const dateLabel/);
-  assert.match(careTasks, /<h2>할 일 <span>\{tasks \? `\$\{tasks\.completed\}\/\$\{tasks\.total\}` : "-\/-"\}<\/span> <small>기록 완료<\/small><\/h2>/);
+  assert.match(careTasks, /<h2>할 일 <span>\{tasks \? `\$\{tasks\.completed\}\/\$\{tasks\.total\}` : "-\/-"\}<\/span><\/h2>/);
+  assert.doesNotMatch(careTasks, /기록 완료/);
+  assert.match(careTasks, /<div className="task-view-toggle"><button[\s\S]*?>시간순<\/button><button[\s\S]*?>환자별<\/button><\/div>/);
   assert.doesNotMatch(careManager, /taskProgress|setTaskProgress/);
   assert.doesNotMatch(careManager, /sidebar-nav[\s\S]*?<em>\{taskProgress\.completed\}/);
   assert.match(theme, /\.app-device-care \.sidebar-nav button:not\(:has\(> span\)\) \{ justify-content: center; text-align: center; \}/);
-  assert.match(theme, /\.app-device-care \.task-heading-summary[\s\S]*?text-align: center/);
+  assert.match(theme, /\.app-device-care \.task-heading-summary[\s\S]*?text-align: left/);
+  assert.match(theme, /\.app-device-care \.care-task-workspace[\s\S]*?overflow-x: clip/);
 });
 
 test("handover omits the repeated date and uses one readable task flow", () => {
@@ -78,10 +81,16 @@ test("handover omits the repeated date and uses one readable task flow", () => {
   assert.doesNotMatch(handover, /<header><h2>인계<\/h2><\/header>/);
   assert.match(handover, /className="handover-groups"/);
   assert.match(handover, /className="handover-group pending"/);
+  assert.match(handover, /<details className="handover-group pending">/);
+  assert.match(handover, /<summary><span>다음 근무자가 볼 것<\/span><b>\{incomplete\.length\}건<\/b>/);
+  assert.match(handover, /<details className="handover-group completed">/);
+  assert.match(handover, /<summary><span>오늘 확인한 것<\/span><b>\{completed\.length\}\/\{rows\.length\}<\/b>/);
   assert.match(handover, /<details className=\{`handover-item/);
   assert.match(handover, /className="handover-item-detail"/);
   assert.match(styles, /\.handover-item > summary \{ display:grid; grid-template-columns:86px minmax\(0,1fr\) auto 18px/);
   assert.match(styles, /\.handover-item-detail \{ display:grid;/);
+  assert.match(styles, /\.handover-group > summary \{ display:grid;/);
+  assert.match(styles, /\.handover-group\[open\] > summary i \{ transform:rotate\(180deg\); \}/);
 });
 
 test("care insight shows the eight-domain radar before the observation summary", () => {
@@ -111,7 +120,8 @@ test("emotion topic analysis uses conditional findings, three statuses, and one 
   assert.match(careReports, /className="topic-scatter"/);
   assert.match(careReports, /viewBox="0 0 790 525"/);
   assert.match(careReports, /className=\{`topic-quote/);
-  assert.match(careReports, /latestRisk\.quote \|\| latestRisk\.evidence/);
+  assert.match(careReports, /finding\.risk\.quote \|\| finding\.risk\.evidence/);
+  assert.match(careReports, /className=\{`topic-finding-row \$\{finding\.status\.key\} expandable`\}/);
   assert.match(careReports, /className="topic-risk-ring"/);
   assert.match(careReports, /\{item\.calls\}통 · 부담 \{Math\.round\(item\.burden \* 100\)\}%/);
   assert.doesNotMatch(careReports, /TOPIC_EMOTION_COLOR|TOPIC_EMOTION_ACTION|topic-emotion-legend/);
@@ -137,7 +147,16 @@ test("emotion topic analysis uses conditional findings, three statuses, and one 
   assert.match(emotionSeed, /"topics": len\(analytics\["emotion_topics"\]\)/);
 });
 
-test("time regression keeps the evidence inside its highlighted life-stage summary", () => {
-  assert.match(careReports, /className="life-road-summary"[\s\S]*?<blockquote>“\{destination\.quote\}”<span>\{destination\.count\}회 관찰<\/span><\/blockquote>/);
-  assert.doesNotMatch(careReports, /className="journey-evidence"/);
+test("time regression road fits the card without a duplicate stage summary", () => {
+  assert.match(careReports, /className="life-road" viewBox="0 0 760 250"/);
+  assert.doesNotMatch(careReports, /className="life-road-summary"/);
+  assert.doesNotMatch(careReports, /이번 기록에서 가장 많이 연결된 시절/);
+  assert.match(styles, /\.life-road \{ display:block; width:100%; min-width:0; height:auto;/);
+});
+
+test("care report removes weekday heatmap and keeps risk detail inside the immediate finding", () => {
+  assert.doesNotMatch(careReports, /<WeekdayTimeHeatmap|compact-rhythm-report|요일 × 시간대 통화 밀도/);
+  assert.match(careReports, /<details className=\{`topic-finding-row/);
+  assert.match(careReports, /<summary><span>\{finding\.status\.label\}<\/span>/);
+  assert.doesNotMatch(careReports, /\{latestRisk && <blockquote/);
 });

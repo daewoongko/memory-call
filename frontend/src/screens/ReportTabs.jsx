@@ -249,53 +249,6 @@ function CareDomainRadar({ todayItems, averageItems }) {
   </section>;
 }
 
-function WeekdayTimeHeatmap({ baselineSummary, selectedDate, onSelectDate }) {
-  const heatmap = baselineSummary?.rhythm?.weekday_time_heatmap;
-  const weekdays = heatmap?.weekdays || [];
-  const timeBlocks = heatmap?.time_blocks || [];
-  const cells = heatmap?.cells || [];
-  const cellMap = new Map(cells.map((cell) => [`${cell.weekday}-${cell.start_hour}`, cell]));
-  const observedValues = [...new Set(cells.map((cell) => Number(cell.average_per_day || 0)).filter((value) => value > 0))].sort((a, b) => a - b);
-  const selectedWeekday = selectedDate
-    ? (new Date(`${selectedDate}T12:00:00`).getDay() + 6) % 7
-    : -1;
-  const intensity = (value) => {
-    if (!value || !observedValues.length) return 0;
-    const rank = observedValues.findIndex((candidate) => candidate >= value);
-    if (observedValues.length === 1) return 7;
-    return Math.max(1, Math.min(7, 1 + Math.round(rank / (observedValues.length - 1) * 6)));
-  };
-  const peakCell = cells.slice().sort((a, b) => b.average_per_day - a.average_per_day)[0];
-  const selectWeekday = (weekday, cell = null) => {
-    if (!selectedDate || !onSelectDate) return;
-    const target = new Date(`${selectedDate}T12:00:00`);
-    const currentWeekday = (target.getDay() + 6) % 7;
-    target.setDate(target.getDate() - ((currentWeekday - weekday + 7) % 7));
-    const localDate = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
-    onSelectDate(localDate, cell);
-  };
-  return <figure className="weekday-time-heatmap">
-    <div className="heatmap-primary-insight">{peakCell?.average_per_day > 0 ? <><span>통화 집중 시간</span><strong>{peakCell.weekday_label}요일 {String(peakCell.start_hour).padStart(2, "0")}–{String(peakCell.end_hour).padStart(2, "0")}시</strong><p>하루 평균 <b>{Number(peakCell.average_per_day).toFixed(1)}통</b>으로 가장 많이 모였습니다.</p></> : <p>최근 30일에 비교할 통화가 없습니다.</p>}</div>
-    <header><b>요일 × 시간대 통화 밀도</b><div className="heatmap-legend"><span>적음</span><i className="heatmap-gradient" /><span>많음</span></div></header>
-    {weekdays.length && timeBlocks.length ? <div className="heatmap-scroll"><div className="heatmap-grid" aria-label="최근 30일 요일과 시간대별 평균 통화량 히트맵">
-      <span className="heatmap-corner">요일</span>
-      {timeBlocks.map((block) => <span className="heatmap-hour" key={block.start_hour}>{String(block.start_hour).padStart(2, "0")}</span>)}
-      {weekdays.map((weekday) => <div className={`heatmap-row ${weekday.weekday === selectedWeekday ? "selected" : ""}`} key={weekday.weekday}>
-        <button type="button" className="heatmap-weekday" onClick={() => selectWeekday(weekday.weekday)} aria-pressed={weekday.weekday === selectedWeekday}>{weekday.label}<small>{weekday.weekday === selectedWeekday ? "선택일" : `${weekday.days_observed}일`}</small></button>
-        {timeBlocks.map((block) => {
-          const cell = cellMap.get(`${weekday.weekday}-${block.start_hour}`) || { calls: 0, average_per_day: 0, days_observed: weekday.days_observed };
-          const average = Number(cell.average_per_day || 0);
-          const level = intensity(average);
-          const showValue = weekday.weekday === selectedWeekday || level >= 5;
-          return <button type="button" className={`heatmap-cell heat-${level} ${showValue ? "show-value" : ""}`} key={block.start_hour} onClick={() => selectWeekday(weekday.weekday, { ...cell, time_label: block.label })} title={`${weekday.label}요일 ${block.label} · 총 ${cell.calls}통 / ${cell.days_observed}일 · 하루 평균 ${average.toFixed(1)}통`} aria-label={`${weekday.label}요일 ${block.label}, 하루 평균 ${average.toFixed(1)}통. 상세 미리보기`}>
-            <span>{average ? average.toFixed(1) : "–"}</span>
-          </button>;
-        })}
-      </div>)}
-    </div></div> : <p className="empty-state">요일별 통화 기록을 집계하고 있습니다.</p>}
-  </figure>;
-}
-
 function buildDeviations(daySummary, baselineSummary) {
   const todayCounts = signalCounts(daySummary);
   const baselineCounts = signalCounts(baselineSummary);
@@ -467,7 +420,7 @@ function TimeRegressionJourney({ data = {} }) {
   const maxAge = Math.max(90, currentAge);
   const roadPoint = (age) => {
     const ratio = Math.max(0, Math.min(1, age / maxAge));
-    return { x: 70 + ratio * 860, y: 156 + Math.sin(ratio * Math.PI * 3) * 72 };
+    return { x: 55 + ratio * 650, y: 124 + Math.sin(ratio * Math.PI * 3) * 48 };
   };
   const roadPoints = Array.from({ length: 91 }, (_, index) => roadPoint(index / 90 * maxAge));
   const journeyPoints = roadPoints.map((point) => `${point.x},${point.y}`).join(" ");
@@ -490,7 +443,7 @@ function TimeRegressionJourney({ data = {} }) {
   return <section className="dashboard-card regression-journey">
     <header><div><span>02</span><h2>시간 역행 지점</h2></div><strong>현재 {currentAge}세</strong></header>
     <div className="life-road-wrap">
-      <svg className="life-road" viewBox="0 0 1000 320" role="img" aria-label={`현재 ${currentAge}세에서 ${destination?.label || "과거 역할"}로 이어지는 인생 여정`}>
+      <svg className="life-road" viewBox="0 0 760 250" role="img" aria-label={`현재 ${currentAge}세에서 ${destination?.label || "과거 역할"}로 이어지는 인생 여정`}>
         <polyline className="life-road-base" points={journeyPoints} />
         <polyline className="life-road-center" points={journeyPoints} />
         {travelledPoints && <polyline className="life-road-travelled" points={travelledPoints} />}
@@ -506,7 +459,6 @@ function TimeRegressionJourney({ data = {} }) {
         {destinationPoint && <g className="life-regression-marker" transform={`translate(${destinationPoint.x} ${destinationPoint.y})`}><circle r="13" /><circle r="5" /><text y="-22">{destination.label} 발화</text></g>}
         <g className="life-current-marker" transform={`translate(${currentPoint.x} ${currentPoint.y})`}><circle r="14" /><circle r="5" /><text y="-23">현재 {currentAge}세</text></g>
       </svg>
-      {destination && <div className="life-road-summary"><small>이번 기록에서 가장 많이 연결된 시절</small><strong>{destination.label}<em>{destination.age_from}~{destination.age_to}세 무렵</em></strong><p>현재 시점에서 인생길을 따라 약 {Math.max(0, currentAge - destination.age)}년 전 역할의 발화가 관찰됐습니다.</p><blockquote>“{destination.quote}”<span>{destination.count}회 관찰</span></blockquote></div>}
     </div>
     {!destination && <p className="empty-state">과거 역할과 연결되는 직접 발화가 확인되지 않았습니다.</p>}
   </section>;
@@ -541,11 +493,18 @@ function TopicFindings({ tendency, topics, risks }) {
   const findings = [];
   const riskTopic = topics.slice().sort((a, b) => Number(b.risk_count || 0) - Number(a.risk_count || 0))[0];
   const riskDates = [...new Set(risks.map((risk) => compactDay(risk.at)))].slice(0, 3).join(", ");
+  const orderedRisks = risks.slice().sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+  const latestRisk = orderedRisks.find((risk) => !risk.acknowledged) || orderedRisks[0] || null;
+  const latestRiskTopic = latestRisk
+    ? topics.find((item) => (item.risk_types || []).includes(latestRisk.type))?.topic || "건강"
+    : "";
   if (risks.length) {
     findings.push({
       status: TOPIC_STATUS.now,
       text: `${riskTopic?.risk_count ? riskTopic.topic : "건강"} 이야기에서 위험 발화${riskDates ? ` · ${riskDates}` : ""}`,
       metric: `${risks.length}건`,
+      risk: latestRisk,
+      riskTopic: latestRiskTopic,
     });
   }
 
@@ -581,7 +540,13 @@ function TopicFindings({ tendency, topics, risks }) {
   }
 
   return <div className="topic-findings">
-    {findings.map((finding, index) => <div className={`topic-finding-row ${finding.status.key}`} key={`${finding.status.key}-${index}`}>
+    {findings.map((finding, index) => finding.risk ? <details className={`topic-finding-row ${finding.status.key} expandable`} key={`${finding.status.key}-${index}`}>
+      <summary><span>{finding.status.label}</span><p>{finding.text}</p><strong>{finding.metric}<i aria-hidden="true">⌄</i></strong></summary>
+      <blockquote className={`topic-quote ${finding.risk.level === "high" ? "high" : "medium"}`}>
+        <header><span>{RISK_LABEL[finding.risk.type] || finding.risk.type}</span><time>{compactRiskStamp(finding.risk.at)} · {finding.riskTopic}</time></header>
+        <p>“{finding.risk.quote || finding.risk.evidence}”</p>
+      </blockquote>
+    </details> : <div className={`topic-finding-row ${finding.status.key}`} key={`${finding.status.key}-${index}`}>
       <span>{finding.status.label}</span><p>{finding.text}</p><strong>{finding.metric}</strong>
     </div>)}
   </div>;
@@ -662,11 +627,6 @@ function EmotionTopicMap({ topics = [], tendency = null, risks = [] }) {
       labelByTopic.set(item.topic, { y, x: item.x + side * (item.radius + 13), side });
     });
   });
-  const orderedRisks = risks.slice().sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
-  const latestRisk = orderedRisks.find((risk) => !risk.acknowledged) || orderedRisks[0] || null;
-  const latestRiskTopic = latestRisk
-    ? points.find((item) => (item.risk_types || []).includes(latestRisk.type))?.topic || "건강"
-    : "";
   return <section className="dashboard-card emotion-topic-analysis">
     <header><div><span>03</span><h2>정서 유발 주제</h2></div></header>
     <TopicFindings tendency={tendency} topics={points} risks={risks} />
@@ -695,10 +655,6 @@ function EmotionTopicMap({ topics = [], tendency = null, risks = [] }) {
           <text className="topic-axis-title" x={(plot.left + plot.right) / 2} y="490">주제가 나온 통화의 평균 시간</text>
         </svg>
       </div>
-      {latestRisk && <blockquote className={`topic-quote ${latestRisk.level === "high" ? "high" : "medium"}`}>
-        <header><span>{RISK_LABEL[latestRisk.type] || latestRisk.type}</span><time>{compactRiskStamp(latestRisk.at)} · {latestRiskTopic}</time></header>
-        <p>“{latestRisk.quote || latestRisk.evidence}”</p>
-      </blockquote>}
       <div className="topic-legend">
         {Object.values(TOPIC_STATUS).map((status) => <span key={status.key}><i style={{ background: status.color }} /><b>{status.label}</b>{status.hint && <small>— {status.hint}</small>}</span>)}
       </div>
@@ -725,7 +681,6 @@ export default function ReportTabs({
   const [tab, setTab] = useState(initialTab);
   const [busy, setBusy] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [heatmapPreview, setHeatmapPreview] = useState(null);
   const [expandedPrioritySignal, setExpandedPrioritySignal] = useState("");
   const [showPrioritySignals, setShowPrioritySignals] = useState(true);
   const [showDecreases, setShowDecreases] = useState(false);
@@ -735,7 +690,6 @@ export default function ReportTabs({
 
   useEffect(() => {
     setExpandedPrioritySignal("");
-    setHeatmapPreview(null);
   }, [elderId, summary.since, summary.until]);
   useEffect(() => { setTab(initialTab); }, [initialTab]);
 
@@ -777,13 +731,6 @@ export default function ReportTabs({
     { label: "안전 신호", value: summary.risks.length, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.risk_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.risk_count || 0), status: unread.length ? `미확인 ${unread.length}건` : "모두 확인" },
   ];
   const priorityTasks = useMemo(() => buildPriorityTasks(deviations, summary.risks, summary.medication), [deviations, summary.risks, summary.medication]);
-  function openHeatmapPreview(dateValue, cell = null) {
-    const day = (activeBaseline.daily_reports || []).find((row) => row.date === dateValue)
-      || (activeDaySummary?.daily_reports || []).find((row) => row.date === dateValue);
-    if (day) setHeatmapPreview({ day, cell });
-    else onPeriod?.({ mode: "day", value: dateValue });
-  }
-
   return <div className="report-dashboard">
     {!hideToolbar && <div className="report-toolbar">
       <nav className="cat-tabs">
@@ -857,8 +804,6 @@ export default function ReportTabs({
         </aside>
       </div>
 
-      <section className="dashboard-card compact-rhythm-report"><header><div><h2>최근 30일 통화 습관</h2></div></header><WeekdayTimeHeatmap baselineSummary={activeBaseline} selectedDate={activeDaySummary?.since} onSelectDate={openHeatmapPreview} /></section>
-
     </>}
 
 
@@ -882,17 +827,6 @@ export default function ReportTabs({
       onAck={ack}
       busy={busy}
     />}
-
-    {heatmapPreview && <HeatmapDayPreviewModal
-      preview={heatmapPreview}
-      elderName={elderName}
-      onClose={() => setHeatmapPreview(null)}
-      onOpenDetail={() => {
-        setSelectedDay(heatmapPreview.day);
-        setHeatmapPreview(null);
-      }}
-    />}
-
 
   </div>;
 }

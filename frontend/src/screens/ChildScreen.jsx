@@ -72,7 +72,7 @@ function completeDiaryWriting(value, title) {
   if (writing.length < 68) {
     writing = `${writing} 오늘 통화에서 ${title}에 관한 이야기를 천천히 들려주셨다. 다소니는 그 장면을 오래 간직할 수 있도록 한 장의 그림일기로 정리했다.`.trim();
   }
-  return writing.slice(0, 118).trim();
+  return writing;
 }
 
 const CALL_TYPES = {
@@ -197,6 +197,10 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       demo: true,
     }] : []),
   ];
+  const diaryHeaderMessage = urgent.length > 0
+    ? `“${urgent[0].evidence}”\n${urgent[0].action || "현재 상태를 가족이 직접 확인해 주세요."}`
+    : quotedFamilyInsight;
+  const diaryWritingRows = Math.max(7, Math.ceil([...diaryWritingText].length / 12));
   const callTypeCounts = useMemo(() => calls.reduce((counts, call) => {
     const type = CALL_TYPES[call.call_type] ? call.call_type : "ai";
     counts[type] += 1;
@@ -312,7 +316,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       <button type="button" className={`child-brand child-brand-home${tab === "home" ? " on" : ""}`} onClick={() => { setSelectedDate(todayKey); setTab("home"); }} aria-label="다소니 메인 홈으로 이동">
         <BrandMark size={34} />
       </button>
-      {tab === "today" && <blockquote className="child-header-diary-note" aria-label="다소니가 전하는 오늘의 한마디"><span>{quotedFamilyInsight}</span></blockquote>}
+      {tab === "today" && <blockquote className="child-header-diary-note" data-attention={urgent.length > 0 ? "true" : undefined} aria-label={urgent.length ? "다소니가 전하는 가족 확인 안내" : "다소니가 전하는 오늘의 한마디"}><span>{diaryHeaderMessage}</span>{urgent.length > 1 && <b>{urgent.length}건</b>}</blockquote>}
       {tab === "memories" && <div className="child-header-memory-title"><strong>가족 추억함</strong><span>{picked.name} 어르신과 AI가 함께 이야기할 수 있는 추억을 관리해요.</span></div>}
       {tab === "calls" && <div className="child-header-call-title"><strong>{shortDate(selectedDate)} 통화 이야기</strong><span>{calls.length}통 · {duration(totalCallDuration)}</span></div>}
       {tab === "settings" && <div className="child-header-reachable"><strong className={listening ? "device-live" : "device-idle"}>“{listening ? "지금 전화를 받을 수 있어요" : "지금은 다소니가 대신 받아요"}”</strong><span>{listening ? "화면을 켜 두면 어르신의 전화가 이 폰으로 와요." : "화면을 켜고 기다리면 가족 전화가 다시 연결돼요."}</span></div>}
@@ -371,16 +375,9 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
             </figure>
             <section className="child-diary-page">
               <header className="child-diary-title-row"><span>제목</span><h1 style={{ "--diary-title-fit": diaryTitleFit }}>{diaryDisplayTitle}</h1></header>
-              <div className="child-diary-writing" aria-label={diaryWritingText}>{[...diaryWritingText].map((letter, index) => <span className={letter === " " ? "blank" : ""} aria-hidden="true" key={`${letter}-${index}`}>{letter === " " ? "\u00a0" : letter}</span>)}</div>
+              <div className="child-diary-writing" style={{ "--diary-rows": diaryWritingRows }} aria-label={diaryWritingText}>{[...diaryWritingText].map((letter, index) => <span className={letter === " " ? "blank" : ""} aria-hidden="true" key={`${letter}-${index}`}>{letter === " " ? "\u00a0" : letter}</span>)}</div>
             </section>
           </article>
-          {urgent.length > 0 && <section className="child-alert child-alert-prominent" role="alert" aria-label="가족이 직접 확인할 이야기">
-            <header><span className="child-alert-icon" aria-hidden="true">!</span><div><small>오늘 꼭 살펴봐 주세요</small><h2>가족이 직접 확인할 이야기</h2></div><b>{urgent.length}건</b></header>
-            <div className="child-alert-items">{urgent.map((risk) => <article key={risk.event_id}>
-              <q>{risk.evidence}</q>
-              <p>{risk.action || "현재 상태를 가족이 직접 확인해 주세요."}</p>
-            </article>)}</div>
-          </section>}
         </section>}
 
         {tab === "memories" && <section className="child-memory-page">

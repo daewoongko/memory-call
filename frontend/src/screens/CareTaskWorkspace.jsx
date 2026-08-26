@@ -141,7 +141,7 @@ export default function CareTaskWorkspace({ elderId, summary, baselineSummary, p
     </nav>
     {subtab === "checklist" ? <>
       {tasks?.latest_handover && <button className="handover-banner" type="button" onClick={onOpenHandover}><span>{({ day: "주간", evening: "저녁", night: "야간" })[tasks.latest_handover.shift]} 근무 인계 {handoverCount ? `${handoverCount}건` : ""}</span><b>{tasks.latest_handover.note || "메모 없음"}</b><em>보기 ›</em></button>}
-      <header className="task-heading"><div className="task-heading-summary"><h2>할 일 <span>{tasks ? `${tasks.completed}/${tasks.total}` : "-/-"}</span> <small>기록 완료</small></h2></div><div className="task-view-toggle"><button className={mode === "time" ? "on" : ""} onClick={() => setMode("time")}>시간순</button><button className={mode === "elder" ? "on" : ""} onClick={() => setMode("elder")}>환자별</button></div></header>
+      <header className="task-heading"><div className="task-heading-summary"><h2>할 일 <span>{tasks ? `${tasks.completed}/${tasks.total}` : "-/-"}</span></h2></div><div className="task-view-toggle"><button className={mode === "time" ? "on" : ""} onClick={() => setMode("time")}>시간순</button><button className={mode === "elder" ? "on" : ""} onClick={() => setMode("elder")}>환자별</button></div></header>
       {error && <p className="error">{error}</p>}
       <div className="care-task-groups">{groups.map((group) => <TaskGroup key={`${mode}-${group.label}`} group={group} asOf={period.value} busy={busy} onAcknowledge={acknowledge} onDoseStatus={setDoseStatus} onOpenMedication={openMedication} />)}</div>
       {!allRows.length && tasks && <p className="empty-state">선택한 날짜에 확인할 항목이 없습니다.</p>}

@@ -50,6 +50,20 @@ def main() -> None:
                 check=True,
             )
 
+        # 기존 영구 데모 DB도 담당자 관점의 진단명과 요양원 생활실 정보로
+        # 즉시 정규화한다. 통화·사용자 데이터는 건드리지 않는다.
+        demo_care_profiles = (
+            ("알츠하이머 치매 · 고혈압", "요양원 1층 생활실", "elder_001"),
+            ("루이소체 치매 · 파킨슨증", "요양원 2층 생활실", "elder_002"),
+            ("혈관성 치매 · 고혈압 · 뇌경색 과거력", "요양원 3층 생활실", "elder_003"),
+        )
+        with db.connect() as conn:
+            conn.executemany(
+                "UPDATE elder_profiles SET diagnosis_label=?, residence_type=? WHERE elder_id=?",
+                demo_care_profiles,
+            )
+            conn.commit()
+
         # 7·8·9월 시연에서는 세 환자의 차이가 같은 집계 화면에서 분명히
         # 드러나야 한다. 전용 접두사만 교체하는 멱등 시드이므로 실제 통화는
         # 보존하며, 중간에 끊겨 일부만 적재된 경우에도 다음 시작 때 복구한다.
