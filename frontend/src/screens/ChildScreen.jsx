@@ -409,7 +409,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
 
         {tab === "settings" && <section className="child-family-settings">
           {!myPersona && readyPersonas.length > 1 ? <div className="family-legacy-picker">
-            <header><span>내 프로필 선택</span><h1>통화에서 사용할 나를 선택해 주세요</h1></header>
+            <header><h1>통화에서 사용할 나를 선택해 주세요</h1></header>
             <div>{readyPersonas.map((persona) => <button type="button" key={persona.persona_id} onClick={() => onMyPersonaChange?.(persona.persona_id)}>{persona.face ? <img src={persona.face} alt="" /> : <i>{persona.display_name?.slice(0, 1)}</i>}<b>{persona.display_name}</b><small>{persona.relationship}</small></button>)}</div>
           </div> : <FamilyPersonaSettings elderId={picked.elder_id} personaId={myPersona?.persona_id || ""} summary={myPersona} />}
         </section>}
