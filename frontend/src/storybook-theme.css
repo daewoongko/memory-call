@@ -2076,6 +2076,9 @@ h3,
 .app-device-care .task-subtabs,
 .app-device-care .care-task-groups { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
 .app-device-care .care-task-workspace { overflow-x: clip; }
+.app-device-care .handover-workspace,
+.app-device-care .handover-groups,
+.app-device-care .handover-group { overflow-x: hidden; }
 
 /* 가족 설정의 안내와 조작 글자는 기본 크기에서도 또렷하게 보이도록 올린다. */
 .app-device-family .child-family-settings > header > p:last-child,
@@ -2152,9 +2155,19 @@ h3,
   .app-device-care .care-picker-head h1 { font-size: clamp(14px,4.2vw,calc(18px * var(--font-scale))); }
   .app-device-care .sidebar-elder-panel { grid-template-columns: minmax(0,1fr); gap: 0; }
   .app-device-care .sidebar-elder-date { grid-template-columns: minmax(0,1fr); margin-top: 8px; padding: 8px 0 0; border-top: 1px solid var(--line); border-left: 0; }
-  .app-device-care .task-heading { grid-template-columns: auto minmax(0,1fr); gap: 8px; }
+  .app-device-care .care-task-workspace,
+  .app-device-care .handover-workspace { width: 100%; min-width: 0; max-width: 100%; padding-inline: 0; overflow-x: clip; }
+  .app-device-care .task-heading { grid-template-columns: minmax(82px,auto) minmax(0,1fr); gap: 4px; padding: 0 2px 5px; }
   .app-device-care .task-heading-summary { grid-column: 1; justify-self: start; }
   .app-device-care .task-heading .task-view-toggle { grid-column: 2; width: 100%; justify-self: stretch; }
+  .app-device-care .task-heading-summary h2 { font-size: clamp(17px,4.8vw,20px); }
+  .app-device-care .handover-groups,
+  .app-device-care .handover-group,
+  .app-device-care .handover-group > summary,
+  .app-device-care .handover-item,
+  .app-device-care .handover-item > summary { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .app-device-care .handover-group > summary > span,
+  .app-device-care .handover-item > summary > span { min-width: 0; overflow-wrap: anywhere; }
   .app-device-family .voice-settings-heading h2 { font-size: clamp(13px,3.7vw,calc(16px * var(--font-scale))); }
 }
 

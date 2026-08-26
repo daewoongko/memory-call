@@ -165,7 +165,10 @@ def _live_guardian_count(conn, persona_id: str | None) -> int:
 # ------------------------------------------------------------------ 호출
 
 def create(elder_id: str, persona_id: str | None,
-           from_device: str | None = None) -> dict:
+           from_device: str | None = None, *, purpose: str = "family",
+           alert_type: str | None = None,
+           alert_evidence: str | None = None,
+           source_call_id: str | None = None) -> dict:
     """어르신이 가족에게 전화를 건다."""
     invite_id = f"invite_{uuid.uuid4().hex[:12]}"
     with db.connect() as conn:
@@ -180,10 +183,38 @@ def create(elder_id: str, persona_id: str | None,
             "state": RINGING,
             "ring_timeout_sec": DEFAULT_RING_SEC,
             "no_live_device": 0 if live else 1,
+            "purpose": purpose,
+            "alert_type": alert_type,
+            "alert_evidence": alert_evidence,
+            "source_call_id": source_call_id,
             "created_at": _now(),
         })
         conn.commit()
     return get(invite_id)
+
+
+def create_risk_alert(elder_id: str, persona_id: str | None,
+                      source_call_id: str, risk: dict) -> dict:
+    """위험 발화를 보호자에게 한 번만 역호출한다.
+
+    같은 AI 통화에서 같은 문장이 반복돼도 보호자 전화가 여러 번 울리지 않게
+    source_call_id 로 멱등성을 보장한다.
+    """
+    with db.connect() as conn:
+        existing = conn.execute(
+            "SELECT invite_id FROM call_invites "
+            "WHERE purpose = 'risk' AND source_call_id = ? "
+            "ORDER BY created_at DESC LIMIT 1",
+            (source_call_id,),
+        ).fetchone()
+    if existing:
+        return get(existing["invite_id"])
+    return create(
+        elder_id, persona_id, purpose="risk",
+        alert_type=str(risk.get("type") or "risk"),
+        alert_evidence=str(risk.get("evidence") or "위험 발화가 확인되었습니다."),
+        source_call_id=source_call_id,
+    )
 
 
 def _expire_if_due(conn, row: dict) -> dict:
@@ -229,13 +260,16 @@ def _decorate(row: dict) -> dict:
     remaining = 0.0
     if row["state"] == RINGING:
         remaining = max(0.0, row["ring_timeout_sec"] - _elapsed(row["created_at"]))
+    # 위험 발화 역호출은 보호자가 즉시 받아야 하므로 가족 호출용 24초
+    # 아바타 소개 구간을 적용하지 않는다.
+    intro_duration = 0 if row.get("purpose") == "risk" else INTRO_DURATION_SEC
     intro_remaining = max(
-        0.0, INTRO_DURATION_SEC - _elapsed(row.get("created_at")),
+        0.0, intro_duration - _elapsed(row.get("created_at")),
     )
     return {
         **row,
         "seconds_left": round(remaining, 1),
-        "intro_duration_sec": INTRO_DURATION_SEC,
+        "intro_duration_sec": intro_duration,
         "intro_seconds_left": round(intro_remaining, 1),
         "intro_complete": intro_remaining <= 0,
         # 화면은 이 값만 보고 분기하면 된다. 상태 이름을 화면마다 해석하면

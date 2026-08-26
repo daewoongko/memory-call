@@ -67,6 +67,12 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "call_events": {
         "acknowledged_at": "TEXT",
     },
+    "call_invites": {
+        "purpose": "TEXT NOT NULL DEFAULT 'family'",
+        "alert_type": "TEXT",
+        "alert_evidence": "TEXT",
+        "source_call_id": "TEXT",
+    },
     "memories": {
         "photo_url": "TEXT",
         "happened_year": "INTEGER",

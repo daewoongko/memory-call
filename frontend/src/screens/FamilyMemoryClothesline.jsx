@@ -169,10 +169,10 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
           const summary = String(recall.summary || "").trim();
           const headline = summary && summary !== "새로운 이야기" && summary !== "이야기"
             ? summary
-            : String(recall.quote || "").trim() || "내용을 확인해 주세요.";
+            : String(recall.quote || "").trim() || "통화에서 나온 이야기를 가족 기억과 대조해 주세요.";
           return <article key={recall.utterance_id}>
           <div className="candidate-artwork">{recall.artwork?.image_url ? <img src={recall.artwork.image_url} alt={recall.artwork.alt_text || "확인 전 사진"} /> : <span>사진</span>}<i>확인 전 사진</i></div>
-          <div className="memory-basket-copy"><h3>{headline}</h3>
+          <div className="memory-basket-copy"><small className="memory-review-state">확인 필요 · 통화에서 발견</small><h3>{headline}</h3>
             <nav><button className="approve" onClick={() => beginReview(recall, "verified")}>확인</button><button className="partial" onClick={() => beginReview(recall, "partial")}>일부만</button><button className="delete" onClick={() => run(() => api.reviewRecall(recall.utterance_id, { decision: "rejected" }, elderId))}>삭제</button></nav>
           </div>
         </article>})}

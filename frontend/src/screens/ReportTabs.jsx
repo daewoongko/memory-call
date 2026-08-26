@@ -460,6 +460,11 @@ function TimeRegressionJourney({ data = {} }) {
         <g className="life-current-marker" transform={`translate(${currentPoint.x} ${currentPoint.y})`}><circle r="14" /><circle r="5" /><text y="-23">현재 {currentAge}세</text></g>
       </svg>
     </div>
+    {destination && <aside className="life-road-cause">
+      <small>이 시점으로 이어진 말</small>
+      <strong>{destination.label} · {destination.count}회 관찰</strong>
+      {destination.quote && <blockquote>“{destination.quote}”</blockquote>}
+    </aside>}
     {!destination && <p className="empty-state">과거 역할과 연결되는 직접 발화가 확인되지 않았습니다.</p>}
   </section>;
 }
@@ -539,16 +544,26 @@ function TopicFindings({ tendency, topics, risks }) {
     });
   }
 
+  const watchFindings = findings.filter((finding) => finding.status.key === "watch");
+  const primaryFindings = findings.filter((finding) => finding.status.key !== "watch");
+
   return <div className="topic-findings">
-    {findings.map((finding, index) => finding.risk ? <details className={`topic-finding-row ${finding.status.key} expandable`} key={`${finding.status.key}-${index}`}>
+    {primaryFindings.map((finding, index) => finding.risk ? <details className={`topic-finding-row ${finding.status.key} expandable`} key={`${finding.status.key}-${index}`}>
       <summary><span>{finding.status.label}</span><p>{finding.text}</p><strong>{finding.metric}<i aria-hidden="true">⌄</i></strong></summary>
       <blockquote className={`topic-quote ${finding.risk.level === "high" ? "high" : "medium"}`}>
         <header><span>{RISK_LABEL[finding.risk.type] || finding.risk.type}</span><time>{compactRiskStamp(finding.risk.at)} · {finding.riskTopic}</time></header>
         <p>“{finding.risk.quote || finding.risk.evidence}”</p>
+        <footer>{finding.risk.action || finding.risk.meaning || "현재 상태와 주변 환경을 직접 확인해 주세요."}</footer>
       </blockquote>
     </details> : <div className={`topic-finding-row ${finding.status.key}`} key={`${finding.status.key}-${index}`}>
       <span>{finding.status.label}</span><p>{finding.text}</p><strong>{finding.metric}</strong>
     </div>)}
+    {watchFindings.length > 0 && <details className="topic-finding-row watch expandable topic-watch-group">
+      <summary><span>지켜보기</span><p>조금 더 살펴볼 변화</p><strong>{watchFindings.length}건<i aria-hidden="true">⌄</i></strong></summary>
+      <div className="topic-watch-details">
+        {watchFindings.map((finding, index) => <p key={`watch-${index}`}><span>{finding.text}</span><b>{finding.metric}</b></p>)}
+      </div>
+    </details>}
   </div>;
 }
 

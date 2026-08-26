@@ -108,7 +108,8 @@ test("가족 메인 홈은 이동 카드 없이 오늘의 핵심 정보만 요�
   assert.match(familyDashboard, /오늘의 핵심 수치/);
   assert.match(familyDashboard, /직접 확인/);
   assert.doesNotMatch(familyDashboard, /표시 예시/);
-  assert.match(familyDashboard, /약 복용 확인/);
+  assert.match(familyDashboard, /실제 통화에서 발견/);
+  assert.doesNotMatch(familyDashboard, /약 복용 확인/);
   assert.doesNotMatch(familyDashboard, /오늘의 기록|최근 통화/);
   assert.doesNotMatch(familyDashboard, /<button/);
   assert.match(child, /className=\{`child-brand child-brand-home/);

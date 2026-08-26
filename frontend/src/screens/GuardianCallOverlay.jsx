@@ -149,15 +149,16 @@ export default function GuardianCallOverlay({
   if (!call) return null;
 
   const who = `${elderName || "어르신"} 어르신`;
+  const riskCall = call.purpose === "risk";
 
   return (
     <div className="guardian-call-scrim" role="dialog" aria-live="assertive"
          aria-label={introPending ? "나의 AI 영상을 재생 중" : connected ? `${who}와 통화 중` : `${who}에게서 전화`}>
       <div className={`guardian-call${connected ? " on" : ""}${introPending ? " preparing" : ""}${rendered ? " remote-visible" : ""}`}>
         {(!connected || introPending) && <span className="guardian-call-tag">
-          {introPending ? "연결 준비 중" : "지금 전화가 왔어요"}
+          {introPending ? "연결 준비 중" : riskCall ? "AI 위험 확인" : "지금 전화가 왔어요"}
         </span>}
-        {(!connected || introPending) && <h2>{introPending ? "나의 AI 영상을 재생 중" : who}</h2>}
+        {(!connected || introPending) && <h2>{introPending ? "나의 AI 영상을 재생 중" : riskCall ? `${who} 확인이 필요해요` : who}</h2>}
 
         {introPending ? (
           <div className="guardian-ai-playback">
@@ -193,7 +194,9 @@ export default function GuardianCallOverlay({
           </>
         ) : (
           <p className="guardian-call-note">
-            받지 않으면 AI 가 대신 받아 통화를 이어갑니다.
+            {riskCall
+              ? (call.alert_evidence || "AI 통화에서 직접 확인이 필요한 말이 감지됐어요.")
+              : "받지 않으면 AI 가 대신 받아 통화를 이어갑니다."}
           </p>
         )}
 
@@ -237,18 +240,20 @@ export default function GuardianCallOverlay({
                 onClick={() => onAnswer(call.invite_id)}
                 disabled={busy}
               >
-                받기
+                {riskCall ? "지금 전화하기" : "받기"}
               </button>
               <button
                 className="guardian-call-decline"
                 onClick={() => onDecline(call.invite_id)}
                 disabled={busy}
               >
-                AI 에게 맡기기
+                {riskCall ? "AI 통화 계속하기" : "AI 에게 맡기기"}
               </button>
             </div>
             <p className="guardian-call-hint">
-              맡기면 기다리지 않고 바로 연결돼요. 통화 내용은 리포트로 정리됩니다.
+              {riskCall
+                ? "받지 않아도 AI 대화는 끊기지 않고 계속됩니다."
+                : "맡기면 기다리지 않고 바로 연결돼요. 통화 내용은 리포트로 정리됩니다."}
             </p>
           </>
         )}

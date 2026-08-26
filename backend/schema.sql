@@ -359,6 +359,10 @@ CREATE TABLE IF NOT EXISTS call_invites (
                      ('declined','timeout','no_device','transport_failed',
                       'media_permission_denied')),
     ai_call_id   TEXT REFERENCES calls(call_id),
+    purpose      TEXT NOT NULL DEFAULT 'family',
+    alert_type   TEXT,
+    alert_evidence TEXT,
+    source_call_id TEXT REFERENCES calls(call_id),
     created_at   TEXT NOT NULL,
     answered_at  TEXT,
     ended_at     TEXT

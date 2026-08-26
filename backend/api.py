@@ -191,6 +191,10 @@ class InviteRequest(BaseModel):
     elder_id: str = "elder_001"
     persona_id: str | None = None
     from_device: str | None = Field(default=None, max_length=64)
+    purpose: Literal["family", "risk"] = "family"
+    alert_type: str | None = Field(default=None, max_length=50)
+    alert_evidence: str | None = Field(default=None, max_length=500)
+    source_call_id: str | None = Field(default=None, max_length=80)
 
 
 class InviteDeviceAction(BaseModel):
@@ -1923,7 +1927,11 @@ def list_devices(elder_id: str = "elder_001"):
 @app.post("/api/call-invites")
 def create_invite(req: InviteRequest):
     """어르신이 가족에게 전화를 건다."""
-    return inv_mod.create(req.elder_id, req.persona_id, req.from_device)
+    return inv_mod.create(
+        req.elder_id, req.persona_id, req.from_device,
+        purpose=req.purpose, alert_type=req.alert_type,
+        alert_evidence=req.alert_evidence, source_call_id=req.source_call_id,
+    )
 
 
 @app.get("/api/call-invites/recent")
@@ -2042,6 +2050,15 @@ def turn(call_id: str, req: TurnRequest, background_tasks: BackgroundTasks):
 
     background_tasks.add_task(session.finish_turn_metadata, result)
 
+    risk_invite = None
+    if result.get("risk"):
+        try:
+            risk_invite = inv_mod.create_risk_alert(
+                session.elder_id, session.persona_id, call_id, result["risk"],
+            )
+        except Exception:  # 역호출 실패가 어르신과의 안전 대화를 끊으면 안 된다.
+            LOGGER.exception("위험 발화 보호자 역호출 생성 실패: %s", call_id)
+
     return {
         "reply": result.get("reply", ""),
         # 아래 리포트용 필드는 백그라운드에서 채워진다. 응답 키는 기존
@@ -2051,6 +2068,7 @@ def turn(call_id: str, req: TurnRequest, background_tasks: BackgroundTasks):
         "used_memory_ids": result.get("used_memory_ids") or [],
         "used_schedule_ids": result.get("used_schedule_ids") or [],
         "risk": result.get("risk"),
+        "risk_invite": risk_invite,
         "medication_status": None,
         "unverified_recall": result.get("unverified_recall"),
         "care": None,

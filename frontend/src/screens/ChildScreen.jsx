@@ -187,19 +187,12 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     `${elderCallName}의 가장 따뜻한 기억엔\n${withSubjectParticle(myPersona?.display_name || "가족")} 있어요.`,
   );
   const quotedFamilyInsight = `“${familyInsight}”`;
-  const urgent = [
-    ...(latest?.risks || []).filter((risk) => !risk.acknowledged),
-    ...(demoDiary?.risk ? [{
-      event_id: `demo-risk-${demoDiary.date}`,
-      evidence: demoDiary.risk.evidence,
-      action: demoDiary.risk.action,
-      type: demoDiary.risk.type,
-      demo: true,
-    }] : []),
-  ];
-  const diaryHeaderMessage = urgent.length > 0
-    ? `“${urgent[0].evidence}”\n${urgent[0].action || "현재 상태를 가족이 직접 확인해 주세요."}`
-    : quotedFamilyInsight;
+  // Diary demo data is only for the warm diary experience.  Alerts shown on
+  // the guardian home must always come from an analysed, real call.
+  const urgent = (latest?.risks || []).filter((risk) => !risk.acknowledged);
+  // 다소니의 일기 한마디는 언제나 가족의 정서를 잇는 문장으로 유지한다.
+  // 위험 발화는 메인 화면의 실제 통화 확인 카드에서만 강조한다.
+  const diaryHeaderMessage = quotedFamilyInsight;
   const diaryWritingRows = Math.max(7, Math.ceil([...diaryWritingText].length / 12));
   const callTypeCounts = useMemo(() => calls.reduce((counts, call) => {
     const type = CALL_TYPES[call.call_type] ? call.call_type : "ai";
@@ -316,7 +309,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       <button type="button" className={`child-brand child-brand-home${tab === "home" ? " on" : ""}`} onClick={() => { setSelectedDate(todayKey); setTab("home"); }} aria-label="다소니 메인 홈으로 이동">
         <BrandMark size={34} />
       </button>
-      {tab === "today" && <blockquote className="child-header-diary-note" data-attention={urgent.length > 0 ? "true" : undefined} aria-label={urgent.length ? "다소니가 전하는 가족 확인 안내" : "다소니가 전하는 오늘의 한마디"}><span>{diaryHeaderMessage}</span>{urgent.length > 1 && <b>{urgent.length}건</b>}</blockquote>}
+      {tab === "today" && <blockquote className="child-header-diary-note" aria-label="다소니가 전하는 오늘의 한마디"><span>{diaryHeaderMessage}</span></blockquote>}
       {tab === "memories" && <div className="child-header-memory-title"><strong>가족 추억함</strong><span>{picked.name} 어르신과 AI가 함께 이야기할 수 있는 추억을 관리해요.</span></div>}
       {tab === "calls" && <div className="child-header-call-title"><strong>{shortDate(selectedDate)} 통화 이야기</strong><span>{calls.length}통 · {duration(totalCallDuration)}</span></div>}
       {tab === "settings" && <div className="child-header-reachable"><strong className={listening ? "device-live" : "device-idle"}>“{listening ? "지금 전화를 받을 수 있어요" : "지금은 다소니가 대신 받아요"}”</strong><span>{listening ? "화면을 켜 두면 어르신의 전화가 이 폰으로 와요." : "화면을 켜고 기다리면 가족 전화가 다시 연결돼요."}</span></div>}

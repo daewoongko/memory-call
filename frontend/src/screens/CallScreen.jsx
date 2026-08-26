@@ -29,6 +29,7 @@ function elapsedText(seconds) {
 export default function CallScreen({
   faces, opening, name, personaId, callId, api, onEnded,
   conversationEnabled = true, performanceStyle = "calm", anamReady = true,
+  onRiskDetected,
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [said, setSaid] = useState("");
@@ -72,6 +73,7 @@ export default function CallScreen({
         });
         setSpoken(res.reply);
         setAlert(res.risk ? RISK_LABEL[res.risk.type] ?? "가족에게 알렸어요" : null);
+        if (res.risk_invite?.invite_id) onRiskDetected?.(res.risk_invite);
         return res.reply;
       } catch (e) {
         emitSpeechTiming("turn.error", {
@@ -83,7 +85,7 @@ export default function CallScreen({
         setPending(false);
       }
     },
-    [api, callId]
+    [api, callId, onRiskDetected]
   );
 
   // 실제 통화처럼 마이크가 계속 열려 있다.

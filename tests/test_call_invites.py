@@ -132,6 +132,30 @@ class CallInviteTest(unittest.TestCase):
         invites.create("elder_test", "persona_godaewoong")
         self.assertIsNone(invites.incoming_for("dev_elder"))
 
+    def test_risk_alert_rings_the_guardian_once_and_skips_the_intro(self):
+        """위험 역호출은 즉시 보이고, 같은 AI 통화에서 중복 생성되지 않는다."""
+        self._guardian()
+        risk = {
+            "type": "gas_leak",
+            "evidence": "주방에서 가스 냄새가 계속 난다.",
+        }
+        self._make_call("call_risk_1")
+        first = invites.create_risk_alert(
+            "elder_test", "persona_godaewoong", "call_risk_1", risk,
+        )
+        second = invites.create_risk_alert(
+            "elder_test", "persona_godaewoong", "call_risk_1", risk,
+        )
+
+        self.assertEqual(first["invite_id"], second["invite_id"])
+        self.assertEqual(first["purpose"], "risk")
+        self.assertEqual(first["alert_type"], "gas_leak")
+        self.assertEqual(first["alert_evidence"], risk["evidence"])
+        self.assertEqual(first["intro_duration_sec"], 0)
+        self.assertTrue(first["intro_complete"])
+        incoming = invites.incoming_for("dev_guardian")
+        self.assertEqual(incoming["invite_id"], first["invite_id"])
+
     # -------------------------------------------------------------- 전이
 
     def test_answer_records_which_device_picked_up(self):

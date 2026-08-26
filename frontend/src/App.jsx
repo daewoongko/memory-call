@@ -268,6 +268,16 @@ export default function App() {
     setHumanTransportState("idle");
   }, []);
 
+  const resumeRiskAi = useCallback(async () => {
+    await releaseHumanTransport(false);
+    setInvite(null);
+    inviteRef.current = null;
+    transportFailed.current = false;
+    setError("");
+    phaseRef.current = "incall";
+    setPhase("incall");
+  }, [releaseHumanTransport]);
+
   const fallBackFromHuman = useCallback(async (inviteId) => {
     if (!inviteId || takeoverInFlight.current) return;
     takeoverInFlight.current = true;
@@ -307,15 +317,64 @@ export default function App() {
         setHumanTransportState(state);
         if (state !== "failed") return;
         transportFailed.current = true;
-        if (phaseRef.current === "human") fallBackFromHuman(inviteId);
+        if (phaseRef.current === "human") {
+          if (inviteRef.current?.purpose === "risk") resumeRiskAi();
+          else fallBackFromHuman(inviteId);
+        }
       });
       await transport.connect();
     } catch {
       transportFailed.current = true;
       setHumanTransportState("failed");
-      if (phaseRef.current === "human") fallBackFromHuman(inviteId);
+      if (phaseRef.current === "human") {
+        if (inviteRef.current?.purpose === "risk") resumeRiskAi();
+        else fallBackFromHuman(inviteId);
+      }
     }
-  }, [fallBackFromHuman]);
+  }, [fallBackFromHuman, resumeRiskAi]);
+
+  const handleRiskDetected = useCallback((riskInvite) => {
+    if (!riskInvite?.invite_id || inviteRef.current?.invite_id === riskInvite.invite_id) return;
+    inviteRef.current = riskInvite;
+    setInvite(riskInvite);
+    prepareHumanTransport(riskInvite.invite_id);
+  }, [prepareHumanTransport]);
+
+  // AI 통화 중 위험 발화가 감지되면 보호자에게 역으로 벨을 보낸다. 보호자가
+  // 받기 전까지 AI 대화는 멈추지 않고, 받았을 때만 사람 영상통화로 전환한다.
+  useEffect(() => {
+    if (phase !== "incall" || invite?.purpose !== "risk" || !invite.invite_id) return undefined;
+    let alive = true;
+    let timer = null;
+    const inviteId = invite.invite_id;
+    const tick = async () => {
+      if (!alive) return;
+      try {
+        const current = await api.getInvite(inviteId);
+        if (!alive) return;
+        setInvite(current);
+        inviteRef.current = current;
+        if (current.state === "answered") {
+          if (transportFailed.current) await resumeRiskAi();
+          else {
+            phaseRef.current = "human";
+            setPhase("human");
+          }
+          return;
+        }
+        if (current.should_take_over || ["declined", "timeout", "cancelled", "ended", "ai_takeover"].includes(current.state)) {
+          await resumeRiskAi();
+          return;
+        }
+      } catch {
+        await resumeRiskAi();
+        return;
+      }
+      if (alive) timer = setTimeout(tick, RING_POLL_MS);
+    };
+    tick();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [phase, invite?.invite_id, invite?.purpose, resumeRiskAi]);
 
   /**
    * Follow the server-owned invite while the current morph acts as the
@@ -424,10 +483,12 @@ export default function App() {
       return undefined;
     }
     const id = setTimeout(
-      () => fallBackFromHuman(invite.invite_id), HUMAN_CONNECT_GRACE_MS,
+      () => invite.purpose === "risk"
+        ? resumeRiskAi()
+        : fallBackFromHuman(invite.invite_id), HUMAN_CONNECT_GRACE_MS,
     );
     return () => clearTimeout(id);
-  }, [phase, invite?.invite_id, humanTransportState, fallBackFromHuman]);
+  }, [phase, invite?.invite_id, invite?.purpose, humanTransportState, fallBackFromHuman, resumeRiskAi]);
 
   // 가족이 먼저 끊었을 때. 어르신 화면이 통화 중에 갇히면 스스로 빠져나오기
   // 어렵다. 끊는 쪽은 어느 쪽이든 될 수 있으므로 양쪽 모두 상태를 확인한다.
@@ -446,6 +507,7 @@ export default function App() {
           await releaseHumanTransport(false);
           setInvite(null);
           setTarget(null);
+          setCall(null);
           cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
           setPhase("idle");
           return;
@@ -576,10 +638,12 @@ export default function App() {
   /** 사람 통화를 끝낸다. 리포트가 없으므로 대기 화면으로 곧장 돌아간다. */
   async function endHumanCall() {
     if (invite?.invite_id) await api.endInvite(invite.invite_id).catch(() => {});
+    if (invite?.purpose === "risk" && call?.call_id) await api.endCall(call.call_id).catch(() => {});
     await releaseHumanTransport(false);
     cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
     setInvite(null);
     setTarget(null);
+    setCall(null);
     setPhase("idle");
   }
 
@@ -823,6 +887,7 @@ export default function App() {
           conversationEnabled={conversationEnabled}
           anamReady={Boolean(call.anam_ready)}
           performanceStyle={profile?.persona?.avatar_performance_style ?? "calm"}
+          onRiskDetected={handleRiskDetected}
           onEnded={(s) => {
             setSummary(s);
             setPhase("ended");
