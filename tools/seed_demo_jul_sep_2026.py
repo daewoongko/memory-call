@@ -18,6 +18,7 @@ import sqlite3
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = ROOT / "data" / "memory_call.sqlite"
 PREFIX = "demo789_"
+SEED_VERSION = "patient-profile-trends-v2"
 SEOUL = timezone(timedelta(hours=9))
 START = date(2026, 7, 1)
 END = date(2026, 9, 30)
@@ -43,6 +44,7 @@ def scenario(key, text, reply, title, summary, *, care=None, action=None,
 PATIENTS = {
     "elder_001": {
         "name": "고길동",
+        "diagnosis": "알츠하이머 치매 · 고혈압",
         "personas": [
             ("persona_jeonghun", "정훈", "아들"),
             ("persona_miyeong", "미영", "딸"),
@@ -52,9 +54,9 @@ PATIENTS = {
         "hours": [7, 8, 9, 11, 12, 14, 15, 17, 18, 19, 20, 21],
         "medication_rates": (0.88, 0.08, 0.03),
         "weights": {
-            7: {"stable": 25, "haeundae": 20, "time": 12, "med": 10, "visit": 10, "item": 8, "lonely": 10, "meal": 5},
-            8: {"stable": 20, "haeundae": 18, "time": 15, "med": 12, "visit": 10, "item": 9, "lonely": 11, "meal": 5},
-            9: {"stable": 17, "haeundae": 15, "time": 18, "med": 15, "visit": 11, "item": 10, "lonely": 10, "meal": 4},
+            7: {"stable": 28, "haeundae": 22, "time": 10, "med": 8, "visit": 10, "item": 7, "lonely": 10, "meal": 5},
+            8: {"stable": 20, "haeundae": 18, "time": 16, "med": 13, "visit": 10, "item": 9, "lonely": 10, "meal": 4},
+            9: {"stable": 14, "haeundae": 13, "time": 21, "med": 18, "visit": 11, "item": 10, "lonely": 9, "meal": 4},
         },
         "scenarios": {
             "stable": scenario("stable", "오늘은 산책도 하고 기분이 괜찮아. 정훈이는 퇴근했나?", "네, 오늘 하루 차분히 보내셨네요. 정훈이 소식도 함께 확인해 볼게요.", "편안하게 보낸 하루", "산책과 가족의 안부를 이야기하며 안정된 모습을 보였습니다."),
@@ -71,13 +73,14 @@ PATIENTS = {
     },
     "elder_002": {
         "name": "박순자",
+        "diagnosis": "루이소체 치매 · 파킨슨증",
         "personas": [("persona_sunja_daughter", "지영", "딸")],
         "hours": [6, 7, 8, 10, 12, 13, 14, 15, 16, 17, 19, 20],
         "medication_rates": (0.82, 0.11, 0.02),
         "weights": {
-            7: {"stable": 24, "garden": 14, "hallucination": 10, "dizzy": 13, "task": 9, "sleep": 8, "med": 12, "anxiety": 10},
-            8: {"stable": 19, "garden": 13, "hallucination": 14, "dizzy": 15, "task": 10, "sleep": 9, "med": 11, "anxiety": 9},
-            9: {"stable": 15, "garden": 11, "hallucination": 18, "dizzy": 17, "task": 11, "sleep": 10, "med": 11, "anxiety": 7},
+            7: {"stable": 28, "garden": 15, "hallucination": 8, "dizzy": 11, "task": 9, "sleep": 8, "med": 11, "anxiety": 10},
+            8: {"stable": 18, "garden": 13, "hallucination": 16, "dizzy": 16, "task": 10, "sleep": 9, "med": 10, "anxiety": 8},
+            9: {"stable": 11, "garden": 9, "hallucination": 23, "dizzy": 20, "task": 11, "sleep": 11, "med": 9, "anxiety": 6},
         },
         "scenarios": {
             "stable": scenario("stable", "오늘 물리치료를 하고 나니 몸이 조금 부드러워졌어.", "천천히 움직이신 것이 좋았어요. 일어설 때는 꼭 손잡이를 잡아 주세요.", "물리치료 후 편안한 시간", "물리치료 후 몸이 편해졌다고 말했습니다."),
@@ -93,13 +96,14 @@ PATIENTS = {
     },
     "elder_003": {
         "name": "이정호",
+        "diagnosis": "혈관성 치매 · 고혈압 · 뇌경색 과거력",
         "personas": [("persona_jeongho_son", "성민", "아들")],
         "hours": [6, 7, 8, 9, 10, 12, 14, 16, 17, 18, 20, 21],
         "medication_rates": (0.86, 0.09, 0.03),
         "weights": {
-            7: {"stable": 25, "work": 15, "med": 16, "word": 12, "task": 10, "time": 8, "bleeding": 6, "visit": 8},
-            8: {"stable": 21, "work": 14, "med": 17, "word": 15, "task": 11, "time": 9, "bleeding": 6, "visit": 7},
-            9: {"stable": 17, "work": 12, "med": 18, "word": 18, "task": 12, "time": 10, "bleeding": 7, "visit": 6},
+            7: {"stable": 28, "work": 16, "med": 13, "word": 10, "task": 10, "time": 8, "bleeding": 6, "visit": 9},
+            8: {"stable": 20, "work": 14, "med": 18, "word": 16, "task": 11, "time": 9, "bleeding": 6, "visit": 6},
+            9: {"stable": 12, "work": 10, "med": 22, "word": 23, "task": 13, "time": 11, "bleeding": 7, "visit": 5},
         },
         "scenarios": {
             "stable": scenario("stable", "오늘 혈압을 재고 아침 식사도 잘했어. 몸은 괜찮아.", "잘하셨어요. 어지럼이나 불편한 곳이 생기면 바로 말씀해 주세요.", "혈압과 아침 상태 확인", "혈압을 확인하고 식사를 마쳤으며 특별한 불편은 없다고 말했습니다."),
@@ -334,9 +338,22 @@ def seed_day_medications(conn, elder_id, profile, day, day_calls, rng):
 def seed(conn):
     clear_previous(conn)
     conn.execute(
+        "CREATE TABLE IF NOT EXISTS demo_seed_versions ("
+        "seed_name TEXT PRIMARY KEY, version TEXT NOT NULL, updated_at TEXT NOT NULL)"
+    )
+    conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_calls_elder_started "
         "ON calls(elder_id, started_at)"
     )
+    # 가족 호칭은 담당자 화면의 진단 정보가 아니다. 기존에 진단이 비어 있는
+    # 데모 환자만 등록된 진단명으로 보완하고, 사용자가 입력한 값은 보존한다.
+    for elder_id, profile in PATIENTS.items():
+        conn.execute(
+            "UPDATE elder_profiles SET diagnosis_label=? WHERE elder_id=? "
+            "AND (COALESCE(TRIM(diagnosis_label),'')='' OR "
+            "TRIM(diagnosis_label) IN ('할아버지','할머니','아버지','어머니','어르신'))",
+            (profile["diagnosis"], elder_id),
+        )
     totals = {"calls": 0, "utterances": 0, "reports": 0, "events": 0, "medication_logs": 0}
     for elder_index, (elder_id, profile) in enumerate(PATIENTS.items(), start=1):
         for day in daterange(START, END):
@@ -367,6 +384,12 @@ def seed(conn):
     totals["events"] = conn.execute(
         "SELECT COUNT(*) FROM call_events WHERE call_id LIKE ?", (f"{PREFIX}%",)
     ).fetchone()[0]
+    conn.execute(
+        "INSERT INTO demo_seed_versions (seed_name,version,updated_at) VALUES (?,?,?) "
+        "ON CONFLICT(seed_name) DO UPDATE SET version=excluded.version, "
+        "updated_at=excluded.updated_at",
+        ("jul_sep_2026", SEED_VERSION, datetime.now(SEOUL).isoformat()),
+    )
     return totals
 
 

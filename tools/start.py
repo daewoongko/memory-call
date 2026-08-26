@@ -50,6 +50,38 @@ def main() -> None:
                 check=True,
             )
 
+        # 7·8·9월 시연에서는 세 환자의 차이가 같은 집계 화면에서 분명히
+        # 드러나야 한다. 전용 접두사만 교체하는 멱등 시드이므로 실제 통화는
+        # 보존하며, 중간에 끊겨 일부만 적재된 경우에도 다음 시작 때 복구한다.
+        with db.connect() as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS demo_seed_versions ("
+                "seed_name TEXT PRIMARY KEY, version TEXT NOT NULL, updated_at TEXT NOT NULL)"
+            )
+            demo_789 = conn.execute(
+                "SELECT COUNT(*), COUNT(DISTINCT elder_id), "
+                "MIN(SUBSTR(started_at,1,10)), MAX(SUBSTR(started_at,1,10)) "
+                "FROM calls WHERE call_id LIKE 'demo789_%'"
+            ).fetchone()
+            demo_789_version = conn.execute(
+                "SELECT version FROM demo_seed_versions WHERE seed_name='jul_sep_2026'"
+            ).fetchone()
+        demo_789_complete = (
+            demo_789[0] >= 26000
+            and demo_789[1] == 3
+            and demo_789[2] == "2026-07-01"
+            and demo_789[3] == "2026-09-30"
+            and demo_789_version is not None
+            and demo_789_version[0] == "patient-profile-trends-v2"
+        )
+        if not demo_789_complete:
+            print("공개 데모 DB에 세 환자의 7·8·9월 통화 기록을 적재합니다.")
+            subprocess.run(
+                [sys.executable, str(ROOT / "tools" / "seed_demo_jul_sep_2026.py")],
+                cwd=ROOT,
+                check=True,
+            )
+
         # 정서 유발 주제의 네 가지 요약과 버블 매트릭스도 로컬 데모와
         # 동일한 실제 집계 경로를 사용한다. 전용 접두사만 확인하므로
         # 사용자가 만든 통화나 기존 비교 환자 데이터는 덮어쓰지 않는다.

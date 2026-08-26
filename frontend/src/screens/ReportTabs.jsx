@@ -230,10 +230,10 @@ function CareDomainRadar({ todayItems, averageItems }) {
       <svg viewBox="0 0 520 400" role="img" aria-label={`8개 영역 오늘 총 ${total}건, 최근 30일 하루 평균과 비교`}>
         {[.25, .5, .75, 1].map((ratio) => <polygon key={ratio} className={`radar-grid ${ratio === 1 ? "level-100" : ""}`} points={gridPolygon(ratio)} />)}
         {todayItems.map((_, index) => { const [x, y] = point(index, maxValue); return <line key={index} className="radar-axis" x1={centerX} y1={centerY} x2={x} y2={y} />; })}
-        <polygon className="radar-today" points={polygon(todayItems)} />
         <polygon className="radar-average" points={polygon(averageItems)} />
-        {todayItems.map((item, index) => { const [x, y] = point(index, item.value); return <circle key={`today-${item.key}`} className="radar-today-dot" cx={x} cy={y} r="4" />; })}
+        <polygon className="radar-today" points={polygon(todayItems)} />
         {averageItems.map((item, index) => { const [x, y] = point(index, item.value); return <circle key={`average-${item.key}`} className="radar-average-dot" cx={x} cy={y} r="3" />; })}
+        {todayItems.map((item, index) => { const [x, y] = point(index, item.value); return <circle key={`today-${item.key}`} className="radar-today-dot" cx={x} cy={y} r="4" />; })}
         {todayItems.map((item, index) => {
           const angle = -Math.PI / 2 + index * Math.PI / 4;
           const x = centerX + Math.cos(angle) * labelRadius;

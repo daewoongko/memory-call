@@ -2262,6 +2262,68 @@ h3,
 .app-device-care .radar-average { stroke: #d98a3f; }
 .app-device-care .radar-average-dot { fill: var(--surface); stroke: #d98a3f; }
 
+/* 담당자 선택 화면은 긴 진단명까지 한 줄에서 비교할 수 있게 유지한다. */
+.app-device-care .care-picker-head h1 {
+  font-size: clamp(18px,3.5vw,24px);
+}
+.app-device-care .elder-card {
+  min-width: 0;
+}
+.app-device-care .elder-info {
+  min-width: 0;
+}
+.app-device-care .elder-info small {
+  min-width: 0;
+  font-size: clamp(10px,2.2vw,13px);
+  font-weight: 600;
+  letter-spacing: -.045em;
+  white-space: nowrap;
+}
+.app-device-care .care-manager-entry-loading,
+.app-device-care .care-manager-loading {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.app-device-care .care-manager-entry-loading {
+  display: grid;
+  align-items: start;
+}
+.app-device-care .care-manager-loading {
+  min-height: 190px;
+  display: grid;
+  place-items: start center;
+  padding: 26px 12px;
+}
+.app-device-care .care-manager-loading > p {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 430px) {
+  .app-device-care .care-picker-head h1 {
+    font-size: 18px;
+    letter-spacing: -.065em;
+  }
+  .app-device-care .elder-card {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr) auto;
+    gap: 8px;
+    padding: 12px;
+  }
+  .app-device-care .elder-card > .elder-face {
+    width: 48px;
+    height: 48px;
+  }
+  .app-device-care .elder-info small {
+    font-size: clamp(9px,2.55vw,10px);
+  }
+  .app-device-care .elder-card > .chev {
+    margin-left: 0;
+  }
+}
+
 /* 일기 머리글의 날짜 자체를 눌러 원하는 날로 바꾼다. */
 .app-device-family .child-today { grid-template-rows: minmax(0,1fr); gap: 0; }
 .app-date-picker.show-value > .app-date-value {

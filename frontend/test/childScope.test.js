@@ -163,6 +163,7 @@ test("가족 추억함의 확인 대기 바구니는 접었다 펼칠 수 있다
   assert.equal((clothesline.match(/<i[^>]*aria-hidden="true"[^>]*\/>/g) || []).length, 3);
   assert.match(theme, /memory-section-toggle i::before,[\s\S]*memory-section-toggle i::after/);
   assert.match(theme, /border-right: 1\.5px solid currentColor/);
+  assert.match(styles, /\.memory-basket article nav button \{ min-width:0; height:24px/);
 });
 
 test("보호자 모바일은 추억함 조작 크기를 통일하고 통화 상세를 위쪽에서 보여준다", () => {

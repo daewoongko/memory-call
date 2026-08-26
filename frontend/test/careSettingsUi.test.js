@@ -32,6 +32,10 @@ test("care manager uses one Aa display control instead of the wide display dock"
   assert.match(theme, /grid-template-columns: repeat\(6,minmax\(0,1fr\)\)/);
   assert.match(theme, /\.app-device-care \.sidebar-elder-panel \{[\s\S]*?grid-template-columns: minmax\(0,1fr\) 50px/);
   assert.match(theme, /\.app-device-care \.radar-average \{ stroke: #d98a3f; \}/);
+  assert.match(careManager, /className="care-manager-loading" role="status"/);
+  assert.match(theme, /\.app-device-care \.elder-info small \{[\s\S]*?white-space: nowrap/);
+  assert.match(styles, /\.radar-average \{ fill:color-mix\(in srgb,#d98a3f 11%,transparent\); stroke:#d98a3f; stroke-dasharray:none/);
+  assert.match(styles, /\.radar-legend \.average::before \{ border-top-style:solid; border-top-color:#d98a3f; \}/);
 });
 
 test("voice registration heading replaces the redundant my voice label", () => {
