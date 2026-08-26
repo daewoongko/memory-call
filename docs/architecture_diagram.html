@@ -1,0 +1,840 @@
+<title>기억이음 Call 시스템 구성도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<!--
+  ─────────────────────────────────────────────────────────────
+  기억이음 Call · 시스템 구성도 (단독 편집용 파일)
+  ─────────────────────────────────────────────────────────────
+  이 파일 하나만 있으면 브라우저에서 바로 열립니다. 외부 의존성 없음.
+
+  들어 있는 그림 세 장
+    ① 전체 흐름       등록 → 자산 생성 → 통화 → 리포트, 그리고 되돌아오는 고리
+    ② 시스템 구성도   클라이언트 · 서버 · 저장소 · 외부 공급자
+    ③ 얼굴 연령 변환  현재 사진 한 장에서 모핑 영상이 나오기까지
+
+  고치는 곳은 세 군데뿐입니다.
+    1. 색 · 글꼴        →  아래 :root 의 CSS 변수
+    2. 노드 위치        →  <g class="node" transform="translate(x, y)"> 의 숫자
+    3. 로고             →  <use href="#lg-이름"/> 의 이름
+                           로고 정의는 파일 맨 위 <svg class="sprite"> 안에 모여 있음
+  ─────────────────────────────────────────────────────────────
+-->
+
+<style>
+:root{
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --serif:"Gowun Batang","Nanum Myeongjo",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --paper:#EFF2F1;
+  --surface:#FFFFFF;
+  --surface2:#F6F8F7;
+  --ink:#12181A;
+  --ink2:#2B3639;
+  --muted:#5D6B6C;
+  --line:#DCE3E1;
+  --edge:#7F8D8C;
+
+  --teal:#0E6F66;      /* 서버가 규칙으로 확정하는 것 */
+  --teal-soft:#DCEDEA;
+  --blue:#3A5A8C;      /* 외부 AI 공급자 (비결정) */
+  --blue-soft:#E1E8F3;
+  --rose:#B32F49;      /* 안전 검사 · 차단 */
+  --rose-soft:#F6E2E6;
+  --amber:#8C6410;     /* 사람의 승인이 필요한 지점 */
+  --amber-soft:#F3EBD8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1113; --surface:#151A1C; --surface2:#1B2124;
+    --ink:#E5EBE9; --ink2:#C6D0CE; --muted:#93A19F;
+    --line:#2A3234; --edge:#788684;
+    --teal:#54C3B3; --teal-soft:#12302E;
+    --blue:#93B4E2; --blue-soft:#182333;
+    --rose:#EE7F94; --rose-soft:#33191E;
+    --amber:#D6A745; --amber-soft:#2E2716;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1113; --surface:#151A1C; --surface2:#1B2124;
+  --ink:#E5EBE9; --ink2:#C6D0CE; --muted:#93A19F;
+  --line:#2A3234; --edge:#788684;
+  --teal:#54C3B3; --teal-soft:#12302E;
+  --blue:#93B4E2; --blue-soft:#182333;
+  --rose:#EE7F94; --rose-soft:#33191E;
+  --amber:#D6A745; --amber-soft:#2E2716;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1200px;margin:0 auto;padding:44px 24px 72px}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(26px,4vw,38px);line-height:1.25;margin:0 0 10px;letter-spacing:-.01em}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin:0 0 14px}
+.lede{margin:0;color:var(--ink2);font-size:16px;max-width:66ch}
+
+.fig-head{display:flex;align-items:baseline;gap:12px;margin:60px 0 6px;flex-wrap:wrap}
+.fig-no{font-family:var(--mono);font-size:12px;color:var(--teal);border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:var(--surface)}
+h2{font-family:var(--serif);font-weight:700;font-size:23px;margin:0;letter-spacing:-.005em}
+.fig-head + p{margin:0 0 4px;color:var(--ink2);font-size:15px;max-width:70ch}
+
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:20px 0 0}
+.sheet-body{overflow-x:auto;padding:24px 22px 10px}
+svg.dia{display:block;width:100%;min-width:900px;height:auto}
+.sheet-foot{border-top:1px solid var(--line);background:var(--surface2);padding:14px 22px;font-size:13.5px;color:var(--muted)}
+
+/* 다이어그램 요소 */
+.dia text{font-family:var(--sans);fill:var(--ink)}
+.dia .lbl{font-size:13.5px;font-weight:600}
+.dia .sub{font-size:11.5px;fill:var(--muted)}
+.dia .mono{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+.dia .cap{font-family:var(--mono);font-size:11px;fill:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.dia .phase{font-family:var(--serif);font-size:15px;font-weight:700;fill:var(--ink)}
+.dia .box{fill:var(--surface2);stroke:var(--edge);stroke-width:1.2}
+.dia .box.t{stroke:var(--teal);fill:var(--teal-soft)}
+.dia .box.b{stroke:var(--blue);fill:var(--blue-soft)}
+.dia .box.r{stroke:var(--rose);fill:var(--rose-soft)}
+.dia .box.a{stroke:var(--amber);fill:var(--amber-soft)}
+.dia .grp{fill:none;stroke:var(--line);stroke-width:1.2;stroke-dasharray:5 5}
+.dia .edge{fill:none;stroke:var(--edge);stroke-width:1.2;marker-end:url(#ah)}
+.dia .edge.t{stroke:var(--teal);marker-end:url(#ah-t)}
+.dia .edge.b{stroke:var(--blue);marker-end:url(#ah-b)}
+.dia .edge.a{stroke:var(--amber);marker-end:url(#ah-a)}
+.dia .edge.r{stroke:var(--rose);marker-end:url(#ah-r)}
+.dia .edge.dash{stroke-dasharray:5 4}
+.dia .edge.thick{stroke-width:2}
+.dia .lg{color:var(--ink)}          /* 로고는 currentColor 를 따른다 */
+.dia .lg-b{color:var(--blue)}
+.dia .lg-t{color:var(--teal)}
+.dia .lg-a{color:var(--amber)}
+.mk-ink{fill:var(--edge)} .mk-t{fill:var(--teal)} .mk-b{fill:var(--blue)} .mk-a{fill:var(--amber)} .mk-r{fill:var(--rose)}
+
+/* 범례 */
+.legend{display:flex;flex-wrap:wrap;gap:10px 22px;margin:18px 0 0;padding:0;list-style:none}
+.legend li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.swatch{width:13px;height:13px;border-radius:3px;flex:none;border:1.2px solid}
+.sw-t{background:var(--teal-soft);border-color:var(--teal)}
+.sw-b{background:var(--blue-soft);border-color:var(--blue)}
+.sw-r{background:var(--rose-soft);border-color:var(--rose)}
+.sw-a{background:var(--amber-soft);border-color:var(--amber)}
+
+/* 로고 라이브러리 */
+.logos{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:18px}
+.logo-cell{background:var(--surface);padding:18px 16px 14px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.logo-cell svg{height:22px;width:auto;color:var(--ink)}
+.logo-cell code{font-family:var(--mono);font-size:11.5px;color:var(--muted);background:none;border:none;padding:0}
+
+pre{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.75;color:var(--ink2);margin:0 0 14px}
+pre b{color:var(--teal);font-weight:500}
+.steps{counter-reset:s;list-style:none;padding:0;margin:18px 0 0}
+.steps li{position:relative;padding-left:38px;margin-bottom:22px}
+.steps li::before{
+  counter-increment:s;content:counter(s);position:absolute;left:0;top:2px;
+  width:25px;height:25px;border-radius:7px;border:1px solid var(--line);background:var(--surface);
+  display:grid;place-items:center;font-family:var(--mono);font-size:12px;color:var(--teal);
+}
+.steps h3{margin:0 0 8px;font-size:15px;font-weight:600}
+.note{display:flex;gap:12px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:10px;padding:16px 18px;margin:22px 0 0}
+.note p{margin:0;font-size:14px;color:var(--ink2)}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     로고 · 화살촉 라이브러리
+     모든 로고는 (0,0)에서 시작해 높이 18px 로 맞춰져 있다.
+     <use href="#lg-이름" x="넣을X" y="넣을Y"/> 로 어디든 붙인다.
+     fill="currentColor" 라서 밝은 화면 · 어두운 화면에서 자동 반전된다.
+     ══════════════════════════════════════════════════════════ -->
+<svg class="sprite" aria-hidden="true" focusable="false"><defs>
+
+  <marker id="ah"   viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-ink" d="M0 0 L10 5 L0 10 z"/></marker>
+  <marker id="ah-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-t"   d="M0 0 L10 5 L0 10 z"/></marker>
+  <marker id="ah-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-b"   d="M0 0 L10 5 L0 10 z"/></marker>
+  <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a"   d="M0 0 L10 5 L0 10 z"/></marker>
+  <marker id="ah-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-r"   d="M0 0 L10 5 L0 10 z"/></marker>
+
+  <!-- ElevenLabs — 막대 두 개 + 워드마크 -->
+  <g id="lg-elevenlabs" fill="currentColor">
+    <rect x="0"   y="1.5" width="2.9" height="15" rx="0.3"/>
+    <rect x="4.6" y="1.5" width="2.9" height="15" rx="0.3"/>
+    <text x="10.4" y="14.4" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
+          font-size="15.5" font-weight="700" letter-spacing="-0.4">ElevenLabs</text>
+  </g>
+
+  <!-- OpenAI 호환 엔드포인트 -->
+  <g id="lg-openai" fill="currentColor">
+    <path d="M8 0.6l1.9 4.6L14.5 7 9.9 8.9 8 13.5 6.1 8.9 1.5 7l4.6-1.8z"/>
+    <text x="18" y="13.6" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
+          font-size="14" font-weight="600" letter-spacing="-0.2">OpenAI 호환</text>
+  </g>
+
+  <!-- Anam -->
+  <g id="lg-anam" fill="currentColor">
+    <rect x="0" y="1.5" width="15" height="15" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <circle cx="7.5" cy="9" r="2.6"/>
+    <text x="19.5" y="13.6" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
+          font-size="14.5" font-weight="600" letter-spacing="-0.2">Anam</text>
+  </g>
+
+  <!-- MuseTalk (로컬 GPU 워커) -->
+  <g id="lg-musetalk" fill="currentColor">
+    <rect x="1" y="3" width="14" height="12" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <rect x="5.2" y="7.2" width="5.6" height="3.6" rx="1"/>
+    <text x="19" y="13.6" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif"
+          font-size="14" font-weight="600" letter-spacing="-0.2">MuseTalk</text>
+  </g>
+
+  <!-- FLUX.2 (얼굴 생성 모델) -->
+  <g id="lg-flux" fill="currentColor">
+    <path d="M9 0.8l7.4 4.3v8.6L9 18l-7.4-4.3V5.1z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M9 5.2l3.6 2.1v4.2L9 13.6l-3.6-2.1V7.3z"/>
+  </g>
+
+  <!-- 검증 (얼굴 임베딩 · 연령 추정) -->
+  <g id="lg-verify" fill="none" stroke="currentColor" stroke-width="1.4">
+    <circle cx="7.6" cy="8.6" r="6.4"/>
+    <path d="M12.4 13.4l4.4 4.4"/>
+    <path d="M5.2 8.6l1.8 1.8 3.2-3.4"/>
+  </g>
+
+  <!-- RIFE (프레임 보간 · 영상) -->
+  <g id="lg-film" fill="none" stroke="currentColor" stroke-width="1.4">
+    <rect x="0.9" y="2.4" width="16.2" height="13.2" rx="2"/>
+    <path d="M5.4 2.4v13.2"/><path d="M12.6 2.4v13.2"/>
+    <path d="M0.9 9h16.2"/>
+  </g>
+
+  <!-- React -->
+  <g id="lg-react" fill="none" stroke="currentColor" stroke-width="1.25">
+    <ellipse cx="11" cy="9" rx="10.2" ry="3.9"/>
+    <ellipse cx="11" cy="9" rx="10.2" ry="3.9" transform="rotate(60 11 9)"/>
+    <ellipse cx="11" cy="9" rx="10.2" ry="3.9" transform="rotate(120 11 9)"/>
+    <circle cx="11" cy="9" r="1.9" fill="currentColor" stroke="none"/>
+  </g>
+
+  <!-- FastAPI -->
+  <g id="lg-fastapi" fill="currentColor">
+    <circle cx="9" cy="9" r="8.2" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M9.8 3.4L4.6 9.9h3.5l-0.9 4.7 5.2-6.5H8.9z"/>
+  </g>
+
+  <!-- SQLite -->
+  <g id="lg-sqlite" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M1.4 4.2c0-1.5 2.9-2.7 6.6-2.7s6.6 1.2 6.6 2.7-2.9 2.7-6.6 2.7-6.6-1.2-6.6-2.7z"/>
+    <path d="M1.4 4.2v9.6c0 1.5 2.9 2.7 6.6 2.7s6.6-1.2 6.6-2.7V4.2"/>
+    <path d="M1.4 9c0 1.5 2.9 2.7 6.6 2.7s6.6-1.2 6.6-2.7"/>
+  </g>
+
+  <g id="lg-folder" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M1.2 15.4V3.6a1 1 0 0 1 1-1h4l1.8 2.2h7a1 1 0 0 1 1 1v9.6a1 1 0 0 1-1 1h-12.8a1 1 0 0 1-1-1z"/>
+  </g>
+
+  <g id="lg-phone" fill="none" stroke="currentColor" stroke-width="1.4">
+    <rect x="3.4" y="0.9" width="11.2" height="16.2" rx="2.4"/>
+    <path d="M7.6 14.2h2.8"/>
+  </g>
+
+  <g id="lg-people" fill="none" stroke="currentColor" stroke-width="1.4">
+    <circle cx="6.6" cy="5.6" r="3"/>
+    <path d="M1.4 15.6a5.2 5.2 0 0 1 10.4 0"/>
+    <path d="M13.2 3.1a3 3 0 0 1 0 5.4"/>
+    <path d="M14.2 10.6a4.8 4.8 0 0 1 3.4 5"/>
+  </g>
+
+  <g id="lg-camera" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M1 5.6h3.4l1.4-2h6.4l1.4 2H17v9.8H1z"/>
+    <circle cx="9" cy="10.2" r="3.2"/>
+  </g>
+
+  <g id="lg-mic" fill="none" stroke="currentColor" stroke-width="1.4">
+    <rect x="6.1" y="0.9" width="5.8" height="9.4" rx="2.9"/>
+    <path d="M2.8 9.2a6.2 6.2 0 0 0 12.4 0"/>
+    <path d="M9 15.4v2.2"/>
+  </g>
+
+  <g id="lg-note" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M2.6 1.2h8.2l4.6 4.6v11h-12.8z"/>
+    <path d="M10.4 1.2v5h4.6"/><path d="M5.6 10h6"/><path d="M5.6 13h4"/>
+  </g>
+
+  <g id="lg-shield" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M9 1l6.4 2.4v5c0 3.8-2.7 6.9-6.4 7.8-3.7-.9-6.4-4-6.4-7.8v-5z"/>
+    <path d="M6.2 8.8l2 2 3.6-3.6"/>
+  </g>
+
+  <g id="lg-chart" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M2 1.4v15.2h14.4"/>
+    <path d="M5.6 13.6V9.4"/><path d="M9.4 13.6V4.6"/><path d="M13.2 13.6v-3"/>
+  </g>
+
+  <g id="lg-alert" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M9 1.4l7.8 14H1.2z"/><path d="M9 6.4v4.2"/><path d="M9 13.2h.01"/>
+  </g>
+
+  <g id="lg-check" fill="none" stroke="currentColor" stroke-width="1.4">
+    <circle cx="9" cy="9" r="7.8"/><path d="M5.6 9.2l2.4 2.4 4.4-4.8"/>
+  </g>
+
+  <g id="lg-loop" fill="none" stroke="currentColor" stroke-width="1.4">
+    <path d="M2.2 9a6.8 6.8 0 0 1 11.6-4.8"/><path d="M15.8 9a6.8 6.8 0 0 1-11.6 4.8"/>
+    <path d="M14.2 1.2v3.4h-3.4"/><path d="M3.8 16.8v-3.4h3.4"/>
+  </g>
+
+</defs></svg>
+
+
+<div class="wrap">
+
+<p class="eyebrow">기억이음 Call · 편집용 단독 파일</p>
+<h1>시스템 구성도</h1>
+<p class="lede">가족이 사진과 목소리를 등록하는 순간부터 보호자 손에 리포트가 도착하기까지, 무엇이 어떤 순서로
+  만들어지는지를 세 장으로 나눠 그렸다. ① 전체 흐름 → ② 구성 요소 → ③ 얼굴 연령 변환.</p>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     ①  전체 흐름
+     ══════════════════════════════════════════════════════════ -->
+<div class="fig-head">
+  <span class="fig-no">①</span>
+  <h2>전체 흐름 — 등록에서 리포트까지</h2>
+</div>
+<p>왼쪽 끝은 사람이 하고, 가운데는 기계가 하고, 오른쪽 끝은 다시 사람에게 돌아온다.
+  가장 중요한 선은 맨 아래 되돌아오는 화살표다 — <strong>AI 는 스스로 기억을 늘리지 못한다.</strong></p>
+
+<div class="sheet">
+  <div class="sheet-body">
+<svg class="dia" viewBox="0 0 1160 700" role="img"
+     aria-label="가족이 사진·음성·기억을 등록하면 통화 전에 모핑 영상·복제 음성·아바타·기억 DB가 한 번 생성되고, 통화 중에는 안전 규칙을 통과한 문장만 나가며, 통화 후 규칙 집계로 리포트와 위험 알림, 미확인 회상 승인 요청이 만들어진다. 보호자가 승인한 회상만 기억 DB로 되돌아간다.">
+
+<!-- ── 단계 1 : 사람이 등록한다 ── -->
+<rect class="grp" x="20" y="64" width="252" height="470" rx="12"/>
+<text class="phase" x="38" y="98">① 등록</text>
+<text class="cap" x="38" y="118">사람이 한다 · 최초 1회</text>
+
+<g class="node" transform="translate(38,136)">
+  <rect class="box a" width="216" height="86" rx="9"/>
+  <use class="lg lg-a" href="#lg-camera" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">가족 사진</text>
+  <text class="sub" x="18" y="56">현재 얼굴 1장 · 품질 검사</text>
+  <text class="mono" x="18" y="74">YuNet 으로 자동 확인</text>
+</g>
+
+<g class="node" transform="translate(38,240)">
+  <rect class="box a" width="216" height="86" rx="9"/>
+  <use class="lg lg-a" href="#lg-mic" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">음성 녹음</text>
+  <text class="sub" x="18" y="56">1분 내외 두 개 · 동의 필수</text>
+  <text class="mono" x="18" y="74">본인 확인 없이 학습 안 함</text>
+</g>
+
+<g class="node" transform="translate(38,344)">
+  <rect class="box a" width="216" height="86" rx="9"/>
+  <use class="lg lg-a" href="#lg-note" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">기억 · 일정 · 복약</text>
+  <text class="sub" x="18" y="56">추억, 방문 약속, 약과 시간</text>
+  <text class="mono" x="18" y="74">여기 없는 것은 말하지 않는다</text>
+</g>
+
+<text class="mono" x="38" y="470">등록된 사실이 이 시스템의</text>
+<text class="mono" x="38" y="488">유일한 진실 공급원이다.</text>
+
+<!-- ── 단계 2 : 통화 전에 미리 만든다 ── -->
+<rect class="grp" x="312" y="64" width="252" height="470" rx="12"/>
+<text class="phase" x="330" y="98">② 자산 생성</text>
+<text class="cap" x="330" y="118">등록 직후 · 통화 전에 미리</text>
+
+<g class="node" transform="translate(330,136)">
+  <rect class="box b" width="216" height="86" rx="9"/>
+  <use class="lg lg-b" href="#lg-film" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">모핑 영상</text>
+  <text class="sub" x="18" y="56">어린 얼굴 → 현재 얼굴</text>
+  <text class="mono" x="18" y="74">③ 에서 자세히 · morph.mp4</text>
+</g>
+
+<g class="node" transform="translate(330,240)">
+  <rect class="box b" width="216" height="86" rx="9"/>
+  <use class="lg lg-b" href="#lg-elevenlabs" x="18" y="12"/>
+  <text class="sub" x="18" y="56">가족 목소리 복제 (IVC)</text>
+  <text class="mono" x="18" y="74">voice_id 는 서버에만 보관</text>
+</g>
+
+<g class="node" transform="translate(330,344)">
+  <rect class="box b" width="216" height="86" rx="9"/>
+  <use class="lg lg-b" href="#lg-anam" x="18" y="12"/>
+  <text class="sub" x="18" y="56">확정 사진으로 아바타 생성</text>
+  <text class="mono" x="18" y="74">실패해도 음성으로 계속</text>
+</g>
+
+<g class="node" transform="translate(330,448)">
+  <rect class="box t" width="216" height="66" rx="9"/>
+  <use class="lg lg-t" href="#lg-sqlite" x="18" y="14"/>
+  <text class="lbl" x="46" y="30">기억 DB</text>
+  <text class="mono" x="18" y="52">verified · partial · prohibited</text>
+</g>
+
+<!-- ── 단계 3 : 통화 ── -->
+<rect class="grp" x="604" y="64" width="252" height="470" rx="12"/>
+<text class="phase" x="622" y="98">③ 통화</text>
+<text class="cap" x="622" y="118">실시간 · 매번</text>
+
+<g class="node" transform="translate(622,136)">
+  <rect class="box" width="216" height="86" rx="9"/>
+  <use class="lg" href="#lg-phone" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">전화를 건다</text>
+  <text class="sub" x="18" y="56">24초 인트로 = 모핑 영상</text>
+  <text class="mono" x="18" y="74">가족이 받으면 사람 통화</text>
+</g>
+
+<g class="node" transform="translate(622,240)">
+  <rect class="box b" width="216" height="86" rx="9"/>
+  <use class="lg lg-b" href="#lg-loop" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">AI 가 대신 받는다</text>
+  <text class="sub" x="18" y="56">듣기 → 답하기 → 말하기</text>
+  <text class="mono" x="18" y="74">STT · LLM 1회 · TTS</text>
+</g>
+
+<g class="node" transform="translate(622,344)">
+  <rect class="box r" width="216" height="86" rx="9"/>
+  <use class="lg" href="#lg-shield" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">안전 규칙 통과</text>
+  <text class="sub" x="18" y="56">없는 약속 · 근거 없는 단언 차단</text>
+  <text class="mono" x="18" y="74">통과한 문장만 밖으로 나간다</text>
+</g>
+
+<g class="node" transform="translate(622,448)">
+  <rect class="box t" width="216" height="66" rx="9"/>
+  <use class="lg lg-t" href="#lg-note" x="18" y="14"/>
+  <text class="lbl" x="46" y="30">모든 발화를 기록</text>
+  <text class="mono" x="18" y="52">utterances · call_events</text>
+</g>
+
+<!-- ── 단계 4 : 산출물 ── -->
+<rect class="grp" x="896" y="64" width="244" height="470" rx="12"/>
+<text class="phase" x="914" y="98">④ 산출물</text>
+<text class="cap" x="914" y="118">통화가 끝나면 자동</text>
+
+<g class="node" transform="translate(914,136)">
+  <rect class="box t" width="208" height="86" rx="9"/>
+  <use class="lg lg-t" href="#lg-chart" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">보호자 리포트</text>
+  <text class="sub" x="18" y="56">숫자는 규칙, 문장만 LLM</text>
+  <text class="mono" x="18" y="74">7일 변화 비교 포함</text>
+</g>
+
+<g class="node" transform="translate(914,240)">
+  <rect class="box r" width="208" height="86" rx="9"/>
+  <use class="lg" href="#lg-alert" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">위험 알림</text>
+  <text class="sub" x="18" y="56">"어지러워" 같은 발화 즉시</text>
+  <text class="mono" x="18" y="74">AI 가 판단하지 않고 넘긴다</text>
+</g>
+
+<g class="node" transform="translate(914,344)">
+  <rect class="box a" width="208" height="86" rx="9"/>
+  <use class="lg lg-a" href="#lg-check" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">승인 대기</text>
+  <text class="sub" x="18" y="56">처음 들은 이야기 = 미확인</text>
+  <text class="mono" x="18" y="74">unverified_recall</text>
+</g>
+
+<text class="mono" x="914" y="470">리포트는 사실층과 해석층을</text>
+<text class="mono" x="914" y="488">섞지 않는다.</text>
+
+<!-- ── 단계 사이 화살표 ── -->
+<path class="edge thick" d="M272 300 H 306"/>
+<text class="mono" x="289" y="272" text-anchor="middle">등록</text>
+<text class="mono" x="289" y="286" text-anchor="middle">직후</text>
+<path class="edge thick" d="M564 300 H 598"/>
+<text class="mono" x="581" y="272" text-anchor="middle">통화</text>
+<text class="mono" x="581" y="286" text-anchor="middle">시작</text>
+<path class="edge thick" d="M856 300 H 890"/>
+<text class="mono" x="873" y="272" text-anchor="middle">통화</text>
+<text class="mono" x="873" y="286" text-anchor="middle">종료</text>
+
+<!-- ③ 통화 안쪽은 순서가 있다 -->
+<path class="edge" d="M730 222 V 236"/>
+<path class="edge" d="M730 326 V 340"/>
+<path class="edge" d="M730 430 V 444"/>
+
+<!-- ── 되돌아오는 고리 ── -->
+<path class="edge a thick" d="M1018 430 V 600 H 438 V 518"/>
+<text class="lbl" x="560" y="592">보호자가 승인해야 비로소 기억이 된다</text>
+<text class="mono" x="560" y="614">AI 는 스스로 기억을 늘리지 못한다 — 통화 중 처음 나온 이야기는 승인 전까지 사실로 쓰이지 않는다</text>
+
+<text class="mono" x="38" y="660">이 그림에서 사람이 손대는 칸은 ① 과 ④ 뿐이다. ② 와 ③ 은 사람이 등록한 것 밖으로 나가지 않는다.</text>
+
+</svg>
+  </div>
+  <div class="sheet-foot">
+    ②와 ③ 사이가 이 서비스의 성격을 정한다 — 통화 중에 새로 만들어지는 것은 <em>문장</em>뿐이고,
+    얼굴·목소리·기억은 전부 통화 전에 사람이 승인한 자산이다.
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     ②  시스템 구성도
+     ══════════════════════════════════════════════════════════ -->
+<div class="fig-head">
+  <span class="fig-no">②</span>
+  <h2>시스템 구성도 — 무엇이 무엇을 부르는가</h2>
+</div>
+<p>서버는 하나다. 상주 스케줄러도, 메시지 큐도, 관리형 SFU 도 없다.
+  외부 공급자는 넷뿐이고 각각 정확히 하나의 창구 모듈만 통과한다.</p>
+
+<div class="sheet">
+  <div class="sheet-body">
+<svg class="dia" viewBox="0 0 1160 720" role="img"
+     aria-label="React PWA 클라이언트 3종이 FastAPI 서버 하나를 통해 SQLite와 파일 저장소를 읽고 쓰며, 서버가 OpenAI 호환 LLM·ElevenLabs·Anam·MuseTalk 공급자를 각각 하나의 창구 모듈로 호출한다. 사람 통화 미디어만 서버를 거치지 않고 P2P로 흐른다.">
+
+<!-- ── ① 클라이언트 ── -->
+<rect class="grp" x="16" y="88" width="288" height="364" rx="12"/>
+<use class="lg" href="#lg-react" x="32" y="98"/>
+<text class="cap" x="60" y="112">클라이언트 · React 19 PWA</text>
+
+<g class="node" transform="translate(60,124)">
+  <rect class="box" width="224" height="84" rx="9"/>
+  <use class="lg" href="#lg-phone" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">어르신 폰</text>
+  <text class="sub" x="18" y="56">통화 · 수신 화면</text>
+  <text class="mono" x="18" y="74">device.js · useSpeech</text>
+</g>
+
+<g class="node" transform="translate(60,224)">
+  <rect class="box" width="224" height="84" rx="9"/>
+  <use class="lg" href="#lg-phone" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">보호자 폰</text>
+  <text class="sub" x="18" y="56">수신 · 리포트</text>
+  <text class="mono" x="18" y="74">폴링 1.5초 = heartbeat</text>
+</g>
+
+<g class="node" transform="translate(60,324)">
+  <rect class="box a" width="224" height="84" rx="9"/>
+  <use class="lg lg-a" href="#lg-people" x="18" y="14"/>
+  <text class="lbl" x="46" y="32">가족 설정 화면</text>
+  <text class="sub" x="18" y="56">사진 · 음성 등록 / 승인</text>
+  <text class="mono" x="18" y="74">FamilyPersonaSettings</text>
+</g>
+
+<path class="edge b" d="M60 166 C 28 166 28 266 54 266"/>
+<text class="mono" x="32" y="436">↕ 사람 통화 미디어는 P2P</text>
+
+<!-- ── ② FastAPI 서버 ── -->
+<rect class="grp" x="336" y="60" width="496" height="486" rx="12"/>
+<use class="lg" href="#lg-fastapi" x="352" y="70"/>
+<text class="cap" x="378" y="84">FastAPI 백엔드 · backend/</text>
+
+<g class="node" transform="translate(354,100)">
+  <rect class="box" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">api.py</text>
+  <text class="sub" x="16" y="47">HTTP 라우터 · 정적 배포</text>
+</g>
+<g class="node" transform="translate(590,100)">
+  <rect class="box t" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">persona.py</text>
+  <text class="sub" x="16" y="47">시각 · 일정 · 기억 → 프롬프트</text>
+</g>
+
+<g class="node" transform="translate(354,172)">
+  <rect class="box" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">conversation.py</text>
+  <text class="sub" x="16" y="47">통화 세션 · 발화 기록</text>
+</g>
+<g class="node" transform="translate(590,172)">
+  <rect class="box b" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">llm.py</text>
+  <text class="sub" x="16" y="47">LLM 단일 창구 · JSON 강제</text>
+</g>
+
+<g class="node" transform="translate(354,244)">
+  <rect class="box r" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">safety.py</text>
+  <text class="sub" x="16" y="47">규칙 검사 · 2차 방어</text>
+</g>
+<g class="node" transform="translate(590,244)">
+  <rect class="box t" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">care.py</text>
+  <text class="sub" x="16" y="47">관찰 증거 게이트</text>
+</g>
+
+<g class="node" transform="translate(354,316)">
+  <rect class="box t" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">invites.py</text>
+  <text class="sub" x="16" y="47">벨 · 인계 사유 판정</text>
+</g>
+<g class="node" transform="translate(590,316)">
+  <rect class="box" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">signaling.py</text>
+  <text class="sub" x="16" y="47">SDP / ICE 중계만</text>
+</g>
+
+<g class="node" transform="translate(354,388)">
+  <rect class="box t" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">report.py</text>
+  <text class="sub" x="16" y="47">집계는 규칙, 문장만 LLM</text>
+</g>
+<g class="node" transform="translate(590,388)">
+  <rect class="box b" width="228" height="62" rx="9"/>
+  <text class="lbl" x="16" y="27">공급자 창구</text>
+  <text class="sub" x="16" y="47">elevenlabs_* · anam · tts_proxy</text>
+</g>
+
+<text class="mono" x="354" y="484">medication · memories · schedules · accounts · age_timeline …</text>
+<text class="mono" x="354" y="504">모든 외부 호출은 위 창구 모듈만 통과한다</text>
+
+<!-- ── ③ 저장소 ── -->
+<rect class="grp" x="872" y="190" width="272" height="250" rx="12"/>
+<text class="cap" x="886" y="214">저장소 · 단일 인스턴스</text>
+
+<g class="node" transform="translate(886,230)">
+  <rect class="box" width="244" height="88" rx="9"/>
+  <use class="lg" href="#lg-sqlite" x="18" y="16"/>
+  <text class="lbl" x="46" y="34">SQLite</text>
+  <text class="sub" x="18" y="58">27 테이블 · 벡터DB 없음</text>
+  <text class="mono" x="18" y="76">calls · utterances · memories …</text>
+</g>
+
+<g class="node" transform="translate(886,338)">
+  <rect class="box" width="244" height="88" rx="9"/>
+  <use class="lg" href="#lg-folder" x="18" y="16"/>
+  <text class="lbl" x="46" y="34">파일 저장소</text>
+  <text class="sub" x="18" y="58">사진 · 음성 원본 · 모핑 영상</text>
+  <text class="mono" x="18" y="76">storage/faces · personas · voice</text>
+</g>
+
+<!-- ── ④ 외부 공급자 ── -->
+<text class="cap" x="352" y="578">외부 공급자 · API 키는 서버에만</text>
+<rect class="grp" x="336" y="588" width="808" height="92" rx="12"/>
+
+<g class="node" transform="translate(352,606)">
+  <rect class="box b" width="186" height="56" rx="9"/>
+  <use class="lg lg-b" href="#lg-openai" x="14" y="9"/>
+  <text class="mono" x="14" y="45">대화용 / 리포트용 모델 분리</text>
+</g>
+
+<g class="node" transform="translate(552,606)">
+  <rect class="box b" width="186" height="56" rx="9"/>
+  <use class="lg lg-b" href="#lg-elevenlabs" x="14" y="9"/>
+  <text class="mono" x="14" y="45">Scribe v2 STT · Flash TTS</text>
+</g>
+
+<g class="node" transform="translate(752,606)">
+  <rect class="box b" width="186" height="56" rx="9"/>
+  <use class="lg lg-b" href="#lg-anam" x="14" y="9"/>
+  <text class="mono" x="14" y="45">실시간 말하는 아바타</text>
+</g>
+
+<g class="node" transform="translate(952,606)">
+  <rect class="box" width="186" height="56" rx="9"/>
+  <use class="lg" href="#lg-musetalk" x="14" y="9"/>
+  <text class="mono" x="14" y="45">로컬 GPU · 선택 경로</text>
+</g>
+
+<!-- ── 연결선 ── -->
+<path class="edge" d="M284 166 H 332"/>
+<text class="mono" x="290" y="156">REST</text>
+<path class="edge" d="M284 266 H 332"/>
+<path class="edge a" d="M284 366 H 332"/>
+
+<path class="edge" d="M832 274 H 868"/>
+<path class="edge" d="M832 382 H 868"/>
+
+<path class="edge b" d="M445 550 V 602"/>
+<path class="edge b" d="M645 550 V 602"/>
+<path class="edge b" d="M845 550 V 602"/>
+<path class="edge"   d="M1045 550 V 602"/>
+<text class="mono" x="952" y="568">WAV → 립싱크 mp4</text>
+
+<path class="edge b dash" d="M96 452 V 700 H 845 V 666"/>
+<text class="mono" x="300" y="694">브라우저 ↔ Anam 직접 연결 · 단기 세션 토큰만 전달</text>
+
+</svg>
+  </div>
+  <div class="sheet-foot">
+    서버는 상태를 가진 유일한 지점이다. 외부 공급자를 창구 모듈 하나로 묶어 둔 이유는
+    모델 교체가 환경변수 몇 줄로 끝나야 하기 때문이다.
+  </div>
+</div>
+
+<ul class="legend">
+  <li><span class="swatch sw-t"></span>서버가 규칙으로 확정하는 것</li>
+  <li><span class="swatch sw-b"></span>외부 AI 공급자 (비결정적)</li>
+  <li><span class="swatch sw-r"></span>안전 검사 · 차단</li>
+  <li><span class="swatch sw-a"></span>사람의 승인이 필요한 지점</li>
+</ul>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     ③  얼굴 연령 변환 파이프라인
+     ══════════════════════════════════════════════════════════ -->
+<div class="fig-head">
+  <span class="fig-no">③</span>
+  <h2>얼굴 연령 변환 — 사진 한 장에서 모핑 영상까지</h2>
+</div>
+<p>성인 사진에서 8세 사진을 한 번에 만들지 않는다. 인접한 연령 단계마다 후보를 만들고 자동 검증으로 추리고,
+  <strong>가족이 고른 사진만</strong> 다음 단계의 입력이 된다. 직접 생성 경로는 신원과 아동 구조가 모두 불안정해 제품에서 제거했다.</p>
+
+<div class="sheet">
+  <div class="sheet-body">
+<svg class="dia" viewBox="0 0 1160 450" role="img"
+     aria-label="현재 사진에서 시작해 연령 단계마다 FLUX.2로 후보를 만들고 세 가지 자동 검증으로 추린 뒤 가족이 고르며, 고른 사진이 다음 단계 입력이 되는 루프를 돈다. 승인된 키프레임을 정렬하고 RIFE로 보간하면 모핑 영상이 된다.">
+
+<g class="node" transform="translate(16,146)">
+  <rect class="box" width="160" height="92" rx="9"/>
+  <use class="lg" href="#lg-camera" x="18" y="16"/>
+  <text class="lbl" x="46" y="34">현재 사진</text>
+  <text class="sub" x="18" y="58">입력 품질 검사</text>
+  <text class="mono" x="18" y="76">YuNet · 수·크기·선명도</text>
+</g>
+
+<rect class="grp" x="216" y="64" width="700" height="290" rx="12"/>
+<use class="lg lg-a" href="#lg-loop" x="234" y="78"/>
+<text class="cap" x="258" y="92">연령 단계 루프 · 38 → 32 → 26 → 20 → 15 → 11 → 8</text>
+
+<g class="node" transform="translate(234,106)">
+  <rect class="box b" width="200" height="100" rx="9"/>
+  <use class="lg lg-b" href="#lg-flux" x="16" y="14"/>
+  <text class="lbl" x="44" y="32">후보 생성 6장</text>
+  <text class="sub" x="16" y="56">FLUX.2 Klein 4B Inpaint</text>
+  <text class="mono" x="16" y="74">+ 개인 Identity LoRA</text>
+  <text class="mono" x="16" y="90">FRAN 은 구조 가이드만</text>
+</g>
+
+<g class="node" transform="translate(462,106)">
+  <rect class="box t" width="200" height="100" rx="9"/>
+  <use class="lg lg-t" href="#lg-verify" x="16" y="14"/>
+  <text class="lbl" x="44" y="32">자동 검증 3종</text>
+  <text class="mono" x="16" y="58">InsightFace · 신원 유사도</text>
+  <text class="mono" x="16" y="76">MiVOLO · 목표 나이 적합도</text>
+  <text class="mono" x="16" y="92">3DDFA-V2 · 얼굴 구조</text>
+</g>
+
+<g class="node" transform="translate(690,106)">
+  <rect class="box a" width="208" height="100" rx="9"/>
+  <use class="lg lg-a" href="#lg-people" x="16" y="14"/>
+  <text class="lbl" x="44" y="32">가족이 고른다</text>
+  <text class="sub" x="16" y="56">상위 4장 + 추천 이유</text>
+  <text class="mono" x="16" y="74">자동 추천 한 장으로</text>
+  <text class="mono" x="16" y="90">확정하지 않는다</text>
+</g>
+
+<path class="edge" d="M434 156 H 458"/>
+<path class="edge t" d="M662 156 H 686"/>
+<path class="edge a thick" d="M794 206 V 288 H 334 V 210"/>
+<text class="mono" x="440" y="280">고른 사진이 다음 연령 단계의 입력이 된다</text>
+
+<g class="node" transform="translate(950,96)">
+  <rect class="box" width="190" height="80" rx="9"/>
+  <text class="lbl" x="16" y="30">승인 키프레임 6장</text>
+  <text class="sub" x="16" y="52">YuNet 5점 정렬</text>
+  <text class="mono" x="16" y="70">눈·얼굴 위치를 맞춤</text>
+</g>
+
+<g class="node" transform="translate(950,214)">
+  <rect class="box t" width="190" height="90" rx="9"/>
+  <use class="lg lg-t" href="#lg-film" x="16" y="16"/>
+  <text class="lbl" x="44" y="34">모핑 영상</text>
+  <text class="sub" x="16" y="58">RIFE ONNX 보간</text>
+  <text class="mono" x="16" y="76">morph.mp4 · 통화 인트로 24초</text>
+</g>
+
+<path class="edge" d="M176 192 H 212"/>
+<path class="edge" d="M916 136 H 946"/>
+<path class="edge t" d="M1045 176 V 210"/>
+
+<text class="mono" x="16" y="386">영상은 통화 중에 만들지 않는다 — 등록할 때 한 번 생성하고, 통화 때는 재생만 한다.</text>
+<text class="mono" x="16" y="406">상용 영상 모델은 아동 이미지를 거부한다. 프롬프트에 "aging" 을 쓰면 도착 프레임을 무시하고 80대까지 밀어붙인다.</text>
+<text class="mono" x="16" y="426">현재 상태 — 검증 완료 데모 영상은 있으나 네 후보 자동 생성·선별은 전체 검증 전. 완성 기능처럼 발표하지 않는다.</text>
+
+</svg>
+  </div>
+  <div class="sheet-foot">
+    가족 선택이 파이프라인 한가운데 들어가 있는 것이 핵심이다. 자동 점수는 후보를 추리기만 하고,
+    무엇이 이 사람의 얼굴인지는 사람이 정한다.
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     로고 라이브러리
+     ══════════════════════════════════════════════════════════ -->
+<div class="fig-head"><h2>로고 라이브러리</h2></div>
+<p>전부 이 파일 맨 위 <code>&lt;svg class="sprite"&gt;</code> 안에 들어 있다.
+  색을 따로 지정하지 않고 <code>currentColor</code> 를 쓰기 때문에 밝은 화면·어두운 화면에서 자동으로 반전된다.</p>
+
+<div class="logos">
+  <div class="logo-cell"><svg viewBox="0 0 112 18"><use href="#lg-elevenlabs"/></svg><code>#lg-elevenlabs</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 112 18"><use href="#lg-openai"/></svg><code>#lg-openai</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 70 18"><use href="#lg-anam"/></svg><code>#lg-anam</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 92 18"><use href="#lg-musetalk"/></svg><code>#lg-musetalk</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-flux"/></svg><code>#lg-flux</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-verify"/></svg><code>#lg-verify</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-film"/></svg><code>#lg-film</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 22 18"><use href="#lg-react"/></svg><code>#lg-react</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-fastapi"/></svg><code>#lg-fastapi</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 16 18"><use href="#lg-sqlite"/></svg><code>#lg-sqlite</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-folder"/></svg><code>#lg-folder</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-phone"/></svg><code>#lg-phone</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 19 18"><use href="#lg-people"/></svg><code>#lg-people</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-camera"/></svg><code>#lg-camera</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-mic"/></svg><code>#lg-mic</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-note"/></svg><code>#lg-note</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-shield"/></svg><code>#lg-shield</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-chart"/></svg><code>#lg-chart</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-alert"/></svg><code>#lg-alert</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-check"/></svg><code>#lg-check</code></div>
+  <div class="logo-cell"><svg viewBox="0 0 18 18"><use href="#lg-loop"/></svg><code>#lg-loop</code></div>
+</div>
+
+<div class="note">
+  <p><strong>ElevenLabs 만 실제 로고 형태(막대 두 개 + 워드마크)로 그렸다.</strong>
+    OpenAI · Anam · MuseTalk · FLUX 는 브랜드 자산 없이 그린 중립 표기이므로, 발표 자료에 쓸 때는
+    각 브랜드가 배포하는 공식 SVG 로 갈아끼우는 편이 좋다. 방법은 아래 3번.</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     고치는 법
+     ══════════════════════════════════════════════════════════ -->
+<div class="fig-head"><h2>고치는 법</h2></div>
+<p>세 군데만 알면 된다. 나머지는 건드릴 일이 없다.</p>
+
+<ol class="steps">
+  <li>
+    <h3>노드를 옮긴다</h3>
+    <p>각 상자는 <code>translate(x, y)</code> 하나로 위치가 정해진다.
+      상자 안의 글자 좌표는 상자 기준이라 같이 따라 움직인다.</p>
+<pre>&lt;g class="node" transform="translate(<b>552, 606</b>)"&gt;
+  &lt;rect class="box b" width="186" height="56" rx="9"/&gt;
+  ...
+&lt;/g&gt;</pre>
+  </li>
+  <li>
+    <h3>색(의미)을 바꾼다</h3>
+    <p><code>class="box"</code> 뒤에 붙는 한 글자가 의미를 정한다.
+      <code>t</code> 규칙 확정 · <code>b</code> 외부 공급자 · <code>r</code> 안전 차단 ·
+      <code>a</code> 사람 승인. 아무것도 없으면 중립. 화살표도 같은 규칙이다 —
+      <code>class="edge b"</code>, 굵게 하려면 <code>class="edge a thick"</code>.</p>
+  </li>
+  <li>
+    <h3>로고를 갈아끼운다</h3>
+    <p>공식 SVG 파일을 열어 <code>&lt;path&gt;</code> 만 복사한 뒤,
+      맨 위 sprite 안에 아래 형태로 붙이고 상자에서 이름으로 부른다.
+      원본이 24px 기준이면 <code>scale(0.75)</code> 로 18px 에 맞춘다.</p>
+<pre><b>&lt;!-- sprite 안에 정의 --&gt;</b>
+&lt;g id="lg-새서비스" fill="currentColor" transform="scale(0.75)"&gt;
+  &lt;path d="M12 2L2 7l10 5 10-5z"/&gt;
+&lt;/g&gt;
+
+<b>&lt;!-- 상자 안에서 사용 --&gt;</b>
+&lt;use class="lg lg-b" href="<b>#lg-새서비스</b>" x="14" y="9"/&gt;</pre>
+    <p><code>fill="currentColor"</code> 를 지우면 안 된다. 지우는 순간 어두운 화면에서 로고가 사라진다.</p>
+  </li>
+</ol>
+
+</div>
