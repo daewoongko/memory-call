@@ -2075,10 +2075,36 @@ h3,
 .app-device-care .handover-workspace,
 .app-device-care .task-subtabs,
 .app-device-care .care-task-groups { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
-.app-device-care .care-task-workspace { overflow-x: clip; }
+.app-device-care .guardian-shell,
+.app-device-care .guardian-sidebar,
+.app-device-care .guardian-workspace {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.app-device-care .guardian-workspace {
+  overflow-x: hidden;
+  contain: inline-size;
+}
+.app-device-care .care-task-workspace { overflow-x: hidden; }
+.app-device-care .care-task-workspace > *,
+.app-device-care .care-task-groups > *,
+.app-device-care .care-task-row > * { min-width: 0; max-width: 100%; }
 .app-device-care .handover-workspace,
 .app-device-care .handover-groups,
 .app-device-care .handover-group { overflow-x: hidden; }
+.app-device-care .care-task-workspace,
+.app-device-care .handover-workspace {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.app-device-care .handover-group { background: var(--surface); }
+.app-device-care .handover-group.pending > summary { background: color-mix(in srgb,#d68a32 7%,var(--surface)); }
+.app-device-care .handover-group.completed > summary { background: color-mix(in srgb,var(--brand) 5%,var(--surface)); }
 
 /* 가족 설정의 안내와 조작 글자는 기본 크기에서도 또렷하게 보이도록 올린다. */
 .app-device-family .child-family-settings > header > p:last-child,

@@ -93,6 +93,14 @@ test("handover omits the repeated date and uses one readable task flow", () => {
   assert.match(styles, /\.handover-group\[open\] > summary i \{ transform:rotate\(180deg\); \}/);
 });
 
+test("care checklist keeps the mobile viewport width and handover has one surface", () => {
+  assert.match(theme, /\.app-device-care \.guardian-workspace \{[\s\S]*?overflow-x: hidden;[\s\S]*?contain: inline-size;/);
+  assert.match(styles, /\.care-task-groups details \{ width:100%; min-width:0; max-width:100%;/);
+  assert.match(styles, /\.care-task-row \{ width:100%; min-width:0; max-width:100%;/);
+  assert.match(styles, /\.dose-status-actions \{ min-width:0; max-width:100%;/);
+  assert.match(theme, /\.app-device-care \.care-task-workspace,[\s\S]*?\.app-device-care \.handover-workspace \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
+});
+
 test("care insight shows the eight-domain radar before the observation summary", () => {
   const overviewStart = careReports.indexOf('<section className="dashboard-card manager-combined-overview">');
   const radar = careReports.indexOf("<CareDomainRadar", overviewStart);
