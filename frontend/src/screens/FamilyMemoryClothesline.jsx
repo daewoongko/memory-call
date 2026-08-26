@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../api.js";
+import { demoDiaryMemories } from "../demoDiaryData.js";
 
 const EMPTY_FORM = {
   title: "", description: "", date_text: "", happened_year: "",
@@ -61,6 +62,7 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [hiddenDemoIds, setHiddenDemoIds] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef(null);
@@ -77,11 +79,38 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
     try { await action(); await load(); } catch (reason) { setError(reason.message); } finally { setBusy(false); }
   }
 
-  const hung = useMemo(() => memories
+  const demoMemories = useMemo(() => elderId === "elder_001"
+    ? demoDiaryMemories().map((memory) => ({
+      ...memory,
+      conversation_allowed: !hiddenDemoIds.has(memory.memory_id),
+    }))
+    : [], [elderId, hiddenDemoIds]);
+  const allMemories = useMemo(() => [...demoMemories, ...memories], [demoMemories, memories]);
+  const hung = useMemo(() => allMemories
     .filter((memory) => memory.conversation_allowed && ["verified", "partial"].includes(memory.status))
     .sort((left, right) => (left.happened_year ?? 9999) - (right.happened_year ?? 9999)
-      || String(left.created_at).localeCompare(String(right.created_at))), [memories]);
-  const drawer = useMemo(() => memories.filter((memory) => !memory.conversation_allowed || memory.status === "prohibited"), [memories]);
+      || String(left.created_at).localeCompare(String(right.created_at))), [allMemories]);
+  const drawer = useMemo(() => allMemories.filter((memory) => !memory.conversation_allowed || memory.status === "prohibited"), [allMemories]);
+
+  const moveToDrawer = (memory) => {
+    if (memory._demo) {
+      setHiddenDemoIds((current) => new Set([...current, memory.memory_id]));
+      return;
+    }
+    run(() => api.patchMemory(memory.memory_id, { conversation_allowed: false }));
+  };
+
+  const restoreMemory = (memory) => {
+    if (memory._demo) {
+      setHiddenDemoIds((current) => {
+        const next = new Set(current);
+        next.delete(memory.memory_id);
+        return next;
+      });
+      return;
+    }
+    run(() => api.patchMemory(memory.memory_id, { status: memory.status === "prohibited" ? "verified" : memory.status, conversation_allowed: true }));
+  };
 
   function beginReview(recall, status) {
     setReviewing({ ...recall, status });
@@ -130,7 +159,7 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
     <section className="hung-memory-section memory-step-section">
       <header><div><small>01</small><h2>함께 보는 추억</h2></div><p>가족이 확인했고 AI 통화에서도 사용할 수 있어요.</p></header>
       {!hung.length && <div className="empty-clothesline"><span /><b>첫 추억을 추가해 보세요</b><p>사진이 없어도 이야기부터 저장할 수 있어요.</p></div>}
-      {hung.length > 0 && <div className="memory-week-line memory-all-line"><div className="memory-rope" aria-hidden="true" /><ul>{hung.map((memory, index) => <Polaroid memory={memory} index={index} key={memory.memory_id} onOpen={setSelected} onDrawer={(item) => run(() => api.patchMemory(item.memory_id, { conversation_allowed: false }))} />)}</ul></div>}
+      {hung.length > 0 && <div className="memory-week-line memory-all-line"><div className="memory-rope" aria-hidden="true" /><ul>{hung.map((memory, index) => <Polaroid memory={memory} index={index} key={memory.memory_id} onOpen={setSelected} onDrawer={moveToDrawer} />)}</ul></div>}
     </section>
 
     <section className="memory-basket-section memory-step-section">
@@ -138,7 +167,7 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
       {basketOpen && <div className="memory-basket">
         {pending.map((recall) => <article key={recall.utterance_id}>
           <div className="candidate-artwork">{recall.artwork?.image_url ? <img src={recall.artwork.image_url} alt={recall.artwork.alt_text || "확인 전 그림"} /> : <span>이야기</span>}<i>확인 전 그림</i></div>
-          <div><time>{new Date(recall.created_at).toLocaleDateString("ko-KR")}</time><h3>{recall.summary || "새로운 이야기"}</h3>{recall.quote && <q>{recall.quote}</q>}
+          <div className="memory-basket-copy"><h3>{recall.summary || recall.quote || "새로운 이야기"}</h3>
             <nav><button className="approve" onClick={() => beginReview(recall, "verified")}>확인</button><button className="partial" onClick={() => beginReview(recall, "partial")}>일부만</button><button className="delete" onClick={() => run(() => api.reviewRecall(recall.utterance_id, { decision: "rejected" }, elderId))}>삭제</button></nav>
           </div>
         </article>)}
@@ -153,9 +182,10 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
         <input ref={fileRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setPhoto(event.target.files?.[0] || null)} />
         <div className="memory-new-fields">
           <input placeholder="추억 제목" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
-          <input type="number" min="1800" max="2100" placeholder="일어난 연도 (예: 1975)" value={form.happened_year} disabled={form.time_unknown} onChange={(event) => setForm({ ...form, happened_year: event.target.value })} />
-          <input placeholder="시기 (예: 1975년 봄)" value={form.date_text} disabled={form.time_unknown} onChange={(event) => setForm({ ...form, date_text: event.target.value })} />
-          <label className="memory-time-unknown"><input type="checkbox" checked={form.time_unknown} onChange={(event) => setForm({ ...form, time_unknown: event.target.checked, happened_year: event.target.checked ? "" : form.happened_year, date_text: event.target.checked ? "" : form.date_text })} /><span>시기를 잘 모르겠어요</span></label>
+          <div className="memory-time-field">
+            <input placeholder="시기 (예: 1975년 봄)" value={form.date_text} disabled={form.time_unknown} onChange={(event) => setForm({ ...form, date_text: event.target.value })} />
+            <label className="memory-time-unknown"><input type="checkbox" checked={form.time_unknown} onChange={(event) => setForm({ ...form, time_unknown: event.target.checked, happened_year: "", date_text: event.target.checked ? "" : form.date_text })} /><span>잘 모르겠어요</span></label>
+          </div>
           <input placeholder="장소" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} />
           <input placeholder="함께 있던 사람 이름 (예: 대웅, 정훈)" aria-label="함께 있던 사람 이름. 여러 명이면 쉼표로 구분" value={form.participants} onChange={(event) => setForm({ ...form, participants: event.target.value })} />
           <textarea placeholder="어떤 추억인지 적어주세요" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
@@ -166,12 +196,12 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
 
     <section className="memory-drawer-section memory-step-section">
       <header className="memory-drawer-header"><span><small>04</small><b>금지된 이야기</b></span><button type="button" className="memory-icon-toggle memory-drawer-toggle" aria-label={drawerOpen ? "금지된 이야기 접기" : "금지된 이야기 펼치기"} aria-expanded={drawerOpen} onClick={() => setDrawerOpen((value) => !value)}><i className={drawerOpen ? "open" : ""} aria-hidden="true" /></button></header>
-      {drawerOpen && <div>{drawer.map((memory) => <article key={memory.memory_id}><span>{era(memory)}</span><b>{memory.title}</b><button onClick={() => run(() => api.patchMemory(memory.memory_id, { status: memory.status === "prohibited" ? "verified" : memory.status, conversation_allowed: true }))}>다시 사용하기</button></article>)}{!drawer.length && <p>잠시 뺀 추억이 없습니다.</p>}</div>}
+      {drawerOpen && <div>{drawer.map((memory) => <article key={memory.memory_id}><span>{era(memory)}</span><b>{memory.title}</b><button onClick={() => restoreMemory(memory)}>다시 사용하기</button></article>)}{!drawer.length && <p>잠시 뺀 추억이 없습니다.</p>}</div>}
     </section>
     {error && <p className="error">{error}</p>}
 
     {reviewing && <div className="memory-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setReviewing(null)}><section className="memory-review-modal" role="dialog" aria-modal="true"><header><div><small>{reviewing.status === "partial" ? "일부만 확인" : "걸기 전 확인"}</small><h2>이야기를 다듬어주세요</h2></div><button onClick={() => setReviewing(null)} aria-label="닫기">×</button></header><div className="memory-review-fields"><input value={reviewForm.title} onChange={(event) => setReviewForm({ ...reviewForm, title: event.target.value })} placeholder="제목" /><input type="number" min="1800" max="2100" value={reviewForm.happened_year} onChange={(event) => setReviewForm({ ...reviewForm, happened_year: event.target.value })} placeholder="일어난 연도" /><input value={reviewForm.date_text} onChange={(event) => setReviewForm({ ...reviewForm, date_text: event.target.value })} placeholder="시기" /><input value={reviewForm.location} onChange={(event) => setReviewForm({ ...reviewForm, location: event.target.value })} placeholder="장소" /><textarea value={reviewForm.description} onChange={(event) => setReviewForm({ ...reviewForm, description: event.target.value })} placeholder="이야기" /></div><button className="primary" onClick={approveRecall} disabled={busy || !reviewForm.title.trim()}>확인하고 줄에 걸기</button></section></div>}
 
-    {selected && <div className="memory-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setSelected(null)}><section className="memory-detail-modal" role="dialog" aria-modal="true"><button className="close" onClick={() => setSelected(null)} aria-label="닫기">×</button>{photoOf(selected) ? <img src={photoOf(selected)} alt={selected.title} /> : <div className="memory-detail-placeholder">{selected.title}</div>}<div><span>{era(selected)}{selected.location ? ` · ${selected.location}` : ""}</span><h2>{selected.title}</h2><p>{selected.description || "가족이 확인한 추억입니다."}</p><UseDots count={selected.used_count} /><button type="button" className="memory-detail-photo-button" onClick={() => detailFileRef.current?.click()} disabled={busy}>{photoOf(selected) ? "사진 바꾸기" : "이 추억에 사진 올리기"}</button><input ref={detailFileRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => uploadExistingPhoto(event.target.files?.[0])} /></div></section></div>}
+    {selected && <div className="memory-modal-backdrop memory-detail-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setSelected(null)}><section className="memory-detail-modal" role="dialog" aria-modal="true"><button className="close" onClick={() => setSelected(null)} aria-label="닫기">×</button>{photoOf(selected) ? <img src={photoOf(selected)} alt={selected.title} /> : <div className="memory-detail-placeholder">{selected.title}</div>}<div><span>{era(selected)}{selected.location ? ` · ${selected.location}` : ""}</span><h2>{selected.title}</h2><p>{selected.description || "가족이 확인한 추억입니다."}</p><UseDots count={selected.used_count} />{!selected._demo && <><button type="button" className="memory-detail-photo-button" onClick={() => detailFileRef.current?.click()} disabled={busy}>{photoOf(selected) ? "사진 바꾸기" : "이 추억에 사진 올리기"}</button><input ref={detailFileRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => uploadExistingPhoto(event.target.files?.[0])} /></>}</div></section></div>}
   </div>;
 }

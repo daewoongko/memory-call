@@ -10,6 +10,7 @@ import DasoniHomeTab from "./DasoniHomeTab.jsx";
 import { useCallMediaReadiness } from "../useCallMediaReadiness.js";
 import { useScreenWakeLock } from "../useScreenWakeLock.js";
 import AppDatePicker from "../components/AppDatePicker.jsx";
+import { DEMO_DIARY_BY_DATE } from "../demoDiaryData.js";
 
 function TabGlyph({ children }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
@@ -80,41 +81,6 @@ const CALL_TYPES = {
   ai_to_direct: { label: "AI 통화 후 가족이 이어받음", filterLabel: "이어받음", mark: "연결" },
 };
 
-const DEMO_DIARIES = [
-  {
-    date: "2026-07-12",
-    image: "/diary/country-market-memory.png",
-    title: "아버지와 걷던 장날",
-    writing: "여름 장터에서 아버지와 복숭아를 골랐다. 집으로 돌아오는 길에는 나란히 천천히 걸었다. 손에 든 장바구니는 무거웠지만 아버지와 웃으며 걷던 시간이 참 든든하고 따뜻했다.",
-    insight: "가족과 걷던 장날의 온기가 아버지 마음에 남아 있어요.",
-    weather: "포근함",
-  },
-  {
-    date: "2026-08-08",
-    image: "/diary/persimmon-yard-memory.png",
-    title: "감나무 아래의 오후",
-    writing: "마당 감나무 아래에서 어린 정훈이에게 잘 익은 감을 건넸다. 아이는 두 손으로 감을 받아 들고 환하게 웃었다. 아버지도 그 모습을 바라보며 함께 웃었고 마당에는 다정한 햇살이 오래 머물렀다.",
-    insight: "정훈이의 웃음은 아직도 아버지 마음을 밝혀요.",
-    weather: "따뜻함",
-  },
-  {
-    date: "2026-08-24",
-    image: "/diary/haeundae-family-drawing.png",
-    title: "고향 집 앞 냇가",
-    writing: "젊은 시절 살던 고향 집 앞에는 맑은 냇가가 있었다. 여름이면 가족과 물가에 앉아 발을 담그고 오래 이야기를 나누었다. 물 흐르는 소리와 함께 웃던 그날의 풍경이 아직도 마음에 선명하게 남아 있다.",
-    insight: "할아버지의 따뜻한 기억엔 언제나 대웅이가 있어요.",
-    weather: "맑음",
-  },
-  {
-    date: "2026-09-05",
-    image: "/diary/autumn-riverside-picnic.png",
-    title: "가을 강가의 소풍",
-    writing: "가을 강가에서 딸과 손주들과 김밥을 나누어 먹었다. 선선한 바람이 불고 물 위에는 햇빛이 반짝였다. 서로 음식을 건네며 웃었고 돌아오는 길에도 가족과 함께한 소풍 이야기를 오래 나누었다.",
-    insight: "가족과 웃던 가을날이 할아버지 마음에 남아 있어요.",
-    weather: "다정함",
-  },
-];
-
 export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", onMyPersonaChange, onDisplaySettings }) {
   const [picked, setPicked] = useState(null);
   const [selectedDate, setSelectedDate] = useState(() => localDateKey());
@@ -170,7 +136,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   }, [picked, selectedDate]);
 
   const latest = (summary?.daily_reports || []).find((day) => day.date === selectedDate) || null;
-  const demoDiary = DEMO_DIARIES.find((entry) => entry.date === selectedDate) || null;
+  const demoDiary = DEMO_DIARY_BY_DATE.get(selectedDate) || null;
   const heart = latest?.heart_report;
   const verifiedMemories = useMemo(() => memories.filter((memory) => memory.status === "verified"), [memories]);
   const artwork = useMemo(() => verifiedMemories.find((memory) => memory.artwork?.status === "approved" && memoryImage(memory))
@@ -207,7 +173,11 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const diaryDisplayAlt = demoDiary ? `${demoDiary.title} 기억을 그린 그림일기 삽화` : diaryImage ? diaryImageAlt : "할아버지와 손자가 해변에서 모래성을 만드는 그림일기 삽화";
   const diaryDisplayTitle = demoDiary?.title || (hasCalls ? diaryTitle : "할아버지와 만든 모래성");
   const diaryWeather = demoDiary?.weather || "맑음";
-  const diaryWeatherIcon = ({ 맑음: "☀️", 따뜻함: "🌤️", 포근함: "🌥️", 다정함: "☁️" })[diaryWeather] || "🌤️";
+  const diaryWeatherIcon = ({
+    맑음: "☀️", 따뜻함: "🌤️", 포근함: "🌥️", 다정함: "☁️", 고요함: "🌙",
+    신남: "🎈", 안심: "🍀", 반가움: "🌼", 뿌듯함: "🌱", 설렘: "✨",
+    평온함: "🌿", 시원함: "🌊", 상쾌함: "💧", 그리움: "🍂", 감사함: "💛",
+  })[diaryWeather] || "🌤️";
   const diaryTitleFit = Math.min(1, 9 / Math.max(diaryDisplayTitle.replace(/\s/g, "").length, 1));
   const diaryWritingText = completeDiaryWriting(demoDiary?.writing || (hasCalls
     ? heartQuote
@@ -217,7 +187,16 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     `${elderCallName}의 가장 따뜻한 기억엔\n${withSubjectParticle(myPersona?.display_name || "가족")} 있어요.`,
   );
   const quotedFamilyInsight = `“${familyInsight}”`;
-  const urgent = (latest?.risks || []).filter((risk) => !risk.acknowledged);
+  const urgent = [
+    ...(latest?.risks || []).filter((risk) => !risk.acknowledged),
+    ...(demoDiary?.risk ? [{
+      event_id: `demo-risk-${demoDiary.date}`,
+      evidence: demoDiary.risk.evidence,
+      action: demoDiary.risk.action,
+      type: demoDiary.risk.type,
+      demo: true,
+    }] : []),
+  ];
   const callTypeCounts = useMemo(() => calls.reduce((counts, call) => {
     const type = CALL_TYPES[call.call_type] ? call.call_type : "ai";
     counts[type] += 1;
@@ -395,7 +374,13 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
               <div className="child-diary-writing" aria-label={diaryWritingText}>{[...diaryWritingText].map((letter, index) => <span className={letter === " " ? "blank" : ""} aria-hidden="true" key={`${letter}-${index}`}>{letter === " " ? "\u00a0" : letter}</span>)}</div>
             </section>
           </article>
-          {urgent.length > 0 && <details className="child-alert"><summary><b>가족이 직접 확인할 이야기</b><span>{urgent.length}건 · 펼쳐보기</span></summary>{urgent.map((risk) => <p key={risk.event_id}>“{risk.evidence}”라는 말씀이 있었습니다. 현재 상태를 직접 확인해 주세요.</p>)}</details>}
+          {urgent.length > 0 && <section className="child-alert child-alert-prominent" role="alert" aria-label="가족이 직접 확인할 이야기">
+            <header><span className="child-alert-icon" aria-hidden="true">!</span><div><small>오늘 꼭 살펴봐 주세요</small><h2>가족이 직접 확인할 이야기</h2></div><b>{urgent.length}건</b></header>
+            <div className="child-alert-items">{urgent.map((risk) => <article key={risk.event_id}>
+              <q>{risk.evidence}</q>
+              <p>{risk.action || "현재 상태를 가족이 직접 확인해 주세요."}</p>
+            </article>)}</div>
+          </section>}
         </section>}
 
         {tab === "memories" && <section className="child-memory-page">

@@ -79,11 +79,11 @@ test("가족 홈은 대표 그림과 통화 일기 및 고정 4등분 하단 탭
   assert.match(child, /className=\{letter === " " \? "blank" : ""\}/);
   assert.match(child, /completeDiaryWriting/);
   assert.match(theme, /child-diary-writing \{[\s\S]*background-color: #fffdf8/);
-  assert.match(child, /할아버지의 따뜻한 기억엔 언제나 대웅이가 있어요/);
+  assert.match(child, /import \{ DEMO_DIARY_BY_DATE \} from "\.\.\/demoDiaryData\.js"/);
   assert.doesNotMatch(child, /--insight-fit/);
   assert.match(child, /\/diary\/haeundae-family-drawing\.png/);
   assert.ok(existsSync(new URL("../public/diary/haeundae-family-drawing.png", import.meta.url)));
-  assert.match(child, /const DEMO_DIARIES = \[/);
+  assert.match(child, /DEMO_DIARY_BY_DATE\.get\(selectedDate\)/);
   assert.doesNotMatch(child, /className="child-diary-picker"/);
   assert.match(child, /className="child-diary-date"/);
   assert.match(child, /displayValue=\{shortDate\(selectedDate\)\}/);
@@ -151,7 +151,11 @@ test("가족 추억함의 확인 대기 바구니는 접었다 펼칠 수 있다
   assert.match(clothesline, />삭제</);
   assert.doesNotMatch(clothesline, />나중에</);
   assert.match(clothesline, /어르신과의 통화에 사용될 추억이에요/);
-  assert.match(clothesline, /시기를 잘 모르겠어요/);
+  assert.match(clothesline, /memory-time-field/);
+  assert.match(clothesline, />잘 모르겠어요</);
+  assert.equal((clothesline.match(/placeholder="일어난 연도/g) || []).length, 1);
+  assert.doesNotMatch(clothesline, /recall\.created_at/);
+  assert.doesNotMatch(clothesline, /<q>\{recall\.quote\}<\/q>/);
   assert.match(clothesline, /새로운 이야기/);
   assert.match(clothesline, /함께 있던 사람 이름/);
   assert.doesNotMatch(clothesline, /\{pending\.length\}건|\{drawer\.length\}건/);

@@ -3236,3 +3236,113 @@ h3,
   .app-device-login .login-social { margin-top: 14px; }
   .app-device-login .login-skip { margin-top: 12px; }
 }
+
+/* 날짜별 그림일기에서 직접 확인이 필요한 내용은 접지 않고 즉시 보인다. */
+.app-device-family .child-alert-prominent {
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(213, 96, 73, .42);
+  border-left: 7px solid #d56049;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff4ef, #fffaf5 72%);
+  box-shadow: 0 14px 34px rgba(143, 63, 45, .13);
+}
+.app-device-family .child-alert-prominent > header {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 16px 17px 13px;
+}
+.app-device-family .child-alert-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #d56049;
+  font: 900 22px/1 var(--font-readable);
+}
+.app-device-family .child-alert-prominent header small {
+  display: block;
+  margin-bottom: 2px;
+  color: #a34736;
+  font-size: calc(10px * var(--font-scale));
+  font-weight: 800;
+}
+.app-device-family .child-alert-prominent header h2 {
+  margin: 0;
+  color: #542c25;
+  font-size: calc(17px * var(--font-scale));
+  line-height: 1.25;
+}
+.app-device-family .child-alert-prominent header > b {
+  min-width: 36px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #a34736;
+  background: rgba(213, 96, 73, .1);
+  font-size: calc(10px * var(--font-scale));
+  text-align: center;
+}
+.app-device-family .child-alert-items {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid rgba(213, 96, 73, .22);
+}
+.app-device-family .child-alert-items article { padding: 14px 18px 16px; }
+.app-device-family .child-alert-items article + article { border-top: 1px solid rgba(213, 96, 73, .18); }
+.app-device-family .child-alert-items q {
+  display: block;
+  color: #3f2b27;
+  font-size: calc(14px * var(--font-scale));
+  font-weight: 800;
+  line-height: 1.5;
+}
+.app-device-family .child-alert-items p {
+  margin: 7px 0 0;
+  padding: 0;
+  border: 0;
+  color: #9b4434;
+  font-size: calc(11px * var(--font-scale));
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+/* 함께 보는 추억의 상세 팝업은 화면 아래가 아니라 상단 가까이에서 연다. */
+.memory-detail-backdrop {
+  align-items: start;
+  justify-items: center;
+  padding: max(56px, 7vh) 18px 18px;
+}
+.memory-detail-backdrop .memory-detail-modal {
+  max-height: calc(100dvh - max(76px, 10vh));
+}
+.memory-detail-modal .close {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  color: #26352e;
+  background: transparent;
+  box-shadow: none;
+  font: 500 32px/1 var(--font-readable);
+}
+
+@media (max-width: 560px) {
+  .app-device-family .child-alert-prominent > header { grid-template-columns: 38px minmax(0, 1fr) auto; padding: 14px 13px 12px; }
+  .app-device-family .child-alert-icon { width: 36px; height: 36px; font-size: 20px; }
+  .app-device-family .child-alert-prominent header h2 { font-size: calc(15px * var(--font-scale)); }
+  .app-device-family .child-alert-items q { font-size: calc(13px * var(--font-scale)); }
+  .memory-detail-backdrop { align-items: start; padding: max(calc(env(safe-area-inset-top) + 38px), 7vh) 10px 12px; }
+  .memory-detail-backdrop .memory-detail-modal {
+    width: min(94vw, 700px);
+    max-width: min(94vw, 700px);
+    max-height: calc(100dvh - max(calc(env(safe-area-inset-top) + 54px), 10vh));
+    margin: 0;
+    border-radius: 22px;
+  }
+}
