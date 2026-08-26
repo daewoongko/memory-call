@@ -3518,9 +3518,9 @@ h3,
 
 /* Android installed-app layout -------------------------------------------------
    The theme file is loaded after styles.css, so its desktop device radius used
-   to win over the mobile edge-to-edge rules. Keep every signed-in role flush
-   with the WebView; the role-specific inner screens must not restore a rounded
-   preview frame on Galaxy devices. */
+   to win over the mobile edge-to-edge rules. Keep the entry flow and every
+   signed-in role flush with the WebView; inner screens must not restore a
+   rounded preview frame on Galaxy devices. */
 @media (max-width: 760px) {
   html,
   body,
@@ -3535,9 +3535,15 @@ h3,
     overflow: hidden;
   }
 
+  .app-shell.app-shell-default,
+  .app-shell.app-shell-login,
+  .app-shell.app-shell-roles,
   .app-shell.app-shell-elder,
   .app-shell.app-shell-family,
   .app-shell.app-shell-care,
+  .app-shell.app-shell-default.guardian-frame,
+  .app-shell.app-shell-login.guardian-frame,
+  .app-shell.app-shell-roles.guardian-frame,
   .app-shell.app-shell-elder.guardian-frame,
   .app-shell.app-shell-family.guardian-frame,
   .app-shell.app-shell-care.guardian-frame {
@@ -3558,6 +3564,12 @@ h3,
     clip-path: none !important;
   }
 
+  .app-shell-default > .app-device-default,
+  .app-shell-login > .app-device-login,
+  .app-shell-roles > .app-device-roles,
+  .app-shell-default > .app-device-default.guardian-device,
+  .app-shell-login > .app-device-login.guardian-device,
+  .app-shell-roles > .app-device-roles.guardian-device,
   .app-shell-elder > .app-device-elder,
   .app-shell-family > .app-device-family,
   .app-shell-care > .app-device-care,
@@ -3581,6 +3593,9 @@ h3,
     clip-path: none !important;
   }
 
+  .app-device-default > .screen,
+  .app-device-login > .login-screen,
+  .app-device-roles > .role-gateway,
   .app-device-elder > .reassurance-home,
   .app-device-elder > .screen,
   .app-device-elder > .call-stack,
