@@ -333,12 +333,3 @@ def load_context(elder_id: str = "elder_001",
         "schedules": [_row(s) for s in schedules],
         "medications": [_row(m) for m in medications],
     }
-
-
-def get_memory(memory_id: str) -> dict | None:
-    """safety.py가 인용된 기억의 status를 확인할 때 쓴다."""
-    with connect() as conn:
-        row = conn.execute(
-            "SELECT * FROM memories WHERE memory_id = ?", (memory_id,)
-        ).fetchone()
-    return _row(row) if row else None

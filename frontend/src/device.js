@@ -46,11 +46,7 @@ export function deviceId() {
   return id;
 }
 
-/** 이 보호자 기기의 주인이 어느 가족인가. 벨은 이 값으로 배달된다. */
-export function guardianPersonaId() {
-  return read(KEY_GUARDIAN_PERSONA);
-}
-
+/** 이 가족 기기의 주인이 어느 가족인가. 벨은 이 값으로 배달된다. */
 export function setGuardianPersonaId(personaId) {
   write(KEY_GUARDIAN_PERSONA, personaId);
 }

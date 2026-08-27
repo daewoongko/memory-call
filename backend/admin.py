@@ -426,11 +426,3 @@ def prepare_faces(persona_id: str | None = None) -> dict:
         "log": (result.stdout + result.stderr)[-2000:],
         "faces": faces(persona_id),
     }
-
-
-def reset_faces(persona_id: str | None = None) -> None:
-    paths = _admin_paths(persona_id)
-    for folder in (paths.raw, paths.aligned):
-        if folder.exists():
-            shutil.rmtree(folder)
-        folder.mkdir(parents=True, exist_ok=True)

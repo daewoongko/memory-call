@@ -186,7 +186,10 @@ python tools/eval.py --raw --sleep 5      # safety 없이 비교
 
 # 통화 흐름 (API 서버가 켜져 있어야 함)
 python tools/call_flow.py
-cd frontend && npm run build && node e2e/two_devices.mjs http://127.0.0.1:8000
+
+# 브라우저 두 대 흐름. 해시 직행 주소가 개발 모드 전용이라 Vite 개발
+# 서버(5173)를 겨눕니다. playwright 가 필요합니다.
+cd frontend && node e2e/two_devices.mjs http://127.0.0.1:5173
 ```
 
 Windows PowerShell에서는 `python` 대신 `.\.venv\Scripts\python.exe`를 사용합니다.

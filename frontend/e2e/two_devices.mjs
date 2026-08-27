@@ -31,6 +31,22 @@ const BASE = (process.argv[2] || "http://127.0.0.1:8021").replace(/\/$/, "");
 const PERSONA = "persona_jeonghun";
 const PERSONA_NAME = "정훈";
 
+// 벨이 몇 초 우는지는 서버가 정한다(invites.INTRO_DURATION_SEC). 여기에 숫자를
+// 박아 두면 서버가 바뀔 때 이 시험만 조용히 낡는다. 실제로 15초·6초를 박아 둔
+// 채로 오래 빨간불이었다. 그래서 절대값 대신 "받을 기기가 있든 없든 같은
+// 시간을 기다린다"는 불변식을 본다. 이 값이 갈리면 어르신 화면의 소개 영상이
+// 끝나기 전에 통화가 바뀌어 버린다.
+
+/** 어르신 대기 화면이 표시하는 남은 초. "24초 후 연결돼요" 를 읽는다. */
+async function introSeconds(page) {
+  const text = await page.locator(".calling-intro-count")
+    .textContent({ timeout: 15000 })
+    .catch(() => null);
+  if (!text) return null;
+  const matched = text.trim().match(/(\d+)\s*초/);
+  return matched ? Number(matched[1]) : null;
+}
+
 const problems = [];
 const log = (m) => console.log(m);
 const check = (condition, message) => {
@@ -141,10 +157,6 @@ try {
   }
   await guardian.locator(".child-screen").waitFor({ timeout: 20000 });
 
-  if (await guardian.locator(".child-identity-setup button").count()) {
-    await guardian.locator(".child-identity-setup button", { hasText: PERSONA_NAME })
-      .first().click();
-  }
   await prepareMedia(guardian, "보호자 폰");
   await guardian.waitForTimeout(2500); // 기기 등록 + 폴링 한 바퀴
 
@@ -157,18 +169,22 @@ try {
   await prepareMedia(elder, "어르신 폰");
   await placeElderCall();
 
-  const countdown = await elder.locator(".countdown").textContent();
-  check(/^1[0-9]초$/.test(countdown.trim()),
-        `받을 기기가 있으므로 길게 기다린다 (${countdown.trim()})`);
+  const longRing = await introSeconds(elder);
+  check(longRing !== null && longRing > 0,
+        `대기 화면이 남은 시간을 보여준다 (${longRing}초)`);
 
   await overlay.waitFor({ state: "visible", timeout: 12000 });
   check(true, "보호자 폰에 벨이 도착한다");
 
-  const answeredAt = Date.now();
   await guardian.locator(".guardian-call-answer").click({ timeout: 10000 });
-  await elder.locator(".human-call").waitFor({ timeout: 12000 });
+  // 가족이 벨 도중에 받아도 어르신 화면은 소개 영상을 끝까지 재생한 뒤에
+  // 사람 통화로 넘어간다. 그래서 "받은 순간"이 아니라 "소개가 끝난 순간"부터
+  // 재는 것이 맞다. 그 사이에 ICE 를 모아 두는 것이 이 설계의 목적이다.
+  await elder.locator(".human-call")
+    .waitFor({ timeout: (longRing + 15) * 1000 });
+  const answeredAt = Date.now();
   check(true, "어르신 화면이 사람 통화로 바뀐다");
-  check(Boolean(await guardian.locator(".guardian-call-timer").count()),
+  check(Boolean(await guardian.locator(".guardian-call-meta").count()),
         "보호자 화면이 통화 중으로 바뀐다");
   await elder.waitForFunction(() => {
     const video = document.querySelector(".human-remote-video");
@@ -182,7 +198,8 @@ try {
   }, null, { timeout: 8000 });
   const connectedIn = Date.now() - answeredAt;
   check(true, "양쪽에 상대 음성·영상 스트림이 실제로 연결된다");
-  check(connectedIn <= 3000, `받은 뒤 3초 안에 연결된다 (${connectedIn}ms)`);
+  check(connectedIn <= 3000,
+        `소개 영상이 끝나고 3초 안에 연결된다 (${connectedIn}ms)`);
   for (const [page, selector, who] of [
     [elder, ".human-remote-video", "어르신"],
     [guardian, ".guardian-media-stage > video", "보호자"],
@@ -215,11 +232,17 @@ try {
 
   // ── 2. 어르신이 끊으면 보호자도 풀린다 ──────────────────
   log("\n2. 어르신이 끊는다");
+  // 끊기는 두 번 눌러야 한다. 어르신이 잘못 눌러 통화가 끊기는 것을 막으려고
+  // 확인 대화상자를 거치기 때문이다. 한 번만 누르면 통화는 그대로 이어진다.
   await elder.locator(".human-call .round.danger").click();
+  await elder.locator(".call-confirm button.end").click({ timeout: 5000 });
   await overlay.waitFor({ state: "detached", timeout: 12000 })
     .catch(() => {});
-  check(!(await guardian.locator(".guardian-call-timer").count()),
+  check(!(await guardian.locator(".guardian-call-meta").count()),
         "보호자 화면이 통화 중에 갇히지 않는다");
+  await elder.locator("button.family-card").first()
+    .waitFor({ timeout: 15000 });
+  check(true, "어르신 화면이 대기 화면으로 돌아온다");
 
   // ── 3. 거절하면 AI 가 대신 받는다 ───────────────────────
   log("\n3. 가족이 거절한다");
@@ -262,8 +285,11 @@ try {
   await elder.route("**/api/call-invites/*/signal*", (route) => route.abort());
   await guardian.route("**/api/call-invites/*/signal*", (route) => route.abort());
   await guardian.locator(".guardian-call-answer").click({ timeout: 10000 });
-  await elder.locator(".human-call").waitFor({ timeout: 12000 });
-  await elder.locator(".call-screen").waitFor({ timeout: 20000 });
+  // 여기서도 소개 영상이 끝나야 사람 통화 화면이 뜬다.
+  await elder.locator(".human-call")
+    .waitFor({ timeout: (longRing + 15) * 1000 });
+  // 그 뒤 미디어가 붙지 않으면 HUMAN_CONNECT_GRACE_MS 만큼 기다렸다가 AI 로 넘어간다.
+  await elder.locator(".call-screen").waitFor({ timeout: 40000 });
   check(true, "미디어가 붙지 않으면 오류 문구 없이 AI 통화로 넘어간다");
   const stopped = await elder.evaluate(() => {
     const humanStreams = (window.__e2eOpenedMedia || [])
@@ -309,8 +335,14 @@ try {
   await elder.reload({ waitUntil: "domcontentloaded" });
   await prepareMedia(elder, "어르신 폰 대기 복귀");
   await placeElderCall();
-  const shortRing = (await elder.locator(".countdown").textContent()).trim();
-  check(shortRing === "6초", `받을 폰이 없으므로 짧게 운다 (${shortRing})`);
+  // 받을 폰이 없어도 대기 시간은 줄지 않는다. 어르신 화면의 소개 영상과
+  // 어긋나면 영상이 끝나기 전에 통화가 바뀌어 버리기 때문이다. 기기 유무는
+  // 대기 시간이 아니라 사유(no_device)로만 드러난다.
+  const noDeviceRing = await introSeconds(elder);
+  check(noDeviceRing !== null && longRing !== null
+          && Math.abs(noDeviceRing - longRing) <= 2,
+        `받을 폰이 없어도 같은 길이로 운다 `
+        + `(기기 있을 때 ${longRing}초 / 없을 때 ${noDeviceRing}초)`);
   await elder.locator(".dev button").click().catch(() => {});
 
   // ── 6. 다시 켜면 돌아온다 ───────────────────────────────

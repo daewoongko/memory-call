@@ -92,8 +92,9 @@ def case_no_answer() -> bool:
     poll_guardian()  # 화면을 열어 둔 상태로 만든다
 
     invite = ring()
-    passed = ok(invite["ring_timeout_sec"] == 15,
-                f"받을 기기가 있으므로 {invite['ring_timeout_sec']}초를 기다린다")
+    intro = invite["intro_duration_sec"]
+    passed = ok(invite["ring_timeout_sec"] == intro,
+                f"어르신 화면의 소개 영상과 같은 {intro}초를 기다린다")
     passed &= ok(poll_guardian() is not None, "보호자 기기에 벨이 실제로 도착한다")
 
     final = wait_for_ring_to_end(invite)
@@ -158,13 +159,19 @@ def case_answer() -> bool:
 
 
 def case_no_device() -> bool:
-    """받을 기기가 아예 없다 → 짧게 울리고 사유가 따로 남는다."""
+    """받을 기기가 아예 없다 → 같은 시간을 울리되 사유가 따로 남는다."""
     invite = call("POST", "/api/call-invites", {
         "elder_id": ELDER, "persona_id": "persona_yujin",
         "from_device": ELDER_DEVICE,
     })
-    passed = ok(invite["ring_timeout_sec"] == 6,
-                f"등록된 기기가 없으므로 {invite['ring_timeout_sec']}초만 울린다")
+    # 받을 기기가 없어도 대기 시간을 줄이지 않는다. 어르신 화면에서 도는
+    # 소개 영상과 어긋나면 화면이 끝나기 전에 통화가 바뀌어 버린다.
+    # 기기 유무는 대기 시간이 아니라 사유(no_device)로만 드러난다.
+    intro = invite["intro_duration_sec"]
+    passed = ok(invite["ring_timeout_sec"] == intro,
+                f"기기가 없어도 소개 영상과 같은 {intro}초를 기다린다")
+    passed &= ok(bool(invite["no_live_device"]),
+                 "받을 기기가 없다는 사실은 대기 시간이 아니라 여기 남는다")
 
     final = wait_for_ring_to_end(invite)
     passed &= ok(final["takeover_reason"] == "no_device",

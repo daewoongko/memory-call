@@ -422,33 +422,6 @@ def insert_visual_bridge_candidate(
     return result
 
 
-def remove_refinement(age: int, persona_id: str | None = None) -> dict:
-    """Remove one experimental midpoint and invalidate its younger branch."""
-    saved = _read(persona_id)
-    current_age = saved.get("current_age")
-    if not isinstance(current_age, int):
-        raise ValueError("Configure the current age before changing refinements")
-    extra_ages = [int(value) for value in saved.get("extra_ages") or []]
-    if age not in extra_ages:
-        result = get_plan(persona_id)
-        result["removed_age"] = None
-        result["invalidated_ages"] = []
-        return result
-    saved["extra_ages"] = sorted(
-        {value for value in extra_ages if value != age}, reverse=True
-    )
-    invalidated = invalidate_refined_branch(
-        saved.setdefault("selections", {}), age
-    )
-    saved["version"] = 4
-    saved["updated_at"] = datetime.now(timezone.utc).isoformat()
-    _write(saved, persona_id)
-    result = get_plan(persona_id)
-    result["removed_age"] = age
-    result["invalidated_ages"] = invalidated
-    return result
-
-
 def refine_failed_segment(older_age: int, younger_age: int,
                           persona_id: str | None = None) -> dict:
     """Insert a midpoint anchor between two adjacent failed stages."""

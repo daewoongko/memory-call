@@ -108,9 +108,6 @@ export const CALL_STYLE_TYPES = {
 };
 
 export const CALL_STYLE_TOTAL_SCENES = CALL_STYLE_SCENES.length;
-// 이전 화면에서 참조하던 이름은 호환을 위해 남기되 값은 새 카드 수입니다.
-export const CALL_STYLE_TOTAL_QUESTIONS = CALL_STYLE_TOTAL_SCENES;
-
 const AXIS_COPY = {
   tone: { C: "차분하게", B: "활기 있게" },
   response: { E: "공감을 먼저", P: "상황을 먼저" },
@@ -200,8 +197,6 @@ export function callStylePersonaPatch(result, answers) {
     forbidden_phrases: ["왜 또 물어봐?", "아까 말했잖아.", "그것도 기억 안 나?", "몇 번을 말해야 해?"],
   };
 }
-
-export const DEFAULT_CALL_STYLE_CODE = "CPOG";
 
 export function createDefaultCallStyleAnswers() {
   return { scene_1: "b", scene_2: "b", scene_3: "b", scene_4: "c", scene_5: "c", scene_6: "c" };

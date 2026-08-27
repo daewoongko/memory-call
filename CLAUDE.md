@@ -316,8 +316,11 @@ python tools/eval_reports.py             # 리포트 품질
 # 통화 흐름
 python tools/chat.py                     # 터미널 대화 테스트
 python tools/call_flow.py                # 호출 4가지 (서버가 켜져 있어야 함)
-cd frontend && npm run build && node e2e/two_devices.mjs http://127.0.0.1:8000
-                                         # 브라우저 두 개로 받음/끊음/거절
+
+# 브라우저 두 개로 받음/끊음/거절. 해시 직행(#elder, #child)은 개발 모드에서만
+# 열리므로 빌드 결과(8000)가 아니라 Vite 개발 서버(5173)를 겨눈다.
+cd frontend && node e2e/two_devices.mjs http://127.0.0.1:5173
+CHROMIUM_PATH=/path/to/chrome node e2e/two_devices.mjs http://127.0.0.1:5173
 
 python tools/demo_reset.py --med-in 6    # 시연 준비
 ```
@@ -475,3 +478,28 @@ import 하지 않고 `ROOT` 대입문만 `ast` 로 떼어내 격리 실행**해�
 `age_secondary.py` 는 각각 추정 스크립트를 그렇게 부른다. 정리하다가
 이 여섯 개를 건드리면 파일 몇 개 줄이려다 배포를 깨뜨린다. 정리 대상에서
 먼저 빼 놓는다.
+
+**검증 도구가 상수를 베껴 두면 조용히 낡는다.** 벨 시간을 24초로 통일한
+뒤에도 `tools/call_flow.py` 는 15초·6초를, `e2e/two_devices.mjs` 는 `.countdown`
+과 `"6초"` 를 그대로 들고 있었다. 둘 다 오래 빨간불이었고, 아무도 안 봐서
+빨간 줄 알지도 못했다. 지금은 서버가 응답에 실어 보내는 `intro_duration_sec`
+을 쓰거나, 아예 절대값 대신 **"받을 기기가 있든 없든 같은 시간을 기다린다"**
+는 불변식을 검사한다. 숫자를 두 곳에 적으면 언젠가 갈라진다.
+
+**없는 선택자로 부정 검사를 하면 영원히 통과한다.**
+`check(!(await page.locator(".guardian-call-timer").count()), "통화 중에
+갇히지 않는다")` 가 그랬다. 그 클래스는 CSS 에만 남고 JSX 는 더 이상 그리지
+않아서 `count()` 가 항상 0 이었고, 그래서 **통화가 실제로 안 끊겨도 통과**했다.
+부정 검사를 쓸 때는 그 선택자가 성공 경로에서 한 번은 잡히는지 먼저 본다.
+e2e 선택자를 JSX 와 통째로 대조하면 이런 것이 한 번에 드러난다.
+
+**e2e 는 빌드 결과가 아니라 개발 서버를 겨눠야 한다.** `#elder`, `#child`
+같은 해시 직행은 `import.meta.env.DEV` 로 막혀 있어서 `npm run build` 결과에
+대고 돌리면 로그인 화면에서 멈춘다. 예전 문서의
+`npm run build && node e2e/two_devices.mjs http://127.0.0.1:8000` 은 해시가
+막히기 전에 쓰던 명령이다.
+
+**끊기 버튼은 두 번 눌러야 한다.** 어르신이 잘못 눌러 통화가 끊기는 것을
+막으려고 `CallEndConfirm` 을 거치게 해 두었다. e2e 가 한 번만 누르고 있어서
+통화가 그대로 이어졌고, 그 뒤 시나리오가 전부 "대기 화면이 안정되지 않음"
+으로 무너졌다. 증상이 원인에서 세 단계 떨어진 곳에 나타난다.
