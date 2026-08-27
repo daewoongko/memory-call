@@ -25,11 +25,11 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "backend") not in sys.path:
     sys.path.insert(0, str(ROOT / "backend"))
-if str(ROOT / "tools") not in sys.path:
-    sys.path.insert(0, str(ROOT / "tools"))
+if str(ROOT / "tools" / "face_aging") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tools" / "face_aging"))
 
 from age_validate_flux2 import largest_face, make_analyzer, read_rgb  # noqa: E402
 

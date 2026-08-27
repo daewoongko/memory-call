@@ -48,7 +48,7 @@ class MuseTalkTrialTests(unittest.TestCase):
 
     def test_setup_script_pins_huggingface_and_downloads_exact_files(self):
         root = Path(__file__).resolve().parents[1]
-        script = (root / "tools" / "setup_musetalk_runtime.ps1").read_text(
+        script = (root / "tools" / "setup" / "setup_musetalk_runtime.ps1").read_text(
             encoding="utf-8"
         )
         self.assertIn('"huggingface_hub==0.30.2"', script)

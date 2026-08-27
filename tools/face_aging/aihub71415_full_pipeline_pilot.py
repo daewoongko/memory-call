@@ -31,7 +31,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from aihub71415 import align_record_image, read_jsonl  # noqa: E402
@@ -312,7 +312,7 @@ def _make_fran_guides(manifest: dict, output: Path) -> None:
     import torch
     from PIL import Image
 
-    sys.path.insert(0, str(ROOT / "tools" / "fran_vendor"))
+    sys.path.insert(0, str(ROOT / "tools" / "face_aging" / "fran_vendor"))
     from model.models import UNet
 
     if not torch.cuda.is_available():
@@ -370,7 +370,7 @@ def _load_pil(path: Path):
 def generate(args: argparse.Namespace) -> None:
     import torch
 
-    sys.path.insert(0, str(ROOT / "tools"))
+    sys.path.insert(0, str(ROOT / "tools" / "face_aging"))
     from age_generate_flux2 import build_pipeline, build_prompt
 
     output = args.output.resolve()

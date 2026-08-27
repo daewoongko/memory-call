@@ -25,7 +25,7 @@ from PIL import Image, ImageFilter, ImageOps
 from flux2_fp8_probe import CHECKPOINT, CONFIG_REPO, load_dequantized_state_dict
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from age_feedback import base_edit_strength  # noqa: E402

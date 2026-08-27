@@ -48,7 +48,9 @@ test("가족 카드 통화는 호출을 만든 뒤 서버 상태에 따라 사�
   assert.match(app, /current\.should_take_over/);
   assert.match(app, /api\.takeOverInvite\(inviteId\)/);
   assert.match(app, /current\.state === "ai_takeover"/);
-  assert.match(app, /if \(takeoverInFlight\.current\) return/);
+  // 중복 인계 요청을 막는 가드는 실제로 도는 두 경로에 각각 있어야 한다.
+  assert.match(app, /if \(!inviteId \|\| takeoverInFlight\.current\) return/);
+  assert.match(app, /if \(takeoverInFlight\.current\) \{\s*timer = setTimeout\(tick, RING_POLL_MS\);/);
   assert.match(app, /setError\(""\);[\s\S]*?cooldownUntil\.current/);
   assert.doesNotMatch(app, /setSecondsLeft|secondsLeft=/);
 });

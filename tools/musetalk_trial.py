@@ -74,7 +74,7 @@ def find_musetalk_python(explicit: str | None = None) -> Path:
         if candidate and candidate.is_file():
             return candidate.resolve()
     raise RuntimeError(
-        "MuseTalk Python 3.10 was not found. Run tools/setup_musetalk_runtime.ps1."
+        "MuseTalk Python 3.10 was not found. Run tools/setup/setup_musetalk_runtime.ps1."
     )
 
 
@@ -349,7 +349,7 @@ def main() -> None:
     if missing:
         formatted = "\n".join(f"- {path}" for path in missing)
         raise RuntimeError(
-            "MuseTalk model files are missing. Run tools/setup_musetalk_runtime.ps1.\n"
+            "MuseTalk model files are missing. Run tools/setup/setup_musetalk_runtime.ps1.\n"
             + formatted
         )
 

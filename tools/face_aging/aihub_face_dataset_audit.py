@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_71415 = ROOT / "data/experiments/aihub71415_full/index/manifest.jsonl"
 DEFAULT_045 = ROOT / "data/experiments/aihub045_full/index/manifest.jsonl"
 DEFAULT_045_REPORT = ROOT / "data/experiments/aihub045_full/index/report.json"

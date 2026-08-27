@@ -11,7 +11,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from aihub71415 import prepare_aligned_record, read_jsonl, write_jsonl  # noqa: E402

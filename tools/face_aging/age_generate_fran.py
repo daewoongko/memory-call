@@ -19,9 +19,9 @@ from torchvision.transforms import InterpolationMode
 from torchvision.transforms import functional as TF
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "tools" / "face_aging"))
 
 from fran_vendor.model import UNet  # noqa: E402
 from storage import AGE_ANCHORS_DIR, AGE_PLAN_PATH, SOURCE_FACES_DIR  # noqa: E402
@@ -34,7 +34,7 @@ MODEL_PATH = Path(
     )
 ).expanduser().resolve()
 MASK_PATH = ROOT / "data" / "faces" / "age_mask" / "current_change_mask.png"
-FRAN_ASSETS = ROOT / "tools" / "fran_vendor" / "assets"
+FRAN_ASSETS = ROOT / "tools" / "face_aging" / "fran_vendor" / "assets"
 OUTPUT_DIR = ROOT / "data" / "faces" / "age_candidates"
 DEBUG_DIR = ROOT / "data" / "faces" / "age_debug"
 INSIGHTFACE_ROOT = Path.home() / ".insightface"

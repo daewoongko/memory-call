@@ -192,7 +192,7 @@ def find_musetalk_python(
             return resolved
     raise BridgeError(
         "No runnable MuseTalk Python was found. Run "
-        "tools/setup_musetalk_runtime.ps1 or set MUSETALK_PYTHON_PATH."
+        "tools/setup/setup_musetalk_runtime.ps1 or set MUSETALK_PYTHON_PATH."
     )
 
 
@@ -220,7 +220,7 @@ def find_cloudflared(
     if found:
         return Path(found).resolve()
     raise BridgeError(
-        "cloudflared was not found. Run tools/setup_cloudflared.ps1 or set "
+        "cloudflared was not found. Run tools/setup/setup_cloudflared.ps1 or set "
         "CLOUDFLARED_PATH."
     )
 

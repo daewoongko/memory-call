@@ -18,9 +18,9 @@ import numpy as np
 import torch
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
-sys.path.insert(0, str(ROOT / "tools" / "fran_vendor"))
+sys.path.insert(0, str(ROOT / "tools" / "face_aging" / "fran_vendor"))
 
 from aihub71415 import align_record_image, read_jsonl  # noqa: E402
 from face_training_teachers import load_age_teacher  # noqa: E402

@@ -27,9 +27,9 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
-sys.path.insert(0, str(ROOT / "tools" / "fran_vendor"))
+sys.path.insert(0, str(ROOT / "tools" / "face_aging" / "fran_vendor"))
 
 from aihub71415 import (  # noqa: E402
     align_record_image,

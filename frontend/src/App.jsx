@@ -565,41 +565,6 @@ export default function App() {
     }
   }
 
-  async function chooseAIWhileWaiting() {
-    if (takeoverInFlight.current) return;
-    setError("");
-    takeoverInFlight.current = true;
-    try {
-      await releaseHumanTransport(false);
-      if (invite?.invite_id) {
-        const current = await api.getInvite(invite.invite_id).catch(() => invite);
-        if (current?.state === "ai_takeover") {
-          if (call) {
-            callingIntroDoneRef.current = true;
-            phaseRef.current = "incall";
-            setPhase("incall");
-          } else {
-            await connectAI(target?.persona_id);
-          }
-          return;
-        }
-        const result = await api.takeOverInvite(invite.invite_id, "user_selected_ai");
-        setInvite(result.invite);
-        enterCall(result);
-      } else {
-        await connectAI(target?.persona_id);
-      }
-    } catch (reason) {
-      if (String(reason?.message || "").includes("ai_takeover")) {
-        await connectAI(target?.persona_id);
-      } else {
-        setError(`다소니 연결을 준비하지 못했어요. (${reason.message})`);
-      }
-    } finally {
-      takeoverInFlight.current = false;
-    }
-  }
-
   function answerIncoming() {
     setIncomingReason(null);
     setError("");

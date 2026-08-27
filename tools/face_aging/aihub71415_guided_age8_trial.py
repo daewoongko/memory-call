@@ -28,9 +28,9 @@ import torch
 from torchvision.transforms import v2
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
-sys.path.insert(0, str(ROOT / "tools" / "fran_vendor"))
+sys.path.insert(0, str(ROOT / "tools" / "face_aging" / "fran_vendor"))
 
 from aihub71415 import read_jsonl  # noqa: E402
 from face_training_teachers import load_age_teacher, load_identity_teacher  # noqa: E402

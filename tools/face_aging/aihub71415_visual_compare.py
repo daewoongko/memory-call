@@ -22,9 +22,9 @@ import torch
 from PIL import Image, ImageDraw, ImageFont
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
-sys.path.insert(0, str(ROOT / "tools" / "fran_vendor"))
+sys.path.insert(0, str(ROOT / "tools" / "face_aging" / "fran_vendor"))
 
 from aihub71415 import align_record_image, read_jsonl  # noqa: E402
 from model.models import UNet  # noqa: E402

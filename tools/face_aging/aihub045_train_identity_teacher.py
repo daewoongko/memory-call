@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from aihub045 import read_jsonl  # noqa: E402

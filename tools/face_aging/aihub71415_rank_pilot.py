@@ -22,7 +22,7 @@ import shutil
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "data/experiments/aihub71415_full/full_pipeline_pilot"
 OUTPUT = ROOT / "data/experiments/aihub71415_full/ranking_pilot"
 FEATURES = ("age_fit", "identity")

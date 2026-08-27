@@ -15,8 +15,9 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[0]
-# 이 파일은 memory-call/tools로 복사된 뒤 실행된다.
-if not (ROOT / "backend").exists():
+# 이 파일은 저장소 안 어느 깊이로 옮겨져도 실행될 수 있어야 한다.
+# 한 단계만 올라가면 폴더를 하나 더 만드는 순간 backend 를 놓친다.
+while not (ROOT / "backend").exists() and ROOT != ROOT.parent:
     ROOT = ROOT.parent
 sys.path.insert(0, str(ROOT / "backend"))
 

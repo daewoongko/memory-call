@@ -20,9 +20,9 @@ import numpy as np
 import torch
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "tools" / "face_aging"))
 
 import age_timeline  # noqa: E402
 from age_generate_fran import (  # noqa: E402

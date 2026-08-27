@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
 import age_timeline  # noqa: E402
@@ -23,8 +23,8 @@ from age_feedback import base_edit_strength, generation_controls  # noqa: E402
 
 
 FLUX_PYTHON = ROOT / ".venv-flux2" / "Scripts" / "python.exe"
-GENERATOR = ROOT / "tools" / "age_generate_flux2.py"
-VALIDATOR = ROOT / "tools" / "age_validate_flux2.py"
+GENERATOR = ROOT / "tools" / "face_aging" / "age_generate_flux2.py"
+VALIDATOR = ROOT / "tools" / "face_aging" / "age_validate_flux2.py"
 CANDIDATE_DIR = ROOT / "data" / "faces" / "age_candidates"
 DEBUG_DIR = ROOT / "data" / "faces" / "age_debug"
 
