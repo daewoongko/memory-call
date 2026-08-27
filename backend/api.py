@@ -78,6 +78,11 @@ DEFAULT_STUN_URLS = [
     "stun:stun.cloudflare.com:3478",
 ]
 
+# The demo guardian profile always uses Daewoong's approved ElevenLabs voice.
+# Keep the provider id in code so stale deployment settings or duplicate voice
+# names can never select another voice for the scripted demo.
+DAEWOONG_ELEVENLABS_VOICE_ID = "lVNG5ZmHnq1FdaKxMW6k"
+
 app = FastAPI(title="기억이음 Call API", version="0.1.0")
 
 # 개발 중 Vite 서버만 다른 출처다. 배포에서는 React와 API가 같은 출처다.
@@ -852,23 +857,11 @@ def tts_health():
 def _ready_voice_id(persona_id: str | None) -> str:
     if not persona_id:
         raise HTTPException(409, "통화할 가족을 먼저 선택해 주세요.")
-    voice_id = None
     if persona_id == DEFAULT_FACE_PERSONA_ID:
-        # Resolve the named Daewoong clone in the current ElevenLabs account
-        # before using an id that may belong to an older API-key/account pair.
-        voice_name = os.getenv("ELEVENLABS_VOICE_NAME", "").strip()
-        if voice_name:
-            voice_id = elevenlabs_tts.resolve_voice_id_by_name(voice_name)
-            if not voice_id:
-                raise HTTPException(
-                    409,
-                    "설정된 대웅 목소리를 현재 ElevenLabs 계정에서 찾지 못했습니다.",
-                )
-        else:
-            voice_id = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
+        return DAEWOONG_ELEVENLABS_VOICE_ID
+
+    voice_id = voice_mod.active_voice_id(persona_id)
     if not voice_id:
-        voice_id = voice_mod.active_voice_id(persona_id)
-    if not voice_id and persona_id != DEFAULT_FACE_PERSONA_ID:
         default_voice_name = os.getenv("ELEVENLABS_DEFAULT_VOICE_NAME", "").strip()
         if default_voice_name:
             voice_id = elevenlabs_tts.resolve_voice_id_by_name(default_voice_name)

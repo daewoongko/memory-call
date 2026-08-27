@@ -193,76 +193,40 @@ class AnamApiTests(unittest.TestCase):
     def tearDown(self):
         api.SESSIONS.pop(self.call_id, None)
 
-    def test_default_persona_can_use_deployment_voice_id(self):
+    def test_daewoong_persona_is_pinned_to_approved_voice(self):
         with (
-            patch.object(api.voice_mod, "active_voice_id", return_value=None),
+            patch.object(
+                api.voice_mod,
+                "active_voice_id",
+                return_value="another-profile-voice",
+            ) as active_voice,
+            patch.object(
+                api.elevenlabs_tts,
+                "resolve_voice_id_by_name",
+                return_value="another-named-voice",
+            ) as resolve,
             patch.dict(
                 "os.environ",
                 {
-                    "ELEVENLABS_VOICE_ID": "deployment-voice",
-                    "ELEVENLABS_VOICE_NAME": "",
+                    "ELEVENLABS_VOICE_ID": "stale-deployment-voice",
+                    "ELEVENLABS_VOICE_NAME": "duplicate-daewoong-name",
                 },
             ),
         ):
             self.assertEqual(
                 api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID),
-                "deployment-voice",
+                api.DAEWOONG_ELEVENLABS_VOICE_ID,
             )
+        active_voice.assert_not_called()
+        resolve.assert_not_called()
 
+    def test_deployment_voice_does_not_leak_to_other_personas(self):
         with (
             patch.object(api.voice_mod, "active_voice_id", return_value=None),
             patch.dict("os.environ", {"ELEVENLABS_VOICE_ID": "deployment-voice"}),
         ):
             with self.assertRaises(api.HTTPException):
                 api._ready_voice_id("persona_jeonghun")
-
-    def test_default_persona_recovers_voice_id_by_deployment_name(self):
-        with (
-            patch.object(
-                api.voice_mod,
-                "active_voice_id",
-                return_value="stale-profile-voice",
-            ),
-            patch.object(
-                api.elevenlabs_tts,
-                "resolve_voice_id_by_name",
-                return_value="recovered-voice",
-            ) as resolve,
-            patch.dict(
-                "os.environ",
-                {
-                    "ELEVENLABS_VOICE_ID": "stale-deployment-voice",
-                    "ELEVENLABS_VOICE_NAME": "memory-call-user-voice-2",
-                },
-                clear=True,
-            ),
-        ):
-            self.assertEqual(
-                api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID),
-                "recovered-voice",
-            )
-        resolve.assert_called_once_with("memory-call-user-voice-2")
-
-    def test_named_default_voice_never_falls_back_to_a_stale_id(self):
-        with (
-            patch.object(api.voice_mod, "active_voice_id", return_value=None),
-            patch.object(
-                api.elevenlabs_tts,
-                "resolve_voice_id_by_name",
-                return_value=None,
-            ),
-            patch.dict(
-                "os.environ",
-                {
-                    "ELEVENLABS_VOICE_ID": "stale-deployment-voice",
-                    "ELEVENLABS_VOICE_NAME": "memory-call-user-voice-2",
-                },
-                clear=True,
-            ),
-        ):
-            with self.assertRaises(api.HTTPException) as raised:
-                api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID)
-        self.assertEqual(raised.exception.status_code, 409)
 
     def test_unregistered_family_can_start_with_the_configured_default_voice(self):
         with (
