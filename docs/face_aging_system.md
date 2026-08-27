@@ -109,17 +109,17 @@ LoRA가 완성 얼굴을 대신 만드는 것이 아니라, 같은 사람을 다
 
 ```powershell
 # 두 데이터셋 전처리·분할 검증
-.\.venv\Scripts\python.exe tools\aihub_face_dataset_audit.py
+.\.venv\Scripts\python.exe tools\face_aging\aihub_face_dataset_audit.py
 
 # 학습 미사용 평가 인물 준비
-.\.venv-flux2\Scripts\python.exe tools\aihub71415_sequential_flux_eval.py prepare
+.\.venv-flux2\Scripts\python.exe tools\face_aging\aihub71415_sequential_flux_eval.py prepare
 
 # 기준 및 개선 순차 경로 생성
-.\.venv-flux2\Scripts\python.exe tools\aihub71415_sequential_flux_eval.py generate-baseline
-.\.venv-flux2\Scripts\python.exe tools\aihub71415_sequential_flux_eval.py generate-adapted
+.\.venv-flux2\Scripts\python.exe tools\face_aging\aihub71415_sequential_flux_eval.py generate-baseline
+.\.venv-flux2\Scripts\python.exe tools\face_aging\aihub71415_sequential_flux_eval.py generate-adapted
 
 # 봉인한 실제 과거 사진을 마지막에 열어 평가 화면 작성
-.\.venv-flux2\Scripts\python.exe tools\aihub71415_sequential_flux_eval.py evaluate
+.\.venv-flux2\Scripts\python.exe tools\face_aging\aihub71415_sequential_flux_eval.py evaluate
 ```
 
 생성 시 각 단계에서 먼저 여섯 장을 만들고, 품질 통과 후보가 네 장 미만일 때만
@@ -128,7 +128,7 @@ LoRA가 완성 얼굴을 대신 만드는 것이 아니라, 같은 사람을 다
 부모 사진이 된다. 자동 평가 파일은 실험 폴더에 남지만 실제 과거 정답 사진은
 `evaluate` 전까지 열지 않는다.
 
-`tools/aihub71415_four_candidate_pilot.py`의 직접 생성 비교 도구는 폐기되었으며 새
+`tools/face_aging/aihub71415_four_candidate_pilot.py`의 직접 생성 비교 도구는 폐기되었으며 새
 실험과 제품에서 사용하지 않는다.
 
 ## 6. 후보 선별과 사용자 선택

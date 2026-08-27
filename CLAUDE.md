@@ -17,8 +17,9 @@ AI가 개입하는 축은 넷으로 고정한다 — **기억·지남력 / 정�
 `docs/service_definition.md`. **기능의 "왜"를 바꿀 때는 그 문서를 먼저 고친다.**
 
 - 개발자: 1명 (프론트/백/AI 전부 혼자)
-- 기간: **2주**
-- LLM: Gemini 무료 티어 (OpenAI 호환 엔드포인트)
+- LLM: OpenAI 호환 엔드포인트 하나로 통일. 기본 모델은 `.env` 의 `LLM_MODEL`
+  (현재 기본값 `gpt-5.6-terra`). Gemini 도 같은 호환 엔드포인트로 붙는다
+- 음성·아바타: ElevenLabs(실시간 STT + 가족별 TTS), Anam(가족별 아바타)
 - 목적: SKT Fly AI 프로그램 발표 데모
 
 ## 작성자 선호 (중요)
@@ -69,50 +70,94 @@ AI가 개입하는 축은 넷으로 고정한다 — **기억·지남력 / 정�
 
 ## 현재 구조
 
+전체 흐름은 `docs/architecture.md` 를 본다. 여기는 어느 파일이 무슨 일을
+하는지만 적는다. ★ 는 고칠 때 특히 조심할 파일이다.
+
 ```
-backend/
-  prompts/persona_system.md   페르소나 규칙. 1차 방어
-  persona.py                  템플릿 + DB → 시스템 프롬프트
-  llm.py                      LLM 호출 단일 창구. 429 백오프 + JSON 파싱 방어
-  safety.py                   ★ 규칙 검사 계층. 2차 방어
-  conversation.py             통화 세션. 발화를 DB에 기록
-  invites.py                  ★ 호출 상태. 받았는가·거절인가·무응답인가
-  medication.py               복약 시간 판단, 선제 안내 문장
-  memories.py                 기억 등록·수정, 미확인 회상 승인
-  report.py                   통화 리포트. 집계는 규칙, 문장만 LLM
-  api.py                      FastAPI. 노인용·보호자용 엔드포인트
-  db.py / schema.sql          SQLite 17테이블
-frontend/                     React 19 + Vite
-  src/App.jsx                 상태머신. #guardian 이면 보호자 화면
-  src/device.js               ★ 이 기기가 누구인가. device_id 발급·보관
-  src/useIncomingCall.js      ★ 보호자 수신 폴링 (heartbeat 겸용)
-  src/useSpeech.js            브라우저 음성 인식·합성
-  src/components/             MorphStage, LoopStage, FaceStage, SelfView
-  src/screens/                Idle, Calling, Incoming, Call, Summary,
-                              Guardian, MemoryPanel, MedicationForm,
-                              GuardianCallOverlay(수신), HumanCall(사람 통화)
-  e2e/two_devices.mjs         ★ 브라우저 두 개로 폰 두 대 흐름 확인
+backend/                        FastAPI + SQLite. 38개 모듈 + analysis/ 4개
+  api.py                        엔드포인트 전부. 역할별 화면이 여기만 본다
+  db.py / schema.sql            SQLite 27테이블. load_context() 가 단일 조회 창구
+  prompts/persona_system.md     페르소나 규칙. 1차 방어
+  persona.py                    템플릿 + DB → 시스템 프롬프트
+                                (통화용 fast / 리포트용 full 두 벌)
+  llm.py                        ★ LLM 호출 단일 창구. 스트리밍·429 백오프·
+                                FastReply 스키마 검증·모핑 중 워밍업
+  safety.py                     ★ 규칙 검사 계층. 2차 방어
+  conversation.py               통화 세션. 빠른 답변(동기) / 리포트
+                                메타데이터(백그라운드) 분리
+  care.py                       LLM 관찰 후보를 원문 대조로 검증
+  analysis/observation_catalog.py  ★ 8도메인 76신호 3티어 단일 정의
+  analysis/rates.py             분모 인식 비교. 표본 미달이면 비교하지 않는다
+  analysis/medication.py        복약 이행 4상태 분석
+  invites.py                    ★ 호출 상태. 받았는가·거절인가·무응답인가
+  medication.py                 복약 시간 판단, 선제 안내 문장(규칙)
+  memories.py                   기억 등록·수정, 미확인 회상 승인
+  schedules.py                  확정 일정만 대화에 넣는다
+  report.py                     통화·기간 리포트. 집계는 규칙, 문장만 LLM
+  accounts.py / linking.py      계정·동의·기기 연동(6자리 코드)
+  signaling.py                  WebRTC SDP/ICE 중계. 내용은 해석하지 않는다
+  elevenlabs_stt.py             실시간 STT 1회용 토큰 발급
+  elevenlabs_tts.py             ★ TTS 단일 창구
+  persona_voice.py              가족별 IVC/PVC 음성 등록
+  anam.py / persona_avatar.py   ★ 아바타 단일 창구. 공급자 ID 는 서버에만
+  tts_proxy.py                  선택적 MuseTalk 브리지
+  stt.py                        Web Speech 실패 기기용 서버 전사 폴백
+  storage.py                    저장 경로 단일 창구 (STORAGE_DIR)
+  age_*.py (9개)                연령 앵커 계획·검증 정책
+  admin.py / face_quality.py    페르소나·사진 관리, 입력 품질 검사
+
+frontend/                       React 19 + Vite. 화면 28 · 컴포넌트 12
+  src/App.jsx                   ★ 어르신 상태머신
+                                idle→calling→human|incall→ended
+  src/api.js                    서버 호출 단일 창구
+  src/device.js                 ★ 이 기기가 누구인가. device_id 발급·보관
+  src/useIncomingCall.js        ★ 가족 수신 폴링 (heartbeat 겸용)
+  src/callTransport.js          ★ 사람↔사람 미디어 단일 창구 (WebRTC)
+  src/anamTransport.js          아바타 세션 연결
+  src/useSpeech.js              음성 인식·합성 오케스트레이션
+  src/useRealtimeTranscription.js  ElevenLabs 실시간 STT + 서버 전사 폴백
+  src/speechPipeline.js         첫 문장이 나오는 즉시 TTS 시작하는 청크 분할
+  src/screens/                  어르신: Family, Calling, Call, HumanCall, Summary
+                                가족:   Child, GuardianCallOverlay,
+                                        FamilyMemoryClothesline(회상 승인)
+                                담당자: CareManager, ReportTabs, CareCalendar
+                                공통:   Login, Role, RoleOnboarding, Link, NetTest
+  test/ · tests/                node --test 16파일 121개
+  e2e/two_devices.mjs           ★ 브라우저 두 개로 폰 두 대 흐름 확인
+
+tools/                          운영·평가는 루트, 나머지는 역할별 폴더
+  serve.py / start.py           개발 서버 / 배포 진입점(DB 없으면 시드)
+  init_db.py / demo_reset.py    DB 생성 / 시연 준비
+  eval.py + scenarios.json      ★ 안전 레이어 자동 평가 37개
+  eval_reports.py               리포트 품질 평가
+  chat.py / call_flow.py        터미널 대화 / 호출 흐름 4가지
+  check_key.py                  쓸 수 있는 모델 확인
+  seed_*.py (6개)               데모 데이터. start.py 가 경로로 부른다
+  prep_faces.py                 ★ backend/admin.py 가 경로로 부른다
+  age_estimate_3ddfa.py         ★ backend/age_growth.py 가 부른다
+  age_estimate_mivolo.py        ★ backend/age_secondary.py 가 부른다
+  make_morph.py / make_loops.py / fix_loop.py / validate_morph.py
+  prepare_selected_morph_keyframes.py / rife_ort_ctypes.py
+  tts_bridge.py / musetalk_server.py / musetalk_trial.py
+  elevenlabs_clone_voice.py     음성 연결 수동 진단
+  benchmark_*.py / diagnose_*.py / audit_*.py / e2e_care_calls.py
+  migrate_evidence.py           배포된 구 DB 용 일회성 마이그레이션(멱등)
+  face_aging/                   얼굴 나이 변환 생성·검증·AI Hub 실험 30개
+  setup/                        Windows 설치 스크립트 (*.ps1)
+
+tests/                          pytest 46파일 328개
 data/
-  seed.json                   초기 데이터
-  memory_call.sqlite          실제 데이터
-  faces/aligned/              8~32살 사진 6장 (3:4)
-  faces/morph.mp4             모핑 영상 25초
-  faces/loops/                표정 루프 (talking, concerned)
-tools/
-  eval.py + scenarios.json    ★ 안전 레이어 자동 평가 22개
-  chat.py                     터미널 대화 테스트
-  call_flow.py                ★ 호출 흐름 확인 (받음/거절/무응답/기기없음)
-  serve.py                    API 서버 실행
-  init_db.py                  DB 생성·시드
-  prep_faces.py               사진 크롭·정렬
-  make_morph.py               모핑 영상 생성 (Replicate)
-  make_loops.py               표정 루프 생성 (Replicate)
-  fix_loop.py                 루프를 이음매 없이 다듬기
-  demo_reset.py               시연 준비 (기록 초기화 + 일정 재설정)
+  seed.json                     초기 데이터
+  memory_call.sqlite            실제 데이터 (git 제외)
+  faces/ · personas/            연령 사진·모핑 영상·아바타 자산
 docs/
-  demo_script.md              시연 대본 5막 3분
-  call_transport_decision.md  ★ 사람↔사람 통화를 P2P 로 붙이는 근거
-  voice_script.md             음성 녹음 대본 (미사용)
+  architecture.md               ★ 전체 흐름. 통화 한 번이 어떻게 도는가
+  service_definition.md         왜 이 기능이 있는가. 범위 밖 목록
+  call_transport_decision.md    ★ 사람↔사람 통화를 P2P 로 붙이는 근거
+  analysis_design.md            관찰 분류 체계와 분석 설계
+  face_aging_system.md          연령 변환 계약과 현재 실행 상태
+  aihub71415_pipeline.md        연령 변환 연구 로그
+  demo_script.md                시연 대본
 ```
 
 ### 설계 결정
@@ -132,16 +177,27 @@ docs/
 
 **"받지 않았다"는 서버가 판정한다.** 벨은 `call_invites` 행이고 타임아웃은
 `invites.py`가 조회 시점에 확정한다(lazy expiry). 예전에는 어르신 기기의
-15초 카운트다운이 전부여서 보호자 기기에 신호가 가지 않았고, 그래서 AI
-대리통화는 대리가 아니라 **15초 늦게 시작하는 AI 통화**였다. 클라이언트
+카운트다운이 전부여서 보호자 기기에 신호가 가지 않았고, 그래서 AI
+대리통화는 대리가 아니라 **그냥 늦게 시작하는 AI 통화**였다. 클라이언트
 타이머로 되돌리지 말 것. 상주 스케줄러도 두지 않는다 — Render 무료
 인스턴스는 유휴 상태에서 잠들어 백그라운드 타이머가 살아 있다고 가정할 수 없다.
 
-**AI 가 왜 대신 받았는지를 남긴다.** `takeover_reason` 은
-`declined / timeout / no_device / transport_failed` 넷이다. `state` 는
-`ai_takeover` 하나로 덮이므로 사유를 따로 보관해야 보호자 리포트가
-"거절 3건 / 무응답 5건"을 구분할 수 있다. 이 값은 §3의 논거
-(연결 실패 = 정상 동작)를 데이터로 증명하는 자리이기도 하다.
+**벨 시간은 서버가 정하고 한 값으로 통일한다.** `invites.INTRO_DURATION_SEC`
+가 24초이고 `DEFAULT_RING_SEC` · `NO_DEVICE_RING_SEC` 이 전부 같은 값을
+가리킨다. 어르신 화면에 재생되는 24초 모핑·대기 음악과 정확히 겹쳐야
+하기 때문이다. 받을 기기가 없어도 같은 24초를 기다리며, `no_live_device`
+는 대기 시간을 줄이는 데 쓰지 않고 **무응답 사유를 `no_device` 로 가르는
+데만** 쓴다. 위험 발화 역호출(`purpose='risk'`)만 예외로 인트로가 0초다.
+`DEVICE_ALIVE_SEC` 는 12초 — 프론트가 1.5초 주기로 폴링하므로 몇 번
+놓쳐도 죽었다고 판정하지 않는다.
+
+**AI 가 왜 대신 받았는지를 남긴다.** `takeover_reason` 은 `declined /
+timeout / no_device / transport_failed / media_permission_denied` 다섯이며
+`call_invites` 의 CHECK 제약이 이 목록을 강제한다. **여기 없는 값을 보내면
+DB 오류가 난다** (실제로 그런 죽은 코드가 있었다). `state` 는 `ai_takeover`
+하나로 덮이므로 사유를 따로 보관해야 보호자 리포트가 "거절 3건 / 무응답
+5건"을 구분할 수 있다. 이 값은 §3의 논거(연결 실패 = 정상 동작)를
+데이터로 증명하는 자리이기도 하다.
 
 **호출이 잘못되면 AI 쪽으로 떨어뜨린다.** 시각을 읽지 못하는 것 같은 예외
 상황에서 두 방향으로 실패할 수 있는데, "AI 가 대신 받는다"는 정상 동작이고
@@ -180,24 +236,23 @@ MuseTalk은 로컬 GPU가 있는 환경에서만 쓰는 선택적 대체 경로�
 
 ---
 
-## 2주 일정
+## 현재 상태
 
-| 일 | 내용 | 상태 |
-|---|---|---|
-| D1 | 검증 (Gemini 응답 / STT / 음성 클론) + 데이터 수집 | 진행 중 |
-| D2 | SQLite 스키마 + 시드 투입 | |
-| D3 | 대화 엔진 (프롬프트 + 기억 검색), UI 없이 터미널 | |
-| D4 | ★ `safety.py` 규칙 검사 레이어 + eval 통과율 올리기 | |
-| D5 | 프론트 통화 화면 (React + Vite), 상태머신 | |
-| D6 | 음성 루프 (Gemini STT ↔ TTS), 스트리밍 | |
-| D7 | 여유일 (비워둘 것) | |
-| D8 | 모핑 인트로 mp4 생성 + 재생 | |
-| D9 | 입 애니메이션(볼륨 기반 2장 전환) + 자막 | |
-| D10 | 복약/위험/반복질문 이벤트 | |
-| D11 | 통화 후 리포트 생성 | |
-| D12 | 보호자 화면 | |
-| D13 | 통합 리허설 + 폴백 경로 | |
-| D14 | 발표 준비 + 데모 영상 녹화 | |
+2주 데모 일정은 끝났다. 지금은 유지·개선 단계이며 실제 상태는 아래와 같다.
+
+| 영역 | 상태 |
+|---|---|
+| 안전 레이어 | `safety.py` 규칙 + `tools/scenarios.json` 37개 시나리오 (4티어) |
+| 통화 | 사람↔사람 WebRTC P2P, 실패 시 AI 인계. 벨은 서버가 24초로 판정 |
+| 음성·아바타 | ElevenLabs 실시간 STT·가족별 TTS, Anam 가족별 아바타 |
+| 리포트 | 통화 단위 + 기간 분석(리듬·복약·8도메인 관찰) |
+| 화면 | 어르신·가족·요양원 담당자 3역할. 로그인→역할→온보딩 흐름 |
+| 배포 | Render 단일 Docker. `DEMO_SEED_MODE=high_volume` 로 데모 데이터 |
+| 검증 | pytest 328개, node --test 121개, e2e 2종 |
+| 얼굴 연령 변환 | 검증 완료 데모 영상은 있으나 자동 후보 생성은 **실험 중** |
+
+마지막 줄이 중요하다. `기반 있음`·`실험 중` 항목을 완성 기능처럼 발표하지
+않는다. 정확한 구현 상태표는 `docs/service_definition.md` 끝에 있다.
 
 ### 명시적으로 하지 않기로 한 것
 
@@ -244,35 +299,54 @@ MuseTalk은 로컬 GPU가 있는 환경에서만 쓰는 선택적 대체 경로�
 ```bash
 source .venv/bin/activate
 
-python tools/serve.py                    # 터미널 1: API 서버
-cd frontend && npm run dev               # 터미널 2: 화면
+python tools/serve.py                    # 터미널 1: API 서버 (8000)
+cd frontend && npm run dev               # 터미널 2: 화면 (5173)
 
-python tools/eval.py --sleep 5           # 안전 평가 22개
+# 검증
+python -m pytest tests/ -q               # 백엔드 328개
+cd frontend && npm test                  # 프론트 121개
+cd frontend && npm run build             # 실행 시점 오류는 빌드가 못 잡는다
+
+# 안전 레이어
+python tools/eval.py --sleep 5           # 시나리오 37개
 python tools/eval.py --raw --sleep 5     # safety 없이 (비교용)
-python tools/chat.py                     # 터미널 대화 테스트
-python tools/call_flow.py                # 호출 흐름 4가지 (서버가 켜져 있어야 함)
+python tools/eval.py S03 S07             # 특정 시나리오만
+python tools/eval_reports.py             # 리포트 품질
 
+# 통화 흐름
+python tools/chat.py                     # 터미널 대화 테스트
+python tools/call_flow.py                # 호출 4가지 (서버가 켜져 있어야 함)
 cd frontend && npm run build && node e2e/two_devices.mjs http://127.0.0.1:8000
-                                         # 브라우저 두 개로 받음/끊음/거절 확인
+                                         # 브라우저 두 개로 받음/끊음/거절
+
 python tools/demo_reset.py --med-in 6    # 시연 준비
 ```
 
-화면 주소
+화면 주소 (해시 직행은 **Vite 개발 모드에서만** 열린다. 배포 앱은 로그인과
+역할별 최초 설정을 건너뛸 수 없다.)
 
-- `localhost:5173` 노인용 통화 화면 (**Chrome 필수**, 음성 인식)
-- `localhost:5173/#guardian` 보호자 화면
-- `localhost:8000/docs` API 테스트
+| 주소 | 화면 |
+|---|---|
+| `localhost:5173` | 정상 흐름 — 스플래시 → 로그인 → 역할 선택 → 온보딩 |
+| `localhost:5173/#elder` | 어르신 통화 화면 (**Chrome 필수**, 음성 인식) |
+| `localhost:5173/#child` 또는 `#family` | 가족 화면 |
+| `localhost:5173/#care` 또는 `#guardian` | 요양원 담당자 화면 |
+| `localhost:5173/#nettest` | P2P 연결 진단 (개발 모드 아니어도 열린다) |
+| `localhost:8000/docs` | API 테스트 |
+| `localhost:8000/api/devices` | 서버가 어느 기기를 살아 있다고 보는가 |
 
 **`persona_system.md` 나 `safety.py` 를 고칠 때마다 `eval.py` 를 돌린다.**
-현재 통과율은 프롬프트만 82%, safety 포함 91%.
 
 ## 주의
 
 - `.env`는 절대 커밋하지 않는다 (`.gitignore`에 등록됨)
-- Gemini 무료 티어는 요청 내용이 모델 개선에 사용될 수 있다.
+- 무료 티어 LLM 은 요청 내용이 모델 개선에 사용될 수 있다.
   **실제 가족 사진·음성·대화가 들어가는 시점부터는 유료 티어로 옮겨야 한다.**
   현재 seed 데이터는 전부 가상 인물이라 무방하다
-
+- 공급자 ID(ElevenLabs voice_id, Anam avatar_id)는 서버 DB 에만 둔다.
+  브라우저에는 단기 세션 토큰만 내려보낸다
+- 외부 이용자를 받기 전에 반드시 붙여야 하는 것: SMS 본인확인,
+  로그인 시도 제한, 계정 복구, 전체 환자 API 의 역할 기반 접근 통제
 
 ---
 
@@ -370,3 +444,34 @@ ffmpeg stdin 으로 흘려 한 번에 먹싱하면 3.9초가 된다. 인코딩�
 "통과"로 판정할 뻔했다. `[Text.Encoding]::UTF8.GetBytes()` 로 명시한다.
 `Invoke-WebRequest -OutFile` 이 `-PassThru` 없이 null 을 반환하는 것도
 같이 물린다.
+
+**죽은 코드는 조용히 죽어 있지 않고 테스트를 인질로 잡는다.**
+`App.jsx` 의 `chooseAIWhileWaiting` 은 정의만 되고 호출되는 곳이 없었는데,
+`apiElderScope.test.js` 가 그 함수 안의 문구(`if (takeoverInFlight.current)
+return`)를 정규식으로 검사하고 있었다. 그래서 **죽은 코드가 초록불을
+유지하는 근거**가 되어 있었고, 지우는 순간 테스트가 깨졌다. 테스트가
+"동작"이 아니라 "문자열"을 검사하면 이런 일이 생긴다. 게다가 그 함수는
+`takeover_reason` 으로 `"user_selected_ai"` 를 보내는데 이 값은
+`call_invites` 의 CHECK 제약에 없다 — **실행됐다면 DB 오류가 났을 코드가
+테스트를 통과시키고 있었다.** 문구를 검사할 때는 반드시 실제로 도는
+경로에 고정한다.
+
+**폴더를 하나 만들면 `parents[1]` 이 전부 거짓말이 된다.** `tools/` 를
+역할별로 나누면서 33개 파일의 `ROOT = Path(__file__).resolve().parents[1]`
+이 저장소 루트가 아니라 `tools/` 를 가리키게 됐다. 이런 스크립트는 GPU 와
+라이선스 데이터가 있어야 돌아서 여기서 실행해 볼 수 없다. 그래서 **파일을
+import 하지 않고 `ROOT` 대입문만 `ast` 로 떼어내 격리 실행**해서 저장소
+루트가 맞는지 33개 전부 확인했다. 실행할 수 없는 코드도 경로 계산은
+검증할 수 있다.
+
+**"한 단계만 올라간다"는 자가복구는 자가복구가 아니다.**
+`age_mask_preview.py` 는 `backend/` 를 못 찾으면 `ROOT.parent` 로 한 번만
+올라갔다. 폴더가 하나 더 생기자 그대로 실패했다. 찾을 때까지 도는
+`while` 로 바꿔야 다음 이동에도 살아남는다.
+
+**옮기면 안 되는 파일은 프로덕션이 경로로 부르는 파일이다.**
+`tools/start.py` 는 배포 부팅에서 `seed_*.py` 를 절대경로로 실행하고,
+`backend/admin.py` 는 `tools/prep_faces.py` 를, `age_growth.py` 와
+`age_secondary.py` 는 각각 추정 스크립트를 그렇게 부른다. 정리하다가
+이 여섯 개를 건드리면 파일 몇 개 줄이려다 배포를 깨뜨린다. 정리 대상에서
+먼저 빼 놓는다.

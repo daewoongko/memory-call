@@ -58,10 +58,13 @@ MuseTalk은 로컬 GPU에서만 사용하는 선택적 립싱크 대체 경로�
 배포 앱에는 필요하지 않습니다. 통화 전 권한 확인, 화면 Wake Lock, PWA 설치,
 API 비캐시 service worker가 포함되어 있습니다.
 
-가족 기기가 통화를 받을 수 있을 때 벨은 최대 25초 동안 울립니다. 대기 화면은
-연결 요청과 벨 울림 상태를 사실대로 표시하고, 16초부터 `다소니와 먼저 이야기하기`
-와 `다른 가족 선택`을 제공합니다. 받을 가족 기기가 없으면 불필요한 대기를 줄이기
-위해 기존처럼 6초 뒤 AI 통화로 인계합니다.
+벨은 **항상 24초** 동안 울립니다(`backend/invites.py`의 `INTRO_DURATION_SEC`).
+어르신 화면에서 같은 24초 동안 재생되는 가족 AI 영상·대기 음악과 정확히 겹쳐야
+하기 때문에, 받을 가족 기기가 있든 없든 같은 값을 씁니다. 받을 기기가 없다는
+사실(`no_live_device`)은 대기 시간을 줄이는 데 쓰지 않고 무응답 사유를
+`timeout`과 `no_device`로 구분하는 데만 씁니다. 가족이 24초 안에 받아도 이
+구간을 마친 뒤 사람 통화로 전환합니다. 예외는 위험 발화 역호출로, 이때는
+아바타 소개 구간 없이(0초) 곧바로 울립니다.
 
 현재 UI는 모바일 세로 화면을 우선합니다. 어르신 화면은 네 명의 가족을 한 화면에
 보여주며 카드 전체를 눌러 전화합니다. 가족 화면은 오늘·추억함·통화·설정의 네
@@ -168,26 +171,53 @@ Galaxy S24에서는 Chrome으로 운영 HTTPS 주소를 열어 확인합니다. 
 
 ## 검증
 
-```powershell
-# 백엔드
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```bash
+# 백엔드 — 328개
+python -m pytest tests/ -q
+python -m unittest discover -s tests      # pytest 없이도 같은 결과
 
-# 프론트엔드
-cd frontend
-npm test
-npm run build
+# 프론트엔드 — 121개
+cd frontend && npm test
+cd frontend && npm run build              # 실행 시점 오류는 빌드가 못 잡는다
+
+# 안전 레이어 — 시나리오 37개 (서버 없이 LLM만 호출)
+python tools/eval.py --sleep 5
+python tools/eval.py --raw --sleep 5      # safety 없이 비교
+
+# 통화 흐름 (API 서버가 켜져 있어야 함)
+python tools/call_flow.py
+cd frontend && npm run build && node e2e/two_devices.mjs http://127.0.0.1:8000
 ```
 
-평가·데모 보조 명령은 [`docs/demo_script.md`](docs/demo_script.md)에 있습니다.
+Windows PowerShell에서는 `python` 대신 `.\.venv\Scripts\python.exe`를 사용합니다.
+
+`backend/prompts/persona_system.md`나 `backend/safety.py`를 고칠 때마다
+`tools/eval.py`를 돌립니다. 평가·데모 보조 명령은
+[`docs/demo_script.md`](docs/demo_script.md)에 있습니다.
 사람 통화 구조와 STUN/TURN 결정 근거는
 [`docs/call_transport_decision.md`](docs/call_transport_decision.md)에 기록했습니다.
 
+## 저장소 구조
+
+```
+backend/        FastAPI + SQLite (27테이블). analysis/ 는 관찰 분류·집계
+frontend/       React 19 + Vite. src/screens 는 역할별 화면
+tools/          운영·평가 스크립트. face_aging/ 은 연령 변환, setup/ 은 설치
+tests/          pytest 46파일
+docs/           설계 근거와 연구 로그
+data/           시드·얼굴/음성 자산 (런타임 DB와 비공개 녹음은 제외)
+```
+
+어느 파일이 무슨 일을 하는지는 [`CLAUDE.md`](CLAUDE.md)의 "현재 구조"에 있습니다.
+
 ## 주요 문서
 
+- [`docs/architecture.md`](docs/architecture.md): 통화 한 번이 처음부터 끝까지 어떻게 도는가
 - [`docs/service_definition.md`](docs/service_definition.md): 문제 정의와 MVP 범위
 - [`docs/analysis_design.md`](docs/analysis_design.md): 발화 분류·집계·판정 원칙
 - [`docs/call_transport_decision.md`](docs/call_transport_decision.md): WebRTC와 AI 인계
 - [`docs/face_aging_system.md`](docs/face_aging_system.md): 얼굴 생성·검증·후보 선택
+- [`docs/aihub71415_pipeline.md`](docs/aihub71415_pipeline.md): 연령 변환 연구 로그
 - [`docs/demo_script.md`](docs/demo_script.md): 시연 준비와 핵심 장면
 
 외부 모델과 데이터는 각 원본 라이선스와 AI Hub 이용 조건을 따릅니다.

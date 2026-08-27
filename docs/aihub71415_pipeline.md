@@ -9,7 +9,7 @@
 원본 ZIP을 풀지 않고 라벨과 이미지의 대응 관계만 기록한다.
 
 ```powershell
-.\.venv\Scripts\python.exe tools\aihub71415_index.py `
+.\.venv\Scripts\python.exe tools\face_aging\aihub71415_index.py `
   --archive "C:\path\to\Sample.zip" `
   --output-dir data\experiments\aihub71415_sample\index
 ```
@@ -22,7 +22,7 @@
 정규화해서 원천 사진과 연결한다.
 
 ```powershell
-.\.venv\Scripts\python.exe tools\aihub71415_index.py `
+.\.venv\Scripts\python.exe tools\face_aging\aihub71415_index.py `
   --dataset-root "C:\path\to\118.안면 인식 에이징(aging) 이미지 데이터" `
   --output-dir data\experiments\aihub71415_full\index
 ```
@@ -30,7 +30,7 @@
 ## 2. AI Hub 5점 좌표로 얼굴 정렬
 
 ```powershell
-.\.venv\Scripts\python.exe tools\aihub71415_prepare.py `
+.\.venv\Scripts\python.exe tools\face_aging\aihub71415_prepare.py `
   --archive "C:\path\to\Sample.zip" `
   --manifest data\experiments\aihub71415_sample\index\manifest.jsonl `
   --output-dir data\experiments\aihub71415_sample\prepared
@@ -44,7 +44,7 @@ similarity alignment를 수행하고 오차를 매니페스트에 남긴다.
 `--archive`를 생략한다.
 
 ```powershell
-.\.venv\Scripts\python.exe tools\aihub71415_prepare.py `
+.\.venv\Scripts\python.exe tools\face_aging\aihub71415_prepare.py `
   --manifest data\experiments\aihub71415_full\index\manifest.jsonl `
   --output-dir data\experiments\aihub71415_full\qa `
   --sample-per-age-band 6 `
@@ -57,11 +57,11 @@ similarity alignment를 수행하고 오차를 매니페스트에 남긴다.
 ## 3. 동일 인물 연령쌍과 8세 홀드아웃
 
 ```powershell
-.\.venv\Scripts\python.exe tools\aihub71415_build_pairs.py `
+.\.venv\Scripts\python.exe tools\face_aging\aihub71415_build_pairs.py `
   --manifest data\experiments\aihub71415_sample\prepared\prepared_manifest.jsonl `
   --output-dir data\experiments\aihub71415_sample\pairs
 
-.\.venv\Scripts\python.exe tools\aihub71415_eval_age8.py `
+.\.venv\Scripts\python.exe tools\face_aging\aihub71415_eval_age8.py `
   --holdouts data\experiments\aihub71415_sample\pairs\age8_holdouts.jsonl `
   --output data\experiments\aihub71415_sample\pairs\age8_audit.json
 ```
@@ -129,7 +129,7 @@ AI Hub 사진은 같은 사람이어도 표정·자세·조명·배경이 서로
 512px 안전 파일럿:
 
 ```powershell
-.\.venv-age\Scripts\python.exe tools\aihub71415_train_fran.py `
+.\.venv-age\Scripts\python.exe tools\face_aging\aihub71415_train_fran.py `
   --image-size 512 `
   --steps 200 `
   --discriminator-warmup-steps 50 `
@@ -338,7 +338,7 @@ FRAN 학습보다 먼저 같은 3명·같은 시드를 유지한 채 LoRA 강도
 가이드 주입 방식의 소규모 추론 격자를 시험한다. 추정 나이가 8세 방향으로 충분히
 움직이면서 실제 8세 신원이 유지되는 설정을 찾은 뒤에만 62명 평가로 확장한다.
 
-재현 도구는 `tools/aihub71415_full_pipeline_pilot.py`, 결과는 Git 제외 경로인
+재현 도구는 `tools/face_aging/aihub71415_full_pipeline_pilot.py`, 결과는 Git 제외 경로인
 `data/experiments/aihub71415_full/full_pipeline_pilot`에 저장한다.
 
 ## 10. 300스텝 paired FLUX LoRA 순차 경로 평가
