@@ -1838,7 +1838,7 @@ def prepare_call(call_id: str):
 # 않았다는 판정 자체가 불가능했고 AI 대리통화는 대리가 아니었다.
 #
 # 미디어(WebRTC)는 다음 단계다. 이 층은 호출 상태만 다룬다.
-# 근거와 뒤집는 조건은 docs/call_transport_decision.md.
+# 근거와 뒤집는 조건은 README.md §6.
 
 
 @app.post("/api/devices")
@@ -1855,7 +1855,7 @@ def register_device(req: DeviceRegistration):
 # ------------------------------------------------------------ P2P 진단
 #
 # 사람↔사람 통화를 WebRTC P2P 로 붙이기로 했는데, 그 결정은 아직 실측이 아니라
-# 추론이다 (docs/call_transport_decision.md §8). 붙지 않는 망이면 TURN 을
+# 추론이다 (README.md §6 의 측정 항목). 붙지 않는 망이면 TURN 을
 # 더하거나 관리형 SFU 로 갈아타야 하고, 발표 전에 알아야 갈아탈 시간이 있다.
 
 

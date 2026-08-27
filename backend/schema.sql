@@ -390,7 +390,7 @@ CREATE TABLE IF NOT EXISTS signal_messages (
 CREATE INDEX IF NOT EXISTS idx_signal_room ON signal_messages(room, id);
 
 -- 어떤 망에서 P2P 가 붙었는지. 발표에서 "재보고 정했다"고 말하려면 기록이
--- 남아야 한다 (docs/call_transport_decision.md §8).
+-- 남아야 한다 (README.md §6).
 CREATE TABLE IF NOT EXISTS nettest_results (
     result_id   INTEGER PRIMARY KEY AUTOINCREMENT,
     room        TEXT,

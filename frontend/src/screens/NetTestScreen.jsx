@@ -14,7 +14,7 @@ import {
  * 이 망에서 P2P 가 붙는가 (#nettest).
  *
  * 사람↔사람 통화를 WebRTC P2P 로 붙이기로 했지만 그 결정은 아직 추론이다
- * (docs/call_transport_decision.md §8). 붙이기 전에 재고, 붙지 않으면 TURN 을
+ * (README.md §6 의 측정 항목). 붙이기 전에 재고, 붙지 않으면 TURN 을
  * 더하거나 관리형 SFU 로 갈아탄다. 발표 전에 알아야 갈아탈 시간이 있다.
  *
  * 화면은 두 층이다. 위는 이 기기 혼자서 알 수 있는 것(STUN 도달·NAT 유형),
@@ -548,7 +548,7 @@ export default function NetTestScreen() {
       </ul>
       <p className="nettest-note">
         붙지 않는 조합이 나오면 <code>iceServers</code> 에 TURN 을 더합니다.
-        근거와 뒤집는 조건은 docs/call_transport_decision.md 에 있습니다.
+        근거와 뒤집는 조건은 README.md 의 “사람 통화를 P2P 로 붙인 이유”에 있습니다.
       </p>
     </section>}
 
