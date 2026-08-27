@@ -208,8 +208,6 @@ button:focus-visible {
   50% { opacity: 1; transform: scale(1); }
 }
 
-.countdown { font-size: calc(18px * var(--font-scale)); color: var(--muted); }
-
 .calling-screen {
   position: relative;
   overflow: hidden;
@@ -1676,21 +1674,6 @@ label.checkbox { color: var(--text); }
   align-items: stretch;
 }
 
-.donut {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  padding: 14px 10px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  flex: none;
-}
-
-.donut-num { fill: var(--text); font-size: calc(26px * var(--font-scale)); font-weight: 700; }
-.donut-sub { fill: var(--muted); font-size: calc(12px * var(--font-scale)); }
-.donut-label { font-size: calc(13px * var(--font-scale)); color: var(--muted); }
-
 .stat-col { flex: 1; display: grid; gap: 8px; align-content: stretch; }
 .stat-col .stat { display: grid; align-content: center; padding: 8px; }
 
@@ -1702,22 +1685,6 @@ label.checkbox { color: var(--text); }
 }
 
 .chart-block h4 { color: var(--muted); margin-bottom: 12px; }
-
-.daystrip { display: flex; gap: 5px; align-items: flex-end; height: 84px; }
-.daystrip.dense { gap: 2px; }
-
-.dayslot { flex: 1; display: flex; flex-direction: column; height: 100%; }
-.dayslot .col { flex: 1; display: flex; align-items: flex-end; }
-
-.dayslot .fill {
-  width: 100%;
-  background: var(--brand-soft);
-  border-radius: 4px;
-  min-height: 4px;
-}
-
-.dayslot .fill.empty { background: var(--line); }
-.dayslot span { font-size: calc(11px * var(--font-scale)); color: var(--muted); text-align: center; margin-top: 5px; }
 
 .line-chart { width: 100%; min-width: 0; }
 .line-chart svg { display: block; width: 100%; height: 172px; overflow: visible; }
@@ -1739,33 +1706,6 @@ label.checkbox { color: var(--text); }
 .distribution-legend i { width: 8px; height: 8px; border-radius: 50%; }
 .distribution-legend span { color: var(--muted); font-size: calc(10px * var(--font-scale)); }
 .distribution-legend b { color: var(--text); font-size: calc(11px * var(--font-scale)); }
-
-.barrows { display: grid; gap: 10px; }
-
-.barrow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px auto;
-  align-items: center;
-  gap: 10px;
-  font-size: calc(14px * var(--font-scale));
-}
-
-.barrow-label {
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.barrow-track {
-  height: 9px;
-  background: var(--line);
-  border-radius: 99px;
-  overflow: hidden;
-}
-
-.barrow-fill { height: 100%; background: var(--alert); border-radius: 99px; }
-.barrow b { color: var(--muted); font-weight: 500; font-size: calc(13px * var(--font-scale)); }
 
 /* ── 어르신 추가 ─────────────────────────────────────── */
 
@@ -1989,12 +1929,9 @@ label.checkbox { color: var(--text); }
 .dashboard-card > header p { color: var(--muted); font-size: calc(11px * var(--font-scale)); margin-top: 3px; }
 .dashboard-card > header > b { color: var(--brand-soft); font-size: calc(18px * var(--font-scale)); }
 .dashboard-card > header > button { color: var(--brand-soft); font-size: calc(12px * var(--font-scale)); padding: 5px; }
-.activity-card .daystrip { height: 100px; }
 .activity-card .line-chart { margin: -6px 0 -12px; }
 .care-card { padding-bottom: 10px; }
 .medication-card { display: flex; flex-direction: column; }
-.medication-card .donut { border: 0; padding: 0; background: transparent; margin: auto; }
-.medication-card .donut svg { width: 104px; height: 104px; }
 .action-card ul { list-style: none; display: grid; gap: 8px; }
 .action-card li { position: relative; padding-left: 17px; color: var(--text); font-size: calc(12px * var(--font-scale)); line-height: 1.5; }
 .action-card li::before { content: "✓"; position: absolute; left: 0; color: var(--brand-soft); }
@@ -2368,7 +2305,6 @@ label.checkbox { color: var(--text); }
 .safety-trend-list small { color: var(--muted); font-size: calc(8px * var(--font-scale)); }
 .safety-trend-list b { color: var(--text); font-size: calc(14px * var(--font-scale)); }
 .safety-trend-list em { margin-left: 4px; color: var(--risk-color); font-size: calc(18px * var(--font-scale)); font-style: normal; }
-.mini-trend { display: block; width: 100%; height: 48px; overflow: visible; }
 .safety-distribution { display: flex; flex-direction: column; justify-content: center; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
 .safety-distribution h3 { margin-bottom: 8px; font-size: calc(12px * var(--font-scale)); }
 .safety-distribution .distribution-donut { grid-template-columns: minmax(115px, 0.75fr) minmax(100px, 1fr); gap: 9px; }
@@ -3006,7 +2942,6 @@ label.checkbox { color: var(--text); }
 .rhythm-signal-tags span { padding: 5px 7px; border-radius: 7px; color: var(--muted); background: var(--surface); font-size: calc(9px * var(--font-scale)); }
 .rhythm-signal-tags b { color: var(--brand-soft); }
 .rhythm-chart { min-width: 0; margin: 0; padding: 12px 12px 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); }
-.rhythm-bars { display: grid; grid-template-columns: repeat(12, minmax(25px, 1fr)); align-items: end; gap: 7px; min-height: 190px; }
 .rhythm-column { min-width: 0; display: grid; grid-template-rows: 20px 130px 18px; align-items: end; justify-items: center; gap: 4px; }
 .rhythm-column > b { color: var(--muted); font-size: calc(9px * var(--font-scale)); font-variant-numeric: tabular-nums; }
 .rhythm-column > span { color: var(--muted); font-size: calc(8px * var(--font-scale)); white-space: nowrap; }
@@ -3045,7 +2980,6 @@ label.checkbox { color: var(--text); }
 
 @media (max-width: 620px) {
   .rhythm-head { flex-direction: column; }
-  .rhythm-bars { grid-template-columns: repeat(6, 1fr); row-gap: 12px; }
   .rhythm-column { grid-template-rows: 18px 76px 16px; }
   .rhythm-track { height: 76px; }
   .rhythm-comparison > div { grid-template-columns: 1fr; }
@@ -4436,7 +4370,6 @@ label.checkbox { color: var(--text); }
 .guardian-call h2 { margin:14px 0 6px; color:var(--text); font-size:calc(22px * var(--font-scale)); }
 .guardian-call-note,.guardian-call-hint { margin:0; color:var(--muted); font-size:calc(9px * var(--font-scale)); line-height:1.6; }
 .guardian-call-hint { margin-top:14px; }
-.guardian-call-timer { margin:12px 0 0; color:var(--brand); font-size:calc(26px * var(--font-scale)); font-weight:850; font-variant-numeric:tabular-nums; }
 .guardian-call-actions { display:flex; gap:11px; margin-top:22px; }
 .guardian-call-actions button { flex:1; min-height:56px; border:0; border-radius:16px; color:#fff; font-size:calc(12px * var(--font-scale)); font-weight:850; }
 .guardian-call-actions button:disabled { opacity:.55; }
@@ -4463,7 +4396,7 @@ label.checkbox { color: var(--text); }
 .human-call .human-remote-video { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; background:#122c23; }
 .human-call .human-remote-video:not(.live) { object-fit:cover; }
 .human-call > :not(.human-remote-video) { position:relative; z-index:1; }
-.human-call .who,.human-call .countdown { padding:8px 14px; border-radius:14px; color:#fff; background:rgba(7,31,23,.58); backdrop-filter:blur(8px); }
+.human-call .who { padding:8px 14px; border-radius:14px; color:#fff; background:rgba(7,31,23,.58); backdrop-filter:blur(8px); }
 
 /* 이 폰이 지금 벨을 받을 수 있는가. 수신 폴링이 곧 그 신고이므로 화면이
    꺼지면 함께 꺼진다. 보호자가 손에 든 폰을 두고 실제로 갖는 질문이다. */
