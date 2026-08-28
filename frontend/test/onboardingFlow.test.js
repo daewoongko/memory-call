@@ -48,6 +48,10 @@ test("only elder and family are selectable roles", () => {
   assert.match(storybookTheme, /\.role-list-item \{[\s\S]*?min-height: 132px;/);
   assert.match(storybookTheme, /\.role-list-body b \{[^}]*color: #202522;[^}]*font-size: calc\(25px \* var\(--font-scale\)\);[^}]*white-space: nowrap;/);
   assert.match(storybookTheme, /\.role-gateway-simple \.role-gateway-brand \{[\s\S]*?transform: translateY\(-24px\);/);
+  assert.match(storybookTheme, /@media \(max-width:520px\) \{[\s\S]*?\.role-gateway-simple \.role-gateway-brand \{\s*transform: translateY\(12px\);/);
+  assert.match(storybookTheme, /\.role-gateway-simple \.role-account-line \{[^}]*font-size: clamp\(12px, 3\.25vw, 14px\);[^}]*white-space: nowrap;/);
+  assert.match(storybookTheme, /\.role-gateway-simple \.role-account-line > span \{[^}]*white-space: nowrap;/);
+  assert.match(storybookTheme, /\.role-gateway-simple \.role-account-line button \{[^}]*font-size: clamp\(11px, 3vw, 13px\);[^}]*white-space: nowrap;/);
 });
 
 test("family setup is condensed to three saved pages with optional consent details", () => {
