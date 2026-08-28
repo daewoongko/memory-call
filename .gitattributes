@@ -1,20 +1,2 @@
-# Final biometric media and model weights are intentionally public and stored
-# through Git LFS so regular Git history stays manageable.
-data/faces/**/*.png filter=lfs diff=lfs merge=lfs -text
-data/faces/**/*.jpg filter=lfs diff=lfs merge=lfs -text
-data/faces/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
-data/faces/**/*.webp filter=lfs diff=lfs merge=lfs -text
-data/faces/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
-data/faces/**/*.safetensors filter=lfs diff=lfs merge=lfs -text
-data/personas/**/*.png filter=lfs diff=lfs merge=lfs -text
-data/personas/**/*.jpg filter=lfs diff=lfs merge=lfs -text
-data/personas/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
-data/personas/**/*.webp filter=lfs diff=lfs merge=lfs -text
-data/personas/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
-frontend/public/**/*.png filter=lfs diff=lfs merge=lfs -text
-frontend/public/**/*.jpg filter=lfs diff=lfs merge=lfs -text
-frontend/public/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
-frontend/public/**/*.webp filter=lfs diff=lfs merge=lfs -text
-frontend/public/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
-data/voice/reference.wav filter=lfs diff=lfs merge=lfs -text
-backend/models/rife/*.onnx filter=lfs diff=lfs merge=lfs -text
+# GitHub LFS의 다운로드 한도와 무관하게 발표 배포가 재현되도록 런타임 자산은
+# 일반 Git 객체로 저장한다. 대용량 연구 산출물은 배포 이미지에 포함하지 않는다.

@@ -8,21 +8,21 @@ import { SIZE_MAX, SIZE_MIN, SIZE_STEP, THEMES } from "../theme.js";
 
 const CONSENT_VERSION = "2026-08-24.v1";
 export const ONBOARDING_FLOW_VERSION = "2026-08-25.v2";
-const DAEWOONG_DEMO_ASSET_ROOT = "/persona-assets/persona_godaewoong/age_candidates";
+const DAEWOONG_DEMO_ASSET_ROOT = "/age-candidates";
 const DAEWOONG_DEMO_AGE_STAGES = [
-  { age: 24, recommended: "age24_selected.png", candidates: ["age24_selected.png", "age24_alt_a.png", "age24_alt_b.png", "age24_alt_c.png"] },
-  { age: 20, recommended: "age20_selected.png", candidates: ["age20_selected.png", "age20_alt_a.png", "age20_alt_b.png", "age20_alt_c.png"] },
-  { age: 17, recommended: "age17_selected.png", candidates: ["age17_selected.png", "age17_alt_a.png", "age17_alt_b.png", "age17_alt_c.png"] },
-  { age: 15, recommended: "age15_selected.png", candidates: ["age15_selected.png", "age15_alt_a.png", "age15_alt_b.png", "age15_alt_c.png"] },
+  { age: 24, recommended: "age24_selected.png", candidates: ["age24_selected.png"] },
+  { age: 20, recommended: "age20_selected.png", candidates: ["age20_selected.png"] },
+  { age: 17, recommended: "age17_selected.png", candidates: ["age17_selected.png"] },
+  { age: 15, recommended: "age15_selected.png", candidates: ["age15_selected.png"] },
   {
     age: 12,
     recommended: "age12_corrected_v3.png",
-    candidates: ["age12_corrected_v3.png", "age12_selected.png", "age12_corrected_v2.png", "age12_alt_a.png"],
+    candidates: ["age12_corrected_v3.png"],
   },
-  { age: 11, recommended: "age11_route_c.png", candidates: ["age11_route_c.png", "age11_alt_a.png", "age11_alt_b.png", "age11_alt_c.png"] },
-  { age: 10, recommended: "age10_route_c.png", candidates: ["age10_route_c.png", "age10_alt_a.png", "age10_alt_b.png", "age10_alt_c.png"] },
-  { age: 9, recommended: "age09_route_c.png", candidates: ["age09_route_c.png", "age09_alt_a.png", "age09_alt_b.png", "age09_alt_c.png"] },
-  { age: 8, recommended: "age08_selected.png", candidates: ["age08_selected.png", "age08_alt_a.png", "age08_alt_b.png", "age08_alt_c.png"] },
+  { age: 11, recommended: "age11_route_c.png", candidates: ["age11_route_c.png"] },
+  { age: 10, recommended: "age10_route_c.png", candidates: ["age10_route_c.png"] },
+  { age: 9, recommended: "age09_route_c.png", candidates: ["age09_route_c.png"] },
+  { age: 8, recommended: "age08_selected.png", candidates: ["age08_selected.png"] },
 ];
 
 const COMMON_CONSENTS = [

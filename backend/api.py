@@ -637,7 +637,11 @@ def _persona_face_url(persona_id: str) -> str | None:
             f"/persona-assets/{persona_id}/{relative}"
             f"?v={candidate.stat().st_mtime_ns}"
         )
-    return None
+    return {
+        "persona_jeonghun": "/personas/jeonghun/profile.png",
+        "persona_miyeong": "/personas/miyeong/profile.png",
+        "persona_yujin": "/personas/yujin/profile.png",
+    }.get(persona_id)
 
 
 # ------------------------------------------------------------------ 엔드포인트

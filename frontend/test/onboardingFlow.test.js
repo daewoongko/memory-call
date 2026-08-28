@@ -80,7 +80,7 @@ test("Daewoong onboarding confirms the current face and walks through the select
   assert.match(journey, /demo_age_selections/);
   assert.match(journey, /AI 추천/);
   assert.equal([...journey.matchAll(/candidates: \[[^\]]+\]/g)].length, 9);
-  assert.equal([...journey.matchAll(/candidates: \[[^\]]+, [^\]]+, [^\]]+, [^\]]+\]/g)].length, 9);
+  assert.match(journey, /DAEWOONG_DEMO_ASSET_ROOT = "\/age-candidates"/);
   assert.match(journey, /revisitDemoAgeStage/);
   assert.match(journey, /이전 연령 얼굴 보기/);
   assert.match(journey, /다음 연령 얼굴 보기/);
