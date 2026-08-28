@@ -513,9 +513,9 @@ h3,
 .app-device-login .login-welcome > p:last-child { display:none; }
 .app-device-login .login-card { justify-self:center; padding:24px 20px; border-radius:23px; }
 
-.role-account-line { width:min(900px,100%); display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-4px auto 8px; color:var(--muted); font:14px "Gowun Dodum",sans-serif; }
+.role-account-line { width:min(900px,100%); display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-4px auto 8px; color:var(--muted); font:18px "Gowun Dodum",sans-serif; }
 .role-account-line b { color:var(--brand-deep); }
-.role-account-line button { padding:7px 11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; font:12px "Gowun Dodum",sans-serif; }
+.role-account-line button { padding:7px 11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; font:16px "Gowun Dodum",sans-serif; }
 
 .journey-screen { width:min(960px,100%); height:100%; margin:0 auto; padding:25px clamp(16px,4vw,38px) 48px; overflow-y:auto; color:var(--text); font-family:"Gowun Dodum",sans-serif; scrollbar-width:thin; }
 .journey-loading { display:grid; place-content:center; justify-items:center; gap:18px; color:var(--muted); }
@@ -854,26 +854,27 @@ h3,
   justify-items: center;
   gap: 5px;
   margin: 0;
+  transform: translateY(-24px);
   text-align: center;
 }
 .role-gateway-simple .role-gateway-brand .brandmark { width: 108px; height: 108px; }
 .role-gateway-simple .role-gateway-brand > div { display: grid; justify-items: center; }
 .role-gateway-simple .role-gateway-brand b { color: var(--brand-deep); font-size: calc(34px * var(--font-scale)); }
 .role-gateway-simple .role-gateway-wordmark { width:clamp(126px,22vw,166px); height:auto; display:block; mix-blend-mode:multiply; transform:translateX(20px); }
-.role-gateway-subtitle { margin: 0; color: var(--muted); font-size: calc(15px * var(--font-scale)); }
+.role-gateway-subtitle { margin: 0; color: var(--muted); font-size: calc(20px * var(--font-scale)); }
 .role-gateway-simple .role-gateway-subtitle { margin-top:12px; }
 .role-list { width: min(100%, 390px); display: flex; flex-direction: column; gap: 12px; }
 .role-list-item {
   width: 100%;
   min-width: 0;
-  min-height: 88px;
+  min-height: 132px;
   display: grid;
-  grid-template-columns: 58px minmax(0,1fr) 20px;
+  grid-template-columns: 87px minmax(0,1fr) 30px;
   align-items: center;
-  gap: 13px;
-  padding: 14px 16px;
+  gap: 20px;
+  padding: 21px 24px;
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 30px;
   color: var(--text);
   background: rgba(255,255,252,.84);
   box-shadow: var(--storybook-shadow);
@@ -881,15 +882,15 @@ h3,
 }
 .role-list-item:focus-visible { outline: 3px solid color-mix(in srgb,var(--brand) 26%,transparent); outline-offset: 2px; }
 .role-list-item:active { transform: scale(.985); }
-.role-list-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; color: #fff; }
-.role-list-icon svg { width: 27px; height: 27px; }
+.role-list-icon { width: 87px; height: 87px; display: grid; place-items: center; border-radius: 27px; color: #fff; }
+.role-list-icon svg { width: 41px; height: 41px; }
 .role-list-item.elder .role-list-icon { background: #d8893f; }
 .role-list-item.child .role-list-icon { background: var(--brand); }
 .role-list-item.care .role-list-icon { background: #66869a; }
 .role-list-body { min-width: 0; display: grid; gap: 3px; }
-.role-list-body small { color: var(--muted); font-size: calc(12px * var(--font-scale)); }
-.role-list-body b { overflow-wrap: anywhere; color: var(--brand-deep); font-size: calc(18px * var(--font-scale)); line-height: 1.3; }
-.role-list-chevron { justify-self: end; color: #9b806c; font-size: 28px; line-height: 1; }
+.role-list-body small { color: var(--muted); font-size: calc(16px * var(--font-scale)); line-height: 1.35; white-space: nowrap; }
+.role-list-body b { color: #202522; font-size: calc(25px * var(--font-scale)); line-height: 1.25; white-space: nowrap; }
+.role-list-chevron { justify-self: end; color: #9b806c; font-size: 38px; line-height: 1; }
 
 /* design2 선별 이식: 다소니 전체 메인 홈 ------------------------------- */
 
@@ -992,8 +993,8 @@ h3,
 @media (max-width: 520px) {
   .role-gateway.role-gateway-simple { justify-content: flex-start; padding-inline: 16px; }
   .role-gateway-simple .role-gateway-brand .brandmark { width: 94px; height: 94px; }
-  .role-list-item { min-height: 82px; grid-template-columns: 54px minmax(0,1fr) 18px; padding: 12px 14px; }
-  .role-list-icon { width: 54px; height: 54px; }
+  .role-list-item { min-height: 123px; grid-template-columns: 81px minmax(0,1fr) 24px; gap: 16px; padding: 18px 21px; }
+  .role-list-icon { width: 81px; height: 81px; }
   .dasoni-home-hero { min-height: 202px; grid-template-columns: minmax(0,1fr) 104px; padding: 20px 17px; }
   .dasoni-home-hero .brandmark { width: 112px; height: 112px; margin-right: -10px; }
   .dasoni-home-copy p { font-size: calc(11px * var(--font-scale)); }
@@ -1006,7 +1007,7 @@ h3,
 }
 
 @media (max-width: 360px) {
-  .role-list-body b { font-size: calc(16px * var(--font-scale)); }
+  .role-list-body b { font-size: calc(20px * var(--font-scale)); }
   .dasoni-home-status article { min-height: 72px; padding: 9px 7px; }
   .dasoni-home-status small { font-size: calc(9px * var(--font-scale)); }
   .dasoni-home-status b { font-size: calc(14px * var(--font-scale)); }
@@ -3274,16 +3275,6 @@ h3,
   font: 800 17px var(--font-readable);
 }
 .app-device-login .login-submit:disabled { opacity: .38; box-shadow: none; }
-.app-device-login .login-find {
-  display: block;
-  margin: 11px auto 0;
-  padding: 4px 8px;
-  color: #6f6c63;
-  font: 600 12px var(--font-readable);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .app-device-login .login-social { margin-top: 16px; }
 .app-device-login .login-social-title {
   display: grid;
@@ -3659,4 +3650,89 @@ h3,
     width: 0;
     height: 0;
   }
+}
+
+/* 가족 발표 화면은 바깥 브라우저 폭과 무관하게 좁은 앱 프레임 안에서 돈다.
+   헤더 조작과 통화 분석 그래프를 앱 프레임 자체에 맞춰 고정한다. */
+.app-device-family .child-family-header {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding-right: 0;
+}
+.app-device-family .child-family-header > :is(
+  .child-header-diary-note,
+  .child-header-memory-title,
+  .child-header-call-title,
+  .child-header-reachable
+) {
+  grid-column: 2;
+  min-width: 0;
+}
+.app-device-family .child-family-header > :is(.child-view-settings,.child-date-picker) {
+  grid-column: 3;
+  justify-self: end;
+  margin: 0;
+}
+
+.app-device-family .family-analysis-report .talk-analysis-triad > .dashboard-card {
+  min-width: 0;
+  padding: 18px;
+}
+.app-device-family .family-analysis-report .retention-layout {
+  grid-template-columns: minmax(0,1fr);
+  gap: 14px;
+}
+.app-device-family .family-analysis-report .retention-chart,
+.app-device-family .family-analysis-report .retention-insight {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.app-device-family .family-analysis-report .retention-chart svg {
+  width: 100%;
+  min-width: 0;
+}
+.app-device-family .family-analysis-report .retention-y-label,
+.app-device-family .family-analysis-report .retention-x-label,
+.app-device-family .family-analysis-report .retention-baseline-label {
+  font-size: 12px;
+}
+.app-device-family .family-analysis-report .topic-scatter-wrap {
+  width: 100%;
+  overflow-x: hidden;
+}
+.app-device-family .family-analysis-report .topic-scatter {
+  width: 100%;
+  min-width: 0;
+}
+.app-device-family .family-analysis-report .topic-median-caption,
+.app-device-family .family-analysis-report .topic-tick-label,
+.app-device-family .family-analysis-report .topic-axis-end {
+  font-size: 14px;
+}
+.app-device-family .family-analysis-report .topic-quadrant-label,
+.app-device-family .family-analysis-report .topic-axis-title {
+  font-size: 16px;
+}
+.app-device-family .family-analysis-report .topic-point-label { font-size: 17px; }
+.app-device-family .family-analysis-report .topic-point-count { font-size: 14px; }
+
+@media (max-width:430px) {
+  .app-device-family .child-family-header { gap: 7px; }
+  .app-device-family .child-family-header > :is(.child-view-settings,.child-date-picker) {
+    width: 46px;
+    min-width: 46px;
+    max-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    max-height: 46px;
+    border-radius: 14px;
+  }
+  .app-device-family .family-analysis-report .talk-analysis-triad > .dashboard-card {
+    padding: 14px 10px;
+  }
+  .app-device-family .family-analysis-report .retention-chart { padding: 8px 4px 6px; }
+  .app-device-family .family-analysis-report .retention-summary > div { padding: 12px 8px; }
 }

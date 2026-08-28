@@ -7,15 +7,15 @@
     "diagnosis_label": "알츠하이머 치매 · 고혈압",
     "care_baseline": [
       "저녁 시간에 날짜와 장소를 반복해서 확인함",
-      "복약 여부와 가족 방문 약속을 자주 다시 물음",
+      "식사 여부와 가족 방문 약속을 자주 다시 물음",
       "가족과 함께한 해운대 기억을 편안하게 회상함"
     ],
     "medical_cautions": [
-      "복약 여부가 불확실할 때 중복 복용하지 않도록 기록 확인",
+      "식사 여부가 불확실할 때 가족이 직접 확인",
       "길을 잃었다는 표현이나 현재 장소 혼동",
       "저녁 시간의 불안과 외로움 증가"
     ],
-    "residence_type": "요양원 1층 생활실",
+    "residence_type": "자택",
     "household_members": [
       {
         "name": "정훈",
@@ -72,14 +72,14 @@
     {
       "memory_id": "mem_002",
       "title": "자갈치시장",
-      "description": "부산 여행 중 시장에 들른 사진이 있다. 정확한 날짜와 장소는 확인되지 않았다.",
+      "description": "부산 여행 중 대웅이와 자갈치시장에 들렀다. 정확한 날짜만 남아 있지 않다.",
       "date_text": "확인 안 됨 (2012~2013년 추정)",
-      "location": "부산 (추정)",
+      "location": "부산 자갈치시장",
       "participants": [
         "할아버지",
         "대웅"
       ],
-      "status": "partial",
+      "status": "verified",
       "conversation_allowed": true
     },
     {
@@ -99,9 +99,9 @@
     },
     {
       "memory_id": "mem_004",
-      "title": "할아버지 텃밭",
-      "description": "할아버지가 집 뒤에 상추와 고추를 심으셨다. 대웅이가 방학마다 물을 줬다.",
-      "date_text": "2008~2015년",
+      "title": "함께 돌본 텃밭과 화분",
+      "description": "고길동 어르신이 가족과 텃밭과 화분을 돌보며 계절마다 새싹과 수확 이야기를 나눴다.",
+      "date_text": "가족이 확인한 여러 해의 기억",
       "happened_year": 2008,
       "location": "할아버지 댁",
       "participants": [
@@ -126,9 +126,9 @@
     },
     {
       "memory_id": "mem_006",
-      "title": "대웅이 첫 직장 취업",
-      "description": "2018년 대웅이가 첫 직장에 취업했을 때 할아버지가 제일 먼저 전화를 받고 기뻐하셨다.",
-      "date_text": "2018년 겨울",
+      "title": "서로 챙겨 준 가족",
+      "description": "취업과 일상 속 크고 작은 순간마다 고길동 어르신과 가족이 먼저 안부를 묻고 서로를 챙겼다.",
+      "date_text": "가족이 확인한 여러 해의 기억",
       "happened_year": 2018,
       "location": "전화",
       "participants": [
@@ -141,21 +141,21 @@
     {
       "memory_id": "mem_007",
       "title": "낚시",
-      "description": "할아버지와 저수지에 낚시를 간 적이 있다. 몇 번 갔는지, 어디였는지는 확인되지 않았다.",
+      "description": "할아버지와 대웅이가 저수지에 낚시를 간 기억은 가족이 확인했다. 횟수와 정확한 장소만 남아 있지 않다.",
       "date_text": "확인 안 됨",
       "location": "확인 안 됨",
       "participants": [
         "할아버지",
         "대웅"
       ],
-      "status": "partial",
+      "status": "verified",
       "conversation_allowed": true
     },
     {
       "memory_id": "mem_008",
-      "title": "할아버지 생신 잔치",
-      "description": "2019년 팔순 잔치를 가족들이 모여서 했다. 할아버지가 노래를 부르셨다.",
-      "date_text": "2019년 3월",
+      "title": "온 가족이 모인 날",
+      "description": "생신과 명절처럼 온 가족이 모인 날에는 사진을 보고 음식을 나누며 노래와 옛이야기를 함께했다.",
+      "date_text": "가족이 확인한 여러 모임의 기억",
       "happened_year": 2019,
       "location": "식당",
       "participants": [
@@ -168,9 +168,9 @@
     },
     {
       "memory_id": "mem_009",
-      "title": "자전거 배우기",
-      "description": "할아버지가 대웅이 자전거 뒤를 잡아주며 타는 법을 가르쳐 주셨다.",
-      "date_text": "2011년경",
+      "title": "함께 걷고 배운 시간",
+      "description": "고길동 어르신이 가족과 동네를 걷고 자전거를 가르쳐 주며 천천히 함께 움직인 시간을 기억한다.",
+      "date_text": "가족이 확인한 여러 해의 기억",
       "happened_year": 2011,
       "location": "동네 공원",
       "participants": [
@@ -182,9 +182,9 @@
     },
     {
       "memory_id": "mem_010",
-      "title": "할아버지의 옛 직업",
-      "description": "할아버지는 오래 목공 일을 하셨다. 직접 만든 나무 의자가 아직 집에 있다.",
-      "date_text": "1970~1990년대",
+      "title": "손으로 익힌 기술과 젊은 날",
+      "description": "목공과 생활 도구를 손수 다루던 솜씨, 버스와 고향 이야기를 통해 고길동 어르신의 젊은 날을 기억한다.",
+      "date_text": "가족이 확인한 젊은 시절의 기억",
       "happened_year": 1970,
       "location": "-",
       "participants": [
@@ -195,9 +195,9 @@
     },
     {
       "memory_id": "mem_011",
-      "title": "설날 세뱃돈",
-      "description": "설날마다 할아버지가 새 지폐로 세뱃돈을 주셨다.",
-      "date_text": "매년 설날",
+      "title": "가족과 함께한 놀이",
+      "description": "윷놀이와 퍼즐처럼 가족이 한자리에 앉아 손을 맞추고 웃었던 놀이 시간을 기억한다.",
+      "date_text": "가족이 확인한 여러 모임의 기억",
       "location": "할아버지 댁",
       "participants": [
         "할아버지",
@@ -247,9 +247,9 @@
     },
     {
       "memory_id": "mem_015",
-      "title": "여름 수박",
-      "description": "여름이면 할아버지가 큰 수박을 사와서 마당에서 잘라 나눠 드셨다.",
-      "date_text": "매년 여름",
+      "title": "가족과 나눈 음식",
+      "description": "수박과 국수, 제철 과일처럼 가족이 함께 차리고 나눠 먹은 음식에 따뜻한 대화가 이어졌다.",
+      "date_text": "가족이 확인한 여러 계절의 기억",
       "location": "할아버지 댁 마당",
       "participants": [
         "할아버지",
@@ -257,77 +257,6 @@
       ],
       "status": "verified",
       "conversation_allowed": true
-    }
-  ],
-  "schedules": [
-    {
-      "schedule_id": "sch_001",
-      "title": "대웅이 방문",
-      "date": "2026-08-15",
-      "time": "14:00",
-      "note": "토요일 오후에 할아버지 댁 방문 예정",
-      "confirmed": true
-    },
-    {
-      "schedule_id": "sch_002",
-      "title": "병원 정기검진",
-      "date": "2026-08-18",
-      "time": "10:00",
-      "note": "아들 정훈이 모시고 감",
-      "confirmed": true
-    }
-  ],
-  "medications": [
-    {
-      "schedule_id": "med_001",
-      "medication_name": "저녁 혈압약",
-      "dosage_text": "1정",
-      "scheduled_time": "20:00",
-      "meal_relation": "after",
-      "days_of_week": [
-        "MON",
-        "TUE",
-        "WED",
-        "THU",
-        "FRI",
-        "SAT",
-        "SUN"
-      ],
-      "indication": "고혈압 관리",
-      "monitoring_points": ["어지럼 표현", "낙상 또는 휘청거림"],
-      "review_interval_days": 14,
-      "escalation_criteria": "새로운 흉통·호흡 곤란 또는 낙상 발생 시 담당자가 상태를 확인하고 처방 의료진에게 보고",
-      "signal_links": [
-        {"signal": "dizziness", "link_level": "monitoring", "criterion_text": "어지럼 표현"},
-        {"signal": "fall_reported", "link_level": "escalation", "criterion_text": "낙상 발생"},
-        {"signal": "chest_pain", "link_level": "escalation", "criterion_text": "흉통 표현"}
-      ],
-      "active": true
-    },
-    {
-      "schedule_id": "med_002",
-      "medication_name": "아침 당뇨약",
-      "dosage_text": "1정",
-      "scheduled_time": "08:00",
-      "meal_relation": "after",
-      "days_of_week": [
-        "MON",
-        "TUE",
-        "WED",
-        "THU",
-        "FRI",
-        "SAT",
-        "SUN"
-      ],
-      "indication": "당뇨병 관리",
-      "monitoring_points": ["식사 거름", "어지럼 또는 기운 없음"],
-      "review_interval_days": 14,
-      "escalation_criteria": "식사를 거른 뒤 어지럼·기운 없음이 함께 관찰되면 담당자가 상태를 확인하고 처방 의료진에게 보고",
-      "signal_links": [
-        {"signal": "meal_skipped", "link_level": "monitoring", "criterion_text": "식사 거름"},
-        {"signal": "weakness", "link_level": "escalation", "criterion_text": "기운 없음 표현"}
-      ],
-      "active": true
     }
   ],
   "personas": [
@@ -341,7 +270,7 @@
       "frequent_phrases": [
         "할아버지, 뭐 하고 계셨어?",
         "밥은 잘 드셨어?",
-        "약부터 같이 챙기자.",
+        "오늘 있었던 일부터 천천히 이야기해 보자.",
         "괜찮아, 천천히 얘기해도 돼.",
         "할아버지 목소리 들으니까 좋다."
       ],

@@ -177,7 +177,7 @@ class CareSafetyRulesTest(unittest.TestCase):
             flag["code"] for flag in restored["_safety_flags"]
         ])
 
-    def test_next_week_visit_without_schedule_is_replaced(self):
+    def test_unconfirmed_next_week_visit_is_replaced(self):
         checked = safety.check(
             {"reply": "다음 주에 내가 찾아갈게.", "certainty": "none"},
             CTX,
@@ -185,7 +185,7 @@ class CareSafetyRulesTest(unittest.TestCase):
         )
         self.assertTrue(checked.rewritten)
         self.assertIn(
-            "PROMISE_WITHOUT_SCHEDULE",
+            "UNCONFIRMED_VISIT_PROMISE",
             [flag["code"] for flag in checked.flags],
         )
 
@@ -205,26 +205,17 @@ class CareSafetyRulesTest(unittest.TestCase):
         self.assertEqual(fall["risk"]["type"], "fall")
         self.assertEqual(fall["risk"]["level"], "high")
 
-    def test_visit_question_gets_registered_schedule_if_model_omits_it(self):
-        ctx = dict(CTX)
-        ctx["schedules"] = [{
-            "schedule_id": "sch_visit",
-            "title": "정훈이 방문",
-            "date": "2026-08-15",
-            "time": "18:00",
-            "confirmed": 1,
-        }]
+    def test_visit_question_does_not_invent_a_family_visit(self):
         result = safety.apply(
             {
-                "reply": "지금은 오전 10시야.",
-                "certainty": "verified",
-                "used_schedule_ids": [],
+                "reply": "오늘 저녁 6시에 찾아갈게.",
+                "certainty": "none",
             },
-            ctx,
+            CTX,
             "오늘 몇 시에 오냐?",
         )
-        self.assertIn("8월 15일 18:00", result["reply"])
-        self.assertEqual(result["used_schedule_ids"], ["sch_visit"])
+        self.assertNotIn("6시", result["reply"])
+        self.assertIn("가족", result["reply"])
 
 
 if __name__ == "__main__":

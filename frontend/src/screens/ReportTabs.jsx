@@ -9,7 +9,7 @@ const CATEGORIES = [
 
 const RISK_LABEL = {
   fall: "낙상", chest_pain: "가슴 통증", breathing: "호흡 곤란",
-  lost: "길 잃음", overdose: "약 과다 복용 의심",
+  lost: "길 잃음",
   self_harm: "정서적 위기 표현", intrusion: "침입", fire: "화재",
   gas_leak: "가스 누출 의심",
   stroke_sign: "급성 뇌졸중 의심 신호",
@@ -159,7 +159,6 @@ function HeatmapDayPreviewModal({ preview, elderName, onClose, onOpenDetail }) {
 
 const SIGNAL_AXES = [
   ["time_confusion", "시간 혼동"],
-  ["medication_uncertain", "복약 불확실"],
   ["meal_uncertain", "식사 불확실"],
   ["item_location_uncertain", "물건 위치"],
   ["loneliness", "외로움"],
@@ -168,7 +167,6 @@ const SIGNAL_AXES = [
 
 const SIGNAL_ACTIONS = {
   time_confusion: "날짜와 시간을 잘 보이는 곳에 표시하고 오전·오후를 함께 말해 주세요.",
-  medication_uncertain: "예정 복약 30분 전에 약통과 기록을 먼저 확인해 주세요.",
   meal_uncertain: "식사 직후 체크표를 남겨 반복 확인에 사용할 수 있게 해 주세요.",
   item_location_uncertain: "자주 찾는 물건의 고정 위치를 확인해 주세요.",
   loneliness: "연락이 몰리기 전에 짧은 안부 통화를 먼저 시도해 보세요.",
@@ -268,21 +266,19 @@ function buildDeviations(daySummary, baselineSummary) {
   });
 }
 
-function buildPriorityTasks(deviations, risks = [], medication = {}) {
+function buildPriorityTasks(deviations, risks = []) {
   const tasks = [];
   const add = (key, level, title, reason, steps) => {
     if (!tasks.some((item) => item.key === key)) tasks.push({ key, level, title, reason, steps });
   };
-  if (risks.some((risk) => !risk.acknowledged)) add("safety", 1, "안전 신호부터 직접 확인", "미확인 안전 발화가 남아 있습니다.", ["발생 시각과 현재 상태 확인", "기관 응급 절차 적용 여부 판단", "확인 결과를 인계 기록에 남기기"]);
+  if (risks.some((risk) => !risk.acknowledged)) add("safety", 1, "안전 신호부터 직접 확인", "미확인 안전 발화가 남아 있습니다.", ["발생 시각과 현재 상태 확인", "긴급하면 119 또는 의료진에게 연락", "확인 결과를 가족끼리 공유하기"]);
   deviations.filter((item) => item.difference > 0).forEach((item) => {
-    if (item.signal === "medication_uncertain") add("medication", 1, "추가 투약 전 복약 기록 대조", `복약 불확실 발화가 월평균보다 ${item.difference.toFixed(1)}회 많았습니다.`, ["추가 복용을 먼저 권하지 않기", "약포·약통·전자 투약 기록 대조", "확인되지 않으면 기관 지침에 따라 간호사·의료진 문의"]);
-    else if (item.signal === "meal_uncertain") add("meal", 2, "식사 섭취 근거 확인", `식사 불확실 발화가 월평균보다 ${item.difference.toFixed(1)}회 많았습니다.`, ["식사표와 잔반 확인", "섭취량·식사 시각 기록", "식욕 저하가 함께 지속되면 인계"]);
-    else if (item.signal === "time_confusion") add("orientation", 2, "지남력 단서 재배치", `시간 혼동 발화가 월평균보다 ${item.difference.toFixed(1)}회 많았습니다.`, ["시계·날짜판 가시성 확인", "같은 시간대 반복 여부 관찰", "갑작스러운 변화라면 통증·감염·수면 변화 함께 확인"]);
+    if (item.signal === "meal_uncertain") add("meal", 2, "식사 여부 확인", `식사 불확실 발화가 월평균보다 ${item.difference.toFixed(1)}회 많았습니다.`, ["오늘 식사 여부 직접 확인", "섭취량과 식사 시각 메모", "식욕 저하가 지속되면 의료진과 상담"]);
+    else if (item.signal === "time_confusion") add("orientation", 2, "시간 단서 다시 확인", `시간 혼동 발화가 월평균보다 ${item.difference.toFixed(1)}회 많았습니다.`, ["시계와 날짜판이 잘 보이는지 확인", "같은 시간대에 반복되는지 관찰", "갑작스러운 변화라면 의료진과 상담"]);
     else if (item.signal === "item_location_uncertain") add("item", 3, "자주 찾는 물건 위치 고정", `물건 위치 불확실 발화가 평소보다 증가했습니다.`, ["안경·지갑·리모컨 위치 확인", "고정 보관 위치 표식", "분실 불안 지속 시간 기록"]);
-    else if (["loneliness", "longing"].includes(item.signal)) add("emotion", 3, "반복 연락 전 정서 활동 배치", `가족을 찾는 표현이 평소보다 증가했습니다.`, ["연락 집중 시간 전 짧은 대화 배치", "확인된 가족 사진·음악 활용", "활동 뒤 안정 여부 기록"]);
+    else if (["loneliness", "longing"].includes(item.signal)) add("emotion", 3, "짧은 가족 연락 준비", `가족을 찾는 표현이 평소보다 증가했습니다.`, ["자주 찾는 시간 전에 짧게 연락", "익숙한 가족 사진이나 음악 활용", "대화 뒤 편안해졌는지 확인"]);
   });
-  if ((medication.needs_check || 0) > 0 && !tasks.some((item) => item.key === "medication")) add("medication", 1, "복약 확인 필요 기록 처리", `복약 확인 필요 ${medication.needs_check}건이 남아 있습니다.`, ["약포와 투약 기록 대조", "중복 투약 방지", "확인 결과 기록"]);
-  if (!tasks.length) add("routine", 3, "평소 루틴 유지", "월평균에서 크게 벗어난 발화가 없습니다.", ["정해진 일정 유지", "식사·수분·활동 상태 기록", "갑작스러운 변화만 인계"]);
+  if (!tasks.length) add("routine", 3, "평소 생활 흐름 유지", "월평균에서 크게 벗어난 발화가 없습니다.", ["식사·수분·활동 상태 기록", "익숙한 생활 순서 유지", "갑작스러운 변화는 가족과 공유"]);
   return tasks.sort((a, b) => a.level - b.level).slice(0, 5);
 }
 
@@ -335,7 +331,7 @@ function PrioritySignalAccordion({
         </div>)}
         {!rows.length && <p className="empty-state">시간대별 직접 근거가 없습니다.</p>}
       </div>
-      <div className="priority-signal-action"><b>담당자 확인</b><p>{item.action}</p></div>
+      <div className="priority-signal-action"><b>가족 확인</b><p>{item.action}</p></div>
       <aside className="signal-baseline-note priority-baseline-note">
         <b>※ 평소 관찰 기준</b>
         <p>{baselineNotes.length ? baselineNotes.join(" · ") : `최근 30일 하루 평균 ${item.average.toFixed(1)}회를 비교 기준으로 사용했습니다.`}</p>
@@ -369,7 +365,7 @@ function ResponseRetentionChart({ data = {} }) {
   const nextCheck = change > 0
     ? "긍정적인 변화로 단정하기보다 앞으로 3일 이상 같은 흐름이 유지되는지 확인하세요."
     : change < 0
-      ? "수면·불안·복약 누락처럼 같은 시기에 달라진 요인이 있었는지 먼저 확인하세요."
+      ? "수면·불안처럼 같은 시기에 달라진 요인이 있었는지 먼저 확인하세요."
       : "현재 흐름을 기준선으로 두고 갑작스러운 단축이 생기는지 관찰하세요.";
   return <section className="dashboard-card retention-analysis">
     <header><div><span>01</span><h2>답변 유지 시간</h2></div>{current != null && <strong>{current}<small>분</small></strong>}</header>
@@ -682,7 +678,7 @@ export default function ReportTabs({
   elderName,
   patientProfile,
   summary = {
-    risks: [], care_counts: {}, daily_reports: [], time_reports: [], medication: {},
+    risks: [], care_counts: {}, daily_reports: [], time_reports: [],
     calls: 0, total_seconds: 0, repeat_total: 0, meaningful_total: 0,
   },
   baselineSummary,
@@ -739,13 +735,13 @@ export default function ReportTabs({
   })), [careItems, baselineDomainCounts, baselineDays]);
   const dailyReports = activeBaseline?.daily_reports || [];
   const kpis = [
-    { label: "AI 케어 통화", value: summary.calls, unit: "통", average: dailyReports.reduce((sum, day) => sum + (day.calls || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.calls || 0) },
+    { label: "오늘 통화", value: summary.calls, unit: "통", average: dailyReports.reduce((sum, day) => sum + (day.calls || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.calls || 0) },
     { label: "통화 시간", value: Math.round(summary.total_seconds / 60), unit: "분", average: dailyReports.reduce((sum, day) => sum + (day.seconds || 0) / 60, 0) / baselineDays, trend: dailyReports.map((day) => Math.round((day.seconds || 0) / 60)) },
     { label: "발화 기반 관찰", value: careTotal, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.observation_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.observation_count || 0), status: `발화 100건당 ${Math.round(summary.normalized_rates?.observation_per_100_utterances || 0)}건` },
     { label: "반복 발화", value: summary.repeat_total, unit: "회", average: dailyReports.reduce((sum, day) => sum + (day.repeated_total || day.repeat_total || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.repeated_total || day.repeat_total || 0) },
     { label: "안전 신호", value: summary.risks.length, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.risk_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.risk_count || 0), status: unread.length ? `미확인 ${unread.length}건` : "모두 확인" },
   ];
-  const priorityTasks = useMemo(() => buildPriorityTasks(deviations, summary.risks, summary.medication), [deviations, summary.risks, summary.medication]);
+  const priorityTasks = useMemo(() => buildPriorityTasks(deviations, summary.risks), [deviations, summary.risks]);
   return <div className="report-dashboard">
     {!hideToolbar && <div className="report-toolbar">
       <nav className="cat-tabs">

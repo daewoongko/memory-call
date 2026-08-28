@@ -15,7 +15,7 @@ import json
 import re
 import sys
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,31 +49,7 @@ GREEN, RED, YELLOW, DIM, RESET = "\033[92m", "\033[91m", "\033[93m", "\033[2m", 
 
 # ---------------------------------------------------------------- 고정 컨텍스트
 
-# 시나리오는 "다가오는 주말 방문" 같은 상대 시점을 가정하는데, load_context()
-# 는 지난 일정을 걸러낸다. 시드 날짜가 지나면 프롬프트에서 일정이 통째로
-# 사라지고, 회귀가 아닌 이유로 테스트가 빨개진다. 회귀 테스트가 벽시계에
-# 흔들리면 신호로 쓸 수 없다.
-#
-# 그래서 날짜에 의존하는 부분만 상대 시점으로 다시 만든다. DB 는 건드리지
-# 않고 컨텍스트 사본만 바꾼다. safety 는 일정 ID 를 ctx 에서 확인하므로
-# (safety.py 의 valid_schedules) 이것으로 충분하다.
-#
-# 방문을 "다음 토요일" 로 두는 이유는 요일 이름이 언제 돌려도 불변이기
-# 때문이다. 날짜는 매주 바뀌지만 "토요일" 은 바뀌지 않으므로 시나리오가
-# 날짜를 하드코딩하지 않아도 된다. demo_reset.py 와 같은 규칙이라 시연
-# 상태와도 어긋나지 않는다.
-
-FIXTURE_VISIT_ID = "sch_visit"
-FIXTURE_MED_ID = "med_evening"
-FIXTURE_VISIT_WEEKDAY = "토요일"
-
-# 현재 시각도 고정한다. 일정만 고정하면 방문이 실행 요일에 따라 "내일" 이
-# 되기도 하고 "6일 뒤" 가 되기도 해서, 약속을 얼마나 쉽게 할 수 있는지가
-# 매번 달라진다. 거짓 약속 회귀를 가릴 수 있는 흔들림이다.
-#
-# 수요일 오전으로 둔 이유는 다음 토요일이 3일 뒤라 모델이 "내일"·"모레"
-# 같은 지름길을 못 쓰고 요일 이름을 써야 하기 때문이다. 복약 19:00 도
-# 아직 오지 않은 시각이라 "약 먹었어?" 대화가 자연스럽다.
+# 현재 시각을 고정해 날짜·요일 지남력 회귀가 실행일에 흔들리지 않게 한다.
 FIXTURE_NOW = datetime(2026, 5, 13, 10, 30)
 FIXTURE_PERSONA = {
     "persona_id": "persona_godaewoong", "display_name": "대웅",
@@ -92,34 +68,11 @@ CARE_PERSONA_FIXTURES = {
 }
 
 
-def next_saturday(today: date) -> date:
-    """오늘이 토요일이면 다음 주 토요일. demo_reset.py 와 같은 계산."""
-    return today + timedelta(days=(5 - today.weekday()) % 7 or 7)
-
-
 def pin_context_dates(ctx: dict, today: date | None = None) -> dict:
-    """일정·복약을 상대 시점으로 고정한 사본. 원본 ctx 는 그대로 둔다."""
-    today = today or date.today()
+    """현재 가족만 고정한 컨텍스트 사본. 원본 ctx 는 그대로 둔다."""
     pinned = dict(ctx)
     # DB의 현재 활성 가족이 누구인지와 무관하게 일반 회귀 시나리오는 대웅으로 고정한다.
     pinned["persona"] = dict(FIXTURE_PERSONA)
-    pinned["schedules"] = [{
-        "schedule_id": FIXTURE_VISIT_ID,
-        "title": "대웅이 방문",
-        "date": next_saturday(today).isoformat(),
-        "time": "14:00",
-        "note": "주말 오후에 할아버지 댁 방문 예정",
-        "confirmed": 1,
-    }]
-    pinned["medications"] = [{
-        "schedule_id": FIXTURE_MED_ID,
-        "medication_name": "저녁 혈압약",
-        "dosage_text": "1정",
-        "scheduled_time": "19:00",
-        "meal_relation": "after",
-        "days_of_week": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
-        "active": 1,
-    }]
     return pinned
 
 
@@ -166,7 +119,6 @@ def call_model(system_prompt: str, history: list[dict], user_input: str,
         result.get("care"),
         user_text=user_input,
         ctx=ctx,
-        due_medications=[],
         response_rewritten=bool(result.get("_rewritten")),
     )
     return result
@@ -237,14 +189,6 @@ def check(result: dict, rules: dict) -> list[str]:
         if risk.get("level") not in rules["risk_level_in"]:
             fails.append(
                 f"risk.level = {risk.get('level')!r} (허용: {rules['risk_level_in']})"
-            )
-
-    med = result.get("medication_status") or {}
-    if "medication_status_in" in rules:
-        if med.get("status") not in rules["medication_status_in"]:
-            fails.append(
-                f"medication_status = {med.get('status')!r} "
-                f"(허용: {rules['medication_status_in']})"
             )
 
     care_data = result.get("care") or {}
@@ -339,7 +283,7 @@ def main():
     context_mode = (
         "실제 DB·실제 시각 (--live-context)" if args.live_context
         else f"고정 — {FIXTURE_NOW:%Y-%m-%d %H:%M} 기준, "
-             f"방문 = 다음 {FIXTURE_VISIT_WEEKDAY}"
+             "확인되지 않은 방문 약속은 하지 않음"
     )
     print(f"\n{len(scenarios)}개 시나리오 실행 ({llm.MODEL}) — 예상 {est:.1f}분")
     print(f"{DIM}컨텍스트: {context_mode}{RESET}\n" + "=" * 70)

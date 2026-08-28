@@ -17,8 +17,6 @@ def context():
             "residence_type": "자택",
             "household_members": [{"name": "가족", "relation": "아들"}],
         },
-        "schedules": [{"schedule_id": "sch_visit"}],
-        "medications": [{"schedule_id": "med_evening"}],
         "memories": [
             {"memory_id": "mem_ok", "status": "verified"},
             {"memory_id": "mem_partial", "status": "partial"},
@@ -51,7 +49,6 @@ class CareNormalizeTest(unittest.TestCase):
                 }],
                 "context_support": [
                     {"kind": "server_time", "source_id": "server_now"},
-                    {"kind": "schedule", "source_id": "sch_missing"},
                     {"kind": "memory", "source_id": "mem_partial"},
                 ],
                 "emotional_support": "acknowledge",
@@ -73,35 +70,6 @@ class CareNormalizeTest(unittest.TestCase):
             ctx=context(),
         )
         self.assertEqual(result["emotional_support"], "none")
-
-    def test_registered_medication_action_requires_due_medication(self):
-        raw = {
-            "observations": [{
-                "domain": "daily_living",
-                "signal": "medication_uncertain",
-                "evidence": "약을 먹었는지 모르겠어",
-            }],
-            "daily_action": {
-                "kind": "medication_check",
-                "basis": "registered_medication",
-                "source_id": "med_evening",
-            },
-        }
-        blocked = care.normalize(
-            raw,
-            user_text="약을 먹었는지 모르겠어",
-            ctx=context(),
-            due_medications=[],
-        )
-        self.assertIsNone(blocked["daily_action"])
-
-        allowed = care.normalize(
-            raw,
-            user_text="약을 먹었는지 모르겠어",
-            ctx=context(),
-            due_medications=[{"schedule_id": "med_evening"}],
-        )
-        self.assertEqual(allowed["daily_action"]["kind"], "medication_check")
 
     def test_safety_rewrite_keeps_observation_but_clears_claimed_actions(self):
         result = care.normalize(

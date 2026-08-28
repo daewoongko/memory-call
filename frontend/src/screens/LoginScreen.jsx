@@ -120,11 +120,6 @@ export default function LoginScreen({ onAuthenticated, onSkip }) {
       <button className="login-submit" disabled={!ready || busy}>
         {busy ? "확인하는 중…" : mode === "login" ? "로그인" : "계정 만들기"}
       </button>
-      {mode === "login" && <button
-        type="button"
-        className="login-find"
-        onClick={() => showPendingMessage("간편번호 찾기는 준비 중이에요. 관리자에게 문의해 주세요.")}
-      >간편번호 찾기</button>}
 
       <div className="login-social" aria-label="간편 로그인">
         <div className="login-social-title"><span>간편 로그인</span></div>

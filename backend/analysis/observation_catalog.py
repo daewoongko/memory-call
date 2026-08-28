@@ -149,12 +149,6 @@ SIGNALS: dict[str, SignalSpec] = {
         )),
     "meal_skipped": _a("daily_living", "식사 거름", r"(?:밥|식사)[^.!?]{0,8}(?:안 먹|못 먹|거르)"),
     "hydration_need": _a("daily_living", "수분 필요 표현", r"목(?:이)? 마르", r"물이 필요"),
-    "medication_uncertain": _a("daily_living", "복약 여부 불확실",
-        r"약[^.!?]{0,18}(?:먹었|드셨|복용)[^.!?]{0,10}(?:나|모르|기억|까먹)",
-        negative=(r"약(?:을|은)? (?:안|아직) (?:먹었|먹었다|먹었어)",)),
-    "medication_refusal": _a("daily_living", "복약 거부", r"약[^.!?]{0,8}(?:안 먹|먹기 싫|거부)"),
-    "medication_double_risk": _a("daily_living", "중복 복용 위험",
-        r"약[^.!?]{0,12}(?:두 번|세 번|또)[^.!?]{0,8}(?:먹|복용|드셨)"),
     "item_location_uncertain": _a("daily_living", "물건 위치 불확실",
         r"(?:지갑|열쇠|가방|리모컨|물건)[^.!?]{0,12}(?:사라졌|없|어디|못 찾|잊)"),
     "hygiene_difficulty": _a("daily_living", "위생 관리 어려움",
@@ -181,7 +175,6 @@ SIGNALS: dict[str, SignalSpec] = {
     # Backward-compatible inputs. They normalize into the new domains but are
     # not part of the preferred prompt vocabulary.
     "financial_concern": _a("executive_judgment", "재산·금융 확인 필요", r"통장", r"계좌", r"재산", r"내 돈"),
-    "schedule_support": _a("memory", "일정 확인 필요", r"(?:언제|몇 시)[^.!?]{0,10}(?:오|가|찾아)"),
     "task_support": _a("executive_judgment", "행동 순서 지원 필요", r"어떻게 해야", r"혼자[^.!?]{0,8}힘들"),
 }
 
@@ -195,7 +188,6 @@ RISK_TO_SIGNAL = {
     "fall": "fall_reported",
     "breathing": "breathing_difficulty",
     "chest_pain": "chest_pain",
-    "overdose": "medication_double_risk",
     "lost": "place_confusion",
 }
 

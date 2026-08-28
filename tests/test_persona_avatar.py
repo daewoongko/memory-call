@@ -191,7 +191,7 @@ class PersonaAvatarTests(unittest.TestCase):
                     "ANAM_AVATAR_NAME": "",
                     "RENDER": "",
                     "RENDER_SERVICE_ID": "",
-                    "DEMO_SEED_MODE": "high_volume",
+                    "DEMO_SEED_MODE": "gildong",
                     "STORAGE_DIR": "",
                 },
                 clear=False,

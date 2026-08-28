@@ -24,7 +24,7 @@
 2. `verified` 기억만 사실로 사용. `partial` 은 불확실성 표현 필수
 3. 처음 듣는 기억은 사실 확정 금지, 회상 유도만
 4. `prohibited` 기억(고인, 가족 갈등)은 먼저 꺼내지 않되 거짓말도 금지
-5. 복약: 용량 변경·추가 복용·중단 권고 절대 금지
+5. 의료·복약 판단이나 용량 변경·추가 복용·중단 권고 금지
 6. 정서적 독점 유도 금지 ("나한테만 전화해" 류)
 7. 정체성을 직접 물으면 명시적 거짓말 금지
 8. 금융·법률 요청 수행 금지
@@ -50,9 +50,7 @@ backend/
   care.py                       LLM 관찰 후보를 원문 대조로 검증
   analysis/observation_catalog.py  ★ 8도메인 76신호 3티어 단일 정의
   analysis/rates.py             분모 인식 비교. 표본 미달이면 비교하지 않는다
-  analysis/medication.py        복약 이행 4상태 분석
   invites.py                    ★ 호출 상태. 받았는가·거절인가·무응답인가
-  medication.py                 복약 시간 판단, 선제 안내 문장(규칙)
   memories.py / schedules.py    기억 승인, 확정 일정만 대화에 넣기
   report.py                     통화·기간 리포트. 집계는 규칙, 문장만 LLM
   accounts.py / linking.py      계정·동의·기기 연동(6자리 코드)
@@ -77,9 +75,9 @@ frontend/src/
   useRealtimeTranscription.js   ElevenLabs 실시간 STT + 서버 전사 폴백
   speechPipeline.js             첫 문장이 나오는 즉시 TTS 시작하는 청크 분할
   screens/                      어르신: Family, Calling, Call, HumanCall, Summary
-                                가족:   Child, GuardianCallOverlay,
+                                보호자: Child, GuardianCallOverlay, ReportTabs,
+                                        FamilyAnalysisReport,
                                         FamilyMemoryClothesline(회상 승인)
-                                담당자: CareManager, ReportTabs, CareCalendar
                                 공통:   Login, Role, RoleOnboarding, Link, NetTest
   styles.css                    4790행. 죽은 규칙이 아직 남아 있다(아래 참고)
 frontend/e2e/two_devices.mjs    ★ 브라우저 두 개로 폰 두 대 흐름 확인

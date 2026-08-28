@@ -18,12 +18,11 @@ JSON_COLUMNS = {
     "emergency_contacts", "household_members", "frequent_phrases",
     "forbidden_phrases",
     "call_style_scores", "call_style_answers",
-    "participants", "days_of_week", "used_memory_ids", "used_schedule_ids",
+    "participants", "used_memory_ids",
     "unverified_recall", "care_data", "safety_flags", "payload", "repeated_questions",
-    "medication_summary", "new_recalls", "risk_summary", "guardian_actions",
+    "new_recalls", "risk_summary", "guardian_actions",
     "care_summary", "meaningful_moments", "family_mentions",
     "care_baseline", "medical_cautions",
-    "monitoring_points", "observed_flags",
     "progress_data",
 }
 
@@ -58,12 +57,6 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "meaningful_moments": "TEXT",
         "family_mentions": "TEXT",
     },
-    "medications": {
-        "indication": "TEXT",
-        "monitoring_points": "TEXT",
-        "review_interval_days": "INTEGER DEFAULT 14",
-        "escalation_criteria": "TEXT",
-    },
     "call_events": {
         "acknowledged_at": "TEXT",
     },
@@ -76,6 +69,15 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "memories": {
         "photo_url": "TEXT",
         "happened_year": "INTEGER",
+    },
+    "heart_artworks": {
+        "diary_date": "TEXT",
+        "diary_title": "TEXT",
+        "mood_label": "TEXT",
+        "storyline_id": "TEXT",
+        "storyline_chapter": "INTEGER NOT NULL DEFAULT 1",
+        "previous_artwork_id": "TEXT",
+        "continuity_note": "TEXT",
     },
 }
 
@@ -108,6 +110,10 @@ def init_schema(conn: sqlite3.Connection) -> list[str]:
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
     _migrate_call_invite_reasons(conn)
     added = _add_missing_columns(conn)
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_heart_artworks_diary_day "
+        "ON heart_artworks(diary_date) WHERE status = 'approved'"
+    )
     _migrate_demo_personas(conn)
     conn.commit()
     return added
@@ -313,23 +319,8 @@ def load_context(elder_id: str = "elder_001",
             (elder_id,),
         ).fetchall()
 
-        # 지난 일정은 프롬프트에 넣지 않는다. 과거 약속을 미래로 착각시키지 않기 위함.
-        schedules = conn.execute(
-            "SELECT * FROM schedules WHERE elder_id = ? AND confirmed = 1 "
-            "AND date >= date('now','localtime') ORDER BY date",
-            (elder_id,),
-        ).fetchall()
-
-        medications = conn.execute(
-            "SELECT * FROM medications WHERE elder_id = ? AND active = 1 "
-            "ORDER BY scheduled_time",
-            (elder_id,),
-        ).fetchall()
-
     return {
         "elder": _row(elder),
         "persona": _row(persona) if persona else {},
         "memories": [_row(m) for m in memories],
-        "schedules": [_row(s) for s in schedules],
-        "medications": [_row(m) for m in medications],
     }

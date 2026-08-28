@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_app_sessions_user
 
 CREATE TABLE IF NOT EXISTS user_role_onboarding (
     user_id       TEXT NOT NULL REFERENCES app_users(user_id) ON DELETE CASCADE,
-    role          TEXT NOT NULL CHECK (role IN ('elder','child','care')),
+    role          TEXT NOT NULL CHECK (role IN ('elder','child')),
     current_step  TEXT NOT NULL DEFAULT 'intro',
     progress_data TEXT NOT NULL DEFAULT '{}',
     completed_at  TEXT,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS user_role_onboarding (
 CREATE TABLE IF NOT EXISTS consent_records (
     consent_id      TEXT PRIMARY KEY,
     user_id         TEXT NOT NULL REFERENCES app_users(user_id) ON DELETE CASCADE,
-    role            TEXT NOT NULL CHECK (role IN ('elder','child','care')),
+    role            TEXT NOT NULL CHECK (role IN ('elder','child')),
     elder_id        TEXT,
     consent_type    TEXT NOT NULL,
     consent_version TEXT NOT NULL,
@@ -166,73 +166,6 @@ CREATE TABLE IF NOT EXISTS memories (
 );
 CREATE INDEX IF NOT EXISTS idx_memories_elder ON memories(elder_id, status);
 
-CREATE TABLE IF NOT EXISTS schedules (
-    schedule_id TEXT PRIMARY KEY,
-    elder_id    TEXT NOT NULL REFERENCES elder_profiles(elder_id),
-    title       TEXT NOT NULL,
-    date        TEXT NOT NULL,   -- YYYY-MM-DD
-    time        TEXT,            -- HH:MM
-    note        TEXT,
-    confirmed   INTEGER DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS medications (
-    schedule_id     TEXT PRIMARY KEY,
-    elder_id        TEXT NOT NULL REFERENCES elder_profiles(elder_id),
-    medication_name TEXT NOT NULL,
-    dosage_text     TEXT,
-    scheduled_time  TEXT,        -- HH:MM
-    meal_relation   TEXT CHECK (meal_relation IN ('before','after','none')),
-    days_of_week    TEXT,        -- JSON 배열
-    indication      TEXT,        -- 처방 목적(보호자·담당자 입력, 진단 자동 추정 금지)
-    monitoring_points TEXT,      -- JSON 배열. 담당자가 관찰할 항목
-    review_interval_days INTEGER DEFAULT 14,
-    escalation_criteria TEXT,    -- 약 변경 지시가 아니라 의료진 보고 기준
-    active          INTEGER DEFAULT 1
-);
-
-CREATE TABLE IF NOT EXISTS medication_reviews (
-    review_id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    elder_id        TEXT NOT NULL REFERENCES elder_profiles(elder_id),
-    schedule_id     TEXT NOT NULL REFERENCES medications(schedule_id),
-    review_date     TEXT NOT NULL,
-    severity        INTEGER NOT NULL DEFAULT 0 CHECK (severity BETWEEN 0 AND 3),
-    observed_flags  TEXT,
-    note            TEXT,
-    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_medication_reviews
-    ON medication_reviews(elder_id, schedule_id, review_date);
-
--- 약과 관찰 신호의 연결은 담당자가 명시적으로 등록한다. 시스템이 약 이름만
--- 보고 부작용이나 인과 관계를 자동 추정하지 않는다.
-CREATE TABLE IF NOT EXISTS medication_signal_links (
-    schedule_id     TEXT NOT NULL REFERENCES medications(schedule_id),
-    signal          TEXT NOT NULL,
-    link_level      TEXT NOT NULL CHECK (link_level IN ('monitoring','escalation')),
-    criterion_text  TEXT NOT NULL,
-    created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (schedule_id, signal, link_level)
-);
-CREATE INDEX IF NOT EXISTS idx_medication_signal_links
-    ON medication_signal_links(schedule_id, signal);
-
--- 복약 기록. 노인이 직접 입력하지 않고 통화 중 말로 확인한 결과가 쌓인다.
-CREATE TABLE IF NOT EXISTS medication_logs (
-    log_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    elder_id      TEXT NOT NULL REFERENCES elder_profiles(elder_id),
-    schedule_id   TEXT NOT NULL REFERENCES medications(schedule_id),
-    call_id       TEXT,
-    utterance_id  INTEGER REFERENCES utterances(utterance_id),
-    taken_date    TEXT NOT NULL,   -- YYYY-MM-DD
-    status        TEXT NOT NULL CHECK (status IN
-                     ('USER_CONFIRMED','UNCLEAR','REFUSED','DUPLICATE_SUSPECTED')),
-    evidence_text TEXT,
-    created_at    TEXT DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_medlog_day
-    ON medication_logs(elder_id, taken_date, schedule_id);
-
 CREATE TABLE IF NOT EXISTS calls (
     call_id      TEXT PRIMARY KEY,
     elder_id     TEXT NOT NULL REFERENCES elder_profiles(elder_id),
@@ -262,7 +195,6 @@ CREATE TABLE IF NOT EXISTS utterances (
     intent            TEXT,
     certainty         TEXT,
     used_memory_ids   TEXT,   -- JSON 배열
-    used_schedule_ids TEXT,   -- JSON 배열
     unverified_recall TEXT,   -- JSON 객체
     -- 비진단적 인지·정서·생활 관찰과 실제 응답에 사용한 근거·지원 행동.
     care_data          TEXT,   -- JSON 객체
@@ -274,7 +206,7 @@ CREATE TABLE IF NOT EXISTS utterances (
 );
 CREATE INDEX IF NOT EXISTS idx_utt_call ON utterances(call_id, seq);
 
--- 위험 · 복약 · 모핑 등 통화 중 이벤트
+-- 위험 · 모핑 · 실제 가족 연결 등 통화 중 이벤트
 CREATE TABLE IF NOT EXISTS call_events (
     event_id        INTEGER PRIMARY KEY AUTOINCREMENT,
     call_id         TEXT NOT NULL REFERENCES calls(call_id),
@@ -284,23 +216,13 @@ CREATE TABLE IF NOT EXISTS call_events (
     ai_utterance_id INTEGER REFERENCES utterances(utterance_id),
     -- safety_block 은 더 이상 쓰지 않는다. 옛 행 때문에 값은 남겨 둔다.
     event_type      TEXT NOT NULL CHECK (event_type IN
-                    ('risk','medication','morph','handoff','safety_block')),
+                    ('risk','morph','handoff','safety_block')),
     payload      TEXT,   -- JSON 객체
     acknowledged INTEGER DEFAULT 0,
     acknowledged_at TEXT,
     created_at   TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_evt_call ON call_events(call_id, event_type);
-
--- 담당자 개인 계정이 없는 현재 범위에서는 근무조와 마감 시각, 자유 메모만
--- 저장한다. 체크 결과는 각 원천 테이블에서 마감 시각을 기준으로 다시 집계한다.
-CREATE TABLE IF NOT EXISTS handovers (
-    handover_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    shift       TEXT NOT NULL CHECK (shift IN ('day','evening','night')),
-    closed_at   TEXT NOT NULL,
-    note        TEXT,
-    created_at  TEXT DEFAULT CURRENT_TIMESTAMP
-);
 
 -- 통화 중 나온 미확인 회상에 대한 보호자의 판단.
 -- 한 번 처리한 것은 다시 묻지 않기 위해 결정을 남긴다 (명세 FR-05).
@@ -418,7 +340,6 @@ CREATE TABLE IF NOT EXISTS reports (
     call_id            TEXT NOT NULL UNIQUE REFERENCES calls(call_id),
     summary            TEXT,
     repeated_questions TEXT,   -- JSON
-    medication_summary TEXT,   -- JSON
     new_recalls        TEXT,   -- JSON. 보호자 확인 대기
     risk_summary       TEXT,   -- JSON
     care_summary       TEXT,   -- JSON. 인지·정서·생활 관찰
@@ -442,6 +363,13 @@ CREATE TABLE IF NOT EXISTS heart_artworks (
     alt_text            TEXT NOT NULL,
     caption             TEXT NOT NULL,
     prompt_summary      TEXT,
+    diary_date          TEXT,
+    diary_title         TEXT,
+    mood_label          TEXT,
+    storyline_id        TEXT,
+    storyline_chapter   INTEGER NOT NULL DEFAULT 1,
+    previous_artwork_id TEXT REFERENCES heart_artworks(artwork_id),
+    continuity_note     TEXT,
     created_at          TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_heart_artworks_call

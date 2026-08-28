@@ -8,7 +8,7 @@ React 화면(D5-B)이 이 API만 보고 동작하도록 응답 형태를 고정�
     http://localhost:8000/docs  ← 브라우저에서 바로 테스트 가능
 """
 
-from collections import Counter, defaultdict, deque
+from collections import defaultdict, deque
 from datetime import date, datetime, timedelta
 import base64
 import hashlib
@@ -39,17 +39,14 @@ import elevenlabs_tts
 import invites as inv_mod
 import linking as link_mod
 import llm
-import medication as med_mod
 import memories as mem_mod
 import nettest as nettest_mod
 import persona_voice as voice_mod
 import persona_avatar as avatar_mod
 import report as report_mod
-import schedules as sched_mod
 import signaling
 import stt as stt_mod
 import tts_proxy
-from analysis.observation_catalog import SIGNALS
 from conversation import Session
 from storage import (
     ALIGNED_FACES_DIR,
@@ -395,64 +392,6 @@ class RecallReview(BaseModel):
     happened_year: int | None = Field(default=None, ge=1800, le=2100)
 
 
-class ScheduleRequest(BaseModel):
-    title: str = Field(min_length=1, max_length=60)
-    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    time: str = Field(default="", pattern=r"^(\d{2}:\d{2})?$")
-    note: str = Field(default="", max_length=200)
-    confirmed: bool = True
-
-
-class SchedulePatch(BaseModel):
-    title: str | None = Field(default=None, max_length=60)
-    date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
-    time: str | None = Field(default=None, pattern=r"^(\d{2}:\d{2})?$")
-    note: str | None = Field(default=None, max_length=200)
-    confirmed: bool | None = None
-
-
-class MedicationSignalLinkRequest(BaseModel):
-    signal: str = Field(min_length=1, max_length=80)
-    link_level: str = Field(default="monitoring", pattern="^(monitoring|escalation)$")
-    criterion_text: str = Field(min_length=1, max_length=300)
-
-
-class MedicationRequest(BaseModel):
-    medication_name: str = Field(min_length=1, max_length=60)
-    dosage_text: str = Field(default="1정", max_length=40)
-    scheduled_time: str = Field(pattern=r"^\d{2}:\d{2}$")
-    meal_relation: str = Field(default="none", pattern="^(before|after|none)$")
-    days_of_week: list[str] = Field(
-        default=["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"])
-    indication: str = Field(default="", max_length=120)
-    monitoring_points: list[str] = Field(default=[])
-    review_interval_days: int = Field(default=14, ge=1, le=180)
-    escalation_criteria: str = Field(default="", max_length=300)
-    signal_links: list[MedicationSignalLinkRequest] = Field(default=[])
-
-
-class MedicationReviewRequest(BaseModel):
-    review_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    severity: int = Field(ge=0, le=3)
-    observed_flags: list[str | dict[str, str]] = Field(default=[])
-    note: str = Field(default="", max_length=500)
-
-
-class HandoverRequest(BaseModel):
-    shift: str = Field(pattern="^(day|evening|night)$")
-    note: str = Field(default="", max_length=1000)
-
-
-class CareTaskCompleteRequest(BaseModel):
-    as_of: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-
-
-class CareTaskDoseStatusRequest(CareTaskCompleteRequest):
-    status: Literal[
-        "USER_CONFIRMED", "UNCLEAR", "REFUSED", "DUPLICATE_SUSPECTED",
-    ]
-
-
 class AccountCredentials(BaseModel):
     phone: str = Field(min_length=10, max_length=20)
     pin: str = Field(pattern=r"^\d{6}$")
@@ -469,11 +408,11 @@ class OnboardingProgressRequest(BaseModel):
 
 
 class ConsentRecordRequest(BaseModel):
-    role: Literal["elder", "child", "care"]
+    role: Literal["elder", "child"]
     consent_types: list[str] = Field(min_length=1, max_length=20)
     consent_version: str = Field(default="2026-08-24.v1", min_length=1, max_length=30)
     consent_mode: Literal[
-        "self", "with_guardian", "legal_representative", "staff"
+        "self", "with_guardian", "legal_representative"
     ] = "self"
     elder_id: str | None = Field(default=None, max_length=60)
 
@@ -731,13 +670,13 @@ def logout_account(request: Request):
 
 
 @app.get("/api/onboarding/{role}")
-def read_onboarding(role: Literal["elder", "child", "care"], request: Request):
+def read_onboarding(role: Literal["elder", "child"], request: Request):
     user = _current_user(request)
     return account_mod.onboarding(user["user_id"], role)
 
 
 @app.patch("/api/onboarding/{role}")
-def update_onboarding(role: Literal["elder", "child", "care"],
+def update_onboarding(role: Literal["elder", "child"],
                       req: OnboardingProgressRequest, request: Request):
     user = _current_user(request)
     try:
@@ -749,7 +688,7 @@ def update_onboarding(role: Literal["elder", "child", "care"],
 
 
 @app.get("/api/consents/{role}")
-def read_consents(role: Literal["elder", "child", "care"], request: Request):
+def read_consents(role: Literal["elder", "child"], request: Request):
     user = _current_user(request)
     return {"consents": account_mod.consents(user["user_id"], role)}
 
@@ -1137,8 +1076,6 @@ def profile(elder_id: str = "elder_001", persona_id: str | None = None):
         "loops": _loop_urls(persona_id),
         "counts": {
             "memories": len(ctx["memories"]),
-            "schedules": len(ctx["schedules"]),
-            "medications": len(ctx["medications"]),
         },
     }
 
@@ -1539,218 +1476,6 @@ def review_recall(utterance_id: int, req: RecallReview,
         raise HTTPException(400, str(e)) from e
 
 
-@app.get("/api/elders/{elder_id}/schedules")
-def list_schedules(elder_id: str = "elder_001"):
-    """다가오는 일정과 최근 지난 일정.
-
-    used_in_call 이 참인 것만 AI 가 이야기한다.
-    """
-    return {"elder_id": elder_id, **sched_mod.listing(elder_id)}
-
-
-@app.post("/api/elders/{elder_id}/schedules")
-def add_schedule(elder_id: str, req: ScheduleRequest):
-    sched_mod.create(elder_id, req.model_dump())
-    return sched_mod.listing(elder_id)
-
-
-@app.patch("/api/schedules/{schedule_id}")
-def patch_schedule(schedule_id: str, req: SchedulePatch):
-    try:
-        return sched_mod.update(schedule_id, req.model_dump(exclude_none=True))
-    except ValueError as e:
-        raise HTTPException(400, str(e)) from e
-
-
-@app.delete("/api/schedules/{schedule_id}")
-def delete_schedule(schedule_id: str):
-    sched_mod.delete(schedule_id)
-    return {"ok": True}
-
-
-@app.get("/api/elders/{elder_id}/medications")
-def list_medications(elder_id: str = "elder_001", as_of: str | None = None):
-    """등록 복약, 관찰 주기, AI 근거를 한 번에 반환한다.
-
-    연결은 담당자가 ``medication_signal_links``에 등록한 항목만 사용한다.
-    약 이름이나 발화만 보고 원인 관계를 추론하지 않는다.
-    """
-    try:
-        selected_day = date.fromisoformat(as_of) if as_of else date.today()
-    except ValueError as exc:
-        raise HTTPException(400, "as_of는 YYYY-MM-DD 형식이어야 합니다.") from exc
-    with db.connect() as conn:
-        reviews = conn.execute(
-            "SELECT * FROM medication_reviews WHERE elder_id = ? "
-            "ORDER BY review_date DESC, review_id DESC", (elder_id,),
-        ).fetchall()
-        links = conn.execute(
-            "SELECT l.* FROM medication_signal_links l JOIN medications m "
-            "ON m.schedule_id = l.schedule_id WHERE m.elder_id = ? "
-            "ORDER BY l.schedule_id, l.link_level, l.signal", (elder_id,),
-        ).fetchall()
-        calendar_start = (selected_day - timedelta(days=45)).isoformat()
-        calendar_end = (selected_day + timedelta(days=45)).isoformat()
-        reports = conn.execute(
-            "SELECT r.call_id, r.care_summary, c.started_at FROM reports r "
-            "JOIN calls c ON c.call_id = r.call_id "
-            "WHERE c.elder_id = ? AND substr(c.started_at, 1, 10) BETWEEN ? AND ? "
-            "ORDER BY c.started_at",
-            (elder_id, calendar_start, calendar_end),
-        ).fetchall()
-
-    medications = med_mod.listing(elder_id)
-    review_rows = [db._row(row) for row in reviews]
-    link_rows = [db._row(row) for row in links]
-    latest_by_schedule = {}
-    for review in review_rows:
-        latest_by_schedule.setdefault(review["schedule_id"], review)
-
-    linked_signals = {row["signal"] for row in link_rows}
-    evidence_by_signal: dict[str, list[dict]] = defaultdict(list)
-    signal_dates: Counter = Counter()
-    for raw_report in reports:
-        report = db._row(raw_report)
-        report_day = str(report.get("started_at") or "")[:10]
-        for domain, observations in (report.get("care_summary") or {}).items():
-            if domain == "meaningful_moments":
-                continue
-            for observation in observations or []:
-                signal = observation.get("signal")
-                if signal in linked_signals and report_day:
-                    signal_dates[report_day] += 1
-                if signal and report_day == selected_day.isoformat():
-                    evidence_by_signal[signal].append({
-                        "call_id": report["call_id"],
-                        "at": observation.get("at") or report.get("started_at"),
-                        "evidence": observation.get("evidence"),
-                        "utterance_id": observation.get("utterance_id"),
-                    })
-
-    review_status = []
-    for medication in medications:
-        latest = latest_by_schedule.get(medication["schedule_id"])
-        interval = int(medication.get("review_interval_days") or 14)
-        latest_day = date.fromisoformat(latest["review_date"]) if latest else None
-        due_on = latest_day + timedelta(days=interval) if latest_day else selected_day
-        review_status.append({
-            "schedule_id": medication["schedule_id"],
-            "latest_review": latest,
-            "review_due_on": due_on.isoformat(),
-            "days_until_due": (due_on - selected_day).days,
-            "review_due": due_on <= selected_day,
-        })
-
-    signal_options = []
-    for signal in sorted({row["signal"] for row in link_rows}):
-        spec = SIGNALS.get(signal)
-        signal_options.append({
-            "signal": signal,
-            "label": spec.label if spec else signal,
-            "evidence": evidence_by_signal.get(signal, []),
-        })
-    return {
-        "elder_id": elder_id,
-        "as_of": selected_day.isoformat(),
-        "today": med_mod.status_on(elder_id, selected_day),
-        "medications": medications,
-        "reviews": review_rows,
-        "review_status": review_status,
-        "signal_links": link_rows,
-        "signal_options": signal_options,
-        "signal_dates": [
-            {"date": day, "count": count}
-            for day, count in sorted(signal_dates.items())
-        ],
-        "safety_notice": "시스템은 등록된 관찰 기준과 발화만 대조합니다. 원인 판단과 처방 조정은 의료진의 몫입니다.",
-    }
-
-
-@app.post("/api/elders/{elder_id}/medications")
-def add_medication(elder_id: str, req: MedicationRequest):
-    schedule_id = f"med_{uuid.uuid4().hex[:8]}"
-    with db.connect() as conn:
-        db.insert(conn, "medications", {
-            "schedule_id": schedule_id,
-            "elder_id": elder_id,
-            "medication_name": req.medication_name,
-            "dosage_text": req.dosage_text,
-            "scheduled_time": req.scheduled_time,
-            "meal_relation": req.meal_relation,
-            "days_of_week": req.days_of_week,
-            "indication": req.indication,
-            "monitoring_points": req.monitoring_points,
-            "review_interval_days": req.review_interval_days,
-            "escalation_criteria": req.escalation_criteria,
-            "active": 1,
-        })
-        for link in req.signal_links:
-            if link.signal not in SIGNALS:
-                continue
-            db.insert(conn, "medication_signal_links", {
-                "schedule_id": schedule_id,
-                "signal": link.signal,
-                "link_level": link.link_level,
-                "criterion_text": link.criterion_text,
-            })
-        conn.commit()
-    return {"schedule_id": schedule_id, "today": med_mod.today_status(elder_id)}
-
-
-@app.post("/api/elders/{elder_id}/medications/{schedule_id}/reviews")
-def add_medication_review(elder_id: str, schedule_id: str,
-                          req: MedicationReviewRequest):
-    with db.connect() as conn:
-        medication = conn.execute(
-            "SELECT schedule_id FROM medications WHERE schedule_id = ? AND elder_id = ?",
-            (schedule_id, elder_id),
-        ).fetchone()
-        if medication is None:
-            raise HTTPException(404, "해당 환자의 복약 일정을 찾을 수 없습니다.")
-        review_id = db.insert(conn, "medication_reviews", {
-            "elder_id": elder_id,
-            "schedule_id": schedule_id,
-            "review_date": req.review_date,
-            "severity": req.severity,
-            "observed_flags": req.observed_flags,
-            "note": req.note,
-        })
-        conn.commit()
-    return {"review_id": review_id, "ok": True}
-
-
-@app.delete("/api/medications/{schedule_id}")
-def remove_medication(schedule_id: str):
-    with db.connect() as conn:
-        conn.execute("UPDATE medications SET active = 0 WHERE schedule_id = ?",
-                     (schedule_id,))
-        conn.commit()
-    return {"ok": True}
-
-
-@app.get("/api/elders/{elder_id}/pending-call")
-def pending_call(elder_id: str = "elder_001"):
-    """AI 가 먼저 전화를 걸어야 하는 상황인지 알려준다.
-
-    노인용 화면이 주기적으로 물어보고, 조건이 맞으면 전화가 걸려온다.
-    치매 노인이 약 시간을 스스로 기억하기 어렵기 때문이다 (명세 FR-08).
-    """
-    meds = med_mod.due(elder_id)
-    return {
-        "due": bool(meds),
-        "reason": "medication" if meds else None,
-        # 자동 복약 전화는 명세와 데모에서 정한 대웅 페르소나로 건다.
-        # 명시하지 않으면 기존 DB의 생성 순서에 따라 정훈 등 다른 가족이
-        # 선택되어 수신 화면과 실제 통화 상대가 어긋날 수 있다.
-        "persona_id": DEFAULT_FACE_PERSONA_ID if meds else None,
-        "medications": [
-            {"name": m["medication_name"], "scheduled_time": m["scheduled_time"],
-             "minutes_late": m["minutes_late"]}
-            for m in meds
-        ],
-    }
-
-
 def _open_ai_session(elder_id: str, persona_id: str | None) -> dict:
     """AI 통화 하나를 연다.
 
@@ -1766,7 +1491,7 @@ def _open_ai_session(elder_id: str, persona_id: str | None) -> dict:
         "call_id": session.call_id,
         "persona_id": selected_persona_id,
         "persona_name": persona_name,
-        # 복약 시간대면 대웅이가 먼저 건넬 말이 들어온다. 없으면 빈 문자열.
+        # 선제 인사가 없으면 빈 문자열로 시작하고 어르신의 첫 말을 기다린다.
         "opening": session.opening(),
         # 명세 13.1 — 연결 전 1회만 고지한다. 통화 중에는 반복하지 않는다.
         "announcement": f"{persona_name}이가 준비한 AI 기억통화가 연결됩니다.",
@@ -2059,10 +1784,8 @@ def turn(call_id: str, req: TurnRequest, background_tasks: BackgroundTasks):
         "intent": None,
         "certainty": result.get("certainty"),
         "used_memory_ids": result.get("used_memory_ids") or [],
-        "used_schedule_ids": result.get("used_schedule_ids") or [],
         "risk": result.get("risk"),
         "risk_invite": risk_invite,
-        "medication_status": None,
         "unverified_recall": result.get("unverified_recall"),
         "care": None,
         "grounding": None,
@@ -2114,260 +1837,23 @@ def period_summary(elder_id: str = "elder_001", days: int = 7,
         raise HTTPException(400, str(exc)) from exc
 
 
+@app.get("/api/elders/{elder_id}/diaries")
+def elder_diaries(
+    elder_id: str = "elder_001", start: str = "2026-08-01",
+    end: str = "2026-10-31",
+):
+    """대표 통화의 실제 발화와 연결된 승인 그림일기 아카이브."""
+    try:
+        rows = report_mod.diaries(elder_id, start, end)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"elder_id": elder_id, "start": start, "end": end, "diaries": rows}
+
+
 @app.post("/api/risk-events/{event_id}/acknowledge")
 def ack_risk(event_id: int):
     """보호자가 위험 알림을 확인했음을 기록한다 (명세 FR-10)."""
     return report_mod.acknowledge(event_id)
-
-
-def _shift_label(value: str) -> str:
-    return {"day": "주간", "evening": "저녁", "night": "야간"}.get(value, value)
-
-
-_MEDICATION_RISK_TYPES = {"overdose", "duplicate_dose", "duplicate_medication"}
-
-
-def _remove_represented_medication_risks(
-    risk_tasks: list[dict], dose_tasks: list[dict], logs: list[dict],
-) -> list[dict]:
-    """복약 행에서 처리 가능한 동일 통화의 위험 신호를 즉시 확인에서 제외한다.
-
-    연결된 복약 기록이 없으면 안전한 기본값으로 위험 신호를 그대로 남긴다.
-    """
-    visible_doses = {
-        (row.get("task_date"), row.get("schedule_id"))
-        for row in dose_tasks
-        if row.get("kind") == "dose"
-    }
-    represented_calls = {
-        (row.get("taken_date"), row.get("call_id"))
-        for row in logs
-        if row.get("call_id")
-        and row.get("status") == "DUPLICATE_SUSPECTED"
-        and (row.get("taken_date"), row.get("schedule_id")) in visible_doses
-    }
-    return [
-        row for row in risk_tasks
-        if not (
-            row.get("risk_type") in _MEDICATION_RISK_TYPES
-            and (row.get("task_date"), row.get("call_id")) in represented_calls
-        )
-    ]
-
-
-@app.get("/api/care-tasks")
-def care_tasks(as_of: str | None = None):
-    """안전·복약·관찰 원천을 별도 tasks 테이블 없이 실행 목록으로 합친다."""
-    try:
-        selected_day = date.fromisoformat(as_of) if as_of else date.today()
-    except ValueError as exc:
-        raise HTTPException(400, "as_of는 YYYY-MM-DD 형식이어야 합니다.") from exc
-    day_text = selected_day.isoformat()
-    previous_day = selected_day - timedelta(days=1)
-    previous_text = previous_day.isoformat()
-    weekday = med_mod.WEEKDAY[selected_day.weekday()]
-    previous_weekday = med_mod.WEEKDAY[previous_day.weekday()]
-    now_text = time.strftime("%H:%M") if selected_day == date.today() else "23:59"
-    with db.connect() as conn:
-        elders = [db._row(row) for row in conn.execute(
-            "SELECT elder_id, name, preferred_call_name FROM elder_profiles ORDER BY name"
-        ).fetchall()]
-        meds = [db._row(row) for row in conn.execute(
-            "SELECT * FROM medications WHERE active = 1 ORDER BY scheduled_time, medication_name"
-        ).fetchall()]
-        logs = [db._row(row) for row in conn.execute(
-            "SELECT * FROM medication_logs WHERE taken_date IN (?, ?) ORDER BY log_id",
-            (previous_text, day_text),
-        ).fetchall()]
-        reviews = [db._row(row) for row in conn.execute(
-            "SELECT * FROM medication_reviews WHERE review_date <= ? ORDER BY review_date DESC, review_id DESC", (day_text,)
-        ).fetchall()]
-        risks = [db._row(row) for row in conn.execute(
-            "SELECT e.*, c.elder_id, c.started_at, u.transcript AS evidence "
-            "FROM call_events e JOIN calls c ON c.call_id=e.call_id "
-            "LEFT JOIN utterances u ON u.utterance_id=e.utterance_id "
-            "WHERE e.event_type='risk' AND substr(c.started_at,1,10) IN (?, ?) "
-            "ORDER BY c.started_at DESC", (previous_text, day_text),
-        ).fetchall()]
-        latest_handover = conn.execute(
-            "SELECT * FROM handovers ORDER BY closed_at DESC, handover_id DESC LIMIT 1"
-        ).fetchone()
-
-    elder_names = {row["elder_id"]: row["name"] for row in elders}
-    log_by_day_schedule = defaultdict(list)
-    for row in logs:
-        log_by_day_schedule[(row["taken_date"], row["schedule_id"])].append(row)
-    review_by_schedule = {}
-    for row in reviews:
-        review_by_schedule.setdefault(row["schedule_id"], row)
-
-    risk_labels = {
-        "fall": "낙상 신호", "lost": "길 잃음 신호", "intrusion": "침입 불안 신호",
-        "fire": "화재 신호", "gas_leak": "가스 신호", "chest_pain": "흉통 신호",
-        "breathing": "호흡 곤란 신호", "overdose": "중복 복용 신호",
-    }
-
-    def risk_task(row: dict, carryover: bool = False) -> dict:
-        risk_type = (row.get("payload") or {}).get("type") or (row.get("payload") or {}).get("risk_type")
-        return {
-            "id": f"risk-{row['event_id']}", "kind": "risk", "event_id": row["event_id"],
-            "call_id": row.get("call_id"), "risk_type": risk_type,
-            "elder_id": row["elder_id"], "elder_name": elder_names.get(row["elder_id"], row["elder_id"]),
-            "title": risk_labels.get(risk_type, "안전 신호 상태 확인"),
-            "time": str(row.get("started_at") or "")[11:16],
-            "task_date": str(row.get("started_at") or "")[:10],
-            "evidence": row.get("evidence") or (row.get("payload") or {}).get("evidence"),
-            "completed": bool(row.get("acknowledged")), "completed_at": row.get("acknowledged_at"),
-            "status": "completed" if row.get("acknowledged") else ("missed" if carryover else "waiting"),
-            "carryover": carryover,
-        }
-
-    immediate = [{
-        **risk_task(row)
-    } for row in risks if str(row.get("started_at") or "")[:10] == day_text]
-
-    def dose_task(med: dict, task_day: str, task_weekday: str, carryover: bool = False) -> dict | None:
-        if task_weekday not in (med.get("days_of_week") or med_mod.WEEKDAY):
-            return None
-        entries = log_by_day_schedule.get((task_day, med["schedule_id"]), [])
-        manual_entries = [
-            row for row in entries
-            if row.get("call_id") is None
-            and str(row.get("evidence_text") or "").startswith("담당자 체크:")
-        ]
-        manual = manual_entries[-1] if manual_entries else None
-        observed = [row for row in entries if row not in manual_entries]
-        latest = manual or (entries[-1] if entries else None)
-        scheduled_time = med.get("scheduled_time") or "23:59"
-        # 통화에서 복용이 명확히 확인됐거나 담당자가 네 상태 중 하나를
-        # 기록하면 이 슬롯의 기록 업무는 끝난다. 불확실·거부·중복 의심은
-        # 값 자체를 보존해 후속 판단에서 USER_CONFIRMED와 섞이지 않는다.
-        completed = bool(manual or (latest and latest.get("status") == "USER_CONFIRMED"))
-        status = "completed" if completed else (
-            "missed" if carryover or (task_day == day_text and scheduled_time < now_text) else "waiting"
-        )
-        return {
-            "id": f"dose-{task_day}-{med['schedule_id']}", "kind": "dose", "schedule_id": med["schedule_id"],
-            "elder_id": med["elder_id"], "elder_name": elder_names.get(med["elder_id"], med["elder_id"]),
-            "title": med["medication_name"], "time": scheduled_time, "task_date": task_day,
-            "dosage_text": med.get("dosage_text"), "indication": med.get("indication"),
-            "dose_status": latest.get("status") if latest else None,
-            "observed_status": observed[-1].get("status") if observed else None,
-            "ai_observation_count": len(observed),
-            "evidence": next((row.get("evidence_text") for row in reversed(observed) if row.get("evidence_text")), None),
-            "completed": completed, "completed_at": latest.get("created_at") if latest and completed else None,
-            "status": status, "carryover": carryover,
-        }
-
-    timed = []
-    all_day = []
-    carryover = []
-    for med in meds:
-        current_dose = dose_task(med, day_text, weekday)
-        if current_dose:
-            timed.append(current_dose)
-        prior_dose = dose_task(med, previous_text, previous_weekday, carryover=True)
-        if prior_dose and not prior_dose["completed"]:
-            carryover.append(prior_dose)
-        interval = int(med.get("review_interval_days") or 14)
-        latest = review_by_schedule.get(med["schedule_id"])
-        due_on = (date.fromisoformat(latest["review_date"]) + timedelta(days=interval)) if latest else selected_day
-        if due_on <= selected_day:
-            review_task = {
-                "id": f"review-{med['schedule_id']}", "kind": "review", "schedule_id": med["schedule_id"],
-                "elder_id": med["elder_id"], "elder_name": elder_names.get(med["elder_id"], med["elder_id"]),
-                "title": f"{med['medication_name']} {interval}일 관찰 주기", "time": None,
-                "task_date": due_on.isoformat(), "monitoring_points": med.get("monitoring_points") or [],
-                "escalation_criteria": med.get("escalation_criteria"),
-                "evidence": None, "completed": bool(latest and latest["review_date"] == day_text),
-                "completed_at": latest.get("created_at") if latest and latest["review_date"] == day_text else None,
-                "status": "completed" if latest and latest["review_date"] == day_text else "waiting",
-            }
-            if due_on < selected_day and not review_task["completed"]:
-                review_task["carryover"] = True
-                review_task["status"] = "missed"
-                carryover.append(review_task)
-            else:
-                all_day.append(review_task)
-    carryover.extend(
-        risk_task(row, carryover=True) for row in risks
-        if str(row.get("started_at") or "")[:10] == previous_text and not row.get("acknowledged")
-    )
-    dose_tasks = timed + [row for row in carryover if row.get("kind") == "dose"]
-    immediate = _remove_represented_medication_risks(immediate, dose_tasks, logs)
-    carryover_risks = [row for row in carryover if row.get("kind") == "risk"]
-    visible_carryover_risks = _remove_represented_medication_risks(carryover_risks, dose_tasks, logs)
-    carryover = [row for row in carryover if row.get("kind") != "risk"] + visible_carryover_risks
-    all_tasks = immediate + timed + all_day + carryover
-    total = len(all_tasks)
-    completed = sum(1 for row in all_tasks if row["completed"])
-    return {
-        "as_of": day_text, "elders": elders, "immediate": immediate,
-        "timed": timed, "all_day": all_day, "carryover": carryover,
-        "completed": completed, "total": total, "current_time": now_text,
-        "latest_handover": db._row(latest_handover) if latest_handover else None,
-    }
-
-
-@app.get("/api/handovers")
-def list_handovers(limit: int = 10):
-    with db.connect() as conn:
-        rows = [db._row(row) for row in conn.execute(
-            "SELECT * FROM handovers ORDER BY closed_at DESC, handover_id DESC LIMIT ?", (max(1, min(limit, 50)),)
-        ).fetchall()]
-    for row in rows:
-        row["shift_label"] = _shift_label(row["shift"])
-    return {"handovers": rows}
-
-
-def _record_care_dose_status(schedule_id: str, as_of: str, status: str) -> dict:
-    status_labels = {
-        "USER_CONFIRMED": "복용 확인", "UNCLEAR": "불확실",
-        "REFUSED": "거부", "DUPLICATE_SUSPECTED": "중복 의심",
-    }
-    with db.connect() as conn:
-        medication = conn.execute("SELECT elder_id FROM medications WHERE schedule_id=? AND active=1", (schedule_id,)).fetchone()
-        if medication is None:
-            raise HTTPException(404, "복약 일정을 찾을 수 없습니다.")
-        existing = conn.execute(
-            "SELECT log_id FROM medication_logs WHERE schedule_id=? AND taken_date=? "
-            "AND call_id IS NULL AND evidence_text LIKE '담당자 체크:%' "
-            "ORDER BY log_id DESC LIMIT 1",
-            (schedule_id, as_of),
-        ).fetchone()
-        evidence_text = f"담당자 체크: {status_labels[status]}"
-        if existing:
-            conn.execute(
-                "UPDATE medication_logs SET status=?, evidence_text=?, created_at=CURRENT_TIMESTAMP WHERE log_id=?",
-                (status, evidence_text, existing["log_id"]),
-            )
-        else:
-            db.insert(conn, "medication_logs", {
-                "elder_id": medication["elder_id"], "schedule_id": schedule_id,
-                "taken_date": as_of, "status": status, "evidence_text": evidence_text,
-            })
-        conn.commit()
-    return {"ok": True, "schedule_id": schedule_id, "as_of": as_of, "status": status}
-
-
-@app.post("/api/care-tasks/dose/{schedule_id}/status")
-def set_dose_task_status(schedule_id: str, req: CareTaskDoseStatusRequest):
-    return _record_care_dose_status(schedule_id, req.as_of, req.status)
-
-
-@app.post("/api/care-tasks/dose/{schedule_id}/complete")
-def complete_dose_task(schedule_id: str, req: CareTaskCompleteRequest):
-    """이전 프론트와의 호환용. 신규 화면은 /status로 네 상태를 분리 저장한다."""
-    return _record_care_dose_status(schedule_id, req.as_of, "USER_CONFIRMED")
-
-
-@app.post("/api/handovers")
-def close_handover(req: HandoverRequest):
-    closed_at = datetime.now().isoformat(timespec="seconds")
-    with db.connect() as conn:
-        handover_id = db.insert(conn, "handovers", {"shift": req.shift, "closed_at": closed_at, "note": req.note})
-        conn.commit()
-    return {"handover_id": handover_id, "shift": req.shift, "closed_at": closed_at, "note": req.note}
 
 
 @app.get("/api/elders/{elder_id}/reports")

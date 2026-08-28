@@ -7,12 +7,14 @@ const login = readFileSync(new URL("../src/screens/LoginScreen.jsx", import.meta
 const journey = readFileSync(new URL("../src/screens/RoleOnboardingScreen.jsx", import.meta.url), "utf8");
 const api = readFileSync(new URL("../src/api.js", import.meta.url), "utf8");
 const storybookTheme = readFileSync(new URL("../src/storybook-theme.css", import.meta.url), "utf8");
+const roleScreen = readFileSync(new URL("../src/screens/RoleScreen.jsx", import.meta.url), "utf8");
 
 test("root journey requires a server session before role selection", () => {
   assert.match(app, /getCurrentAccount/);
   assert.match(app, /<LoginScreen/);
   assert.match(login, /휴대전화 번호/);
   assert.match(login, /간편번호 6자리/);
+  assert.doesNotMatch(login, /간편번호 찾기|login-find/);
   assert.match(api, /Authorization: `Bearer \$\{token\}`/);
 });
 
@@ -24,47 +26,28 @@ test("the login screen offers a session-only demo path", () => {
   assert.match(app, /if \(demoMode\) \{\s*setRoleOnboarded\(true\)/);
 });
 
-test("every role resumes server-saved onboarding before its existing home", () => {
+test("elder and family resume server-saved onboarding before their existing home", () => {
   assert.match(app, /getOnboarding\(role\)/);
   assert.match(app, /<RoleOnboardingScreen/);
   assert.match(journey, /elder: \["elder_consent", "elder_display", "elder_ready"\]/);
   assert.match(journey, /child: \["family_setup", "family_avatar", "family_voice"\]/);
-  assert.match(journey, /care: \["care_setup", "care_assignment", "care_review"\]/);
   assert.match(journey, /saveOnboarding/);
 });
 
-test("only elder and family accounts repeat the versioned first-use setup", () => {
+test("only elder and family are selectable roles", () => {
   assert.match(journey, /ONBOARDING_FLOW_VERSION = "2026-08-25\.v2"/);
-  assert.match(app, /role === "care"\s*\?\s*Boolean\(saved\.complete\)/);
   assert.match(app, /saved\.data\?\.onboarding_version === ONBOARDING_FLOW_VERSION/);
-  assert.match(journey, /complete && role !== "care"/);
-});
-
-test("care setup is condensed to organization, assignment, and review", () => {
-  assert.match(journey, /care: \["care_setup", "care_assignment", "care_review"\]/);
-  assert.match(journey, /care: \{ label: "요양 담당자", title: "돌봄 준비중\.\.\." \}/);
-  assert.match(journey, /step === "care_setup"/);
-  assert.match(journey, /step === "care_assignment"/);
-  assert.match(journey, /step === "care_review"/);
-  assert.match(journey, /<CompactFamilyConsent data=\{data\} update=\{update\} \/>/);
-  assert.doesNotMatch(journey, /소속 기관과 담당 업무를/);
-  assert.match(journey, /const staffName = data\.staff_name\?\.trim\(\) \|\| account\.display_name\?\.trim\(\) \|\| "체험 담당자"/);
-  assert.doesNotMatch(journey, /관리자가 배정한 어르신만/);
-  assert.doesNotMatch(journey, /이번 화면에서는 연결 구조를 확인할 수 있도록/);
-  assert.match(journey, /journey-elder-list journey-care-elder-list/);
-  assert.match(journey, /\+ 추가하기/);
-  assert.match(journey, /async function addCareElder/);
-  assert.match(storybookTheme, /\.journey-care-elder-list \{ grid-template-columns:1fr;/);
-  assert.doesNotMatch(journey, /준비가 끝났어요/);
-  assert.doesNotMatch(journey, /아래 내용은 나중에 설정에서 다시 바꾸거나 동의를 철회할 수 있어요/);
-  assert.match(journey, /journey-review-heading"><h2>최종 확인<\/h2>/);
-  assert.match(journey, /<dt>기관<\/dt>/);
-  assert.match(journey, /<dt>직무<\/dt>/);
-  assert.match(journey, /role !== "care" \? ` · \$\{data\.consent_mode\}` : ""/);
-  assert.match(journey, /journey-care-complete/);
-  assert.match(journey, /step === "care_review" \? "메인으로"/);
-  assert.match(storybookTheme, /\.journey-review dd \{[^}]*font-size:15px;[^}]*white-space:nowrap;/);
-  assert.match(storybookTheme, /\.journey-actions\.journey-care-review-actions \{ margin-top:8px; padding-top:8px; border-top:0;/);
+  assert.match(roleScreen, /id: "elder"/);
+  assert.match(roleScreen, /id: "child"/);
+  assert.doesNotMatch(roleScreen, /id: "care"|요양 담당자/);
+  assert.match(app, /saved === "elder" \|\| saved === "child"/);
+  assert.match(roleScreen, /안녕하세요! 다소니는 처음이신가요\?/);
+  assert.match(roleScreen, /title: "어르신",\s*eyebrow: "가족과 이야기"/);
+  assert.match(roleScreen, /title: "가족",\s*eyebrow: "어르신과 이야기"/);
+  assert.match(roleScreen, /<b>\{role\.title\}<\/b>\s*<small>\{role\.eyebrow\}<\/small>/);
+  assert.match(storybookTheme, /\.role-list-item \{[\s\S]*?min-height: 132px;/);
+  assert.match(storybookTheme, /\.role-list-body b \{[^}]*color: #202522;[^}]*font-size: calc\(25px \* var\(--font-scale\)\);[^}]*white-space: nowrap;/);
+  assert.match(storybookTheme, /\.role-gateway-simple \.role-gateway-brand \{[\s\S]*?transform: translateY\(-24px\);/);
 });
 
 test("family setup is condensed to three saved pages with optional consent details", () => {

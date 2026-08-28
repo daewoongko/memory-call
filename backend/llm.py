@@ -116,7 +116,6 @@ class FastReply(BaseModel):
 
     reply: str
     used_memory_ids: list[str]
-    used_schedule_ids: list[str]
     certainty: Literal["verified", "partial", "unverified", "none"]
     risk: FastRisk | None
     unverified_recall: FastUnverifiedRecall | None
@@ -137,7 +136,6 @@ def safe_fast_reply(reply: str | None = None) -> dict:
     return FastReply(
         reply=reply or "잠깐 연결이 원활하지 않네. 한 번만 다시 말해줄래?",
         used_memory_ids=[],
-        used_schedule_ids=[],
         certainty="none",
         risk=None,
         unverified_recall=None,
@@ -151,19 +149,18 @@ FAST_REPLY_SCHEMA_OVERRIDE = """
 # [이번 응답 전용 출력 형식 재정의]
 
 앞의 전체 출력 형식 대신 이번 호출에서는 아래 JSON 필드만 출력한다.
-intent, medication_status, care, grounding은 넣지 않는다. 다른 텍스트나
+intent, care, grounding은 넣지 않는다. 다른 텍스트나
 코드펜스도 붙이지 않는다.
 
 {
   "reply": "실제로 말할 문장. 2문장 이내.",
   "used_memory_ids": [],
-  "used_schedule_ids": [],
   "certainty": "verified | partial | unverified | none",
   "risk": null,
   "unverified_recall": null
 }
 
-risk는 위험 감지 시 기존 출력 규칙과 같은 객체를 사용한다. 기억·일정 ID는
+risk는 위험 감지 시 기존 출력 규칙과 같은 객체를 사용한다. 기억 ID는
 실제로 답변에 사용한 등록 ID만 넣는다. 안전에 필요한 필드는 생략하지 않는다.
 """
 
@@ -190,8 +187,7 @@ def metadata_schema_override(final_reply: str) -> str:
 만들지 말고, 환자의 직전 발화와 이 답변을 근거로 아래 JSON만 출력한다.
 
 {{
-  "intent": "greeting | repeated_question | memory_recall | medication | schedule_question | emotional | risk | identity_question | closing | other",
-  "medication_status": null,
+  "intent": "greeting | repeated_question | memory_recall | emotional | risk | identity_question | closing | other",
   "care": {{
     "observations": [],
     "context_support": [],
@@ -202,7 +198,7 @@ def metadata_schema_override(final_reply: str) -> str:
   "grounding": "이 응답의 근거를 한 문장으로."
 }}
 
-각 하위 필드와 허용 값은 앞의 care·복약 출력 규칙을 그대로 따른다. 환자 원문에
+각 하위 필드와 허용 값은 앞의 care 출력 규칙을 그대로 따른다. 환자 원문에
 없는 관찰 근거를 만들지 않는다. 다른 텍스트나 코드펜스는 붙이지 않는다.
 """
 

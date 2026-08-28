@@ -16,7 +16,6 @@ import api  # noqa: E402
 import conversation  # noqa: E402
 import db  # noqa: E402
 import llm  # noqa: E402
-import medication  # noqa: E402
 import safety  # noqa: E402
 
 
@@ -115,7 +114,6 @@ class FastReplySchemaTests(unittest.TestCase):
             {
                 "reply",
                 "used_memory_ids",
-                "used_schedule_ids",
                 "certainty",
                 "risk",
                 "unverified_recall",
@@ -170,39 +168,6 @@ class FastReplySchemaTests(unittest.TestCase):
 
         self.assertTrue(result["performed"])
         call.assert_called_once()
-
-
-class ExplicitMedicationClassificationTests(unittest.TestCase):
-    DUE = [{"schedule_id": "med_evening", "medication_name": "저녁약"}]
-
-    def test_explicit_medication_claims_are_preserved_locally(self):
-        cases = [
-            ("저녁약 먹었어.", "USER_CONFIRMED", "TAKEN"),
-            ("약 아직 안 먹었어.", "UNCLEAR", "NOT_TAKEN"),
-            ("약을 먹었는지 기억이 안 나.", "UNCLEAR", "UNCERTAIN"),
-            ("약 먹기 싫어.", "REFUSED", "REFUSED"),
-            ("약을 두 번 먹은 것 같아.", "DUPLICATE_SUSPECTED", "DUPLICATE_SUSPECTED"),
-        ]
-        for text, status, claim in cases:
-            with self.subTest(text=text):
-                result = medication.classify_explicit_status(text, self.DUE)
-                self.assertEqual(result["status"], status)
-                self.assertEqual(result["claim"], claim)
-                self.assertEqual(result["schedule_id"], "med_evening")
-
-    def test_general_meal_statement_is_not_misclassified(self):
-        self.assertIsNone(
-            medication.classify_explicit_status("밥은 먹었어.", self.DUE)
-        )
-
-    def test_short_answer_requires_a_medication_prompt(self):
-        self.assertIsNone(
-            medication.classify_explicit_status("응.", self.DUE)
-        )
-        result = medication.classify_explicit_status(
-            "응.", self.DUE, prompted=True,
-        )
-        self.assertEqual(result["status"], "USER_CONFIRMED")
 
 
 class CallPreparationTests(unittest.TestCase):
@@ -271,11 +236,8 @@ class ConversationSplitTests(unittest.TestCase):
         session.call_id = "call_test"
         session.elder_id = "elder_test"
         session.ctx = {"persona": {}, "memories": [], "schedules": []}
-        session.due_meds = []
-        session._medication_lock = __import__("threading").Lock()
         session._record = MagicMock(side_effect=[101, 102])
         session._record_risk_event = MagicMock()
-        session._record_medication_metadata = MagicMock()
         return session
 
     def test_turn_returns_before_metadata_generation(self):
@@ -303,35 +265,7 @@ class ConversationSplitTests(unittest.TestCase):
         self.assertEqual(result["reply"], fast["reply"])
         self.assertEqual(result["_elder_uid"], 101)
         self.assertEqual(result["_ai_uid"], 102)
-        self.assertEqual(result["_due_meds"], [])
         self.assertEqual(session.history[-1]["content"], fast["reply"])
-
-    def test_explicit_medication_status_is_recorded_before_background(self):
-        session = self._session()
-        session.due_meds = [
-            {"schedule_id": "med_evening", "medication_name": "저녁약"},
-        ]
-        session.history = [
-            {"role": "assistant", "content": "저녁약 챙겨 드셨어?"},
-        ]
-        fast = llm.safe_fast_reply("잘 챙겼네.")
-        with (
-            patch.object(conversation, "build_fast_system_prompt", return_value="fast"),
-            patch.object(llm, "call_json_fast", return_value=fast),
-            patch.object(session, "_apply_safety", side_effect=lambda value, _text: value),
-        ):
-            result = session.turn("응, 먹었어.")
-
-        self.assertTrue(result["_medication_recorded_sync"])
-        self.assertEqual(
-            result["_immediate_medication_status"]["status"],
-            "USER_CONFIRMED",
-        )
-        session._record_medication_metadata.assert_called_once()
-        immediate = session._record_medication_metadata.call_args.args[0]
-        self.assertEqual(
-            immediate["medication_status"]["source"], "local_explicit",
-        )
 
     def test_invalid_fast_reply_uses_complete_safe_fallback(self):
         session = self._session()
@@ -353,7 +287,6 @@ class ConversationSplitTests(unittest.TestCase):
             "intent": "emotional",
             "care": {"observations": []},
             "grounding": "직전 환자 발화",
-            "medication_status": None,
         }
         connection = MagicMock()
         with (
@@ -382,47 +315,6 @@ class ConversationSplitTests(unittest.TestCase):
         self.assertEqual(patch_data["intent"], "emotional")
         self.assertNotIn("transcript", patch_data)
         connection.commit.assert_called_once()
-        session._record_medication_metadata.assert_called_once()
-        self.assertEqual(
-            session._record_medication_metadata.call_args.kwargs["due_meds"], []
-        )
-
-    def test_background_does_not_duplicate_sync_medication_record(self):
-        session = self._session()
-        metadata = {
-            "intent": "medication",
-            "care": {"observations": []},
-            "grounding": "직전 환자 발화",
-            "medication_status": {
-                "schedule_id": "med_evening",
-                "status": "USER_CONFIRMED",
-            },
-        }
-        connection = MagicMock()
-        with (
-            patch.object(llm, "call_json_metadata", return_value=metadata),
-            patch.object(conversation.care, "normalize", return_value={
-                "observations": [],
-                "context_support": [],
-                "emotional_support": "none",
-                "daily_action": None,
-                "meaningful_moments": [],
-            }),
-            patch.object(db, "connect") as connect,
-            patch.object(db, "update"),
-        ):
-            connect.return_value.__enter__.return_value = connection
-            session.finish_turn_metadata({
-                "reply": "잘 챙겼네.",
-                "_user_text": "약 먹었어.",
-                "_elder_uid": 101,
-                "_ai_uid": 102,
-                "_due_meds": [{"schedule_id": "med_evening"}],
-                "_medication_recorded_sync": True,
-                "_messages": [{"role": "system", "content": "system"}],
-            })
-
-        session._record_medication_metadata.assert_not_called()
 
 
 class DirectRiskCoverageTests(unittest.TestCase):

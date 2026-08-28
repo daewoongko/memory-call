@@ -13,7 +13,6 @@ const RISK_LABEL = {
   chest_pain: "가슴 통증을 가족에게 알렸어요",
   breathing: "호흡이 힘드시다고 가족에게 알렸어요",
   lost: "길을 잃으셨다고 가족에게 알렸어요",
-  overdose: "약 문제를 가족에게 알렸어요",
   self_harm: "가족에게 바로 알렸어요",
   intrusion: "가족에게 바로 알렸어요",
   fire: "가족에게 바로 알렸어요",
@@ -127,7 +126,7 @@ export default function CallScreen({
   }, [conversationReady]);
 
   // 통화가 연결되면 바로 듣기 시작한다. 노인이 버튼을 누를 필요가 없다.
-  // 복약 시간대라면 선택한 AI 가족이 먼저 말을 꺼낸 뒤에 듣는다.
+  // 서버가 선제 인사를 준 경우에는 먼저 재생한 뒤 사용자 발화를 듣는다.
   useEffect(() => {
     if (!speech.supported || !conversationReady) return undefined;
     // 개발 모드에서는 마운트가 두 번 일어난다. 정리 함수가 꺼둔 값을

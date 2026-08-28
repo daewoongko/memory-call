@@ -8,9 +8,7 @@ import FamilyScreen from "./screens/FamilyScreen.jsx";
 import CallingScreen from "./screens/CallingScreen.jsx";
 import CallScreen from "./screens/CallScreen.jsx";
 import SummaryScreen from "./screens/SummaryScreen.jsx";
-import CareManagerScreen from "./screens/CareManagerScreen.jsx";
 import ChildScreen from "./screens/ChildScreen.jsx";
-import IncomingScreen from "./screens/IncomingScreen.jsx";
 import SplashScreen from "./screens/SplashScreen.jsx";
 import RoleScreen from "./screens/RoleScreen.jsx";
 import LinkScreen from "./screens/LinkScreen.jsx";
@@ -27,8 +25,7 @@ import { startWaitingMelody, stopWaitingMelody } from "./waitingMelody.js";
 // The server owns the ringing deadline. Polling only mirrors that state so a
 // guardian answer, decline, or timeout is never inferred from a local timer.
 const RING_POLL_MS = 1500;
-const PENDING_POLL_MS = 20000;  // 복약 시간이 되었는지 주기적으로 확인
-const RING_COOLDOWN_MS = 300000; // 거절하거나 통화가 끝난 뒤 다시 걸기까지
+const RING_COOLDOWN_MS = 300000; // 통화가 끝난 뒤 중복 상태 전환을 막는 유예
 // 모바일 WebRTC의 ICE 연결은 같은 와이파이에서도 수 초 이상 걸릴 수 있다.
 // 24초 인트로가 끝난 뒤에만 이 유예 시간을 적용해 정상적인 받기를 인트로
 // 도중에 실패로 닫지 않는다.
@@ -86,7 +83,8 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [role, setRole] = useState(() => {
     const saved = readLocal(KEY_ROLE);
-    return saved === "guardian" ? "care" : saved;
+    if (saved === "guardian") return "child";
+    return saved === "elder" || saved === "child" ? saved : null;
   });
   const [linked, setLinked] = useState(() => readLocal(KEY_LINKED));
   const [guardianOnboarded, setGuardianOnboarded] = useState(
@@ -103,7 +101,6 @@ export default function App() {
   // 지금 울리고 있는 호출. 받았는지 여부는 서버만 안다.
   const [invite, setInvite] = useState(null);
   const [summary, setSummary] = useState(null);
-  const [incomingReason, setIncomingReason] = useState(null);
   // 지금 통화하려는 가족. 대기 화면에서 고른 값이 통화 끝까지 따라간다.
   const [target, setTarget] = useState(null);
   const cooldownUntil = useRef(0);
@@ -148,9 +145,9 @@ export default function App() {
     let alive = true;
     api.getOnboarding(role).then((saved) => {
       if (!alive) return;
-      const currentFlowComplete = role === "care"
-        ? Boolean(saved.complete)
-        : Boolean(saved.complete && saved.data?.onboarding_version === ONBOARDING_FLOW_VERSION);
+      const currentFlowComplete = Boolean(
+        saved.complete && saved.data?.onboarding_version === ONBOARDING_FLOW_VERSION
+      );
       setRoleOnboarded(currentFlowComplete);
       const savedElder = saved.data?.elder_id;
       if (saved.complete && savedElder) {
@@ -200,34 +197,6 @@ export default function App() {
       // 등록에 실패해도 전화는 걸 수 있어야 한다. from_device 만 비게 된다.
     });
   }, [elderId, elderAccessReady]);
-
-  // 복약 시간이 되면 AI 쪽에서 전화를 건다.
-  // 대기 화면일 때만 확인한다. 통화 중에는 세션이 알아서 약을 먼저 꺼낸다.
-  useEffect(() => {
-    if (!elderAccessReady || phase !== "idle") return undefined;
-    let alive = true;
-    const check = () => {
-      if (Date.now() < cooldownUntil.current) return;
-      api
-        .getPendingCall(elderId)
-        .then((r) => {
-          if (!alive || !r.due) return;
-          if (r.persona_id) {
-            setTarget((current) => current?.persona_id === r.persona_id
-              ? current
-              : { persona_id: r.persona_id });
-          }
-          setIncomingReason(r.reason);
-        })
-        .catch(() => {});
-    };
-    check();
-    const id = setInterval(check, PENDING_POLL_MS);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [phase, elderId, elderAccessReady]);
 
   const enterCall = useCallback((res) => {
     setCall(res);
@@ -565,20 +534,10 @@ export default function App() {
     }
   }
 
-  function answerIncoming() {
-    setIncomingReason(null);
-    setError("");
-    setCall(null);
-    setSummary(null);
-    setPhase("connecting");
-    connectAI();
-  }
-
   function reset() {
     setTarget(null);
     setError("");
-    // 통화가 끝난 직후에 곧바로 다시 걸려오면 성가시다.
-    // 약이 확인되었으면 어차피 due 가 false 가 되므로 울리지 않는다.
+    // 통화가 끝난 직후의 중복 상태 전환을 막는다.
     cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
     timers.current.forEach(clearTimeout);
     timers.current = [];
@@ -755,8 +714,6 @@ export default function App() {
   // 주소로 직접 들어온 경우는 입구를 건너뛴다.
   // #elder는 이 브라우저에 저장된 보호자 역할과 무관하게 어르신 화면을 연다.
   const directElder = import.meta.env.DEV && hash === "#elder";
-  if (import.meta.env.DEV && (hash === "#care" || hash === "#guardian"))
-    return wrap(<CareManagerScreen onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "care" });
   if (import.meta.env.DEV && (hash === "#child" || hash === "#family")) {
     if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, roleSwitch: true, shell: "family" });
     return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "family" });
@@ -787,33 +744,13 @@ export default function App() {
         onLinked={finishLink}
         onSkip={() => finishLink("skipped")}
       />,
-      { wide: true, roleSwitch: true, shell: role === "child" ? "family" : role === "care" ? "care" : "elder" }
+      { wide: true, roleSwitch: true, shell: role === "child" ? "family" : "elder" }
     );
-
-  if (!directElder && role === "care") {
-    return wrap(<CareManagerScreen onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "care" });
-  }
 
   if (!directElder && role === "child") {
     if (!guardianOnboarded) return wrap(<GuardianOnboardingScreen elderId={elderId} onDone={finishGuardianOnboarding} />, { wide: true, shell: "family" });
     return wrap(<ChildScreen elderId={elderId} myPersonaId={myPersonaId} onMyPersonaChange={saveMyPersona} onDisplaySettings={() => setSettingsOpen(true)} />, { gear: true, wide: true, roleSwitch: true, displayDock: false, shell: "family" });
   }
-
-
-  if (phase === "idle" && incomingReason)
-    return wrap(
-      <IncomingScreen
-        profile={profile?.persona?.persona_id === target?.persona_id ? profile : null}
-        reason={incomingReason}
-        onAnswer={answerIncoming}
-        onDecline={() => {
-          cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
-          setIncomingReason(null);
-          setTarget(null);
-        }}
-      />,
-      { shell: "elder" }
-    );
 
   if (phase === "idle")
     return wrap(

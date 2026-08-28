@@ -411,45 +411,6 @@ export const reviewRecall = (utteranceId, body, elderId = "elder_001") =>
     body: JSON.stringify(body),
   });
 
-export const getPendingCall = (elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/pending-call`);
-
-export const getSchedules = (elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/schedules`);
-
-export const addSchedule = (body, elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/schedules`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-
-export const patchSchedule = (scheduleId, body) =>
-  request(`/api/schedules/${scheduleId}`, {
-    method: "PATCH",
-    body: JSON.stringify(body),
-  });
-
-export const deleteSchedule = (scheduleId) =>
-  request(`/api/schedules/${scheduleId}`, { method: "DELETE" });
-
-export const getMedications = (elderId = "elder_001", asOf = "") =>
-  request(`/api/elders/${elderId}/medications${asOf ? `?as_of=${encodeURIComponent(asOf)}` : ""}`);
-
-export const addMedication = (body, elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/medications`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-
-export const addMedicationReview = (scheduleId, body, elderId = "elder_001") =>
-  request(`/api/elders/${elderId}/medications/${scheduleId}/reviews`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-
-export const removeMedication = (scheduleId) =>
-  request(`/api/medications/${scheduleId}`, { method: "DELETE" });
-
 export const getReports = (elderId = "elder_001", limit = 120, onDate = "") => {
   const params = new URLSearchParams({ limit: String(limit) });
   if (onDate) params.set("on", onDate);
@@ -460,8 +421,15 @@ export const getReport = (callId) => request(`/api/calls/${callId}/report`);
 
 export const getTranscript = (callId) => request(`/api/calls/${callId}/log`);
 
+export const getDiaries = (
+  elderId = "elder_001", start = "2026-08-01", end = "2026-10-31",
+) => {
+  const params = new URLSearchParams({ start, end });
+  return request(`/api/elders/${elderId}/diaries?${params}`);
+};
+
 export const getPeriodSummary = (days = 7, elderId = "elder_001", range = {}) => {
-  const params = new URLSearchParams({ days: String(days) });
+  const params = new URLSearchParams({ days: String(days), narrative: "false" });
   if (range.start && range.end) {
     params.set("start", range.start);
     params.set("end", range.end);
@@ -471,25 +439,6 @@ export const getPeriodSummary = (days = 7, elderId = "elder_001", range = {}) =>
 
 export const acknowledgeRisk = (eventId) =>
   request(`/api/risk-events/${eventId}/acknowledge`, { method: "POST" });
-
-export const getCareTasks = (asOf = "") =>
-  request(`/api/care-tasks${asOf ? `?as_of=${encodeURIComponent(asOf)}` : ""}`);
-
-export const completeDoseTask = (scheduleId, asOf) =>
-  request(`/api/care-tasks/dose/${encodeURIComponent(scheduleId)}/complete`, {
-    method: "POST", body: JSON.stringify({ as_of: asOf }),
-  });
-
-export const setDoseTaskStatus = (scheduleId, asOf, status) =>
-  request(`/api/care-tasks/dose/${encodeURIComponent(scheduleId)}/status`, {
-    method: "POST", body: JSON.stringify({ as_of: asOf, status }),
-  });
-
-export const getHandovers = (limit = 10) => request(`/api/handovers?limit=${limit}`);
-
-export const closeHandover = (body) => request("/api/handovers", {
-  method: "POST", body: JSON.stringify(body),
-});
 
 export const endCall = (callId, reason = "user_ended") =>
   request(`/api/calls/${callId}/end`, {

@@ -79,8 +79,6 @@ ContextKind = Literal[
     "server_time",
     "residence",
     "household",
-    "schedule",
-    "medication",
     "memory",
     "user_statement",
 ]
@@ -93,15 +91,9 @@ EmotionalSupport = Literal[
 DailyActionKind = Literal[
     "meal_check",
     "hydration_prompt",
-    "medication_check",
-    "schedule_step",
     "item_search_step",
 ]
-DailyActionBasis = Literal[
-    "user_statement",
-    "registered_schedule",
-    "registered_medication",
-]
+DailyActionBasis = Literal["user_statement"]
 
 
 class CareObservation(BaseModel):

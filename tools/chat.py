@@ -28,9 +28,7 @@ last_raw: dict = {}
 print(f"{DIM}통화 시작 ({llm.MODEL}) — call_id={session.call_id}")
 print(f"할아버지: {session.ctx['elder']['name']} / "
       f"페르소나: {session.ctx['persona']['display_name']}")
-print(f"기억 {len(session.ctx['memories'])}개 · "
-      f"일정 {len(session.ctx['schedules'])}건 · "
-      f"복약 {len(session.ctx['medications'])}건 — /q 로 종료{RESET}\n")
+print(f"확인된 기억 {len(session.ctx['memories'])}개 — /q 로 종료{RESET}\n")
 
 while True:
     try:
@@ -76,12 +74,8 @@ while True:
         tags.append(f"근거:{last_raw['certainty']}")
     if last_raw.get("used_memory_ids"):
         tags.append(",".join(last_raw["used_memory_ids"]))
-    if last_raw.get("used_schedule_ids"):
-        tags.append("일정:" + ",".join(last_raw["used_schedule_ids"]))
     if last_raw.get("risk"):
         tags.append(f"[!] {last_raw['risk'].get('type')}")
-    if last_raw.get("medication_status"):
-        tags.append(f"[약] {last_raw['medication_status'].get('status')}")
     if last_raw.get("unverified_recall"):
         tags.append("[?] 미확인회상")
 

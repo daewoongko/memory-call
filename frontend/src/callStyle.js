@@ -56,13 +56,13 @@ export const CALL_STYLE_SCENES = [
   },
   {
     id: "scene_4",
-    title: "저녁 약 드실 시간",
-    situation: "등록된 저녁 약 시간이 되었습니다.",
-    safety: "등록된 시간만 안내하고 복용량을 바꾸지 않습니다.",
+    title: "식사를 준비하기 어려워하실 때",
+    situation: "점심시간인데 무엇부터 해야 할지 모르겠다고 하세요.",
+    safety: "한 번에 한 가지 행동만 제안하고 강요하지 않습니다.",
     choices: [
-      { id: "a", line: "약 챙기는 게 번거로우시죠. 예전엔 시간 딱딱 지키셨는데. 지금은 어떠세요?", phrase: null, axes: { response: "E", topic: "M", lead: "L" } },
-      { id: "b", line: "마음 쓰이시죠? 지금 일곱 시예요. 저랑 같이 하나만 해봐요.", phrase: null, axes: { response: "E", topic: "O", lead: "G" } },
-      { id: "c", line: "지금 일곱 시, 저녁 약 시간이에요. 예전에 하시던 대로 물 한 잔 먼저 놓아볼까요?", phrase: null, axes: { response: "P", topic: "M", lead: "G" } },
+      { id: "a", line: "뭐부터 할지 막막하시죠. 평소엔 어떤 반찬을 좋아하셨어요?", phrase: null, axes: { response: "E", topic: "M", lead: "L" } },
+      { id: "b", line: "마음 쓰이시죠? 지금 점심때예요. 저랑 식탁에 물 한 잔부터 놓아봐요.", phrase: null, axes: { response: "E", topic: "O", lead: "G" } },
+      { id: "c", line: "지금 점심시간이에요. 예전에 하시던 대로 식탁에 수저부터 놓아볼까요?", phrase: null, axes: { response: "P", topic: "M", lead: "G" } },
     ],
   },
   {
@@ -181,7 +181,7 @@ export function calculateCallStyle(answers = {}) {
 
   const [name, description] = CALL_STYLE_TYPES[code];
   const summary = CALL_STYLE_DIMENSIONS.map((dimension) => AXIS_COPY[dimension.id][scores[dimension.id].selected]);
-  instructions.push("낙상·길 잃음·복약 등 안전 상황에서는 이 말투보다 안전 규칙을 우선한다.");
+  instructions.push("낙상·길 잃음 등 안전 상황에서는 이 말투보다 안전 규칙을 우선한다.");
   return { code, name, description, scores, summary, tone: instructions.join(" "), frequent };
 }
 

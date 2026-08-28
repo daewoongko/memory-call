@@ -211,7 +211,7 @@ class CareReportAggregationTest(unittest.TestCase):
         }, {
             "call_id": "c2",
             "care_summary": {"daily_living": [{
-                "signal": "medication_uncertain", "evidence": "약을 먹었나 모르겠다.",
+                "signal": "meal_uncertain", "evidence": "저녁을 먹었나 모르겠다.",
             }]},
             "repeated_questions": [],
         }]
@@ -329,8 +329,8 @@ class CareReportAggregationTest(unittest.TestCase):
         ]
         reports = [{
             "call_id": "morning", "care_summary": {"daily_living": [{
-                "signal": "medication_uncertain", "label": "복약 여부 불확실",
-                "evidence": "약을 먹었는지 모르겠다.",
+                "signal": "meal_uncertain", "label": "식사 여부 불확실",
+                "evidence": "아침을 먹었는지 모르겠다.",
             }]}, "meaningful_moments": [], "repeated_questions": [], "guardian_actions": [],
         }, {
             "call_id": "evening", "care_summary": {"emotion": [{
@@ -346,7 +346,7 @@ class CareReportAggregationTest(unittest.TestCase):
         self.assertEqual(len(rows), 12)
         self.assertEqual(rows[0]["time_label"], "00:00~02:00")
         self.assertFalse(rows[0]["has_calls"])
-        self.assertEqual(rows[4]["observations"][0]["label"], "복약 여부 불확실")
+        self.assertEqual(rows[4]["observations"][0]["label"], "식사 여부 불확실")
         self.assertTrue(rows[4]["has_calls"])
         self.assertEqual(rows[9]["observations"][0]["label"], "외로움")
 

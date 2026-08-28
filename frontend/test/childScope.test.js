@@ -7,9 +7,9 @@ const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const familySettings = readFileSync(new URL("../src/screens/FamilyPersonaSettings.jsx", import.meta.url), "utf8");
 const callStyleQuiz = readFileSync(new URL("../src/components/CallStyleQuiz.jsx", import.meta.url), "utf8");
 const displaySettings = readFileSync(new URL("../src/components/DisplaySettings.jsx", import.meta.url), "utf8");
-const dasoniHome = readFileSync(new URL("../src/screens/DasoniHomeTab.jsx", import.meta.url), "utf8");
+const analysisReport = readFileSync(new URL("../src/screens/FamilyAnalysisReport.jsx", import.meta.url), "utf8");
 const clothesline = readFileSync(new URL("../src/screens/FamilyMemoryClothesline.jsx", import.meta.url), "utf8");
-const seedCareDemo = readFileSync(new URL("../../tools/seed_care_demo.py", import.meta.url), "utf8");
+const seedGildongDemo = readFileSync(new URL("../../tools/seed_gildong_demo.py", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 const theme = readFileSync(new URL("../src/storybook-theme.css", import.meta.url), "utf8");
 const datePicker = readFileSync(new URL("../src/components/AppDatePicker.jsx", import.meta.url), "utf8");
@@ -19,6 +19,20 @@ test("가족 화면은 연결된 어르신과 본인 가족 식별자를 받는�
   assert.match(child, /rows\.find\(\(elder\) => elder\.elder_id === elderId\)/);
   assert.doesNotMatch(child, /setPicked\(rows\[0\]\)/);
   assert.match(app, /<ChildScreen elderId=\{elderId\} myPersonaId=\{myPersonaId\}/);
+});
+
+test("보호자 메뉴는 오늘·추억·통화·분석 리포트·설정 다섯 개만 제공한다", () => {
+  assert.equal((child.match(/id: "(?:today|memories|calls|analysis|settings)"/g) || []).length, 5);
+  assert.match(child, /label: "오늘"/);
+  assert.match(child, /label: "추억"/);
+  assert.match(child, /label: "통화"/);
+  assert.match(child, /label: "분석 리포트"/);
+  assert.match(child, /label: "설정"/);
+  assert.match(child, /useState\("today"\)/);
+  assert.doesNotMatch(child, /id: "home"|tab === "home"|DasoniHomeTab/);
+  assert.match(child, /<FamilyAnalysisReport elderId=\{picked\.elder_id\}/);
+  assert.match(analysisReport, /getPeriodSummary\(1, elderId/);
+  assert.match(analysisReport, /getPeriodSummary\(range\.days, elderId/);
 });
 
 test("가족 화면의 날짜는 일별 조회와 통화 필터에 사용된다", () => {
@@ -42,8 +56,8 @@ test("통화 화면은 직접·AI·이어받기 유형과 시간순 목록 및 �
   assert.match(child, /className="child-header-call-title"/);
   assert.doesNotMatch(child, /CALL STORY/);
   assert.doesNotMatch(child, /CALL_TYPE_PREVIEWS|missingCallTypePreviews|child-call-neon-preview|표시 예시/);
-  assert.match(seedCareDemo, /"call_type": "direct"/);
-  assert.match(seedCareDemo, /"call_type": "ai_to_direct"/);
+  assert.match(seedGildongDemo, /return "direct"/);
+  assert.match(seedGildongDemo, /return "ai_to_direct"/);
   assert.match(child, /setActiveCall\(call\)/);
   assert.match(child, /<CallTranscriptModal/);
   assert.match(callModal, /<Transcript callId=\{call\.call_id\}/);
@@ -52,8 +66,8 @@ test("통화 화면은 직접·AI·이어받기 유형과 시간순 목록 및 �
   assert.match(callModal, /child-call-problem-badge/);
 });
 
-test("가족 추억함은 네 단계의 단일 보관 흐름과 사진 업로드를 제공한다", () => {
-  assert.match(child, /label: "추억함"/);
+test("가족 추억은 네 단계의 단일 보관 흐름과 사진 업로드를 제공한다", () => {
+  assert.match(child, /label: "추억"/);
   assert.match(clothesline, /함께 보는 추억/);
   assert.match(clothesline, /memory-rope/);
   assert.match(clothesline, /memory-tape/);
@@ -64,7 +78,7 @@ test("가족 추억함은 네 단계의 단일 보관 흐름과 사진 업로드
   assert.doesNotMatch(clothesline, /빨랫줄|weekLabel/);
 });
 
-test("가족 홈은 대표 그림과 통화 일기 및 고정 4등분 하단 탭을 사용한다", () => {
+test("가족 오늘은 대표 그림과 통화 일기 및 고정 5등분 하단 탭을 사용한다", () => {
   assert.match(child, /const diaryImage = dayHeartPhoto \|\| memoryImage\(artwork\)/);
   assert.match(child, /className="child-day-diary"/);
   assert.match(child, /다소니가 전하는 오늘의 한마디/);
@@ -79,11 +93,11 @@ test("가족 홈은 대표 그림과 통화 일기 및 고정 4등분 하단 탭
   assert.match(child, /className=\{letter === " " \? "blank" : ""\}/);
   assert.match(child, /completeDiaryWriting/);
   assert.match(theme, /child-diary-writing \{[\s\S]*background-color: #fffdf8/);
-  assert.match(child, /import \{ DEMO_DIARY_BY_DATE \} from "\.\.\/demoDiaryData\.js"/);
+  assert.match(child, /const dailyDiary = latest\?\.diary \|\| heart\?\.diary \|\| null/);
   assert.doesNotMatch(child, /--insight-fit/);
   assert.match(child, /\/diary\/haeundae-family-drawing\.png/);
   assert.ok(existsSync(new URL("../public/diary/haeundae-family-drawing.png", import.meta.url)));
-  assert.match(child, /DEMO_DIARY_BY_DATE\.get\(selectedDate\)/);
+  assert.doesNotMatch(child, /DEMO_DIARY_BY_DATE|demoDiaryData/);
   assert.doesNotMatch(child, /className="child-diary-picker"/);
   assert.match(child, /className="child-diary-date"/);
   assert.match(child, /displayValue=\{shortDate\(selectedDate\)\}/);
@@ -91,30 +105,16 @@ test("가족 홈은 대표 그림과 통화 일기 및 고정 4등분 하단 탭
   assert.ok(existsSync(new URL("../public/diary/persimmon-yard-memory.png", import.meta.url)));
   assert.ok(existsSync(new URL("../public/diary/autumn-riverside-picnic.png", import.meta.url)));
   assert.match(child, /heart\?\.visual_story\?\.status_label/);
-  assert.match(styles, /\.app-device-family \.child-tabs \{[\s\S]*grid-template-columns: repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles, /\.app-device-family \.child-tabs \{[\s\S]*grid-template-columns: repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(styles, /@media \(max-width: 430px\)[\s\S]*care-domain-radar > header[\s\S]*grid-template-columns: minmax\(0,1fr\)/);
+  assert.match(styles, /@media \(max-width: 430px\)[\s\S]*radar-legend[\s\S]*grid-template-columns: auto minmax\(0,1fr\)/);
   assert.match(styles, /\.child-diary-art/);
   assert.match(styles, /\.child-diary-page/);
   assert.doesNotMatch(child, /child-heart-collage|HEART_SLOT_COUNT/);
 });
 
-test("다소니 홈은 요약만 보여주고 이동은 고정 하단 탭 네 개만 사용한다", () => {
-  assert.match(child, /useState\("home"\)/);
-  assert.match(child, /<DasoniHomeTab/);
-  assert.match(child, /setTab\("home"\)/);
-  assert.match(dasoniHome, /오늘의 핵심 수치/);
-  assert.match(dasoniHome, /직접 확인/);
-  assert.doesNotMatch(dasoniHome, /오늘의 기록|최근 통화/);
-  assert.doesNotMatch(dasoniHome, /<button/);
-  assert.doesNotMatch(dasoniHome, /다소니 메인 메뉴|onQuick/);
-  assert.equal((child.match(/id: "(?:today|memories|calls|settings)"/g) || []).length, 4);
-  assert.doesNotMatch(child, /id: "dasoni"/);
-  assert.match(child, /getProfile\(myPersona\.persona_id, picked\.elder_id\)/);
-  assert.match(dasoniHome, /const homeTitle = `\$\{elderCallName\}의 오늘`/);
-  assert.match(dasoniHome, /--home-title-fit/);
-});
-
-test("가족 화면의 글자·명암 설정은 상단 보기 버튼으로 연다", () => {
-  assert.match(child, /\{tab === "home" && <div className="child-header-context">/);
+test("가족 화면의 글자·명암 설정은 설정 탭의 보기 버튼으로 연다", () => {
+  assert.match(child, /\{tab === "settings"/);
   assert.match(child, /className="child-view-settings"/);
   assert.match(child, />Aa<\/span>/);
   assert.doesNotMatch(child, />보기<\/b>/);
@@ -123,6 +123,14 @@ test("가족 화면의 글자·명암 설정은 상단 보기 버튼으로 연�
   assert.match(displaySettings, /역할 선택으로 돌아가기/);
   assert.match(child, /className="child-header-reachable"/);
   assert.doesNotMatch(child, /className="family-reachable"/);
+});
+
+test("가족 헤더 조작과 통화 분석 그래프는 앱 프레임 폭 안에 배치된다", () => {
+  assert.match(child, /tab === "analysis"[\s\S]*child-header-call-title[\s\S]*<\/div><AppDatePicker className="child-date-picker"/);
+  assert.match(theme, /child-family-header \{[\s\S]*grid-template-columns: auto minmax\(0,1fr\) auto/);
+  assert.match(theme, /child-family-header > :is\(\.child-view-settings,\.child-date-picker\)[\s\S]*grid-column: 3/);
+  assert.match(theme, /family-analysis-report \.retention-layout \{[\s\S]*grid-template-columns: minmax\(0,1fr\)/);
+  assert.match(theme, /family-analysis-report \.topic-scatter \{[\s\S]*min-width: 0/);
 });
 
 test("오늘 화면의 중복 카드 두 개가 제거됐다", () => {

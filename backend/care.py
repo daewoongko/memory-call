@@ -38,8 +38,6 @@ EMOTION_SIGNALS = {
 ACTION_SIGNAL = {
     "meal_check": "meal_uncertain",
     "hydration_prompt": "hydration_need",
-    "medication_check": "medication_uncertain",
-    "schedule_step": "schedule_support",
     "item_search_step": "item_location_uncertain",
 }
 
@@ -115,16 +113,6 @@ def _valid_context_sources(ctx: dict) -> dict[str, set[str]]:
             if elder.get("household_members")
             else set()
         ),
-        "schedule": {
-            str(row["schedule_id"])
-            for row in ctx.get("schedules", [])
-            if row.get("schedule_id")
-        },
-        "medication": {
-            str(row["schedule_id"])
-            for row in ctx.get("medications", [])
-            if row.get("schedule_id")
-        },
         # 현재 맥락의 앵커로 쓸 기억은 보호자가 확인한 기억뿐이다.
         "memory": {
             str(row["memory_id"])
@@ -143,7 +131,6 @@ def normalize(
     *,
     user_text: str,
     ctx: dict,
-    due_medications: list[dict] | None = None,
     response_rewritten: bool = False,
 ) -> dict:
     """LLM의 care 객체를 저장 가능한 최소 형태로 정리한다."""
@@ -268,18 +255,6 @@ def normalize(
         if action.basis == "user_statement":
             if _quoted_by_user(action.evidence, user_text):
                 daily_action = action.model_dump()
-        elif action.basis == "registered_schedule":
-            if action.source_id in valid_sources["schedule"]:
-                daily_action = action.model_dump()
-        elif action.basis == "registered_medication":
-            due_ids = {
-                str(row["schedule_id"])
-                for row in (due_medications or [])
-                if row.get("schedule_id")
-            }
-            if action.source_id in due_ids:
-                daily_action = action.model_dump()
-
     return {
         "observations": observations,
         "context_support": context_support,

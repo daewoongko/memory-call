@@ -1,8 +1,4 @@
-"""eval 의 회귀 신호가 벽시계 날짜에 흔들리지 않는지 확인한다.
-
-시드 일정이 과거가 되면 load_context() 가 걸러 버려서, 회귀가 아닌 이유로
-S04 같은 시나리오가 실패한다. 고정 컨텍스트는 그것을 막는 장치다.
-"""
+"""eval의 날짜·요일 회귀 신호가 벽시계 날짜에 흔들리지 않는지 확인한다."""
 
 from __future__ import annotations
 
@@ -57,50 +53,12 @@ class EvalFixtureTests(unittest.TestCase):
     def setUpClass(cls):
         cls.evaluator = load_eval_module()
 
-    def test_visit_always_lands_on_a_saturday(self):
-        """요일 이름이 불변이어야 시나리오가 날짜를 하드코딩하지 않는다."""
-        start = date(2026, 8, 3)  # 월요일
-        for offset in range(21):
-            today = date.fromordinal(start.toordinal() + offset)
-            with self.subTest(today=today.isoformat()):
-                visit = self.evaluator.next_saturday(today)
-                self.assertEqual(visit.weekday(), 5)
-                self.assertGreater(visit, today, "지난 날짜는 프롬프트에서 걸러진다")
-
-    def test_today_saturday_moves_a_full_week(self):
-        saturday = date(2026, 8, 8)
-        self.assertEqual(saturday.weekday(), 5)
-        self.assertEqual(
-            self.evaluator.next_saturday(saturday), date(2026, 8, 15)
-        )
-
-    def test_pinned_schedule_reaches_the_prompt_as_saturday(self):
-        pinned = self.evaluator.pin_context_dates({}, today=date(2026, 8, 7))
-        block = persona._schedule_block(
-            pinned["schedules"], today=date(2026, 8, 7)
-        )
-
-        self.assertIn(self.evaluator.FIXTURE_VISIT_WEEKDAY, block)
-        self.assertIn(self.evaluator.FIXTURE_VISIT_ID, block)
-        self.assertNotIn(persona.NO_SCHEDULE, block)
-
     def test_pinning_does_not_mutate_the_original_context(self):
-        original = {"schedules": [], "medications": [], "memories": ["keep"]}
+        original = {"memories": ["keep"]}
         pinned = self.evaluator.pin_context_dates(original, today=date(2026, 8, 7))
 
-        self.assertEqual(original["schedules"], [])
-        self.assertEqual(original["medications"], [])
         self.assertEqual(pinned["memories"], ["keep"])
-        self.assertTrue(pinned["schedules"])
-        self.assertTrue(pinned["medications"])
-
-    def test_fixed_now_keeps_the_visit_three_days_out(self):
-        """방문이 "내일" 이 되면 약속을 하기 쉬워져 거짓 약속 회귀를 가린다."""
-        pinned_now = self.evaluator.FIXTURE_NOW
-        self.assertEqual(pinned_now.weekday(), 2, "수요일이어야 한다")
-
-        visit = self.evaluator.next_saturday(pinned_now.date())
-        self.assertEqual((visit - pinned_now.date()).days, 3)
+        self.assertNotIn("schedules", pinned)
 
     def test_fixed_now_reaches_the_prompt(self):
         evaluator = self.evaluator
@@ -112,19 +70,7 @@ class EvalFixtureTests(unittest.TestCase):
 
         self.assertIn("2026년 05월 13일", prompt)
         self.assertIn("수요일", prompt)
-        # 방문은 3일 뒤이므로 "내일"/"모레" 로 렌더되면 안 된다.
-        schedule_line = next(
-            line for line in prompt.splitlines()
-            if evaluator.FIXTURE_VISIT_ID in line
-        )
-        self.assertIn("토요일", schedule_line)
-        self.assertIn("3일 뒤", schedule_line)
-
-    def test_pinned_schedule_id_matches_what_safety_will_accept(self):
-        """safety 는 used_schedule_ids 를 ctx 의 일정과 대조한다."""
-        pinned = self.evaluator.pin_context_dates({}, today=date(2026, 8, 7))
-        valid = {s["schedule_id"] for s in pinned["schedules"]}
-        self.assertIn(self.evaluator.FIXTURE_VISIT_ID, valid)
+        self.assertNotIn("schedule_id", prompt)
 
     def test_care_scenario_uses_its_registered_demo_family(self):
         base = self.evaluator.pin_context_dates(
@@ -169,11 +115,8 @@ class ScenarioContractTests(unittest.TestCase):
         self.assertEqual(offenders, [], "고정 컨텍스트의 요일 이름을 쓰세요")
 
     def test_only_weekdays_the_fixture_can_produce_are_asserted(self):
-        """고정 컨텍스트가 만들 수 있는 요일은 '오늘'과 '방문일' 둘뿐이다."""
-        allowed = {
-            self.evaluator.FIXTURE_VISIT_WEEKDAY,
-            persona._weekday_ko(self.evaluator.FIXTURE_NOW.date()),
-        }
+        """고정 컨텍스트가 만드는 요일은 오늘뿐이다."""
+        allowed = {persona._weekday_ko(self.evaluator.FIXTURE_NOW.date())}
         every_weekday = {f"{day}요일" for day in "월화수목금토일"}
 
         offenders = [

@@ -3134,9 +3134,9 @@ label.checkbox { color: var(--text); }
 .mini-sparkline { grid-column: 1 / -1; width: 100%; height: 28px; margin-top: 4px; overflow: visible; }.mini-sparkline polyline { stroke: var(--brand); stroke-width: 1.8; }.mini-sparkline.alert polyline { stroke: #c84a36; }.sparkline-empty { color: var(--muted); }
 .manager-focus-layout { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(300px,.75fr); gap: 12px; }
 .manager-combined-overview { min-width: 0; }
-.care-domain-radar { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }.care-domain-radar > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }.care-domain-radar h3, .signal-change-summary h3 { font-size: calc(12px * var(--font-scale)); }.care-domain-radar header p { margin-top: 3px; color: var(--muted); font-size: calc(8px * var(--font-scale)); }
+.care-domain-radar { margin-top: 0; padding-top: 0; border-top: 0; }.care-domain-radar > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }.care-domain-radar h3, .signal-change-summary h3 { font-size: calc(12px * var(--font-scale)); }.care-domain-radar header p { margin-top: 3px; color: var(--muted); font-size: calc(8px * var(--font-scale)); }
 .radar-legend { display: flex; gap: 13px; color: var(--muted); font-size: calc(8px * var(--font-scale)); }.radar-legend span::before { content:""; display:inline-block; width:18px; margin-right:5px; border-top:2px solid var(--brand); vertical-align:middle; }.radar-legend .average::before { border-top: 2px dashed #6b756f; }
-.radar-layout { display: block; min-width: 0; }.radar-layout svg { display: block; width: 100%; max-height: 360px; margin: 0 auto; }.radar-grid { fill: none; stroke: color-mix(in srgb,var(--line) 72%,transparent); stroke-width: .8; }.radar-grid.level-100 { stroke: color-mix(in srgb,var(--line) 100%,transparent); stroke-width: 1.2; }.radar-axis { stroke: color-mix(in srgb,var(--line) 70%,transparent); stroke-width: .8; }.radar-average { fill: none; stroke: #6b756f; stroke-width: 2; stroke-dasharray: 5 5; }.radar-today { fill: color-mix(in srgb,var(--brand) 12%,transparent); stroke: var(--brand); stroke-width: 2.8; stroke-linejoin:round; }.radar-average-dot { fill: var(--surface); stroke:#6b756f; stroke-width:1.5; }.radar-today-dot { fill:var(--surface); stroke:var(--brand); stroke-width:2; }.radar-label { fill: var(--text); font-size: 10px; font-weight: 700; }.radar-label tspan + tspan { fill: var(--muted); font-size: 8px; font-weight: 500; }.radar-label .radar-up { fill:#a84d16; font-weight:700; }.radar-label .radar-down { fill:var(--brand); font-weight:700; }.radar-label .radar-even { fill:var(--muted); }
+.radar-layout { display: block; min-width: 0; padding-top: 8px; }.radar-layout svg { display: block; width: 100%; max-height: 360px; margin: 0 auto; }.radar-grid { fill: none; stroke: color-mix(in srgb,var(--line) 72%,transparent); stroke-width: .8; }.radar-grid.level-100 { stroke: color-mix(in srgb,var(--line) 100%,transparent); stroke-width: 1.2; }.radar-axis { stroke: color-mix(in srgb,var(--line) 70%,transparent); stroke-width: .8; }.radar-average { fill: none; stroke: #6b756f; stroke-width: 2; stroke-dasharray: 5 5; }.radar-today { fill: color-mix(in srgb,var(--brand) 12%,transparent); stroke: var(--brand); stroke-width: 2.8; stroke-linejoin:round; }.radar-average-dot { fill: var(--surface); stroke:#6b756f; stroke-width:1.5; }.radar-today-dot { fill:var(--surface); stroke:var(--brand); stroke-width:2; }.radar-label { fill: var(--text); font-size: 10px; font-weight: 700; }.radar-label tspan + tspan { fill: var(--muted); font-size: 8px; font-weight: 500; }.radar-label .radar-up { fill:#a84d16; font-weight:700; }.radar-label .radar-down { fill:var(--brand); font-weight:700; }.radar-label .radar-even { fill:var(--muted); }
 .radar-legend .average::before { border-top-style:solid; border-top-color:#d98a3f; }
 .radar-average { fill:color-mix(in srgb,#d98a3f 11%,transparent); stroke:#d98a3f; stroke-dasharray:none; stroke-linejoin:round; }
 .radar-average-dot { fill:var(--surface); stroke:#d98a3f; }
@@ -3575,7 +3575,7 @@ label.checkbox { color: var(--text); }
   .child-header p { display: none; }
   .child-app-body { grid-template-columns: 1fr; grid-template-rows: minmax(0,1fr) auto; grid-template-areas: "view" "nav"; gap: 0; padding-top: 12px; }
   .child-view { grid-area: view; padding: 0 2px 18px 0; }
-  .child-tabs { z-index: 20; grid-area: nav; align-self: auto; display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; padding: 7px calc(7px + env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) calc(7px + env(safe-area-inset-left)); border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(36,42,89,.08); }
+  .child-tabs { z-index: 20; grid-area: nav; align-self: auto; display: grid; grid-template-columns: repeat(5,1fr); gap: 4px; padding: 7px calc(7px + env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) calc(7px + env(safe-area-inset-left)); border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(36,42,89,.08); }
   .child-tabs button { min-height: 52px; display: grid; grid-template-columns: 1fr; place-items: center; gap: 2px; padding: 5px; text-align: center; }
   .child-tab-mark { font-size: calc(15px * var(--font-scale)); }.child-tabs button span:last-child { font-size: calc(8px * var(--font-scale)); }
   .child-view-head { align-items: flex-start; flex-direction: column; gap: 6px; }
@@ -4656,7 +4656,7 @@ label.checkbox { color: var(--text); }
     box-shadow: 0 -10px 28px rgba(24,70,47,.09);
     backdrop-filter: blur(18px);
     display: grid;
-    grid-template-columns: repeat(4,minmax(0,1fr));
+    grid-template-columns: repeat(5,minmax(0,1fr));
     gap: 4px;
   }
   .app-device-family .child-tabs button { min-width:0; min-height:54px; display:grid; grid-template-columns:1fr; place-items:center; gap:2px; padding:5px 3px; border-radius:13px; text-align:center; }
@@ -4669,6 +4669,41 @@ label.checkbox { color: var(--text); }
   .app-device-family .family-self-card,
   .app-device-family .family-style-scores { grid-template-columns: 1fr; }
   .app-device-family .family-style-scores > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .app-device-family .family-analysis-report .report-dashboard { gap: 12px; }
+  .app-device-family .family-analysis-report .report-toolbar { position: sticky; z-index: 18; top: 0; padding: 8px 0; background: var(--bg); }
+  .app-device-family .family-analysis-report .manager-combined-overview { min-width: 0; padding: 14px 12px; overflow: hidden; }
+  .app-device-family .family-analysis-report .manager-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 12px; }
+  .app-device-family .family-analysis-report .manager-stat-grid article { gap: 3px 5px; padding: 10px 9px; border-bottom: 1px solid var(--line); }
+  .app-device-family .family-analysis-report .manager-stat-grid article:last-child { grid-column: 1 / -1; }
+  .app-device-family .family-analysis-report .manager-stat-grid span { font-size: clamp(10px,calc(8px * var(--font-scale)),12px); }
+  .app-device-family .family-analysis-report .manager-stat-grid strong { font-size: clamp(22px,calc(20px * var(--font-scale)),30px); line-height: 1.05; }
+  .app-device-family .family-analysis-report .manager-stat-grid strong small { font-size: clamp(9px,calc(8px * var(--font-scale)),11px); }
+  .app-device-family .family-analysis-report .manager-stat-grid em { overflow-wrap: anywhere; font-size: clamp(9px,calc(7px * var(--font-scale)),11px); line-height: 1.25; text-align: right; }
+  .app-device-family .family-analysis-report .manager-focus-layout,
+  .app-device-family .family-analysis-report .manager-daily-summary > header,
+  .app-device-family .family-analysis-report .manager-combined-overview > header,
+  .app-device-family .family-analysis-report .compact-rhythm-report > header,
+  .app-device-family .family-analysis-report .talk-brief > header,
+  .app-device-family .family-analysis-report .compact-time-report > header,
+  .app-device-family .family-analysis-report .evidence-shortlist > header,
+  .app-device-family .family-analysis-report .safety-checklist > header { grid-template-columns: 1fr; align-items: stretch; flex-direction: column; }
+  .app-device-family .family-analysis-report .family-moment-button { width: 100%; min-width: 0; }
+  .app-device-family .family-analysis-report .care-domain-radar { min-width: 0; overflow-x: hidden; }
+  .app-device-family .family-analysis-report .care-domain-radar > header { flex-wrap: wrap; gap: 8px 14px; padding: 0 2px 12px; }
+  .app-device-family .family-analysis-report .care-domain-radar h3 { min-width: min(100%,220px); margin: 0; font-size: clamp(15px,calc(12px * var(--font-scale)),18px); line-height: 1.3; }
+  .app-device-family .family-analysis-report .radar-legend { flex-wrap: wrap; gap: 6px 11px; font-size: clamp(10px,calc(8px * var(--font-scale)),12px); line-height: 1.3; }
+  .app-device-family .family-analysis-report .radar-legend span::before { width: 14px; margin-right: 4px; }
+  .app-device-family .family-analysis-report .radar-layout { width: 100%; min-width: 0; padding-top: 6px; overflow: hidden; }
+  .app-device-family .family-analysis-report .radar-layout svg { width: 100%; height: auto; max-height: none; }
+  .app-device-family .family-analysis-report .radar-label { font-size: 12px; }
+  .app-device-family .family-analysis-report .radar-label tspan + tspan { font-size: 9.5px; }
+  .app-device-family .family-analysis-report .manager-observation-summary { min-width: 0; padding-top: 14px; border-top: 1px solid var(--line); }
+  .app-device-family .family-analysis-report .manager-observation-summary > header { margin: 0; }
+  .app-device-family .family-analysis-report .manager-observation-summary h2 { margin: 0; overflow-wrap: anywhere; font-size: clamp(20px,calc(18px * var(--font-scale)),28px); line-height: 1.25; letter-spacing: -.035em; }
+  .app-device-family .family-analysis-report .signal-change-row { grid-template-columns: minmax(105px,1fr) 60px 58px; gap: 7px; }
+  .app-device-family .family-analysis-report .signal-diverging-inline,
+  .app-device-family .family-analysis-report .signal-change-list blockquote,
+  .app-device-family .family-analysis-report .signal-change-row .mini-sparkline { display: none; }
 
   /* The care app keeps its compact accessibility dock. Family display
      controls live in the header's 보기 sheet instead. */
@@ -4787,4 +4822,46 @@ label.checkbox { color: var(--text); }
 @media (hover: none) and (pointer: coarse) {
   button, a, summary, input, select { min-height: 44px; }
   button:active, [role="button"]:active { transform: scale(.985); }
+}
+
+/* Galaxy-width family report: keep the comparison legend in the card header
+   and scale every report element inside the 360~430px content column. */
+@media (max-width: 430px) {
+  .app-device-family .family-analysis-report .manager-combined-overview {
+    width: 100%;
+    padding: 12px 9px;
+  }
+  .app-device-family .family-analysis-report .care-domain-radar > header {
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+    gap: 7px;
+    width: 100%;
+    padding: 0 0 10px;
+  }
+  .app-device-family .family-analysis-report .care-domain-radar h3 {
+    min-width: 0;
+    font-size: clamp(14px,4.2vw,17px);
+  }
+  .app-device-family .family-analysis-report .radar-legend {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr);
+    justify-content: start;
+    width: 100%;
+    gap: 6px 12px;
+    font-size: clamp(10px,3vw,12px);
+  }
+  .app-device-family .family-analysis-report .radar-layout svg {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+  .app-device-family .family-analysis-report .radar-label { font-size: 11px; }
+  .app-device-family .family-analysis-report .radar-label tspan + tspan { font-size: 8.5px; }
+  .app-device-family .family-analysis-report .manager-observation-summary h2 {
+    font-size: clamp(18px,5.4vw,22px);
+    word-break: keep-all;
+  }
+  .app-device-family .family-analysis-report .manager-stat-grid article { min-width: 0; }
+  .app-device-family .child-tabs button b { font-size: clamp(8px,2.6vw,10px); }
 }

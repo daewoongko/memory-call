@@ -8,7 +8,6 @@ const theme = readFileSync(new URL("../src/storybook-theme.css", import.meta.url
 const role = readFileSync(new URL("../src/screens/RoleScreen.jsx", import.meta.url), "utf8");
 const elderHome = readFileSync(new URL("../src/screens/FamilyScreen.jsx", import.meta.url), "utf8");
 const summary = readFileSync(new URL("../src/screens/SummaryScreen.jsx", import.meta.url), "utf8");
-const familyDashboard = readFileSync(new URL("../src/screens/DasoniHomeTab.jsx", import.meta.url), "utf8");
 const child = readFileSync(new URL("../src/screens/ChildScreen.jsx", import.meta.url), "utf8");
 const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const call = readFileSync(new URL("../src/screens/CallScreen.jsx", import.meta.url), "utf8");
@@ -104,29 +103,10 @@ test("일반 실행은 스플래시 뒤 역할 선택과 실제 연동 흐름으
   assert.doesNotMatch(app, /window\.location\.hash = picked === "child"/);
 });
 
-test("가족 메인 홈은 이동 카드 없이 오늘의 핵심 정보만 요약한다", () => {
-  assert.match(familyDashboard, /오늘의 핵심 수치/);
-  assert.match(familyDashboard, /직접 확인/);
-  assert.doesNotMatch(familyDashboard, /표시 예시/);
-  assert.match(familyDashboard, /실제 통화에서 발견/);
-  assert.doesNotMatch(familyDashboard, /약 복용 확인/);
-  assert.doesNotMatch(familyDashboard, /오늘의 기록|최근 통화/);
-  assert.doesNotMatch(familyDashboard, /<button/);
-  assert.match(child, /className=\{`child-brand child-brand-home/);
-  assert.doesNotMatch(child, /다소니 홈|메인으로 돌아가기/);
-  assert.match(theme, /\.dasoni-home-status \{ display: grid; grid-template-columns: repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(theme, /\.dasoni-attention-item/);
-  assert.match(theme, /dasoni-attention-item small[^}]+font-size: calc\(13px/);
-  assert.match(theme, /dasoni-attention-item h3[^}]+font-size: calc\(21px/);
-  assert.match(theme, /--home-title-fit/);
-  assert.doesNotMatch(theme, /dasoni-home-copy h1[^}]+text-overflow: ellipsis/);
-  assert.match(theme, /\.app-device-family \.child-screen :where\([^)]+\)[^{]+\{[\s\S]*font-family: var\(--font-readable\)/);
-});
-
 test("role typography stays consistent throughout each screen tree", () => {
   assert.match(app, /font-role-\$\{fontRole\}/);
   assert.match(app, /const fontRole = "readable"/);
-  assert.match(app, /shell: role === "child" \? "family" : role === "care" \? "care" : "elder"/);
+  assert.match(app, /shell: role === "child" \? "family" : "elder"/);
   assert.match(theme, /--font-readable: "Pretendard Variable", Pretendard, "Noto Sans KR", "Malgun Gothic", sans-serif/);
   assert.match(theme, /--font-family: "Dasoni Forest Letter", "Gaegu", "Gowun Dodum", "Malgun Gothic", sans-serif/);
   assert.match(theme, /@font-face[\s\S]*?font-family: "Dasoni Forest Letter"[\s\S]*?local\("숲을지나서"\)/);

@@ -6,18 +6,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DeploymentSeedContractTests(unittest.TestCase):
-    def test_existing_demo_database_receives_comparison_elders(self):
+    def test_deployment_uses_only_the_gildong_presentation_seed(self):
         source = (ROOT / "tools" / "start.py").read_text(encoding="utf-8")
-
-        self.assertIn("elder_002", source)
-        self.assertIn("elder_003", source)
-        self.assertIn("seed_comparison_elders.py", source)
-
-    def test_public_demo_receives_emotion_topic_calls_once(self):
-        source = (ROOT / "tools" / "start.py").read_text(encoding="utf-8")
-
-        self.assertIn("demo_emotion_sunja_%", source)
-        self.assertIn("seed_emotion_topic_demo.py", source)
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        render = (ROOT / "render.yaml").read_text(encoding="utf-8")
+        self.assertIn("seed_gildong_demo.py", source)
+        self.assertIn("data/gildong_diaries_2026.json", dockerfile)
+        self.assertIn("value: gildong", render)
+        self.assertNotIn("elder_002", source)
+        self.assertNotIn("seed_comparison", source)
+        self.assertNotIn("seed_high_volume", source)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ export default function LinkScreen({ role, onLinked, onSkip }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (role !== "child" && role !== "care") return;
+    if (role !== "child") return;
     api.issueLinkCode().then(setIssued).catch((e) => setError(e.message));
   }, [role]);
 
@@ -34,7 +34,7 @@ export default function LinkScreen({ role, onLinked, onSkip }) {
     }
   }
 
-  if (role === "child" || role === "care") {
+  if (role === "child") {
     return (
       <div className="screen link">
         <div className="link-brand"><BrandMark size={110} /><b>다소니</b></div>

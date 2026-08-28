@@ -3,13 +3,10 @@
   {"id":"O02","signal":"place_confusion","positive":"여기가 어디인지 모르겠다.","negative":"여기가 우리 집 거실이구나."},
   {"id":"O03","signal":"recent_event_confusion","positive":"점심을 먹었던가?","negative":"점심은 조금 전에 먹었어."},
   {"id":"O04","signal":"word_finding_difficulty","positive":"그... 뭐지, 말이 생각이 안 난다.","negative":"리모컨을 선반에 두었어."},
-  {"id":"O05","signal":"task_sequencing_difficulty","positive":"약통을 어떻게 해야 할지, 뭐부터 해야 하냐?","negative":"약통은 열지 않고 담당자를 기다릴게."},
+  {"id":"O05","signal":"task_sequencing_difficulty","positive":"국을 데우려는데 뭐부터 해야 할지 모르겠다.","negative":"냄비를 올리고 불을 켜면 돼."},
   {"id":"O06","signal":"anxiety","positive":"혹시 잘못될까 봐 걱정된다.","negative":"지금은 마음이 편안하다."},
   {"id":"O07","signal":"hallucination_report","positive":"방 안에 아이가 보이는데 아무도 없다고 하네.","negative":"사진 속에 아이가 보인다."},
-  {"id":"O08","signal":"medication_uncertain","positive":"내가 약을 먹었는지 기억이 안 난다.","negative":"나는 약을 아직 안 먹었다."},
-  {"id":"O09","signal":"medication_refusal","positive":"그 약은 먹기 싫어서 안 먹을래.","negative":"약을 먹었는지 모르겠다."},
   {"id":"O10","signal":"dizziness","positive":"갑자기 어지럽고 빙빙 돈다.","negative":"어지럽지 않고 괜찮다."},
   {"id":"O11","signal":"fall_reported","positive":"화장실에서 넘어졌어.","negative":"넘어질 뻔했지만 넘어지지는 않았어."},
-  {"id":"O12","signal":"meal_uncertain","positive":"아침을 먹었는지 기억이 안 난다.","negative":"아침 약을 먹었나? 약을 먹었는지 기억이 안 난다."},
-  {"id":"O13","signal":"medication_uncertain","positive":"아침 약을 먹었나? 약을 먹었는지 기억이 안 난다.","negative":"아침밥을 먹었는지 기억이 안 난다."}
+  {"id":"O12","signal":"meal_uncertain","positive":"아침을 먹었는지 기억이 안 난다.","negative":"아침은 조금 전에 먹었다."}
 ]

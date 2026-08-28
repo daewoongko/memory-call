@@ -29,9 +29,8 @@ test("통화 대기 중 실시간 답변 모델을 미리 준비한다", () => {
   assert.match(app, /prepareCall\(res\.call_id\)/);
 });
 
-test("앱의 프로필·예약 통화·통화 시작은 모두 연결된 어르신을 사용한다", () => {
+test("앱의 프로필과 통화 시작은 모두 연결된 어르신을 사용한다", () => {
   assert.match(app, /getProfile\(target\?\.persona_id, elderId\)/);
-  assert.match(app, /getPendingCall\(elderId\)/);
   assert.match(app, /startCall\(selectedPersonaId \?\? target\?\.persona_id, elderId\)/);
   assert.match(app, /<FamilyScreen\s+elderId=\{elderId\}/);
 });

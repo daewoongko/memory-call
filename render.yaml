@@ -12,7 +12,7 @@ services:
       - key: STORAGE_DIR
         value: /app/storage
       - key: DEMO_SEED_MODE
-        value: high_volume
+        value: gildong
       - key: LLM_BASE_URL
         value: https://api.openai.com/v1
       - key: LLM_MODEL

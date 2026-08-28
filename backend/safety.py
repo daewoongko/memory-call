@@ -26,7 +26,6 @@ class Rule:
     patterns: list[str]
     reason: str
     replacement: str = ""
-    exempt_if_schedule: bool = False
     # 이 단어가 같은 문장에 있으면 규칙을 적용하지 않는다.
     # 예: "아빠한테 연락할게"는 할아버지에게 하는 약속이 아니라 보호자 통보다.
     exempt_words: list[str] = field(default_factory=list)
@@ -82,17 +81,16 @@ RULES: list[Rule] = [
         replacement="그건 내가 확인할 수 없어. 혹시 기억나는지 하나씩 같이 확인해볼까?",
     ),
     Rule(
-        code="PROMISE_WITHOUT_SCHEDULE",
+        code="UNCONFIRMED_VISIT_PROMISE",
         action=BLOCK,
-        exempt_if_schedule=True,
         patterns=[
             r"(오늘|내일|이번 주|다음 주|이따|지금|곧|금방|잠시 후|저녁에|아침에)\s*[^.!?]{0,12}"
             r"(갈게|갈래|가께|들를게|올게|방문할게|찾아갈게|보러 갈)",
             r"(전화|연락)\s*(할게|드릴게|줄게)",
         ],
         exempt_words=["아빠", "엄마", "가족", "보호자", "119", "구급", "병원"],
-        reason="등록된 일정 없이 할아버지에게 방문·연락을 약속함",
-        replacement="오늘 일정은 확인해보고 알려줄게. 할아버지가 많이 보고 싶으셨구나?",
+        reason="확인되지 않은 방문·연락을 약속함",
+        replacement="가족에게 확인해보고 알려줄게. 할아버지가 많이 보고 싶으셨구나?",
     ),
     Rule(
         code="MEDICATION_INSTRUCTION",
@@ -299,59 +297,6 @@ def direct_risk(user_text: str) -> dict | None:
 _direct_risk = direct_risk
 
 
-def _ensure_registered_schedule_answer(
-    result: dict, ctx: dict, user_text: str, flags: list[dict]
-) -> None:
-    """방문 시각을 물었는데 모델이 놓친 경우 등록 일정 한 건만 보충한다."""
-    asks_visit = re.search(r"(언제|몇 시)[^.!?]{0,12}(오|가|찾아|방문)", user_text)
-    if not asks_visit:
-        return
-
-    valid = {
-        str(row.get("schedule_id")): row
-        for row in ctx.get("schedules", [])
-        if row.get("schedule_id") and row.get("confirmed")
-    }
-    used = [
-        sid for sid in (result.get("used_schedule_ids") or [])
-        if sid in valid
-    ]
-    result["used_schedule_ids"] = used
-    if not valid:
-        return
-
-    row = valid[used[0]] if used else next(iter(valid.values()))
-    raw_date = str(row.get("date") or "").strip()
-    try:
-        year, month, day = (int(part) for part in raw_date.split("-"))
-        date_text = f"{month}월 {day}일"
-    except (TypeError, ValueError):
-        date_text = raw_date
-    time_text = str(row.get("time") or "").strip()
-    title = str(row.get("title") or "방문 일정").strip()
-    reply = str(result.get("reply") or "")
-    if used and any(token and token in reply for token in (raw_date, time_text, title)):
-        return
-    schedule_text = " ".join(part for part in (date_text, time_text) if part)
-    addition = f"등록된 일정에는 {schedule_text}에 {title} 예정이야."
-    result["reply"] = (reply.rstrip() + " " + addition).strip()
-    result["used_schedule_ids"] = [str(row["schedule_id"])]
-    result["certainty"] = "verified"
-    care_data = result.get("care")
-    if isinstance(care_data, dict):
-        supports = care_data.setdefault("context_support", [])
-        if isinstance(supports, list):
-            supports.append({
-                "kind": "schedule",
-                "source_id": str(row["schedule_id"]),
-            })
-    flags.append({
-        "code": "REGISTERED_SCHEDULE_RESTORED",
-        "reason": "방문 질문에 모델이 누락한 등록 일정을 보충함",
-        "action": "corrected",
-    })
-
-
 @dataclass
 class SafetyResult:
     reply: str
@@ -365,7 +310,6 @@ def check(result: dict, ctx: dict, user_text: str = "") -> SafetyResult:
     """LLM 응답 dict, 대화 컨텍스트, 직전 할아버지 발화를 받아 검사한다."""
     reply = (result.get("reply") or "").strip()
     cited = list(result.get("used_memory_ids") or [])
-    schedules = list(result.get("used_schedule_ids") or [])
     certainty = result.get("certainty")
     flags: list[dict] = []
 
@@ -380,17 +324,6 @@ def check(result: dict, ctx: dict, user_text: str = "") -> SafetyResult:
         })
         cited = [mid for mid in cited if mid in known]
         certainty = "unverified"
-
-    # 인용한 일정이 실재하는지
-    valid_schedules = {s["schedule_id"] for s in ctx.get("schedules", [])}
-    ghost_sched = [sid for sid in schedules if sid not in valid_schedules]
-    if ghost_sched:
-        flags.append({
-            "code": "GHOST_SCHEDULE_ID",
-            "reason": f"존재하지 않는 일정을 인용함: {ghost_sched}",
-            "action": "corrected",
-        })
-        schedules = [s for s in schedules if s in valid_schedules]
 
     # --- 1.5 처음 듣는 이야기는 반드시 unverified 로 남긴다 ---------------
     # 이 값이 틀리면 보호자 확인 대기함에 올라가지 않아 승인 절차가 통째로 무너진다.
@@ -431,7 +364,7 @@ def check(result: dict, ctx: dict, user_text: str = "") -> SafetyResult:
         )
 
     # --- 2. 인용 없이 verified 를 주장하는지 ----------------------------
-    if certainty == "verified" and not cited and not schedules:
+    if certainty == "verified" and not cited:
         flags.append({
             "code": "UNGROUNDED_CERTAINTY",
             "reason": "근거 인용 없이 확정된 사실로 말함",
@@ -571,9 +504,6 @@ def check(result: dict, ctx: dict, user_text: str = "") -> SafetyResult:
 
     # --- 3. 문장 패턴 규칙 ----------------------------------------------
     for rule in RULES:
-        if rule.exempt_if_schedule and schedules:
-            continue
-
         # 문장 단위로 검사한다. 한 문장이 면제 단어를 담고 있으면 그 문장은 건너뛴다.
         hit = None
         for sentence in _sentences(reply):
@@ -664,9 +594,6 @@ def apply(result: dict, ctx: dict, user_text: str = "") -> dict:
     result["used_memory_ids"] = checked.used_memory_ids
     result["_safety_flags"] = checked.flags
     result["_rewritten"] = checked.rewritten
-    _ensure_registered_schedule_answer(
-        result, ctx, user_text, result["_safety_flags"]
-    )
     observed_risk = _direct_risk(user_text)
     if observed_risk:
         reported = result.get("risk") or {}
