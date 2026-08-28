@@ -111,6 +111,11 @@ def init_schema(conn: sqlite3.Connection) -> list[str]:
     _migrate_call_invite_reasons(conn)
     added = _add_missing_columns(conn)
     conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_invite_source_purpose "
+        "ON call_invites(purpose, source_call_id) "
+        "WHERE source_call_id IS NOT NULL AND purpose IN ('risk', 'handoff')"
+    )
+    conn.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_heart_artworks_diary_day "
         "ON heart_artworks(diary_date) WHERE status = 'approved'"
     )

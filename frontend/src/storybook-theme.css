@@ -931,7 +931,7 @@ h3,
 .dasoni-home-copy > span { color: var(--brand); font-size: calc(12px * var(--font-scale)); font-weight: 800; }
 .dasoni-home-copy h1 { margin: 8px 0 7px; color: var(--brand-deep); font-family: "Gaegu", sans-serif; font-size: calc(clamp(calc(31px * var(--font-scale)), calc(4.5vw * var(--font-scale)), calc(44px * var(--font-scale))) * var(--home-title-fit,1)); line-height: 1.08; letter-spacing: -.04em; white-space: nowrap; }
 .dasoni-home-copy p { max-width: 390px; margin: 0; color: var(--muted); font-size: calc(13px * var(--font-scale)); line-height: 1.55; }
-.dasoni-home-hero .brandmark { width: 154px; height: 154px; }
+.dasoni-home-hero .brandmark { width: 154px; height: 154px; justify-self: end; transform: translateX(14px); }
 .dasoni-home-status { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
 .dasoni-home-status article { min-width: 0; min-height: 78px; display: grid; align-content: center; gap: 4px; padding: 13px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
 .dasoni-home-status article:nth-child(2) { background: color-mix(in srgb,var(--storybook-blue) 48%,var(--surface)); }
@@ -939,6 +939,18 @@ h3,
 .dasoni-home-status article.attention { border-color: #dfa59e; background: color-mix(in srgb,var(--storybook-coral) 54%,var(--surface)); }
 .dasoni-home-status small { color: var(--muted); font-size: calc(10px * var(--font-scale)); }
 .dasoni-home-status b { overflow: hidden; color: var(--brand-deep); font-size: clamp(calc(15px * var(--font-scale)), 3.3vw, calc(19px * var(--font-scale))); text-overflow: ellipsis; white-space: nowrap; }
+.dasoni-observation-summary { overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); }
+.dasoni-observation-summary > header { padding: 18px 18px 13px; }
+.dasoni-observation-summary > header h2 { margin: 0; color: var(--text); font-size: clamp(calc(18px * var(--font-scale)),3.6vw,calc(25px * var(--font-scale))); line-height: 1.2; letter-spacing: -.04em; }
+.dasoni-observation-summary > header p { margin: 7px 0 0; color: var(--muted); font-size: calc(10px * var(--font-scale)); line-height: 1.5; word-break: keep-all; }
+.dasoni-observation-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); border-top: 1px solid var(--line); }
+.dasoni-observation-grid article { min-width: 0; min-height: 92px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 5px 8px; padding: 14px 16px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.dasoni-observation-grid article:nth-child(even) { border-right: 0; }
+.dasoni-observation-grid article:last-child { grid-column: 1 / -1; border-right: 0; border-bottom: 0; }
+.dasoni-observation-grid article > span { grid-column: 1 / -1; color: var(--muted); font-size: calc(11px * var(--font-scale)); }
+.dasoni-observation-grid strong { color: var(--brand-deep); font-size: clamp(calc(24px * var(--font-scale)),5vw,calc(34px * var(--font-scale))); line-height: 1; }
+.dasoni-observation-grid strong small { margin-left: 3px; font-size: calc(10px * var(--font-scale)); }
+.dasoni-observation-grid em { align-self: center; color: var(--muted); font-size: calc(9px * var(--font-scale)); font-style: normal; line-height: 1.25; text-align: right; }
 .dasoni-attention { display: grid; gap: 9px; padding: 0 4px; }
 .dasoni-attention-list { display: grid; gap: 9px; }
 .dasoni-attention-item { min-width: 0; display: grid; grid-template-columns: 38px minmax(0,1fr); gap: 12px; padding: 15px 17px 15px 14px; border-left: 4px solid #d96b60; border-radius: 0 18px 18px 0; background: color-mix(in srgb,var(--storybook-coral) 42%,var(--surface)); box-shadow: 0 7px 18px rgba(90,58,48,.06); }
@@ -996,7 +1008,7 @@ h3,
   .role-list-item { min-height: 123px; grid-template-columns: 81px minmax(0,1fr) 24px; gap: 16px; padding: 18px 21px; }
   .role-list-icon { width: 81px; height: 81px; }
   .dasoni-home-hero { min-height: 202px; grid-template-columns: minmax(0,1fr) 104px; padding: 20px 17px; }
-  .dasoni-home-hero .brandmark { width: 112px; height: 112px; margin-right: -10px; }
+  .dasoni-home-hero .brandmark { width: 112px; height: 112px; margin-right: -10px; transform: translateX(8px); }
   .dasoni-home-copy p { font-size: calc(11px * var(--font-scale)); }
   .dasoni-home-status article { padding: 11px; }
   .dasoni-attention-item { padding: 14px 14px 14px 11px; }
@@ -3840,11 +3852,11 @@ h3,
   gap: 10px;
 }
 
-/* 그림일기 제목은 장식 글꼴 대신 판독성이 안정적인 글꼴로 표시한다. */
+/* 그림일기 제목은 다소니 손글씨를 강제로 적용해 본문과 구분한다. */
 .app-device-family .child-screen .child-diary-title-row h1 {
-  font-family: "Gowun Dodum", sans-serif !important;
+  font-family: "Dasoni Forest Letter", "Gaegu", "Gowun Dodum", cursive !important;
   font-weight: 700;
-  letter-spacing: -.045em;
+  letter-spacing: .01em;
 }
 
 @media (max-width:430px) {

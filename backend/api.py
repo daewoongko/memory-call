@@ -43,6 +43,7 @@ import memories as mem_mod
 import nettest as nettest_mod
 import persona_voice as voice_mod
 import persona_avatar as avatar_mod
+import push_notifications as push_mod
 import report as report_mod
 import signaling
 import stt as stt_mod
@@ -189,11 +190,22 @@ class DeviceRegistration(BaseModel):
     label: str | None = Field(default=None, max_length=40)
 
 
+class PushSubscriptionRequest(BaseModel):
+    device_id: str = Field(min_length=8, max_length=64)
+    endpoint: str = Field(min_length=16, max_length=4096)
+    p256dh: str = Field(min_length=8, max_length=512)
+    auth: str = Field(min_length=4, max_length=256)
+
+
+class PushDeviceRequest(BaseModel):
+    device_id: str = Field(min_length=8, max_length=64)
+
+
 class InviteRequest(BaseModel):
     elder_id: str = "elder_001"
     persona_id: str | None = None
     from_device: str | None = Field(default=None, max_length=64)
-    purpose: Literal["family", "risk"] = "family"
+    purpose: Literal["family", "risk", "handoff"] = "family"
     alert_type: str | None = Field(default=None, max_length=50)
     alert_evidence: str | None = Field(default=None, max_length=500)
     source_call_id: str | None = Field(default=None, max_length=80)
@@ -202,6 +214,15 @@ class InviteRequest(BaseModel):
 class InviteDeviceAction(BaseModel):
     device_id: str | None = Field(default=None, max_length=64)
     reason: Literal["media_permission_denied"] | None = None
+
+
+class HandoffRequest(BaseModel):
+    device_id: str = Field(min_length=8, max_length=64)
+    persona_id: str = Field(pattern=r"^persona_[a-z0-9_]+$")
+
+
+class HumanConnectedRequest(BaseModel):
+    invite_id: str = Field(min_length=8, max_length=80)
 
 
 class TakeOverRequest(BaseModel):
@@ -215,7 +236,7 @@ class TakeOverRequest(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
-    rate: float = Field(default=0.92, ge=0.75, le=1.15)
+    rate: float = Field(default=0.736, ge=0.7, le=1.15)
     persona_id: str | None = Field(default=None, pattern=r"^persona_[a-z0-9_]+$")
 
 
@@ -235,7 +256,7 @@ class VoiceConsentRequest(BaseModel):
 class VoicePreviewRequest(BaseModel):
     elder_id: str = "elder_001"
     text: str = Field(min_length=1, max_length=180)
-    rate: float = Field(default=0.92, ge=0.75, le=1.15)
+    rate: float = Field(default=0.736, ge=0.7, le=1.15)
 
 
 class VoiceApproveRequest(BaseModel):
@@ -1514,6 +1535,82 @@ def start_call(req: StartCallRequest):
     return _open_ai_session(req.elder_id, req.persona_id)
 
 
+@app.get("/api/calls/active")
+def active_call(elder_id: str = "elder_001", persona_id: str | None = None):
+    """Expose only the active AI-call presence needed by the guardian banner."""
+    candidates = [
+        session for session in SESSIONS.values()
+        if session.elder_id == elder_id
+        and (persona_id is None or session.persona_id == persona_id)
+    ]
+    if not candidates:
+        return {"call": None}
+    session = max(candidates, key=lambda item: item._started)
+    with db.connect() as conn:
+        row = conn.execute(
+            "SELECT started_at, call_type FROM calls WHERE call_id = ?",
+            (session.call_id,),
+        ).fetchone()
+    return {
+        "call": {
+            "call_id": session.call_id,
+            "elder_id": session.elder_id,
+            "persona_id": session.persona_id,
+            "started_at": row["started_at"] if row else None,
+            "call_type": row["call_type"] if row else "ai",
+        }
+    }
+
+
+@app.post("/api/calls/{call_id}/handoff")
+def request_handoff(call_id: str, req: HandoffRequest):
+    """A guardian explicitly asks to join an active AI conversation."""
+    session = SESSIONS.get(call_id)
+    if session is None:
+        raise HTTPException(404, "진행 중인 AI 통화를 찾지 못했습니다.")
+    if session.persona_id != req.persona_id:
+        raise HTTPException(409, "현재 통화의 가족과 일치하지 않습니다.")
+    try:
+        return inv_mod.create_handoff(
+            session.elder_id, session.persona_id, call_id, req.device_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.get("/api/calls/{call_id}/handoff")
+def read_handoff(call_id: str):
+    """The elder phone polls this while AI speech remains active."""
+    if call_id not in SESSIONS:
+        return {"invite": None}
+    return {"invite": inv_mod.for_source_call(call_id, "handoff")}
+
+
+@app.post("/api/calls/{call_id}/human-connected")
+def human_connected(call_id: str, req: HumanConnectedRequest):
+    """Record AI-to-direct only after the WebRTC transport is truly live."""
+    session = SESSIONS.get(call_id)
+    if session is None:
+        raise HTTPException(404, "진행 중인 AI 통화를 찾지 못했습니다.")
+    try:
+        invite = inv_mod.get(req.invite_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    if (
+        invite.get("source_call_id") != call_id
+        or invite.get("purpose") not in {"risk", "handoff"}
+        or invite.get("state") != inv_mod.ANSWERED
+    ):
+        raise HTTPException(409, "연결된 이어받기 요청이 아닙니다.")
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE calls SET call_type = 'ai_to_direct' WHERE call_id = ?",
+            (call_id,),
+        )
+        conn.commit()
+    return {"ok": True, "call_id": call_id, "call_type": "ai_to_direct"}
+
+
 @app.post("/api/calls/{call_id}/prepare")
 def prepare_call(call_id: str):
     """Hide the live model's first connection behind the age-morph wait."""
@@ -1572,6 +1669,35 @@ def register_device(req: DeviceRegistration):
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/push/config")
+def push_config():
+    return {
+        "configured": push_mod.configured(),
+        "public_key": push_mod.public_key(),
+    }
+
+
+@app.post("/api/push/subscriptions")
+def save_push_subscription(req: PushSubscriptionRequest):
+    try:
+        return push_mod.save(req.device_id, req.endpoint, req.p256dh, req.auth)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.delete("/api/push/subscriptions/{device_id}")
+def remove_push_subscription(device_id: str):
+    return push_mod.remove_device(device_id)
+
+
+@app.post("/api/push/test")
+def test_push(req: PushDeviceRequest):
+    try:
+        return push_mod.send_test(req.device_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
 
 
 # ------------------------------------------------------------ P2P 진단
@@ -1647,13 +1773,16 @@ def list_devices(elder_id: str = "elder_001"):
 
 
 @app.post("/api/call-invites")
-def create_invite(req: InviteRequest):
+def create_invite(req: InviteRequest, background_tasks: BackgroundTasks):
     """어르신이 가족에게 전화를 건다."""
-    return inv_mod.create(
+    invite = inv_mod.create(
         req.elder_id, req.persona_id, req.from_device,
         purpose=req.purpose, alert_type=req.alert_type,
         alert_evidence=req.alert_evidence, source_call_id=req.source_call_id,
     )
+    if req.purpose in {"family", "risk"}:
+        background_tasks.add_task(push_mod.send_invite, invite)
+    return invite
 
 
 @app.get("/api/call-invites/recent")
@@ -1778,6 +1907,7 @@ def turn(call_id: str, req: TurnRequest, background_tasks: BackgroundTasks):
             risk_invite = inv_mod.create_risk_alert(
                 session.elder_id, session.persona_id, call_id, result["risk"],
             )
+            background_tasks.add_task(push_mod.send_invite, risk_invite)
         except Exception:  # 역호출 실패가 어르신과의 안전 대화를 끊으면 안 된다.
             LOGGER.exception("위험 발화 보호자 역호출 생성 실패: %s", call_id)
 

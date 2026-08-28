@@ -147,6 +147,25 @@ export const getRealtimeSTTToken = () =>
 export const registerDevice = (body) =>
   request("/api/devices", { method: "POST", body: JSON.stringify(body) });
 
+export const getPushConfig = () => request("/api/push/config");
+
+export const savePushSubscription = (body) =>
+  request("/api/push/subscriptions", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const removePushSubscription = (deviceId) =>
+  request(`/api/push/subscriptions/${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+  });
+
+export const sendTestPush = (deviceId) =>
+  request("/api/push/test", {
+    method: "POST",
+    body: JSON.stringify({ device_id: deviceId }),
+  });
+
 export const ringFamily = (body) =>
   request("/api/call-invites", { method: "POST", body: JSON.stringify(body) });
 
@@ -185,6 +204,25 @@ export const takeOverInvite = (inviteId, reason) =>
 
 export const endInvite = (inviteId) =>
   request(`/api/call-invites/${inviteId}/end`, { method: "POST" });
+
+export const getActiveCall = (elderId, personaId) =>
+  request(`/api/calls/active?elder_id=${encodeURIComponent(elderId)}`
+    + (personaId ? `&persona_id=${encodeURIComponent(personaId)}` : ""));
+
+export const requestCallHandoff = (callId, deviceId, personaId) =>
+  request(`/api/calls/${encodeURIComponent(callId)}/handoff`, {
+    method: "POST",
+    body: JSON.stringify({ device_id: deviceId, persona_id: personaId }),
+  });
+
+export const getCallHandoff = (callId) =>
+  request(`/api/calls/${encodeURIComponent(callId)}/handoff`);
+
+export const markHumanConnected = (callId, inviteId) =>
+  request(`/api/calls/${encodeURIComponent(callId)}/human-connected`, {
+    method: "POST",
+    body: JSON.stringify({ invite_id: inviteId }),
+  });
 
 /** 실제 사람 통화의 SDP·ICE. 진단 신호와 URL을 분리해 운영 기록과 섞지 않는다. */
 export const sendCallSignal = (inviteId, body) =>

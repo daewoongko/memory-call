@@ -156,6 +156,37 @@ class CallInviteTest(unittest.TestCase):
         incoming = invites.incoming_for("dev_guardian")
         self.assertEqual(incoming["invite_id"], first["invite_id"])
 
+    def test_guardian_handoff_is_answered_once_and_skips_the_intro(self):
+        self._guardian()
+        self._make_call("call_handoff_1")
+
+        first = invites.create_handoff(
+            "elder_test", "persona_godaewoong", "call_handoff_1", "dev_guardian",
+        )
+        second = invites.create_handoff(
+            "elder_test", "persona_godaewoong", "call_handoff_1", "dev_guardian",
+        )
+
+        self.assertEqual(first["invite_id"], second["invite_id"])
+        self.assertEqual(first["state"], invites.ANSWERED)
+        self.assertEqual(first["purpose"], "handoff")
+        self.assertEqual(first["source_call_id"], "call_handoff_1")
+        self.assertEqual(first["to_device"], "dev_guardian")
+        self.assertTrue(first["intro_complete"])
+        self.assertEqual(first["intro_duration_sec"], 0)
+        self.assertEqual(
+            invites.for_source_call("call_handoff_1")["invite_id"],
+            first["invite_id"],
+        )
+
+    def test_handoff_rejects_a_device_for_another_family_member(self):
+        self._guardian("dev_miyeong", "persona_miyeong")
+        self._make_call("call_handoff_2")
+        with self.assertRaises(ValueError):
+            invites.create_handoff(
+                "elder_test", "persona_godaewoong", "call_handoff_2", "dev_miyeong",
+            )
+
     # -------------------------------------------------------------- 전이
 
     def test_answer_records_which_device_picked_up(self):

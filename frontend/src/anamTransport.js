@@ -2,7 +2,16 @@
 // ElevenLabs for this exact format, so no browser resampling is involved.
 const SAMPLE_RATE = 24000;
 const BYTES_PER_SAMPLE = 2;
-const PLAYBACK_TAIL_MS = 350;
+const PCM_PUSH_BYTES = 2048;
+// Keep a short neutral-audio tail inside the same Anam sequence. Without it,
+// the final phoneme sits exactly on the sequence boundary and can be clipped
+// before the last viseme has returned to rest.
+const TERMINAL_SILENCE_MS = 320;
+// PCM is uploaded faster than real-time. Finishing the upload therefore does
+// not mean that the remote WebRTC avatar has finished playing it. The SDK has
+// no persona-speech-ended event, so keep the sequence alive for its complete
+// audio duration plus a conservative render/network buffer.
+const PLAYBACK_TAIL_MS = 1500;
 const CONNECTION_TIMEOUT_MS = 20000;
 
 const HARD_SERVER_FAILURE = /usage[_ -]?limit|quota|billing|unauthori[sz]ed|forbidden/i;
@@ -41,6 +50,14 @@ const wait = (ms, signal) =>
     );
   });
 
+export function pcmDurationMs(byteLength) {
+  return (Math.max(0, byteLength) / (SAMPLE_RATE * BYTES_PER_SAMPLE)) * 1000;
+}
+
+export function playbackDrainDelayMs(byteLength, playbackTailMs = PLAYBACK_TAIL_MS) {
+  return pcmDurationMs(byteLength) + Math.max(0, playbackTailMs);
+}
+
 /**
  * One Anam WebRTC session per AI call. The permanent key remains on the
  * backend; this object only sees a short-lived session token.
@@ -54,6 +71,8 @@ export function createAnamTransport({
   createClientImpl = null,
   onStateChange = () => {},
   playbackTailMs = PLAYBACK_TAIL_MS,
+  terminalSilenceMs = TERMINAL_SILENCE_MS,
+  waitImpl = wait,
   connectionTimeoutMs = CONNECTION_TIMEOUT_MS,
 }) {
   let client = null;
@@ -288,35 +307,57 @@ export function createAnamTransport({
     });
     const reader = response.body.getReader();
     let bytes = 0;
-    let firstChunkAt = null;
+    let sequenceEnded = false;
     try {
       while (true) {
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
         const { done, value } = await reader.read();
         if (done) break;
         if (!value?.byteLength) continue;
-        if (firstChunkAt == null) {
-          firstChunkAt = performance.now();
+        if (bytes === 0) {
           onFirstChunk?.();
         }
         bytes += value.byteLength;
         // Fetch is allowed to coalesce server chunks.  Keep every Anam push at
         // roughly 43 ms of PCM so mouth poses are updated frequently.
-        for (let offset = 0; offset < value.byteLength; offset += 2048) {
-          audioInput.sendAudioChunk(value.subarray(offset, offset + 2048));
+        for (let offset = 0; offset < value.byteLength; offset += PCM_PUSH_BYTES) {
+          audioInput.sendAudioChunk(value.subarray(offset, offset + PCM_PUSH_BYTES));
         }
       }
+
+      const silenceBytes = Math.max(
+        0,
+        Math.round((SAMPLE_RATE * BYTES_PER_SAMPLE * terminalSilenceMs) / 1000 / 2) * 2
+      );
+      for (let sent = 0; sent < silenceBytes; sent += PCM_PUSH_BYTES) {
+        audioInput.sendAudioChunk(
+          new Uint8Array(Math.min(PCM_PUSH_BYTES, silenceBytes - sent))
+        );
+      }
       audioInput.endSequence();
+      sequenceEnded = true;
+
+      // Count from endSequence(), not from the first upload chunk. Anam starts
+      // rendering asynchronously and may still be draining buffered PCM after
+      // the browser has finished uploading it.
+      await waitImpl(
+        playbackDrainDelayMs(bytes + silenceBytes, playbackTailMs),
+        signal
+      );
     } catch (error) {
       await reader.cancel().catch(() => {});
+      if (!sequenceEnded) {
+        try {
+          audioInput.endSequence();
+        } catch {
+          // The provider may already have closed the sequence.
+        }
+      }
       interrupt();
       throw error;
     }
 
-    const durationMs = (bytes / (SAMPLE_RATE * BYTES_PER_SAMPLE)) * 1000;
-    const elapsedMs = firstChunkAt == null ? 0 : performance.now() - firstChunkAt;
-    await wait(Math.max(0, durationMs - elapsedMs) + playbackTailMs, signal);
-    return { bytes, durationMs };
+    return { bytes, durationMs: pcmDurationMs(bytes) };
   };
 
   const disconnect = async () => {

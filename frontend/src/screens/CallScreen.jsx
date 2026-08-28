@@ -28,7 +28,7 @@ function elapsedText(seconds) {
 export default function CallScreen({
   faces, opening, name, personaId, callId, api, onEnded,
   conversationEnabled = true, performanceStyle = "calm", anamReady = true,
-  onRiskDetected,
+  onRiskDetected, handoffPending = false,
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [said, setSaid] = useState("");
@@ -231,6 +231,10 @@ export default function CallScreen({
       />
 
       {alert && <div className="alert-bar">{alert}</div>}
+      {handoffPending && <div className="handoff-wait-banner" role="status">
+        <strong>가족이 통화에 들어오고 있어요</strong>
+        <span>연결될 때까지 다소니가 계속 함께할게요.</span>
+      </div>}
 
       <div className="topbar">
         <div className="call-meta">

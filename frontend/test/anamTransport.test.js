@@ -4,7 +4,14 @@ import test from "node:test";
 import {
   anamFailureMessage,
   createAnamTransport,
+  pcmDurationMs,
+  playbackDrainDelayMs,
 } from "../src/anamTransport.js";
+
+test("Anam playback drain is measured after upload for the full PCM duration", () => {
+  assert.equal(pcmDurationMs(48_000), 1000);
+  assert.equal(playbackDrainDelayMs(48_000, 1500), 2500);
+});
 
 test("Anam transport exchanges a short-lived token and streams PCM chunks", async () => {
   const requests = [];
@@ -20,6 +27,8 @@ test("Anam transport exchanges a short-lived token and streams PCM chunks", asyn
     personaId: "persona_jeonghun",
     videoElementId: "avatar-video",
     playbackTailMs: 0,
+    terminalSilenceMs: 0,
+    waitImpl: async () => {},
     fetchImpl: async (url, options) => {
       requests.push({ url, body: JSON.parse(options.body) });
       return new Response(JSON.stringify({ session_token: "temporary-token" }), {
@@ -171,6 +180,8 @@ test("Anam transport splits coalesced PCM into low-latency avatar pushes", async
     personaId: "persona_jeonghun",
     videoElementId: "avatar-video",
     playbackTailMs: 0,
+    terminalSilenceMs: 0,
+    waitImpl: async () => {},
     fetchImpl: async () => new Response(JSON.stringify({ session_token: "token" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -203,6 +214,105 @@ test("Anam transport splits coalesced PCM into low-latency avatar pushes", async
   await transport.speakPcmResponse(new Response(pcm), {});
 
   assert.deepEqual(chunks, [2048, 2048, 904]);
+});
+
+test("Anam transport pads the final phoneme with neutral PCM before ending", async () => {
+  const chunks = [];
+  const waits = [];
+  const listeners = new Map();
+  let ended = 0;
+  const transport = createAnamTransport({
+    callId: "call_12345678",
+    personaId: "persona_jeonghun",
+    videoElementId: "avatar-video",
+    playbackTailMs: 100,
+    terminalSilenceMs: 2,
+    waitImpl: async (ms) => { waits.push(ms); },
+    fetchImpl: async () => new Response(JSON.stringify({ session_token: "token" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+    createClientImpl: () => ({
+      async streamToVideoElement() {
+        queueMicrotask(() => {
+          listeners.get("VIDEO_PLAY_STARTED")?.();
+          listeners.get("AUDIO_STREAM_STARTED")?.({});
+          listeners.get("SESSION_READY")?.();
+        });
+      },
+      addListener(event, callback) { listeners.set(event, callback); },
+      removeListener(event, callback) {
+        if (listeners.get(event) === callback) listeners.delete(event);
+      },
+      createAgentAudioInputStream() {
+        return {
+          sendAudioChunk(value) { chunks.push([...value]); },
+          endSequence() { ended += 1; },
+        };
+      },
+      interruptPersona() {},
+      async stopStreaming() {},
+    }),
+  });
+
+  const result = await transport.speakPcmResponse(
+    new Response(new Uint8Array([7, 8])),
+    {}
+  );
+
+  assert.deepEqual(chunks[0], [7, 8]);
+  assert.equal(chunks[1].length, 96);
+  assert.equal(chunks[1].every((sample) => sample === 0), true);
+  assert.equal(ended, 1);
+  assert.equal(result.bytes, 2);
+  assert.equal(waits.length, 1);
+  assert.equal(waits[0], playbackDrainDelayMs(98, 100));
+});
+
+test("Anam transport closes the sequence before interrupting an aborted turn", async () => {
+  const listeners = new Map();
+  const order = [];
+  const transport = createAnamTransport({
+    callId: "call_12345678",
+    personaId: "persona_jeonghun",
+    videoElementId: "avatar-video",
+    terminalSilenceMs: 0,
+    fetchImpl: async () => new Response(JSON.stringify({ session_token: "token" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+    createClientImpl: () => ({
+      async streamToVideoElement() {
+        queueMicrotask(() => {
+          listeners.get("VIDEO_PLAY_STARTED")?.();
+          listeners.get("AUDIO_STREAM_STARTED")?.({});
+          listeners.get("SESSION_READY")?.();
+        });
+      },
+      addListener(event, callback) { listeners.set(event, callback); },
+      removeListener(event, callback) {
+        if (listeners.get(event) === callback) listeners.delete(event);
+      },
+      createAgentAudioInputStream() {
+        return {
+          sendAudioChunk() {},
+          endSequence() { order.push("end"); },
+        };
+      },
+      interruptPersona() { order.push("interrupt"); },
+      async stopStreaming() {},
+    }),
+  });
+  const controller = new AbortController();
+  controller.abort();
+
+  await assert.rejects(
+    transport.speakPcmResponse(new Response(new Uint8Array([1, 2])), {
+      signal: controller.signal,
+    }),
+    { name: "AbortError" }
+  );
+  assert.deepEqual(order, ["end", "interrupt"]);
 });
 
 test("Anam transport reattaches a mobile video track and requests playback", async () => {

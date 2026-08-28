@@ -217,6 +217,56 @@ def create_risk_alert(elder_id: str, persona_id: str | None,
     )
 
 
+def create_handoff(elder_id: str, persona_id: str, source_call_id: str,
+                   device_id: str) -> dict:
+    """Create one guardian-initiated handoff for an active AI call.
+
+    The original family invite remains immutable audit history.  A child
+    invite linked through ``source_call_id`` owns only the AI-to-human media
+    transition, so retrying the button cannot create parallel WebRTC rooms.
+    """
+    with db.connect() as conn:
+        device = conn.execute(
+            "SELECT * FROM devices WHERE device_id = ?", (device_id,),
+        ).fetchone()
+        if device is None or device["role"] != "guardian":
+            raise ValueError("등록된 보호자 기기에서만 통화를 이어받을 수 있습니다.")
+        if device["elder_id"] != elder_id or device["persona_id"] != persona_id:
+            raise ValueError("현재 통화의 가족 기기와 일치하지 않습니다.")
+        existing = conn.execute(
+            "SELECT invite_id FROM call_invites "
+            "WHERE purpose = 'handoff' AND source_call_id = ? "
+            "ORDER BY created_at DESC LIMIT 1",
+            (source_call_id,),
+        ).fetchone()
+    if existing:
+        current = get(existing["invite_id"])
+        if current["state"] in {RINGING, ANSWERED}:
+            return current
+        raise ValueError("이미 종료된 이어받기 요청입니다.")
+
+    created = create(
+        elder_id, persona_id, from_device=device_id, purpose="handoff",
+        source_call_id=source_call_id,
+    )
+    # The guardian requested the handoff from an already-open screen.  Treat
+    # that explicit gesture as the answer and start WebRTC immediately.
+    return answer(created["invite_id"], device_id)
+
+
+def for_source_call(source_call_id: str, purpose: str = "handoff") -> dict | None:
+    """Return the newest transition invite associated with an AI call."""
+    with db.connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM call_invites WHERE source_call_id = ? AND purpose = ? "
+            "ORDER BY created_at DESC LIMIT 1",
+            (source_call_id, purpose),
+        ).fetchone()
+        if row is None:
+            return None
+        return _decorate(_expire_if_due(conn, db._row(row)))
+
+
 def _expire_if_due(conn, row: dict) -> dict:
     """울릴 시간이 지난 호출을 timeout 으로 확정한다.
 
@@ -262,7 +312,7 @@ def _decorate(row: dict) -> dict:
         remaining = max(0.0, row["ring_timeout_sec"] - _elapsed(row["created_at"]))
     # 위험 발화 역호출은 보호자가 즉시 받아야 하므로 가족 호출용 24초
     # 아바타 소개 구간을 적용하지 않는다.
-    intro_duration = 0 if row.get("purpose") == "risk" else INTRO_DURATION_SEC
+    intro_duration = 0 if row.get("purpose") in {"risk", "handoff"} else INTRO_DURATION_SEC
     intro_remaining = max(
         0.0, intro_duration - _elapsed(row.get("created_at")),
     )

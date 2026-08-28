@@ -46,10 +46,12 @@ test("가족 화면의 날짜는 일별 조회와 통화 필터에 사용된다"
   assert.match(child, /getReports\(picked\.elder_id, 120, selectedDate\)/);
   assert.match(child, /slice\(0, 10\) === selectedDate/);
   assert.match(child, /<AppDatePicker className="child-date-picker" value=\{selectedDate\}/);
-  assert.match(datePicker, /<input type="date" value=\{value\}/);
+  assert.match(datePicker, /<input ref=\{inputRef\} type="date" value=\{value\}/);
   assert.match(datePicker, /className="app-date-value"/);
   assert.match(child, /weekday: "long"/);
   assert.match(child, /displayValue=\{shortDate\(selectedDate\)\} showValue/);
+  assert.match(datePicker, /showPicker/);
+  assert.match(datePicker, /눌러서 날짜 변경/);
   assert.match(theme, /child-family-header \.child-date-picker > \.app-date-value \{[\s\S]*position: static;[\s\S]*clip-path: none/);
   assert.match(theme, /child-family-header \.child-date-picker > svg \{ display: none; \}/);
   assert.match(styles, /\.app-device-family \.child-date-picker/);
@@ -80,6 +82,25 @@ test("통화 화면은 직접·AI·이어받기 유형과 시간순 목록 및 �
   assert.match(transcript, /<time dateTime=\{u\.created_at\}>/);
   assert.match(styles, /child-call-modal \{[^}]*height:min\(760px,90dvh\)/);
   assert.match(styles, /child-call-modal \.transcript \{[^}]*overflow-y:auto/);
+});
+
+test("보호자는 진행 중인 AI 통화를 보고 실제 연결 뒤 이어받는다", () => {
+  assert.match(child, /getActiveCall\(picked\.elder_id, myPersona\.persona_id\)/);
+  assert.match(child, /지금 AI와 통화 중/);
+  assert.match(child, /지금 이어받기/);
+  assert.match(child, /requestCallHandoff/);
+  assert.match(app, /getCallHandoff\(call\.call_id\)/);
+  assert.match(app, /humanTransportState !== "connected"/);
+  assert.match(app, /markHumanConnected\(call\.call_id, invite\.invite_id\)/);
+  assert.match(app, /handoffPending/);
+});
+
+test("보호자 설정은 잠금 화면 위험 알림과 시험 알림을 제공한다", () => {
+  assert.match(child, /위험 알림 켜기/);
+  assert.match(child, /시험 알림 보내기/);
+  assert.match(child, /enableGuardianPush/);
+  assert.match(child, /savePushSubscription/);
+  assert.match(styles, /guardian-push-settings/);
 });
 
 test("가족 추억은 네 단계의 단일 보관 흐름과 사진 업로드를 제공한다", () => {
@@ -120,10 +141,11 @@ test("가족 오늘은 대표 그림과 통화 일기 및 고정 5등분 하단 
   assert.ok(existsSync(new URL("../public/diary/country-market-memory.png", import.meta.url)));
   assert.ok(existsSync(new URL("../public/diary/persimmon-yard-memory.png", import.meta.url)));
   assert.ok(existsSync(new URL("../public/diary/autumn-riverside-picnic.png", import.meta.url)));
-  assert.match(child, /heart\?\.visual_story\?\.status_label/);
+  assert.doesNotMatch(child, /diaryArtworkLabel|child-diary-art[\s\S]*figcaption/);
   assert.match(styles, /\.app-device-family \.child-tabs \{[\s\S]*grid-template-columns: repeat\(5,minmax\(0,1fr\)\)/);
   assert.match(styles, /@media \(max-width: 430px\)[\s\S]*care-domain-radar > header[\s\S]*grid-template-columns: minmax\(0,1fr\)/);
-  assert.match(styles, /@media \(max-width: 430px\)[\s\S]*radar-legend[\s\S]*grid-template-columns: auto minmax\(0,1fr\)/);
+  assert.match(styles, /@media \(max-width: 430px\)[\s\S]*care-domain-radar > header[\s\S]*grid-template-columns: minmax\(0,1fr\) max-content/);
+  assert.match(styles, /@media \(max-width: 430px\)[\s\S]*radar-legend[\s\S]*grid-template-columns: max-content/);
   assert.match(styles, /\.child-diary-art/);
   assert.match(styles, /\.child-diary-page/);
   assert.doesNotMatch(child, /child-heart-collage|HEART_SLOT_COUNT/);
@@ -147,11 +169,11 @@ test("가족 헤더 조작과 통화 분석 그래프는 앱 프레임 폭 안�
   assert.match(theme, /child-family-header > :is\(\.child-view-settings,\.child-date-picker\)[\s\S]*grid-column: 3/);
   assert.match(theme, /family-analysis-report \.retention-layout \{[\s\S]*grid-template-columns: minmax\(0,1fr\)/);
   assert.match(theme, /family-analysis-report \.topic-scatter \{[\s\S]*min-width: 0/);
-  assert.match(reportTabs, /label: "대화 중 변화 신호"/);
-  assert.match(reportTabs, /기억·언어·정서·생활 관련 신호이며, 진단 결과가 아닙니다/);
+  assert.match(dasoniHome, /label: "대화 중 변화 신호"/);
+  assert.match(dasoniHome, /기억·언어·정서·생활 관련 신호이며, 진단 결과가 아닙니다/);
   assert.doesNotMatch(reportTabs, /발화 기반 관찰/);
-  assert.match(theme, /manager-stat-grid\.manager-stat-strip \{[\s\S]*border: 1px solid var\(--line\);[\s\S]*border-radius: 16px/);
-  assert.match(theme, /manager-stat-grid\.manager-stat-strip article:last-child \{[\s\S]*border-bottom: 0/);
+  assert.match(theme, /dasoni-observation-summary \{[\s\S]*border: 1px solid var\(--line\);[\s\S]*border-radius: 22px/);
+  assert.match(theme, /dasoni-observation-grid article:last-child \{[\s\S]*border-bottom: 0/);
 });
 
 test("통화 분석의 작은 차이와 복잡한 그래프는 모바일에서도 자세히 볼 수 있다", () => {
@@ -169,6 +191,7 @@ test("통화 분석의 작은 차이와 복잡한 그래프는 모바일에서�
   assert.match(reportTabs, /riskTopicName/);
   assert.match(reportTabs, />짧은 통화<\/text><text[^>]+>긴 통화<\/text>/);
   assert.doesNotMatch(reportTabs, /눌러서 크게 보기|30일 중앙값|item\.calls\}통 · 부담/);
+  assert.doesNotMatch(reportTabs, /위험 발화가 나온 주제|부담 표현이 잦음|status\.hint/);
   assert.match(reportTabs, /className="topic-finding-count"/);
   assert.doesNotMatch(reportTabs, /finding\.metric\}<i aria-hidden="true">⌄<\/i>/);
   assert.match(styles, /\.report-modal-backdrop \{[^}]*position:fixed/);
@@ -234,8 +257,18 @@ test("보호자 화면은 그림일기와 다소니 발화만 손글씨로 구�
   assert.match(theme, /child-header-diary-note span \{[\s\S]*white-space: pre-line;[\s\S]*overflow: visible;[\s\S]*display: block/);
   assert.doesNotMatch(child, /firstSentence\.slice\([^\n]+…/);
   assert.match(child, /가장 따뜻한 기억엔\\n/);
-  assert.match(theme, /child-diary-title-row h1 \{[\s\S]*font-family: "Gowun Dodum", sans-serif !important/);
+  assert.match(theme, /child-diary-title-row h1 \{[\s\S]*font-family: "Dasoni Forest Letter", "Gaegu", "Gowun Dodum", cursive !important/);
   assert.match(child, /compactDiaryInsight/);
+});
+
+test("오늘 관찰은 보호자 메인으로 옮기고 분석 리포트에서는 제외한다", () => {
+  assert.match(dasoniHome, /dasoni-observation-summary/);
+  assert.match(dasoniHome, /어르신의 오늘 관찰/);
+  assert.doesNotMatch(dasoniHome, /어르신의 오늘 관찰 요약/);
+  assert.match(dasoniHome, /대화 중 변화 신호/);
+  assert.match(child, /baselineSummary=\{baselineSummary\}/);
+  assert.doesNotMatch(reportTabs, /manager-observation-summary/);
+  assert.doesNotMatch(reportTabs, /어르신의 오늘 관찰 요약/);
 });
 
 test("설정의 본인 가족 카드는 관계와 이름을 두 줄로 구분한다", () => {

@@ -574,12 +574,20 @@ Windows PowerShell에서는 `python` 대신 `.\.venv\Scripts\python.exe`를 씁�
 | `ANAM_API_KEY` | 확정된 가족 사진으로 아바타 생성 및 실시간 립싱크 |
 | `ANAM_AVATAR_ID` | 무료 배포 DB가 초기화될 때 기본 아바타를 복구하는 선택 값 |
 | `TURN_URLS`, `TURN_SHARED_SECRET` | NAT·공유기 격리 환경의 사람 통화 중계 |
+| `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY` | 보호자 PWA 잠금 화면 통화·위험 알림 서명 키 |
+| `WEB_PUSH_CONTACT` | Web Push 운영 연락처(`mailto:` 또는 HTTPS URL) |
 | `STORAGE_DIR` | 배포 환경의 영속 DB·비공개 자산 저장 위치 |
 | `TTS_BRIDGE_TOKEN` | 선택적 로컬 MuseTalk 브리지 인증 |
 | `DEMO_SEED_MODE=gildong` | 공개 데모 DB에 고길동의 8~10월 통화·그림일기 적재 |
 
 사진·목소리가 승인될 때 공급자 ID를 가족별로 SQLite에 저장하며 브라우저에는
 짧은 세션 토큰만 전달합니다. **`.env`는 절대 커밋하지 않습니다.**
+
+보호자 알림은 설정 탭에서 사용자가 직접 권한을 허용한 뒤 활성화됩니다. 서버에
+VAPID 환경변수가 없으면 영속 `STORAGE_DIR`에 키를 한 번 자동 생성합니다. Push
+라이브러리를 사용할 수 없거나 알림 권한이 거부된 기기에서는 기존 1.5초 수신
+폴링이 그대로 동작합니다. 배포 후 보호자 휴대폰에서 `위험 알림 켜기`와
+`시험 알림 보내기`를 차례로 눌러 잠금 화면 수신까지 확인합니다.
 
 > 무료 티어 LLM은 요청 내용이 모델 개선에 사용될 수 있습니다. 실제 가족 사진·
 > 음성·대화가 들어가는 시점부터는 유료 티어로 옮겨야 합니다. 현재 시드 데이터는

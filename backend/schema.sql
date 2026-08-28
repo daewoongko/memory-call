@@ -253,6 +253,18 @@ CREATE TABLE IF NOT EXISTS devices (
 CREATE INDEX IF NOT EXISTS idx_device_persona
     ON devices(persona_id, last_seen_at);
 
+-- 잠금 화면에서도 가족에게 위험 알림을 전달하기 위한 Web Push 구독.
+-- endpoint와 암호화 키는 브라우저가 발급하며 비밀 VAPID 개인키는 환경변수에만 둔다.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    endpoint    TEXT PRIMARY KEY,
+    device_id  TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+    p256dh      TEXT NOT NULL,
+    auth        TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_push_device ON push_subscriptions(device_id);
+
 -- 호출 한 건. "누가 누구에게 걸었고, 받았는가"를 서버가 판정하기 위한 표.
 --
 -- 이 표가 없을 때 AI 대리통화는 대리가 아니었다. 어르신 기기 안의 15초

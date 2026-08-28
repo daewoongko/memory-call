@@ -11,6 +11,10 @@ import DasoniHomeTab from "./DasoniHomeTab.jsx";
 import { useCallMediaReadiness } from "../useCallMediaReadiness.js";
 import { useScreenWakeLock } from "../useScreenWakeLock.js";
 import AppDatePicker from "../components/AppDatePicker.jsx";
+import { deviceId, deviceLabel } from "../device.js";
+import {
+  currentPushState, disableGuardianPush, enableGuardianPush,
+} from "../pushNotifications.js";
 
 function TabGlyph({ children }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>;
@@ -26,6 +30,13 @@ const TABS = [
 
 function localDateKey(date = new Date()) {
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+}
+
+function rollingRange(end, days = 30) {
+  const endDate = new Date(`${end}T12:00:00`);
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - days + 1);
+  return { days, start: localDateKey(startDate), end };
 }
 
 function shortDate(value) {
@@ -86,6 +97,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const [picked, setPicked] = useState(null);
   const [selectedDate, setSelectedDate] = useState(() => localDateKey());
   const [summary, setSummary] = useState(null);
+  const [baselineSummary, setBaselineSummary] = useState(null);
   const [memories, setMemories] = useState([]);
   const [personas, setPersonas] = useState([]);
   const [calls, setCalls] = useState([]);
@@ -93,9 +105,14 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const [tab, setTab] = useState("home");
   const [callFilter, setCallFilter] = useState("all");
   const [activeCall, setActiveCall] = useState(null);
+  const [liveAiCall, setLiveAiCall] = useState(null);
   const [connected, setConnected] = useState(null);
   const [callBusy, setCallBusy] = useState(false);
   const [callError, setCallError] = useState("");
+  const [pushConfig, setPushConfig] = useState({ configured: false, public_key: "" });
+  const [pushState, setPushState] = useState({ supported: true, permission: "default", subscribed: false });
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMessage, setPushMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const todayKey = localDateKey();
@@ -136,6 +153,17 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     return () => { alive = false; };
   }, [picked, selectedDate]);
 
+  useEffect(() => {
+    if (!picked) return;
+    let alive = true;
+    const range = rollingRange(selectedDate);
+    setBaselineSummary(null);
+    api.getPeriodSummary(range.days, picked.elder_id, range)
+      .then((nextBaseline) => alive && setBaselineSummary(nextBaseline))
+      .catch(() => alive && setBaselineSummary(null));
+    return () => { alive = false; };
+  }, [picked, selectedDate]);
+
   const latest = (summary?.daily_reports || []).find((day) => day.date === selectedDate) || null;
   const heart = latest?.heart_report;
   const dailyDiary = latest?.diary || heart?.diary || null;
@@ -159,6 +187,43 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       .catch(() => {});
     return () => { alive = false; };
   }, [picked, myPersona?.persona_id]);
+
+  useEffect(() => {
+    if (!picked?.elder_id || !myPersona?.persona_id || connected) {
+      setLiveAiCall(null);
+      return undefined;
+    }
+    let alive = true;
+    let timer = null;
+    const tick = async () => {
+      if (!alive) return;
+      try {
+        const result = await api.getActiveCall(picked.elder_id, myPersona.persona_id);
+        if (alive) setLiveAiCall(result.call || null);
+      } catch {
+        if (alive) setLiveAiCall(null);
+      }
+      if (alive) timer = setTimeout(tick, 2000);
+    };
+    tick();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [picked?.elder_id, myPersona?.persona_id, connected]);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([
+      api.getPushConfig().catch(() => ({ configured: false, public_key: "" })),
+      currentPushState().catch(() => ({ supported: false, permission: "unsupported", subscribed: false })),
+    ]).then(([config, state]) => {
+      if (!alive) return;
+      setPushConfig(config);
+      setPushState(state);
+    });
+    return () => { alive = false; };
+  }, []);
   const dayHeartPhoto = heart?.memory_banner?.image_url || heart?.visual_story?.image_url || "";
   const heartQuote = heart?.missed_word?.quote || heart?.memory_banner?.quote
     || heart?.visual_story?.source_quote || artwork?.description || "가족과 나눈 이야기가 안전하게 정리되었습니다.";
@@ -168,8 +233,6 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     || artwork?.title || "오늘의 대표 그림";
   const diaryTitle = heart?.memory_banner?.memory_title || heart?.memory_bridge?.title
     || artwork?.title || "오늘의 마음";
-  const diaryArtworkLabel = heart?.visual_story?.status_label
-    || (heart?.memory_banner ? "확인된 가족 기억 기반" : diaryImage ? "가족이 확인한 추억" : "");
   const diaryDisplayImage = dailyDiary?.image_url || diaryImage || "/diary/haeundae-family-drawing.png";
   const diaryDisplayAlt = dailyDiary ? `${dailyDiary.title} 기억을 그린 그림일기 삽화` : diaryImage ? diaryImageAlt : "할아버지와 손자가 해변에서 모래성을 만드는 그림일기 삽화";
   const diaryDisplayTitle = dailyDiary?.title || (hasCalls ? diaryTitle : "할아버지와 만든 모래성");
@@ -270,6 +333,74 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
     }
   }, [decline]);
 
+  const handleHandoff = useCallback(async () => {
+    if (!liveAiCall?.call_id || !myPersona?.persona_id) return;
+    setCallBusy(true);
+    setCallError("");
+    try {
+      if (!callMedia.ready) {
+        const prepared = await callMedia.prepare();
+        if (!prepared?.ready) throw new Error("마이크와 카메라 권한이 필요합니다.");
+      }
+      const handoff = await api.requestCallHandoff(
+        liveAiCall.call_id, deviceId(), myPersona.persona_id,
+      );
+      setLiveAiCall(null);
+      setConnected(handoff);
+    } catch (reason) {
+      setCallError(`통화를 이어받지 못했어요. (${reason.message})`);
+    } finally {
+      setCallBusy(false);
+    }
+  }, [callMedia, liveAiCall?.call_id, myPersona?.persona_id]);
+
+  const handleEnablePush = useCallback(async () => {
+    if (!picked?.elder_id || !myPersona?.persona_id) return;
+    setPushBusy(true);
+    setPushMessage("");
+    try {
+      await api.registerDevice({
+        device_id: deviceId(), elder_id: picked.elder_id, role: "guardian",
+        persona_id: myPersona.persona_id, label: deviceLabel(),
+      });
+      const subscription = await enableGuardianPush(pushConfig.public_key);
+      await api.savePushSubscription({ device_id: deviceId(), ...subscription });
+      setPushState(await currentPushState());
+      setPushMessage("잠금 화면 위험 알림이 켜졌어요.");
+    } catch (reason) {
+      setPushMessage(reason.message);
+    } finally {
+      setPushBusy(false);
+    }
+  }, [myPersona?.persona_id, picked?.elder_id, pushConfig.public_key]);
+
+  const handleDisablePush = useCallback(async () => {
+    setPushBusy(true);
+    setPushMessage("");
+    try {
+      await disableGuardianPush();
+      await api.removePushSubscription(deviceId()).catch(() => {});
+      setPushState(await currentPushState());
+      setPushMessage("잠금 화면 알림을 껐어요.");
+    } finally {
+      setPushBusy(false);
+    }
+  }, []);
+
+  const handleTestPush = useCallback(async () => {
+    setPushBusy(true);
+    setPushMessage("");
+    try {
+      const result = await api.sendTestPush(deviceId());
+      if (!result.configured) throw new Error("서버 알림 키가 아직 설정되지 않았습니다.");
+      setPushMessage(result.sent ? "시험 알림을 보냈어요." : "등록된 알림 기기를 찾지 못했어요.");
+    } catch (reason) {
+      setPushMessage(reason.message);
+    } finally {
+      setPushBusy(false);
+    }
+  }, []);
+
   const handleEnd = useCallback(async () => {
     if (!connected) return;
     setCallBusy(true);
@@ -286,9 +417,15 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const handleTransportFailed = useCallback(() => {
     // 어르신 쪽이 24초 재생 뒤 AI 인계를 확정한다. 그 전에는 보호자도 같은
     // 준비 화면을 유지해 두 기기의 진행 상태가 서로 달라 보이지 않게 한다.
-    setCallError("직접 통화 연결을 준비하지 못했어요. 재생이 끝나면 다소니가 이어받아요.");
+    if (connected?.purpose === "handoff" || connected?.purpose === "risk") {
+      api.endInvite(connected.invite_id).catch(() => {});
+      setConnected(null);
+      setCallError("직접 통화 연결을 준비하지 못했어요. 다소니 통화는 그대로 이어집니다.");
+    } else {
+      setCallError("직접 통화 연결을 준비하지 못했어요. 재생이 끝나면 다소니가 이어받아요.");
+    }
     setCallBusy(false);
-  }, []);
+  }, [connected]);
 
   if (!picked) return <main className="child-screen child-loading"><BrandMark size={42} /><p className={error ? "error" : "hint"}>{error || "연결된 어르신의 가족 소식을 불러오는 중…"}</p></main>;
 
@@ -316,6 +453,17 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
       {tab === "settings" && <><div className="child-header-reachable"><strong className={listening ? "device-live" : "device-idle"}>“{listening ? "지금 전화를 받을 수 있어요" : "지금은 다소니가 대신 받아요"}”</strong><span>{listening ? "화면을 켜 두면 어르신의 전화가 이 폰으로 와요." : "화면을 켜고 기다리면 가족 전화가 다시 연결돼요."}</span></div><button type="button" className="child-view-settings" onClick={onDisplaySettings} aria-label="글자 크기와 화면 명암 설정"><span aria-hidden="true">Aa</span></button></>}
     </header>
 
+    {liveAiCall && !incomingInvite && !connected && <section className="guardian-handoff-banner" aria-live="polite">
+      <div>
+        <span>지금 AI와 통화 중</span>
+        <strong>{picked.name} 어르신의 통화에 들어갈 수 있어요</strong>
+        <p>연결이 완료될 때까지 다소니가 대화를 계속합니다.</p>
+      </div>
+      <button type="button" onClick={handleHandoff} disabled={callBusy}>
+        {callBusy ? "연결 중…" : "지금 이어받기"}
+      </button>
+    </section>}
+
     {!callMedia.ready && <section className="media-readiness-panel child-media-readiness" aria-live="polite">
       <div><b>전화 받을 준비</b><p>{callMedia.message}</p></div>
       <button
@@ -332,9 +480,10 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
 
         {tab === "home" && <DasoniHomeTab
           elderCallName={elderCallName}
+          elderName={picked.name}
           dateLabel={shortDate(selectedDate)}
-          callCount={calls.length}
-          totalDurationText={duration(totalCallDuration)}
+          summary={summary}
+          baselineSummary={baselineSummary}
           attentionItems={urgent.map((risk) => ({
             id: risk.event_id,
             label: risk.label || "가족 확인이 필요해요",
@@ -358,7 +507,6 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
             </header>
             <figure className="child-diary-art">
               <img src={diaryDisplayImage} alt={diaryDisplayAlt} />
-              {diaryImage && diaryArtworkLabel && <figcaption>{diaryArtworkLabel}</figcaption>}
             </figure>
             <section className="child-diary-page">
               <header className="child-diary-title-row"><span>제목</span><h1 style={{ "--diary-title-fit": diaryTitleFit }}>{diaryDisplayTitle}</h1></header>
@@ -394,6 +542,20 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
         {tab === "analysis" && <FamilyAnalysisReport elderId={picked.elder_id} elderName={picked.name} date={selectedDate} />}
 
         {tab === "settings" && <section className="child-family-settings">
+          <section className="guardian-push-settings">
+            <header><div><span>위험 알림</span><h2>잠금 화면에서도 바로 확인</h2></div><strong className={pushState.subscribed ? "on" : "off"}>{pushState.subscribed ? "켜짐" : "꺼짐"}</strong></header>
+            <p>위험 발화나 가족 통화 요청이 생기면 이 휴대폰으로 알림을 보냅니다.</p>
+            {!pushState.supported && <p className="error">이 브라우저에서는 잠금 화면 알림을 사용할 수 없습니다.</p>}
+            {pushState.permission === "denied" && <p className="error">휴대폰 설정에서 다소니 알림 권한을 허용해 주세요.</p>}
+            {!pushConfig.configured && <p className="guardian-push-config-note">배포 서버에 Web Push 키를 등록하면 사용할 수 있어요.</p>}
+            <div>
+              {pushState.subscribed
+                ? <button type="button" className="secondary" onClick={handleDisablePush} disabled={pushBusy}>알림 끄기</button>
+                : <button type="button" onClick={handleEnablePush} disabled={pushBusy || !pushState.supported || !pushConfig.configured}>위험 알림 켜기</button>}
+              <button type="button" className="secondary" onClick={handleTestPush} disabled={pushBusy || !pushState.subscribed}>시험 알림 보내기</button>
+            </div>
+            {pushMessage && <output aria-live="polite">{pushMessage}</output>}
+          </section>
           {!myPersona && readyPersonas.length > 1 ? <div className="family-legacy-picker">
             <header><h1>통화에서 사용할 나를 선택해 주세요</h1></header>
             <div>{readyPersonas.map((persona) => <button type="button" key={persona.persona_id} onClick={() => onMyPersonaChange?.(persona.persona_id)}>{persona.face ? <img src={persona.face} alt="" /> : <i>{persona.display_name?.slice(0, 1)}</i>}<b>{persona.display_name}</b><small>{persona.relationship}</small></button>)}</div>

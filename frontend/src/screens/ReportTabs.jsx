@@ -537,8 +537,8 @@ function TimeRegressionJourney({ data = {} }) {
 }
 
 const TOPIC_STATUS = {
-  now: { key: "now", label: "즉시 확인", color: "#b8332a", hint: "위험 발화가 나온 주제" },
-  watch: { key: "watch", label: "지켜보기", color: "#bd7d0e", hint: "부담 표현이 잦음" },
+  now: { key: "now", label: "즉시 확인", color: "#b8332a" },
+  watch: { key: "watch", label: "지켜보기", color: "#bd7d0e" },
   calm: { key: "calm", label: "편안함", color: "#0f8a70", hint: "" },
 };
 
@@ -750,11 +750,11 @@ function EmotionTopicMap({ topics = [], tendency = null, risks = [] }) {
         {renderScatter()}
       </div>
       <div className="topic-legend">
-        {Object.values(TOPIC_STATUS).map((status) => <span key={status.key}><i style={{ background: status.color }} /><b>{status.label}</b>{status.hint && <small>— {status.hint}</small>}</span>)}
+        {Object.values(TOPIC_STATUS).map((status) => <span key={status.key}><i style={{ background: status.color }} /><b>{status.label}</b></span>)}
       </div>
       {graphOpen && <ReportDetailModal eyebrow="정서 유발 주제" title="주제별 통화 흐름 자세히 보기" className="topic-scatter-modal" onClose={() => setGraphOpen(false)}>
         <div className="report-modal-chart topic-modal-chart">{renderScatter(true)}</div>
-        <div className="topic-legend modal-legend">{Object.values(TOPIC_STATUS).map((status) => <span key={status.key}><i style={{ background: status.color }} /><b>{status.label}</b>{status.hint && <small>— {status.hint}</small>}</span>)}</div>
+        <div className="topic-legend modal-legend">{Object.values(TOPIC_STATUS).map((status) => <span key={status.key}><i style={{ background: status.color }} /><b>{status.label}</b></span>)}</div>
       </ReportDetailModal>}
     </> : <p className="empty-state">주제를 비교할 통화 기록이 더 필요합니다.</p>}
   </section>;
@@ -803,14 +803,12 @@ export default function ReportTabs({
     } finally { setBusy(false); }
   }
 
-  const unread = summary.risks.filter((risk) => !risk.acknowledged);
   const activeDaySummary = comparisonDay || (period.mode === "day" ? summary : null);
   const activeBaseline = baselineSummary || summary;
   const activeDayDomainCounts = useMemo(() => domainCounts(activeDaySummary), [activeDaySummary]);
   const careItems = useMemo(() => Object.entries(CARE_LABEL).map(([key, label]) => ({
     key, label, value: activeDayDomainCounts.get(key) || 0,
   })), [activeDayDomainCounts]);
-  const careTotal = careItems.reduce((sum, item) => sum + item.value, 0);
   const deviations = useMemo(() => buildDeviations(activeDaySummary, activeBaseline), [activeDaySummary, activeBaseline]);
   const positiveDeviations = deviations.filter((item) => item.difference > .05);
   const negativeDeviations = deviations.filter((item) => item.difference < -.05);
@@ -820,14 +818,6 @@ export default function ReportTabs({
   const averageCareItems = useMemo(() => careItems.map((item) => ({
     ...item, value: (baselineDomainCounts.get(item.key) || 0) / baselineDays,
   })), [careItems, baselineDomainCounts, baselineDays]);
-  const dailyReports = activeBaseline?.daily_reports || [];
-  const kpis = [
-    { label: "오늘 통화", value: summary.calls, unit: "통", average: dailyReports.reduce((sum, day) => sum + (day.calls || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.calls || 0) },
-    { label: "통화 시간", value: Math.round(summary.total_seconds / 60), unit: "분", average: dailyReports.reduce((sum, day) => sum + (day.seconds || 0) / 60, 0) / baselineDays, trend: dailyReports.map((day) => Math.round((day.seconds || 0) / 60)) },
-    { label: "대화 중 변화 신호", value: careTotal, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.observation_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.observation_count || 0), status: `발화 100개 중 ${Math.round(summary.normalized_rates?.observation_per_100_utterances || 0)}개` },
-    { label: "반복 발화", value: summary.repeat_total, unit: "회", average: dailyReports.reduce((sum, day) => sum + (day.repeated_total || day.repeat_total || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.repeated_total || day.repeat_total || 0) },
-    { label: "안전 신호", value: summary.risks.length, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.risk_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.risk_count || 0), status: unread.length ? `미확인 ${unread.length}건` : "모두 확인" },
-  ];
   const priorityTasks = useMemo(() => buildPriorityTasks(deviations, summary.risks), [deviations, summary.risks]);
   return <div className="report-dashboard">
     {!hideToolbar && <div className="report-toolbar">
@@ -840,10 +830,6 @@ export default function ReportTabs({
       <div className="manager-focus-layout">
         <section className="dashboard-card manager-combined-overview">
           <CareDomainRadar todayItems={careItems} averageItems={averageCareItems} />
-          <section className="manager-observation-summary">
-            <header><div><h2>{elderName} 어르신의 오늘 관찰 요약</h2><p>통화에서 확인된 기억·언어·정서·생활 관련 신호이며, 진단 결과가 아닙니다.</p></div></header>
-            <div className="manager-stat-grid manager-stat-strip">{kpis.map((item) => { const delta = item.value - item.average; return <article key={item.label}><span>{item.label}</span><strong>{item.value}<small>{item.unit}</small></strong><em>{item.status || `평균 대비 ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}`}</em></article>; })}</div>
-          </section>
         </section>
         <aside className="dashboard-card daily-priority-panel">
           <header><div><h2>확인 우선순위</h2></div></header>

@@ -525,7 +525,7 @@ class TTSApiTests(unittest.TestCase):
         self.assertEqual(response.headers["x-generation-seconds"], "1.500")
         self.assertNotIn("authorization", response.headers)
         synthesize.assert_called_once_with(
-            "timed", 0.92, request_id=request_id, voice_id="voice-test"
+            "timed", 0.736, request_id=request_id, voice_id="voice-test"
         )
 
     def test_public_tts_uses_approved_persona_voice_when_present(self):
@@ -548,7 +548,7 @@ class TTSApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         active.assert_called_once_with("persona_jeonghun")
         synthesize.assert_called_once_with(
-            "가족 목소리", 0.92, request_id=request_id, voice_id="voice-family",
+            "가족 목소리", 0.736, request_id=request_id, voice_id="voice-family",
         )
 
     def test_global_rate_limit_cannot_be_bypassed_by_changing_client_ip(self):

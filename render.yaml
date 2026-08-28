@@ -45,5 +45,11 @@ services:
         sync: false
       - key: TURN_CREDENTIAL
         sync: false
+      - key: WEB_PUSH_VAPID_PUBLIC_KEY
+        sync: false
+      - key: WEB_PUSH_VAPID_PRIVATE_KEY
+        sync: false
+      - key: WEB_PUSH_CONTACT
+        sync: false
       - key: TTS_BRIDGE_TOKEN
         sync: false

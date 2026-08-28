@@ -342,7 +342,7 @@ class AnamApiTests(unittest.TestCase):
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertTrue(upstream.closed)
         open_stream.assert_called_once_with(
-            "안심하세요.", 0.92,
+            "안심하세요.", 0.736,
             request_id=ANY,
             voice_id="voice-family",
         )

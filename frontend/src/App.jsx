@@ -324,11 +324,14 @@ export default function App() {
         setInvite(current);
         inviteRef.current = current;
         if (current.state === "answered") {
-          if (transportFailed.current) await resumeRiskAi();
-          else {
-            phaseRef.current = "human";
-            setPhase("human");
+          if (transportFailed.current) {
+            await api.endInvite(inviteId).catch(() => {});
+            await resumeRiskAi();
+            return;
           }
+          // 수락만으로 AI를 끊지 않는다. 양쪽 WebRTC가 실제 connected가
+          // 될 때까지 현재 CallScreen과 TTS/STT를 그대로 유지한다.
+          timer = setTimeout(tick, RING_POLL_MS);
           return;
         }
         if (current.should_take_over || ["declined", "timeout", "cancelled", "ended", "ai_takeover"].includes(current.state)) {
@@ -344,6 +347,59 @@ export default function App() {
     tick();
     return () => { alive = false; clearTimeout(timer); };
   }, [phase, invite?.invite_id, invite?.purpose, resumeRiskAi]);
+
+  // 보호자가 가족 화면의 "지금 이어받기"를 누르면 같은 AI call_id에 연결된
+  // handoff 초대가 생긴다. AI 화면은 이 초대를 찾는 동안 계속 말하고 듣는다.
+  useEffect(() => {
+    if (phase !== "incall" || !call?.call_id || invite?.purpose === "risk") {
+      return undefined;
+    }
+    let alive = true;
+    let timer = null;
+    const tick = async () => {
+      if (!alive) return;
+      try {
+        const { invite: handoff } = await api.getCallHandoff(call.call_id);
+        if (!alive) return;
+        if (handoff?.state === "answered") {
+          const isNew = inviteRef.current?.invite_id !== handoff.invite_id;
+          setInvite(handoff);
+          inviteRef.current = handoff;
+          if (isNew) prepareHumanTransport(handoff.invite_id);
+        } else if (
+          handoff
+          && inviteRef.current?.invite_id === handoff.invite_id
+          && ["ended", "cancelled", "declined", "timeout"].includes(handoff.state)
+        ) {
+          await resumeRiskAi();
+        }
+      } catch {
+        // AI 통화 자체는 정상 경로다. 이어받기 조회 장애로 끊지 않는다.
+      }
+      if (alive) timer = setTimeout(tick, RING_POLL_MS);
+    };
+    tick();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [phase, call?.call_id, invite?.purpose, prepareHumanTransport, resumeRiskAi]);
+
+  // 초대를 수락한 시점이 아니라 WebRTC가 실제 연결된 시점에만 AI 화면을
+  // 내린다. CallScreen이 언마운트되면서 TTS·STT·Anam도 함께 정리된다.
+  useEffect(() => {
+    if (
+      phase !== "incall"
+      || !call?.call_id
+      || !invite?.invite_id
+      || !["risk", "handoff"].includes(invite.purpose)
+      || invite.state !== "answered"
+      || humanTransportState !== "connected"
+    ) return;
+    api.markHumanConnected(call.call_id, invite.invite_id).catch(() => {});
+    phaseRef.current = "human";
+    setPhase("human");
+  }, [phase, call?.call_id, invite, humanTransportState]);
 
   /**
    * Follow the server-owned invite while the current morph acts as the
@@ -474,6 +530,9 @@ export default function App() {
         if (!alive) return;
         if (current.state === "ended" || current.state === "cancelled") {
           await releaseHumanTransport(false);
+          if (["risk", "handoff"].includes(inviteRef.current?.purpose) && call?.call_id) {
+            await api.endCall(call.call_id).catch(() => {});
+          }
           setInvite(null);
           setTarget(null);
           setCall(null);
@@ -492,7 +551,7 @@ export default function App() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [phase, invite?.invite_id, releaseHumanTransport]);
+  }, [phase, invite?.invite_id, call?.call_id, releaseHumanTransport]);
 
   async function startCalling(picked) {
     const person = picked ?? target;
@@ -562,7 +621,9 @@ export default function App() {
   /** 사람 통화를 끝낸다. 리포트가 없으므로 대기 화면으로 곧장 돌아간다. */
   async function endHumanCall() {
     if (invite?.invite_id) await api.endInvite(invite.invite_id).catch(() => {});
-    if (invite?.purpose === "risk" && call?.call_id) await api.endCall(call.call_id).catch(() => {});
+    if (["risk", "handoff"].includes(invite?.purpose) && call?.call_id) {
+      await api.endCall(call.call_id).catch(() => {});
+    }
     await releaseHumanTransport(false);
     cooldownUntil.current = Date.now() + RING_COOLDOWN_MS;
     setInvite(null);
@@ -790,6 +851,11 @@ export default function App() {
           anamReady={Boolean(call.anam_ready)}
           performanceStyle={profile?.persona?.avatar_performance_style ?? "calm"}
           onRiskDetected={handleRiskDetected}
+          handoffPending={Boolean(
+            invite?.purpose === "handoff"
+            && invite?.state === "answered"
+            && humanTransportState !== "connected"
+          )}
           onEnded={(s) => {
             setSummary(s);
             setPhase("ended");

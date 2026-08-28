@@ -113,7 +113,9 @@ export function useSpeech({
   // 남성 음성을 찾지 못했을 때만 음높이를 낮춘다.
   // 명세의 voice_profiles.pitch_adjustment 에 해당하는 값이다.
   fallbackPitch = 0.72,
-  rate = 0.92,
+  // 발표용 기본 음성은 기존 0.92의 80% 속도입니다. 어르신이 문장 끝까지
+  // 편하게 듣도록 브라우저 대체 음성과 ElevenLabs 요청에 같은 값을 씁니다.
+  rate = 0.736,
   personaId = null,
   callId = null,
   performanceStyle = "calm",
