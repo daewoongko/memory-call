@@ -60,3 +60,17 @@ def test_demo_day_analytics_have_visible_variation_and_life_stage_evidence():
     assert any("애들 밥" in line for line in life_stage_lines)
     assert sum("회사" in line for line in life_stage_lines) == 2
     assert any("가족을 먹여" in line for line in life_stage_lines)
+
+
+def test_seeded_transcript_depth_tracks_call_duration():
+    demo_day = date(2026, 9, 4)
+    short = seed_gildong_demo.conversation_exchanges(demo_day, 0, 155, "대웅")
+    medium = seed_gildong_demo.conversation_exchanges(demo_day, 1, 240, "정훈")
+    long = seed_gildong_demo.conversation_exchanges(demo_day, 2, 352, "미영")
+
+    assert len(short) == 4
+    assert len(medium) == 7
+    assert len(long) == 11
+    assert short[-1] == seed_gildong_demo.CLOSING_EXCHANGE
+    assert medium[-1] == seed_gildong_demo.CLOSING_EXCHANGE
+    assert long[-1] == seed_gildong_demo.CLOSING_EXCHANGE

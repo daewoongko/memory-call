@@ -48,6 +48,82 @@ AI_REPLIES = {
     "safety_physical": "지금은 앉아서 쉬시고, 계속 어지러우면 가족에게 바로 알려 주세요.",
 }
 
+# 2~6분 통화가 한 번의 문답으로 끝나 보이지 않도록, 첫 근거 발화 뒤에
+# 자연스럽게 이어지는 대화 묶음을 실제 utterance 행으로 저장한다. 분석의
+# 직접 근거는 첫 문답에만 연결하고 나머지는 통화 원문을 충실히 보여 준다.
+FOLLOW_UP_EXCHANGES = (
+    (
+        "그래, 그렇게 하나씩 짚어 보니 조금 마음이 놓이는구나.",
+        "네, 서두르지 않고 차근차근 확인하면 돼요. 제가 계속 듣고 있을게요.",
+    ),
+    (
+        "오늘은 아침부터 이런저런 생각이 자꾸 떠올랐어.",
+        "어떤 생각이 가장 먼저 떠올랐는지 편한 것부터 말씀해 주세요.",
+    ),
+    (
+        "창밖에 햇빛이 들어오는 걸 보니 날씨는 괜찮은 것 같구나.",
+        "햇빛이 드는 창가에 계시는군요. 지금 보이는 풍경도 들려주세요.",
+    ),
+    (
+        "화분 잎이 새로 난 것도 보이고 방 안이 조용하네.",
+        "작은 새잎까지 살펴보셨네요. 조용한 방에서 천천히 이야기 나눠요.",
+    ),
+    (
+        "아까 말한 내용은 가족도 알면 좋겠어.",
+        "네, 오늘 나눈 이야기는 가족이 통화 기록에서 확인할 수 있어요.",
+    ),
+    (
+        "{counterpart}도 바쁠 텐데 잘 지내고 있겠지.",
+        "{counterpart} 님을 생각하고 계시는군요. 따뜻한 마음도 함께 전해 둘게요.",
+    ),
+    (
+        "목소리를 듣고 있으니 혼자 있는 것 같지 않아서 좋구나.",
+        "저도 함께 이야기할 수 있어 좋아요. 조금 더 들려주셔도 돼요.",
+    ),
+    (
+        "예전에는 저녁이면 라디오를 켜 놓곤 했어.",
+        "익숙한 라디오 소리가 편안한 기억으로 남아 있군요.",
+    ),
+    (
+        "지금은 물 한 잔 마시고 잠깐 쉬어야겠구나.",
+        "좋아요. 천천히 물을 드시고 편한 자세로 쉬어 주세요.",
+    ),
+    (
+        "오늘 이야기한 걸 내가 또 물어봐도 괜찮지?",
+        "물론이에요. 같은 이야기라도 언제든 편하게 다시 물어보세요.",
+    ),
+    (
+        "다음 통화 때는 다른 이야기도 생각해 둘게.",
+        "기대할게요. 떠오르는 장면을 하나씩 들려주시면 됩니다.",
+    ),
+    (
+        "이야기하고 나니 처음보다 마음이 편해졌어.",
+        "그렇게 느끼셨다니 다행이에요. 오늘의 편안한 마음을 기억해 둘게요.",
+    ),
+)
+
+CLOSING_EXCHANGE = (
+    "이제 슬슬 통화를 마치고 쉬어야겠구나.",
+    "네, 오늘 말씀 고맙습니다. 편히 쉬시고 다음에 다시 이야기해요.",
+)
+
+
+def conversation_exchanges(day: date, index: int, duration: int, counterpart: str) -> list[tuple[str, str]]:
+    """통화 시간에 맞춰 첫 문답 뒤에 붙일 3~11개 후속 문답을 고른다."""
+    exchange_count = max(4, min(12, round(duration / 30)))
+    follow_up_count = exchange_count - 1
+    regular_count = max(0, follow_up_count - 1)
+    start = (day.toordinal() + index * 3) % len(FOLLOW_UP_EXCHANGES)
+    regular = [
+        FOLLOW_UP_EXCHANGES[(start + offset) % len(FOLLOW_UP_EXCHANGES)]
+        for offset in range(regular_count)
+    ]
+    selected = [*regular, CLOSING_EXCHANGE]
+    return [
+        (elder.format(counterpart=counterpart), reply.format(counterpart=counterpart))
+        for elder, reply in selected
+    ]
+
 DEMO_DOMAIN_COUNTS = {
     "orientation": 3,
     "memory": 2,
@@ -331,6 +407,32 @@ def add_call(
         "created_at": (started + timedelta(seconds=18)).isoformat(timespec="seconds"),
     })
 
+    # 표시된 통화 길이와 실제 원문 분량이 맞도록 30초 안팎마다 한 문답을
+    # 이어 붙인다. 첫 두 행의 seq는 분석 근거 호환성을 위해 그대로 둔다.
+    follow_ups = conversation_exchanges(day, index, duration, counterpart)
+    total_messages = 2 + len(follow_ups) * 2
+
+    def message_time(seq: int) -> str:
+        offset = round((seq - 1) * duration / total_messages)
+        return (started + timedelta(seconds=min(duration - 1, offset))).isoformat(timespec="seconds")
+
+    for pair_index, (elder_follow_up, ai_follow_up) in enumerate(follow_ups):
+        elder_seq = pair_index * 2 + 3
+        ai_seq = elder_seq + 1
+        insert(conn, "utterances", {
+            "call_id": call_id, "seq": elder_seq, "speaker": "elder",
+            "transcript": elder_follow_up, "used_memory_ids": [], "care_data": None,
+            "safety_flags": [], "was_rewritten": 0, "latency_ms": None,
+            "created_at": message_time(elder_seq),
+        })
+        insert(conn, "utterances", {
+            "call_id": call_id, "seq": ai_seq, "speaker": "ai",
+            "transcript": ai_follow_up, "certainty": "general",
+            "used_memory_ids": [], "care_data": None, "safety_flags": [],
+            "was_rewritten": 0, "latency_ms": 590 + ((index + pair_index) % 11) * 31,
+            "created_at": message_time(ai_seq),
+        })
+
     repeated_questions = []
     if elder_text == REPEATED_QUESTION:
         repeated_questions = [{
@@ -399,10 +501,15 @@ def validate(conn: sqlite3.Connection) -> dict:
     dates = conn.execute(
         "SELECT MIN(diary_date), MAX(diary_date), COUNT(DISTINCT diary_date) FROM heart_artworks WHERE status='approved'"
     ).fetchone()
+    transcript_depth = conn.execute(
+        "SELECT MIN(message_count), MAX(message_count), ROUND(AVG(message_count), 1) "
+        "FROM (SELECT COUNT(*) AS message_count FROM utterances GROUP BY call_id)"
+    ).fetchone()
     result = {
         **counts, "elder_ids": elder_ids,
         "demo_day": {"date": DEMO_DAY.isoformat(), "calls": demo[0], "minutes": demo[1] // 60, "types": types},
         "diary_range": {"start": dates[0], "end": dates[1], "days": dates[2]},
+        "messages_per_call": {"min": transcript_depth[0], "max": transcript_depth[1], "average": transcript_depth[2]},
     }
     assert elder_ids == "elder_001"
     assert result["heart_artworks"] == 92 and dates[2] == 92
@@ -410,6 +517,7 @@ def validate(conn: sqlite3.Connection) -> dict:
         "date": "2026-09-04", "calls": 40, "minutes": 160,
         "types": {"ai": 36, "ai_to_direct": 2, "direct": 2},
     }
+    assert result["messages_per_call"]["min"] >= 8
     return result
 
 

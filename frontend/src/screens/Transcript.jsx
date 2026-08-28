@@ -1,6 +1,26 @@
 import { useEffect, useState } from "react";
 import * as api from "../api.js";
 
+function parseDate(value) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function messageTime(value) {
+  const parsed = parseDate(value);
+  return parsed
+    ? parsed.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
+    : "";
+}
+
+function messageDate(value) {
+  const parsed = parseDate(value);
+  return parsed
+    ? parsed.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" })
+    : "통화한 날";
+}
+
 /**
  * 통화 전체 대화.
  *
@@ -23,20 +43,32 @@ export default function Transcript({ callId, personaName = "AI 가족", elderNam
   if (!rows.length) return <p className="transcript-empty">저장된 대화 내용이 없습니다.</p>;
 
   return (
-    <div className="transcript">
-      {rows.map((u) => (
-        <div key={u.seq} className={`line ${u.speaker}`}>
-          <span className="speaker">
-            {u.speaker === "elder" ? elderName : personaName}
-          </span>
-          <div className="bubble">
-            {u.transcript}
-            {u.was_rewritten ? (
-              <span className="fixed">안전 규칙으로 수정됨</span>
-            ) : null}
+    <div className="transcript" tabIndex="0" role="region" aria-label="전체 통화 대화">
+      <div className="transcript-day">{messageDate(rows[0]?.created_at)}</div>
+      <p className="transcript-scroll-guide">
+        총 {rows.length}개 발화 · 아래로 스크롤해 전체 대화를 확인하세요
+      </p>
+      {rows.map((u, index) => {
+        const showSpeaker = index === 0 || rows[index - 1]?.speaker !== u.speaker;
+        return (
+          <div key={u.seq} className={`line ${u.speaker}`}>
+            {showSpeaker && (
+              <span className="speaker">
+                {u.speaker === "elder" ? elderName : personaName}
+              </span>
+            )}
+            <div className="transcript-message-row">
+              <div className="bubble">
+                {u.transcript}
+                {u.was_rewritten ? (
+                  <span className="fixed">안전 규칙으로 수정됨</span>
+                ) : null}
+              </div>
+              <time dateTime={u.created_at}>{messageTime(u.created_at)}</time>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

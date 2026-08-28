@@ -1805,7 +1805,7 @@ def call_log(call_id: str):
     with db.connect() as conn:
         rows = conn.execute(
             "SELECT utterance_id, seq, speaker, transcript, intent, certainty, "
-            "care_data, safety_flags, was_rewritten, latency_ms "
+            "care_data, safety_flags, was_rewritten, latency_ms, created_at "
             "FROM utterances WHERE call_id = ? ORDER BY seq",
             (call_id,),
         ).fetchall()

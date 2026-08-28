@@ -8,7 +8,10 @@ const familySettings = readFileSync(new URL("../src/screens/FamilyPersonaSetting
 const callStyleQuiz = readFileSync(new URL("../src/components/CallStyleQuiz.jsx", import.meta.url), "utf8");
 const displaySettings = readFileSync(new URL("../src/components/DisplaySettings.jsx", import.meta.url), "utf8");
 const analysisReport = readFileSync(new URL("../src/screens/FamilyAnalysisReport.jsx", import.meta.url), "utf8");
+const reportTabs = readFileSync(new URL("../src/screens/ReportTabs.jsx", import.meta.url), "utf8");
 const clothesline = readFileSync(new URL("../src/screens/FamilyMemoryClothesline.jsx", import.meta.url), "utf8");
+const dasoniHome = readFileSync(new URL("../src/screens/DasoniHomeTab.jsx", import.meta.url), "utf8");
+const transcript = readFileSync(new URL("../src/screens/Transcript.jsx", import.meta.url), "utf8");
 const seedGildongDemo = readFileSync(new URL("../../tools/seed_gildong_demo.py", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 const theme = readFileSync(new URL("../src/storybook-theme.css", import.meta.url), "utf8");
@@ -21,15 +24,18 @@ test("가족 화면은 연결된 어르신과 본인 가족 식별자를 받는�
   assert.match(app, /<ChildScreen elderId=\{elderId\} myPersonaId=\{myPersonaId\}/);
 });
 
-test("보호자 메뉴는 오늘·추억·통화·분석 리포트·설정 다섯 개만 제공한다", () => {
+test("보호자 메인과 오늘·추억·통화·분석 리포트·설정 다섯 메뉴를 제공한다", () => {
   assert.equal((child.match(/id: "(?:today|memories|calls|analysis|settings)"/g) || []).length, 5);
   assert.match(child, /label: "오늘"/);
   assert.match(child, /label: "추억"/);
   assert.match(child, /label: "통화"/);
   assert.match(child, /label: "분석 리포트"/);
   assert.match(child, /label: "설정"/);
-  assert.match(child, /useState\("today"\)/);
-  assert.doesNotMatch(child, /id: "home"|tab === "home"|DasoniHomeTab/);
+  assert.match(child, /useState\("home"\)/);
+  assert.doesNotMatch(child, /id: "home"/);
+  assert.match(child, /tab === "home" && <DasoniHomeTab/);
+  assert.match(child, /다소니 메인 화면으로 이동/);
+  assert.match(dasoniHome, /오늘의 통화와 확인할 소식을 한눈에 모았어요/);
   assert.match(child, /<FamilyAnalysisReport elderId=\{picked\.elder_id\}/);
   assert.match(analysisReport, /getPeriodSummary\(1, elderId/);
   assert.match(analysisReport, /getPeriodSummary\(range\.days, elderId/);
@@ -42,6 +48,10 @@ test("가족 화면의 날짜는 일별 조회와 통화 필터에 사용된다"
   assert.match(child, /<AppDatePicker className="child-date-picker" value=\{selectedDate\}/);
   assert.match(datePicker, /<input type="date" value=\{value\}/);
   assert.match(datePicker, /className="app-date-value"/);
+  assert.match(child, /weekday: "long"/);
+  assert.match(child, /displayValue=\{shortDate\(selectedDate\)\} showValue/);
+  assert.match(theme, /child-family-header \.child-date-picker > \.app-date-value \{[\s\S]*position: static;[\s\S]*clip-path: none/);
+  assert.match(theme, /child-family-header \.child-date-picker > svg \{ display: none; \}/);
   assert.match(styles, /\.app-device-family \.child-date-picker/);
 });
 
@@ -64,6 +74,12 @@ test("통화 화면은 직접·AI·이어받기 유형과 시간순 목록 및 �
   assert.match(callModal, /event\.key === "Escape"/);
   assert.match(child, /needsAttention \? `확인 필요/);
   assert.match(callModal, /child-call-problem-badge/);
+  assert.match(transcript, /총 \{rows\.length\}개 발화/);
+  assert.match(transcript, /아래로 스크롤해 전체 대화를 확인하세요/);
+  assert.match(transcript, /transcript-message-row/);
+  assert.match(transcript, /<time dateTime=\{u\.created_at\}>/);
+  assert.match(styles, /child-call-modal \{[^}]*height:min\(760px,90dvh\)/);
+  assert.match(styles, /child-call-modal \.transcript \{[^}]*overflow-y:auto/);
 });
 
 test("가족 추억은 네 단계의 단일 보관 흐름과 사진 업로드를 제공한다", () => {
@@ -131,6 +147,34 @@ test("가족 헤더 조작과 통화 분석 그래프는 앱 프레임 폭 안�
   assert.match(theme, /child-family-header > :is\(\.child-view-settings,\.child-date-picker\)[\s\S]*grid-column: 3/);
   assert.match(theme, /family-analysis-report \.retention-layout \{[\s\S]*grid-template-columns: minmax\(0,1fr\)/);
   assert.match(theme, /family-analysis-report \.topic-scatter \{[\s\S]*min-width: 0/);
+  assert.match(reportTabs, /label: "대화 중 변화 신호"/);
+  assert.match(reportTabs, /기억·언어·정서·생활 관련 신호이며, 진단 결과가 아닙니다/);
+  assert.doesNotMatch(reportTabs, /발화 기반 관찰/);
+  assert.match(theme, /manager-stat-grid\.manager-stat-strip \{[\s\S]*border: 1px solid var\(--line\);[\s\S]*border-radius: 16px/);
+  assert.match(theme, /manager-stat-grid\.manager-stat-strip article:last-child \{[\s\S]*border-bottom: 0/);
+});
+
+test("통화 분석의 작은 차이와 복잡한 그래프는 모바일에서도 자세히 볼 수 있다", () => {
+  assert.match(reportTabs, /const scaleMin = Math\.max\(0, Math\.floor\(rawMin - scalePadding\)\)/);
+  assert.match(reportTabs, /className="retention-axis-break"/);
+  assert.match(reportTabs, />0~\{scaleMin\}분 생략</);
+  assert.match(reportTabs, /className="life-stage-snapshots"/);
+  assert.match(reportTabs, /지금 발화가 머무는 시점/);
+  assert.match(reportTabs, /시간 역행 지점 그래프 크게 보기/);
+  assert.match(reportTabs, /정서 유발 주제 그래프 크게 보기/);
+  assert.match(reportTabs, /const routeStart = firstSnapshot \|\| destination/);
+  assert.match(reportTabs, /className="life-road-travelled" points=\{travelledPoints\}/);
+  assert.match(reportTabs, /첫 관찰 · \{routeStart\.label\}/);
+  assert.doesNotMatch(reportTabs, /trajectorySegments|markerEnd|life-trajectory-marker/);
+  assert.match(reportTabs, /riskTopicName/);
+  assert.match(reportTabs, />짧은 통화<\/text><text[^>]+>긴 통화<\/text>/);
+  assert.doesNotMatch(reportTabs, /눌러서 크게 보기|30일 중앙값|item\.calls\}통 · 부담/);
+  assert.match(reportTabs, /className="topic-finding-count"/);
+  assert.doesNotMatch(reportTabs, /finding\.metric\}<i aria-hidden="true">⌄<\/i>/);
+  assert.match(styles, /\.report-modal-backdrop \{[^}]*position:fixed/);
+  assert.match(styles, /\.report-modal-chart \.life-road,\.report-modal-chart \.topic-scatter \{[^}]*min-width:780px/);
+  assert.match(theme, /family-analysis-report \.report-modal-chart \.topic-scatter \{[\s\S]*min-width: 780px/);
+  assert.match(theme, /child-brand-home\.on \{ background: transparent; \}/);
 });
 
 test("오늘 화면의 중복 카드 두 개가 제거됐다", () => {
@@ -179,7 +223,7 @@ test("보호자 모바일은 추억함 조작 크기를 통일하고 통화 상�
   assert.match(clothesline, /memory-drawer-header/);
   assert.match(clothesline, /memory-drawer-toggle/);
   assert.match(theme, /memory-new-fields \{ grid-template-columns: 1fr/);
-  assert.match(theme, /child-call-modal \{[\s\S]*min-height:78dvh/);
+  assert.match(theme, /child-call-modal \{[\s\S]*height:92dvh;[\s\S]*min-height:92dvh/);
 });
 
 test("보호자 화면은 그림일기와 다소니 발화만 손글씨로 구분한다", () => {
@@ -190,7 +234,7 @@ test("보호자 화면은 그림일기와 다소니 발화만 손글씨로 구�
   assert.match(theme, /child-header-diary-note span \{[\s\S]*white-space: pre-line;[\s\S]*overflow: visible;[\s\S]*display: block/);
   assert.doesNotMatch(child, /firstSentence\.slice\([^\n]+…/);
   assert.match(child, /가장 따뜻한 기억엔\\n/);
-  assert.match(theme, /child-view-settings,[\s\S]*child-date-picker \{[\s\S]*min-height: 46px;[\s\S]*max-height: 46px/);
+  assert.match(theme, /child-diary-title-row h1 \{[\s\S]*font-family: "Gowun Dodum", sans-serif !important/);
   assert.match(child, /compactDiaryInsight/);
 });
 

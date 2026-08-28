@@ -43,6 +43,24 @@ function textList(value) {
   }
 }
 
+function ReportDetailModal({ eyebrow, title, onClose, children, className = "" }) {
+  useEffect(() => {
+    const closeOnEscape = (event) => event.key === "Escape" && onClose();
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  return <div className="report-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <section className={`report-detail-modal ${className}`} role="dialog" aria-modal="true" aria-label={title}>
+      <header>
+        <div>{eyebrow && <small>{eyebrow}</small>}<h2>{title}</h2></div>
+        <button type="button" onClick={onClose} aria-label="상세 보기 닫기">×</button>
+      </header>
+      {children}
+    </section>
+  </div>;
+}
+
 function dateParts(iso) {
   if (!iso) return { date: "-", time: "-", full: "-" };
   const date = new Date(iso);
@@ -344,17 +362,26 @@ function PrioritySignalAccordion({
 
 function ResponseRetentionChart({ data = {} }) {
   const samples = data.samples || [];
-  const maxValue = Math.max(1, data.baseline_minutes || 0, ...samples.map((item) => item.minutes || 0));
   const current = data.current_minutes;
   const baseline = data.baseline_minutes;
   const change = data.change_minutes;
+  const chartValues = [baseline, ...samples.map((item) => item.minutes)].filter(Number.isFinite);
+  const rawMin = chartValues.length ? Math.min(...chartValues) : 0;
+  const rawMax = chartValues.length ? Math.max(...chartValues) : 1;
+  const rawSpan = Math.max(1, rawMax - rawMin);
+  const scalePadding = Math.max(1, Math.ceil(rawSpan * .4));
+  const scaleMin = Math.max(0, Math.floor(rawMin - scalePadding));
+  const scaleMax = Math.max(scaleMin + 4, Math.ceil(rawMax + scalePadding));
+  const scaleSpan = scaleMax - scaleMin;
+  const hasAxisBreak = scaleMin > 0;
   const chartWidth = 620;
   const chartHeight = 250;
-  const chartPadding = { top: 24, right: 22, bottom: 42, left: 42 };
+  const chartPadding = { top: 24, right: 22, bottom: 42, left: 54 };
   const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
   const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
-  const xAt = (index) => chartPadding.left + (samples.length === 1 ? plotWidth / 2 : index * plotWidth / (samples.length - 1));
-  const yAt = (minutes) => chartPadding.top + plotHeight - (minutes / maxValue * plotHeight);
+  const pointInset = Math.min(18, plotWidth / Math.max(2, samples.length * 2));
+  const xAt = (index) => chartPadding.left + pointInset + (samples.length === 1 ? (plotWidth - pointInset * 2) / 2 : index * (plotWidth - pointInset * 2) / (samples.length - 1));
+  const yAt = (minutes) => chartPadding.top + plotHeight - ((minutes - scaleMin) / scaleSpan * plotHeight);
   const linePoints = samples.map((item, index) => `${xAt(index)},${yAt(item.minutes || 0)}`).join(" ");
   const meaningfulChange = Math.abs(change || 0) >= Math.max(10, (baseline || 0) * .2);
   const interpretation = change > 0
@@ -371,11 +398,11 @@ function ResponseRetentionChart({ data = {} }) {
     <header><div><span>01</span><h2>답변 유지 시간</h2></div>{current != null && <strong>{current}<small>분</small></strong>}</header>
     {samples.length && current != null && baseline != null ? <>
       <div className="retention-layout">
-        <div className="retention-chart" aria-label="최근 반복 발화 간격 추세">
+        <div className="retention-chart" aria-label={`최근 반복 발화 간격 추세${hasAxisBreak ? `, 0분부터 ${scaleMin}분까지 축 생략` : ""}`}>
           <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img">
             {[0, .25, .5, .75, 1].map((ratio) => <g key={ratio}>
               <line className="retention-grid" x1={chartPadding.left} x2={chartWidth - chartPadding.right} y1={chartPadding.top + plotHeight * ratio} y2={chartPadding.top + plotHeight * ratio} />
-              <text className="retention-y-label" x={chartPadding.left - 8} y={chartPadding.top + plotHeight * ratio + 4}>{Math.round(maxValue * (1 - ratio))}</text>
+              {!(hasAxisBreak && ratio === 1) && <text className="retention-y-label" x={chartPadding.left - 10} y={chartPadding.top + plotHeight * ratio + 4}>{Math.round(scaleMax - scaleSpan * ratio)}</text>}
             </g>)}
             <line className="retention-baseline-line" x1={chartPadding.left} x2={chartWidth - chartPadding.right} y1={yAt(baseline)} y2={yAt(baseline)} />
             <text className="retention-baseline-label" x={chartWidth - chartPadding.right} y={Math.max(14, yAt(baseline) - 7)}>30일 기준 {baseline}분</text>
@@ -389,7 +416,15 @@ function ResponseRetentionChart({ data = {} }) {
               </g>;
             })}
             <polyline className="retention-trend-line" points={linePoints} />
-            {samples.map((item, index) => <circle className="retention-trend-point" key={`point-${index}`} cx={xAt(index)} cy={yAt(item.minutes || 0)} r={index === samples.length - 1 ? 6 : 4} />)}
+            {samples.map((item, index) => <g key={`point-${index}`}>
+              <circle className="retention-trend-point" cx={xAt(index)} cy={yAt(item.minutes || 0)} r={index === samples.length - 1 ? 6 : 4} />
+              <text className="retention-point-value" x={xAt(index)} y={Math.max(13, yAt(item.minutes || 0) - 10)}>{Math.round(item.minutes || 0)}</text>
+            </g>)}
+            {hasAxisBreak && <g className="retention-axis-break">
+              <rect x={chartPadding.left - 15} y={chartPadding.top + plotHeight - 10} width="32" height="17" />
+              <path d={`M ${chartPadding.left - 9} ${chartPadding.top + plotHeight - 2} q 4 -7 8 0 t 8 0`} />
+              <text x={chartPadding.left + 20} y={chartPadding.top + plotHeight + 5}>0~{scaleMin}분 생략</text>
+            </g>}
           </svg>
           <div className="retention-chart-legend"><span><i />반복 간격</span><span><i />추세선</span></div>
         </div>
@@ -404,6 +439,7 @@ function ResponseRetentionChart({ data = {} }) {
 }
 
 function TimeRegressionJourney({ data = {} }) {
+  const [detailOpen, setDetailOpen] = useState(false);
   const currentAge = data.current_age || 85;
   const stages = data.stages || [];
   const groupedStages = stages.reduce((groups, stage) => {
@@ -420,14 +456,7 @@ function TimeRegressionJourney({ data = {} }) {
   };
   const roadPoints = Array.from({ length: 91 }, (_, index) => roadPoint(index / 90 * maxAge));
   const journeyPoints = roadPoints.map((point) => `${point.x},${point.y}`).join(" ");
-  const travelledPoints = destination
-    ? roadPoints.filter((_, index) => {
-      const age = index / 90 * maxAge;
-      return age >= destination.age && age <= currentAge;
-    }).map((point) => `${point.x},${point.y}`).join(" ")
-    : "";
   const currentPoint = roadPoint(currentAge);
-  const destinationPoint = destination ? roadPoint(destination.age) : null;
   const lifeMarkers = [
     { age: 5, label: "유아기", icon: "●" },
     { age: 15, label: "학창기", icon: "◆" },
@@ -436,32 +465,74 @@ function TimeRegressionJourney({ data = {} }) {
     { age: 65, label: "중년기", icon: "★" },
     { age: Math.min(82, currentAge), label: "노년기", icon: "◎" },
   ].filter((marker, index, all) => marker.age <= currentAge && all.findIndex((item) => item.age === marker.age) === index);
+  const orderedStages = stages.slice().sort((left, right) => new Date(left.at || 0) - new Date(right.at || 0));
+  const transitions = orderedStages.filter((stage, index) => index === 0 || stage.label !== orderedStages[index - 1].label);
+  const firstSnapshot = transitions[0];
+  const lastSnapshot = transitions.at(-1);
+  const middlePool = transitions.slice(1, -1).filter((stage) => stage.label !== firstSnapshot?.label && stage.label !== lastSnapshot?.label);
+  const middleSnapshot = middlePool[Math.floor(middlePool.length / 2)] || transitions[Math.floor(transitions.length / 2)];
+  const snapshots = [firstSnapshot, middleSnapshot, lastSnapshot].filter((stage, index, all) => stage && all.indexOf(stage) === index);
+  const routeStart = firstSnapshot || destination;
+  const routeStartPoint = routeStart ? roadPoint(routeStart.age) : null;
+  const travelledPoints = routeStart
+    ? roadPoints.filter((_, index) => {
+      const age = index / 90 * maxAge;
+      return age >= Math.min(routeStart.age, currentAge) && age <= Math.max(routeStart.age, currentAge);
+    }).map((point) => `${point.x},${point.y}`).join(" ")
+    : "";
+  const latestSnapshotTime = lastSnapshot?.at ? new Date(lastSnapshot.at) : null;
+  const snapshotPeriod = (stage, index) => {
+    if (index === snapshots.length - 1) return "지금";
+    const at = stage.at ? new Date(stage.at) : null;
+    if (!at || !latestSnapshotTime || Number.isNaN(at.getTime()) || Number.isNaN(latestSnapshotTime.getTime())) return index === 0 ? "관찰 초반" : "관찰 중간";
+    const days = Math.max(0, Math.round((latestSnapshotTime - at) / 86_400_000));
+    if (days >= 30) return `${Math.round(days / 30)}개월 전`;
+    if (days >= 7) return `${Math.round(days / 7)}주 전`;
+    if (days >= 1) return `${days}일 전`;
+    return index === 0 ? "관찰 초반" : "최근";
+  };
+  const renderRoad = (expanded = false) => <svg className={`life-road${expanded ? " expanded" : ""}`} viewBox="0 0 760 250" role="img" aria-label={`${routeStart?.label || "첫 관찰 지점"}에서 현재 ${currentAge}세까지 이어지는 인생 여정`}>
+    <polyline className="life-road-base" points={journeyPoints} />
+    <polyline className="life-road-center" points={journeyPoints} />
+    {travelledPoints && <polyline className="life-road-travelled" points={travelledPoints} />}
+    {lifeMarkers.map((marker) => {
+      const point = roadPoint(marker.age);
+      return <g className="life-stage-marker" key={`${marker.label}-${marker.age}`} transform={`translate(${point.x} ${point.y})`}>
+        <circle r="22" />
+        <text className="life-stage-icon" y="5">{marker.icon}</text>
+        <text className="life-stage-label" y="39">{marker.label}</text>
+        <text className="life-stage-age" y="53">{marker.age}세 전후</text>
+      </g>;
+    })}
+    {routeStartPoint && <g className="life-regression-marker" transform={`translate(${routeStartPoint.x} ${routeStartPoint.y})`}><circle r="13" /><circle r="5" /><text y="-22">첫 관찰 · {routeStart.label}</text></g>}
+    <g className="life-current-marker" transform={`translate(${currentPoint.x} ${currentPoint.y})`}><circle r="14" /><circle r="5" /><text y="-23">현재 {currentAge}세</text></g>
+  </svg>;
+  const snapshotStrip = <div className="life-stage-snapshots" aria-label="최근 시간 역행 발화 변화">
+    {snapshots.map((stage, index) => <article className={index === snapshots.length - 1 ? "now" : ""} key={`${stage.label}-${stage.at}-${index}`}>
+      <small>{snapshotPeriod(stage, index)}</small>
+      <strong>{stage.label}</strong>
+      <span>{stage.age}세 전후 발화</span>
+    </article>)}
+  </div>;
   return <section className="dashboard-card regression-journey">
     <header><div><span>02</span><h2>시간 역행 지점</h2></div><strong>현재 {currentAge}세</strong></header>
-    <div className="life-road-wrap">
-      <svg className="life-road" viewBox="0 0 760 250" role="img" aria-label={`현재 ${currentAge}세에서 ${destination?.label || "과거 역할"}로 이어지는 인생 여정`}>
-        <polyline className="life-road-base" points={journeyPoints} />
-        <polyline className="life-road-center" points={journeyPoints} />
-        {travelledPoints && <polyline className="life-road-travelled" points={travelledPoints} />}
-        {lifeMarkers.map((marker) => {
-          const point = roadPoint(marker.age);
-          return <g className="life-stage-marker" key={`${marker.label}-${marker.age}`} transform={`translate(${point.x} ${point.y})`}>
-            <circle r="22" />
-            <text className="life-stage-icon" y="5">{marker.icon}</text>
-            <text className="life-stage-label" y="39">{marker.label}</text>
-            <text className="life-stage-age" y="53">{marker.age}세 전후</text>
-          </g>;
-        })}
-        {destinationPoint && <g className="life-regression-marker" transform={`translate(${destinationPoint.x} ${destinationPoint.y})`}><circle r="13" /><circle r="5" /><text y="-22">{destination.label} 발화</text></g>}
-        <g className="life-current-marker" transform={`translate(${currentPoint.x} ${currentPoint.y})`}><circle r="14" /><circle r="5" /><text y="-23">현재 {currentAge}세</text></g>
-      </svg>
+    <div className="life-road-wrap report-chart-preview" role="button" tabIndex="0" aria-haspopup="dialog" aria-label="시간 역행 지점 그래프 크게 보기" onClick={() => setDetailOpen(true)} onKeyDown={(event) => ["Enter", " "].includes(event.key) && setDetailOpen(true)}>
+      {renderRoad()}
     </div>
+    {snapshots.length > 0 && snapshotStrip}
+    {lastSnapshot && <div className="life-current-position"><small>지금 발화가 머무는 시점</small><strong>{lastSnapshot.label} · {lastSnapshot.age}세 전후</strong><p>실제 나이는 {currentAge}세이며, 최근 발화 내용은 이 생애 시점과 가장 가깝습니다.</p></div>}
     {destination && <aside className="life-road-cause">
       <small>이 시점으로 이어진 말</small>
       <strong>{destination.label} · {destination.count}회 관찰</strong>
       {destination.quote && <blockquote>“{destination.quote}”</blockquote>}
     </aside>}
     {!destination && <p className="empty-state">과거 역할과 연결되는 직접 발화가 확인되지 않았습니다.</p>}
+    {detailOpen && <ReportDetailModal eyebrow={`현재 ${currentAge}세`} title="시간 역행 지점 자세히 보기" className="life-road-modal" onClose={() => setDetailOpen(false)}>
+      <div className="report-modal-chart life-road-modal-chart">{renderRoad(true)}</div>
+      {snapshots.length > 0 && snapshotStrip}
+      {lastSnapshot && <div className="life-current-position"><small>지금 발화가 머무는 시점</small><strong>{lastSnapshot.label} · {lastSnapshot.age}세 전후</strong><p>실제 나이는 {currentAge}세입니다. 과거 역할과 연결된 직접 발화의 시점 변화를 보여줍니다.</p></div>}
+      {destination?.quote && <blockquote className="report-modal-quote">“{destination.quote}”</blockquote>}
+    </ReportDetailModal>}
   </section>;
 }
 
@@ -491,6 +562,7 @@ function compactRiskStamp(value) {
 }
 
 function TopicFindings({ tendency, topics, risks }) {
+  const [detail, setDetail] = useState(null);
   const findings = [];
   const riskTopic = topics.slice().sort((a, b) => Number(b.risk_count || 0) - Number(a.risk_count || 0))[0];
   const riskDates = [...new Set(risks.map((risk) => compactDay(risk.at)))].slice(0, 3).join(", ");
@@ -543,27 +615,33 @@ function TopicFindings({ tendency, topics, risks }) {
   const watchFindings = findings.filter((finding) => finding.status.key === "watch");
   const primaryFindings = findings.filter((finding) => finding.status.key !== "watch");
 
-  return <div className="topic-findings">
-    {primaryFindings.map((finding, index) => finding.risk ? <details className={`topic-finding-row ${finding.status.key} expandable`} key={`${finding.status.key}-${index}`}>
-      <summary><span>{finding.status.label}</span><p>{finding.text}</p><strong>{finding.metric}<i aria-hidden="true">⌄</i></strong></summary>
-      <blockquote className={`topic-quote ${finding.risk.level === "high" ? "high" : "medium"}`}>
-        <header><span>{RISK_LABEL[finding.risk.type] || finding.risk.type}</span><time>{compactRiskStamp(finding.risk.at)} · {finding.riskTopic}</time></header>
-        <p>“{finding.risk.quote || finding.risk.evidence}”</p>
-        <footer>{finding.risk.action || finding.risk.meaning || "현재 상태와 주변 환경을 직접 확인해 주세요."}</footer>
-      </blockquote>
-    </details> : <div className={`topic-finding-row ${finding.status.key}`} key={`${finding.status.key}-${index}`}>
-      <span>{finding.status.label}</span><p>{finding.text}</p><strong>{finding.metric}</strong>
-    </div>)}
-    {watchFindings.length > 0 && <details className="topic-finding-row watch expandable topic-watch-group">
-      <summary><span>지켜보기</span><p>조금 더 살펴볼 변화</p><strong>{watchFindings.length}건<i aria-hidden="true">⌄</i></strong></summary>
-      <div className="topic-watch-details">
-        {watchFindings.map((finding, index) => <p key={`watch-${index}`}><span>{finding.text}</span><b>{finding.metric}</b></p>)}
+  return <>
+    <div className="topic-findings">
+      {primaryFindings.map((finding, index) => <div className={`topic-finding-row ${finding.status.key}`} key={`${finding.status.key}-${index}`}>
+        <span>{finding.status.label}</span><p>{finding.text}</p>
+        {finding.risk ? <button type="button" className="topic-finding-count" onClick={() => setDetail({ type: "risk", finding })} aria-label={`${finding.metric} 자세히 보기`}>{finding.metric}</button> : <strong>{finding.metric}</strong>}
+      </div>)}
+      {watchFindings.length > 0 && <div className="topic-finding-row watch topic-watch-group">
+        <span>지켜보기</span><p>조금 더 살펴볼 변화</p><button type="button" className="topic-finding-count" onClick={() => setDetail({ type: "watch", findings: watchFindings })} aria-label={`${watchFindings.length}건 자세히 보기`}>{watchFindings.length}건</button>
+      </div>}
+    </div>
+    {detail?.type === "risk" && <ReportDetailModal eyebrow="즉시 확인" title={`${detail.finding.metric} 위험 발화 상세`} onClose={() => setDetail(null)}>
+      <article className={`topic-modal-risk ${detail.finding.risk.level === "high" ? "high" : "medium"}`}>
+        <header><span>{RISK_LABEL[detail.finding.risk.type] || detail.finding.risk.type}</span><time>{compactRiskStamp(detail.finding.risk.at)} · {detail.finding.riskTopic}</time></header>
+        <blockquote>“{detail.finding.risk.quote || detail.finding.risk.evidence}”</blockquote>
+        <p>{detail.finding.risk.action || detail.finding.risk.meaning || "현재 상태와 주변 환경을 직접 확인해 주세요."}</p>
+      </article>
+    </ReportDetailModal>}
+    {detail?.type === "watch" && <ReportDetailModal eyebrow="지켜보기" title={`${detail.findings.length}건 변화 자세히 보기`} onClose={() => setDetail(null)}>
+      <div className="topic-modal-watch-list">
+        {detail.findings.map((finding, index) => <article key={`watch-modal-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><p>{finding.text}</p><strong>{finding.metric}</strong></article>)}
       </div>
-    </details>}
-  </div>;
+    </ReportDetailModal>}
+  </>;
 }
 
 function EmotionTopicMap({ topics = [], tendency = null, risks = [] }) {
+  const [graphOpen, setGraphOpen] = useState(false);
   const maxCalls = Math.max(1, ...topics.map((item) => item.calls || 0));
   const median = (values) => {
     const ordered = values.filter(Number.isFinite).slice().sort((a, b) => a - b);
@@ -576,6 +654,11 @@ function EmotionTopicMap({ topics = [], tendency = null, risks = [] }) {
     duration: Number(item.average_minutes || 0),
     burden: Number(item.burden_ratio || 0),
   }));
+  const riskTopicName = risks.length
+    ? points.find((item) => (item.risk_types || []).some((type) => risks.some((risk) => risk.type === type)))?.topic
+      || points.find((item) => /건강|신체/.test(item.topic))?.topic
+      || points[0]?.topic
+    : "";
   const medianDuration = median(points.map((item) => item.duration));
   const medianBurden = median(points.map((item) => item.burden));
   const actualDurationMin = Math.min(...points.map((item) => item.duration), medianDuration);
@@ -602,7 +685,7 @@ function EmotionTopicMap({ topics = [], tendency = null, risks = [] }) {
     const y = scaleAroundMedian(item.burden, medianBurden, burdenMin, burdenMax, plot.bottom - radius, plot.midY, plot.top + radius);
     return {
       ...item,
-      status: topicStatus(item, medianBurden),
+      status: item.topic === riskTopicName ? TOPIC_STATUS.now : topicStatus(item, medianBurden),
       radius,
       x,
       y,
@@ -638,37 +721,41 @@ function EmotionTopicMap({ topics = [], tendency = null, risks = [] }) {
       labelByTopic.set(item.topic, { y, x: item.x + side * (item.radius + 13), side });
     });
   });
+  const renderScatter = (expanded = false) => <svg className={`topic-scatter${expanded ? " expanded" : ""}`} viewBox="0 0 790 525" role="img" aria-label="주제별 평균 통화 시간과 부담 표현 비율 버블 산점도">
+    <rect className="topic-plot-bg" x={plot.left} y={plot.top} width={plot.right - plot.left} height={plot.bottom - plot.top} rx="8" />
+    <line className="topic-median-line" x1={plot.left} x2={plot.right} y1={plot.midY} y2={plot.midY} />
+    <line className="topic-median-line" y1={plot.top} y2={plot.bottom} x1={plot.midX} x2={plot.midX} />
+    <text className="topic-quadrant-label right" x={plot.right - 14} y={plot.top + 22}>개입 필요</text>
+    {plotted.map((item) => {
+      const label = labelByTopic.get(item.topic);
+      const lineStartX = item.x + label.side * item.radius * .72;
+      return <g className={`topic-point ${item.status.key}`} key={item.topic} role="img" aria-label={`${item.topic}, ${item.status.label}`}>
+        <title>{`${item.topic} · ${item.calls}통 · 평균 ${item.duration}분 · 부담 표현 ${Math.round(item.burden * 100)}% · ${item.emotion}`}</title>
+        {item.status.key === "now" && <circle className="topic-risk-ring" cx={item.x} cy={item.y} r={item.radius + 6} />}
+        <circle cx={item.x} cy={item.y} r={item.radius} fill={item.status.color} />
+        <line className="topic-label-leader" x1={lineStartX} x2={label.x} y1={item.y} y2={label.y} />
+        <text className={`topic-point-label outside ${label.side > 0 ? "right" : "left"}`} x={label.x + label.side * 4} y={label.y + 4}>{item.topic}</text>
+      </g>;
+    })}
+    <text className="topic-axis-title y" transform="translate(18 246) rotate(-90)">부담 표현 비율</text>
+    <text className="topic-axis-end y-top" x="53" y={plot.top + 4}>많음</text><text className="topic-axis-end y-bottom" x="53" y={plot.bottom}>적음</text>
+    <text className="topic-axis-end x-left" x={plot.left} y="470">짧은 통화</text><text className="topic-axis-end x-right" x={plot.right} y="470">긴 통화</text>
+    <text className="topic-axis-title" x={(plot.left + plot.right) / 2} y="490">주제가 나온 통화의 평균 시간</text>
+  </svg>;
   return <section className="dashboard-card emotion-topic-analysis">
     <header><div><span>03</span><h2>정서 유발 주제</h2></div></header>
     <TopicFindings tendency={tendency} topics={points} risks={risks} />
     {topics.length ? <>
-      <div className="topic-scatter-wrap">
-        <svg className="topic-scatter" viewBox="0 0 790 525" role="img" aria-label="주제별 평균 통화 시간과 부담 표현 비율 버블 산점도">
-          <rect className="topic-plot-bg" x={plot.left} y={plot.top} width={plot.right - plot.left} height={plot.bottom - plot.top} rx="8" />
-          <line className="topic-median-line" x1={plot.left} x2={plot.right} y1={plot.midY} y2={plot.midY} />
-          <line className="topic-median-line" y1={plot.top} y2={plot.bottom} x1={plot.midX} x2={plot.midX} />
-          <text className="topic-median-caption x" x={plot.midX + 8} y={plot.bottom - 7}>30일 중앙값 {medianDuration}분</text>
-          <text className="topic-quadrant-label right" x={plot.right - 14} y={plot.top + 22}>개입 필요</text>
-          {plotted.map((item) => {
-            const label = labelByTopic.get(item.topic);
-            const lineStartX = item.x + label.side * item.radius * .72;
-            return <g className="topic-point" key={item.topic} tabIndex="0" role="img" aria-label={`${item.topic}, ${item.calls}통`}>
-              <title>{`${item.topic} · ${item.calls}통 · 평균 ${item.duration}분 · 부담 표현 ${Math.round(item.burden * 100)}% · ${item.emotion}`}</title>
-              {item.status.key === "now" && <circle className="topic-risk-ring" cx={item.x} cy={item.y} r={item.radius + 6} />}
-              <circle cx={item.x} cy={item.y} r={item.radius} fill={item.status.color} />
-              <line className="topic-label-leader" x1={lineStartX} x2={label.x} y1={item.y} y2={label.y} />
-              <text className={`topic-point-label outside ${label.side > 0 ? "right" : "left"}`} x={label.x + label.side * 4} y={label.y - 2}>{item.topic}</text>
-              <text className={`topic-point-count outside ${label.side > 0 ? "right" : "left"}`} x={label.x + label.side * 4} y={label.y + 11}>{item.calls}통 · 부담 {Math.round(item.burden * 100)}%</text>
-            </g>;
-          })}
-          <text className="topic-axis-title y" transform="translate(18 246) rotate(-90)">부담 표현 비율</text>
-          <text className="topic-axis-end y-top" x="53" y={plot.top + 4}>많음</text><text className="topic-axis-end y-bottom" x="53" y={plot.bottom}>적음</text>
-          <text className="topic-axis-title" x={(plot.left + plot.right) / 2} y="490">주제가 나온 통화의 평균 시간</text>
-        </svg>
+      <div className="topic-scatter-wrap report-chart-preview" role="button" tabIndex="0" aria-haspopup="dialog" aria-label="정서 유발 주제 그래프 크게 보기" onClick={() => setGraphOpen(true)} onKeyDown={(event) => ["Enter", " "].includes(event.key) && setGraphOpen(true)}>
+        {renderScatter()}
       </div>
       <div className="topic-legend">
         {Object.values(TOPIC_STATUS).map((status) => <span key={status.key}><i style={{ background: status.color }} /><b>{status.label}</b>{status.hint && <small>— {status.hint}</small>}</span>)}
       </div>
+      {graphOpen && <ReportDetailModal eyebrow="정서 유발 주제" title="주제별 통화 흐름 자세히 보기" className="topic-scatter-modal" onClose={() => setGraphOpen(false)}>
+        <div className="report-modal-chart topic-modal-chart">{renderScatter(true)}</div>
+        <div className="topic-legend modal-legend">{Object.values(TOPIC_STATUS).map((status) => <span key={status.key}><i style={{ background: status.color }} /><b>{status.label}</b>{status.hint && <small>— {status.hint}</small>}</span>)}</div>
+      </ReportDetailModal>}
     </> : <p className="empty-state">주제를 비교할 통화 기록이 더 필요합니다.</p>}
   </section>;
 }
@@ -737,7 +824,7 @@ export default function ReportTabs({
   const kpis = [
     { label: "오늘 통화", value: summary.calls, unit: "통", average: dailyReports.reduce((sum, day) => sum + (day.calls || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.calls || 0) },
     { label: "통화 시간", value: Math.round(summary.total_seconds / 60), unit: "분", average: dailyReports.reduce((sum, day) => sum + (day.seconds || 0) / 60, 0) / baselineDays, trend: dailyReports.map((day) => Math.round((day.seconds || 0) / 60)) },
-    { label: "발화 기반 관찰", value: careTotal, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.observation_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.observation_count || 0), status: `발화 100건당 ${Math.round(summary.normalized_rates?.observation_per_100_utterances || 0)}건` },
+    { label: "대화 중 변화 신호", value: careTotal, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.observation_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.observation_count || 0), status: `발화 100개 중 ${Math.round(summary.normalized_rates?.observation_per_100_utterances || 0)}개` },
     { label: "반복 발화", value: summary.repeat_total, unit: "회", average: dailyReports.reduce((sum, day) => sum + (day.repeated_total || day.repeat_total || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.repeated_total || day.repeat_total || 0) },
     { label: "안전 신호", value: summary.risks.length, unit: "건", average: dailyReports.reduce((sum, day) => sum + (day.risk_count || 0), 0) / baselineDays, trend: dailyReports.map((day) => day.risk_count || 0), status: unread.length ? `미확인 ${unread.length}건` : "모두 확인" },
   ];
@@ -754,7 +841,7 @@ export default function ReportTabs({
         <section className="dashboard-card manager-combined-overview">
           <CareDomainRadar todayItems={careItems} averageItems={averageCareItems} />
           <section className="manager-observation-summary">
-            <header><div><h2>{elderName} 어르신의 오늘 관찰 요약</h2></div></header>
+            <header><div><h2>{elderName} 어르신의 오늘 관찰 요약</h2><p>통화에서 확인된 기억·언어·정서·생활 관련 신호이며, 진단 결과가 아닙니다.</p></div></header>
             <div className="manager-stat-grid manager-stat-strip">{kpis.map((item) => { const delta = item.value - item.average; return <article key={item.label}><span>{item.label}</span><strong>{item.value}<small>{item.unit}</small></strong><em>{item.status || `평균 대비 ${delta >= 0 ? "+" : ""}${delta.toFixed(1)}`}</em></article>; })}</div>
           </section>
         </section>
