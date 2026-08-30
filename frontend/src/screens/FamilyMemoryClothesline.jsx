@@ -17,6 +17,9 @@ const DEMO_MEMORY_IMAGES = [
   "/diary/haeundae-family-drawing.png",
 ];
 
+const MEMORY_WALL_SIZE = 15;
+const MEMORY_WALL_ROW_SIZE = 5;
+
 function rotation(memory) {
   const text = String(memory.memory_id || memory.title || "memory");
   const value = [...text].reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -50,6 +53,17 @@ function Polaroid({ memory, index, onOpen, onDrawer }) {
   </li>;
 }
 
+function MemoryWallPhoto({ memory, index, onOpen }) {
+  const image = photoOf(memory);
+  return <li className="memory-wall-photo" style={{ "--wall-tilt": rotation(memory) }}>
+    <span className={`memory-wall-peg peg-${(index % 5) + 1}`} aria-hidden="true" />
+    <button type="button" onClick={() => onOpen(memory)} aria-label={`${memory.title} 자세히 보기`}>
+      <img src={image} alt={memory.title} loading="lazy" />
+      <span>{memory.title}</span>
+    </button>
+  </li>;
+}
+
 export default function FamilyMemoryClothesline({ elderId = "elder_001", elderName = "어르신" }) {
   const [memories, setMemories] = useState([]);
   const [pending, setPending] = useState([]);
@@ -60,6 +74,7 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
   const [basketOpen, setBasketOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [wallOpen, setWallOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [diaries, setDiaries] = useState([]);
   const [hiddenDiaryIds, setHiddenDiaryIds] = useState(() => new Set());
@@ -77,6 +92,17 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
     setDiaries(diaryResult.diaries || []);
   });
   useEffect(() => { load().catch((reason) => setError(reason.message)); }, [elderId]);
+  useEffect(() => {
+    if (!wallOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event) => event.key === "Escape" && setWallOpen(false);
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [wallOpen]);
 
   async function run(action) {
     setBusy(true); setError("");
@@ -101,6 +127,11 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
     .filter((memory) => memory.conversation_allowed && memory.status === "verified")
     .sort((left, right) => (left.happened_year ?? 9999) - (right.happened_year ?? 9999)
       || String(left.created_at).localeCompare(String(right.created_at))), [allMemories]);
+  const wallMemories = useMemo(() => hung.filter((memory) => photoOf(memory)).slice(0, MEMORY_WALL_SIZE), [hung]);
+  const wallRows = useMemo(() => Array.from(
+    { length: Math.ceil(wallMemories.length / MEMORY_WALL_ROW_SIZE) },
+    (_, index) => wallMemories.slice(index * MEMORY_WALL_ROW_SIZE, (index + 1) * MEMORY_WALL_ROW_SIZE),
+  ), [wallMemories]);
   const needsReview = useMemo(() => memories.filter((memory) =>
     ["partial", "unverified"].includes(memory.status)), [memories]);
   const drawer = useMemo(() => allMemories.filter((memory) =>
@@ -192,7 +223,7 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
 
   return <div className="family-memory-clothesline">
     <section className="hung-memory-section memory-step-section">
-      <header><div><small>01</small><h2>함께 보는 추억</h2></div><p>가족이 확인했고 AI 통화에서도 사용할 수 있어요.</p></header>
+      <header className="memory-hung-header"><button type="button" className="memory-wall-open-button" onClick={() => setWallOpen(true)} aria-haspopup="dialog"><span className="memory-wall-open-title"><small>01</small><h2>함께 보는 추억</h2></span><span className="memory-wall-open-copy">가족이 확인했고 AI 통화에서도 사용할 수 있어요.</span><span className="memory-wall-open-hint" aria-hidden="true">벽면으로 보기 <b>›</b></span></button></header>
       {!hung.length && <div className="empty-clothesline"><span /><b>첫 추억을 추가해 보세요</b><p>사진이 없어도 이야기부터 저장할 수 있어요.</p></div>}
       {hung.length > 0 && <div className="memory-week-line memory-all-line"><div className="memory-rope" aria-hidden="true" /><ul>{hung.map((memory, index) => <Polaroid memory={memory} index={index} key={memory.memory_id} onOpen={setSelected} onDrawer={moveToDrawer} />)}</ul></div>}
     </section>
@@ -245,6 +276,8 @@ export default function FamilyMemoryClothesline({ elderId = "elder_001", elderNa
       {drawerOpen && <div>{drawer.map((memory) => <article key={memory.memory_id}><span>{era(memory)}</span><b>{memory.title}</b><button onClick={() => restoreMemory(memory)}>다시 사용하기</button></article>)}{!drawer.length && <p>잠시 뺀 추억이 없습니다.</p>}</div>}
     </section>
     {error && <p className="error">{error}</p>}
+
+    {wallOpen && <div className="memory-wall-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setWallOpen(false)}><section className="memory-wall-dialog" role="dialog" aria-modal="true" aria-labelledby="memory-wall-title"><header><div><small>함께 보는 추억</small><h2 id="memory-wall-title">우리 가족 추억 벽</h2><p>가족이 확인한 사진만 걸려 있어요.</p></div><button type="button" onClick={() => setWallOpen(false)} aria-label="추억 벽 닫기">×</button></header>{wallRows.length > 0 ? <div className="memory-wall-canvas">{wallRows.map((row, rowIndex) => <div className="memory-wall-row" key={`wall-row-${rowIndex}`}><span className="memory-wall-rope" aria-hidden="true" /><ul>{row.map((memory, index) => <MemoryWallPhoto memory={memory} index={rowIndex * MEMORY_WALL_ROW_SIZE + index} key={memory.memory_id} onOpen={setSelected} />)}</ul></div>)}</div> : <div className="memory-wall-empty"><b>아직 걸 수 있는 사진이 없어요.</b><p>확인된 추억에 사진을 추가하면 이곳에 걸립니다.</p></div>}</section></div>}
 
     {reviewing && <div className="memory-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setReviewing(null)}><section className="memory-review-modal" role="dialog" aria-modal="true"><header><div><small>{reviewing._existing ? "걸기 전 확인" : reviewing.status === "partial" ? "일부만 확인" : "새 이야기 확인"}</small><h2>이야기를 다듬어주세요</h2></div><button onClick={() => setReviewing(null)} aria-label="닫기">×</button></header><div className="memory-review-fields"><input value={reviewForm.title} onChange={(event) => setReviewForm({ ...reviewForm, title: event.target.value })} placeholder="제목" /><input type="number" min="1800" max="2100" value={reviewForm.happened_year} onChange={(event) => setReviewForm({ ...reviewForm, happened_year: event.target.value })} placeholder="일어난 연도" /><input value={reviewForm.date_text} onChange={(event) => setReviewForm({ ...reviewForm, date_text: event.target.value })} placeholder="시기" /><input value={reviewForm.location} onChange={(event) => setReviewForm({ ...reviewForm, location: event.target.value })} placeholder="장소" /><textarea value={reviewForm.description} onChange={(event) => setReviewForm({ ...reviewForm, description: event.target.value })} placeholder="이야기" /></div><button className="primary" onClick={approveReview} disabled={busy || !reviewForm.title.trim()}>{reviewing.status === "partial" && !reviewing._existing ? "일부만 확인해 보관" : "확인하고 줄에 걸기"}</button></section></div>}
 

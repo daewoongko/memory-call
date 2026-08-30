@@ -1,20 +1,20 @@
 {
   "version": 2,
-  "created_at": "2026-08-30T06:34:40.780896+00:00",
+  "created_at": "2026-08-30T09:46:56.788836+00:00",
   "purpose": "memory-call youngest-to-current RIFE morph",
   "video": {
     "path": "data/faces/morph.mp4",
     "file": "morph.mp4",
     "validated_staging_path": null,
-    "sha256": "a65e3fb7c0376900b15f65be2e309aa0e731bf24de0bee22ca12651ea495a2a2",
-    "size_bytes": 3874972,
+    "sha256": "f8e11a976dd7c29c29fa297a709a53d80f10cc1e7ca11147255f03b7f6173e34",
+    "size_bytes": 6054761,
     "codec_fourcc": "h264",
     "width": 768,
     "height": 1024,
     "fps": 30.0,
-    "declared_frame_count": 444,
-    "decoded_frame_count": 444,
-    "duration_seconds": 14.8,
+    "declared_frame_count": 726,
+    "decoded_frame_count": 726,
+    "duration_seconds": 24.2,
     "pixel_format_required": "yuv420p",
     "audio_required": false
   },
@@ -28,169 +28,169 @@
     "direction": "youngest_to_current",
     "direct_timestep_inference": true
   },
-  "source_manifest": "data/faces/aligned/age_path_final/manifest.json",
+  "source_manifest": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/manifest.json",
   "source_sequence": [
     {
       "age": 8,
       "file": "01_age08.png",
-      "path": "data/faces/aligned/age_path_final/01_age08.png",
-      "sha256": "2f127f3d0f1e41bf799415cb749b7b0fc29bbaafc93ce52531a322c189f66656"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/01_age08.png",
+      "sha256": "30bb7c95a42a656fd5cf34693ae196de22357b8bd7b6417c76baa80e730634bd"
     },
     {
       "age": 9,
       "file": "02_age09.png",
-      "path": "data/faces/aligned/age_path_final/02_age09.png",
-      "sha256": "739fec704f2993ea1165ee7d64d20cd40c0f4fcbc966bc19efa53985192f5dd9"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/02_age09.png",
+      "sha256": "512cba7b7bb18310972ab2035fbbc75cac3b265c01784cf91db1d5f54e432a29"
     },
     {
       "age": 10,
       "file": "03_age10.png",
-      "path": "data/faces/aligned/age_path_final/03_age10.png",
-      "sha256": "7ac92864971f29e79d7fdef5964766bda25c3e317c26dd23b60db867795e32d0"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/03_age10.png",
+      "sha256": "465ebd321ec146b1697a6e8304d3d4fee1f8387d8d61c66acca3ba06074598c4"
     },
     {
       "age": 11,
       "file": "04_age11.png",
-      "path": "data/faces/aligned/age_path_final/04_age11.png",
-      "sha256": "6c61ebc0e115ee30e571e2dc8b2e94d28ac2632cffb719597102b0ea85f070d3"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/04_age11.png",
+      "sha256": "af172cfd9f34c5f0dc079f16435c4941310ae19d6ba2b8a73a8568b1f72dfd06"
     },
     {
       "age": 12,
       "file": "05_age12.png",
-      "path": "data/faces/aligned/age_path_final/05_age12.png",
-      "sha256": "e9cf8c958049495550bef84468623420c6f828d8c91d27ac8193ba41d08d9305"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/05_age12.png",
+      "sha256": "93b958ad65299c6d351322ebb481828bcb2ae41168f65956100af78312004537"
     },
     {
       "age": 15,
       "file": "06_age15.png",
-      "path": "data/faces/aligned/age_path_final/06_age15.png",
-      "sha256": "9385fdc4b660e0d9d9c98bb412a65d0f68e347e3c284d70e24af023ebefd6a5a"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/06_age15.png",
+      "sha256": "7d4808a494b1c27a6e9bbb2524a07db4a39e0d42077957a33cbdee50015c1a7e"
     },
     {
       "age": 17,
       "file": "07_age17.png",
-      "path": "data/faces/aligned/age_path_final/07_age17.png",
-      "sha256": "41cbcb507ae89ba08543c66873995e88a52908bff565b9461fac53e920d90187"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/07_age17.png",
+      "sha256": "151158fc587938149fc18e200f8f7c1a8e10fde61b21068ff69a33d9dc1dfd7f"
     },
     {
       "age": 20,
       "file": "08_age20.png",
-      "path": "data/faces/aligned/age_path_final/08_age20.png",
-      "sha256": "290c40f1219f0e65e32608bc896034b35ceeea36a8a9daeb890aebc08039bfce"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/08_age20.png",
+      "sha256": "1c6aef842e9394dc2444d9d0325214ad7051b9f92e5e1c9a2cb431c5e5234f9e"
     },
     {
       "age": 24,
       "file": "09_age24.png",
-      "path": "data/faces/aligned/age_path_final/09_age24.png",
-      "sha256": "b01d1688464ce25823e2c254731cbb46f84b0fdfe48b8569679b120855a01e82"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/09_age24.png",
+      "sha256": "e3b7b54b5a700a90f2f7c4d4b569768ec49b6701f5fa295b08de9d2218ebb3b2"
     },
     {
       "age": 28,
       "file": "10_age28.png",
-      "path": "data/faces/aligned/age_path_final/10_age28.png",
-      "sha256": "3543c0aa4d6eb4999a32644ba0f6ed5c50b844fa9c69987cdcb16f421fa4a20d"
+      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/10_age28.png",
+      "sha256": "7f64bbade818fb533d930aad1ad03c34c5cfac27b90bf152bb08cbc271c5c4b1"
     }
   ],
   "timing": {
     "fps": 30.0,
-    "timing_mode": "age-weighted",
-    "seconds_per_year": 0.6,
+    "timing_mode": "age-linear",
+    "seconds_per_year": 1.2,
     "child_slowdown_until": 12,
     "child_slowdown": 1.5,
-    "lead_hold_seconds": 1.0,
-    "lead_hold_frames": 30,
-    "tail_hold_seconds": 0.6,
-    "tail_hold_frames": 18,
+    "lead_hold_seconds": 0.6,
+    "lead_hold_frames": 18,
+    "tail_hold_seconds": 1.2,
+    "tail_hold_frames": 36,
     "segments": [
       {
         "from_age": 8,
         "to_age": 9,
-        "duration_seconds": 0.9,
-        "interpolated_frame_count": 27,
+        "duration_seconds": 1.2,
+        "interpolated_frame_count": 36,
         "source_hit_frame": 0,
-        "first_output_frame": 30,
-        "target_hit_frame": 56,
-        "elapsed_at_target_seconds": 1.9
+        "first_output_frame": 18,
+        "target_hit_frame": 53,
+        "elapsed_at_target_seconds": 1.8
       },
       {
         "from_age": 9,
         "to_age": 10,
-        "duration_seconds": 0.9,
-        "interpolated_frame_count": 27,
-        "source_hit_frame": 56,
-        "first_output_frame": 57,
-        "target_hit_frame": 83,
-        "elapsed_at_target_seconds": 2.8
+        "duration_seconds": 1.2,
+        "interpolated_frame_count": 36,
+        "source_hit_frame": 53,
+        "first_output_frame": 54,
+        "target_hit_frame": 89,
+        "elapsed_at_target_seconds": 3.0
       },
       {
         "from_age": 10,
         "to_age": 11,
-        "duration_seconds": 0.9,
-        "interpolated_frame_count": 27,
-        "source_hit_frame": 83,
-        "first_output_frame": 84,
-        "target_hit_frame": 110,
-        "elapsed_at_target_seconds": 3.7
+        "duration_seconds": 1.2,
+        "interpolated_frame_count": 36,
+        "source_hit_frame": 89,
+        "first_output_frame": 90,
+        "target_hit_frame": 125,
+        "elapsed_at_target_seconds": 4.2
       },
       {
         "from_age": 11,
         "to_age": 12,
-        "duration_seconds": 0.9,
-        "interpolated_frame_count": 27,
-        "source_hit_frame": 110,
-        "first_output_frame": 111,
-        "target_hit_frame": 137,
-        "elapsed_at_target_seconds": 4.6
+        "duration_seconds": 1.2,
+        "interpolated_frame_count": 36,
+        "source_hit_frame": 125,
+        "first_output_frame": 126,
+        "target_hit_frame": 161,
+        "elapsed_at_target_seconds": 5.4
       },
       {
         "from_age": 12,
         "to_age": 15,
-        "duration_seconds": 1.8,
-        "interpolated_frame_count": 54,
-        "source_hit_frame": 137,
-        "first_output_frame": 138,
-        "target_hit_frame": 191,
-        "elapsed_at_target_seconds": 6.4
+        "duration_seconds": 3.6,
+        "interpolated_frame_count": 108,
+        "source_hit_frame": 161,
+        "first_output_frame": 162,
+        "target_hit_frame": 269,
+        "elapsed_at_target_seconds": 9.0
       },
       {
         "from_age": 15,
         "to_age": 17,
-        "duration_seconds": 1.2,
-        "interpolated_frame_count": 36,
-        "source_hit_frame": 191,
-        "first_output_frame": 192,
-        "target_hit_frame": 227,
-        "elapsed_at_target_seconds": 7.6
+        "duration_seconds": 2.4,
+        "interpolated_frame_count": 72,
+        "source_hit_frame": 269,
+        "first_output_frame": 270,
+        "target_hit_frame": 341,
+        "elapsed_at_target_seconds": 11.4
       },
       {
         "from_age": 17,
         "to_age": 20,
-        "duration_seconds": 1.8,
-        "interpolated_frame_count": 54,
-        "source_hit_frame": 227,
-        "first_output_frame": 228,
-        "target_hit_frame": 281,
-        "elapsed_at_target_seconds": 9.4
+        "duration_seconds": 3.6,
+        "interpolated_frame_count": 108,
+        "source_hit_frame": 341,
+        "first_output_frame": 342,
+        "target_hit_frame": 449,
+        "elapsed_at_target_seconds": 15.0
       },
       {
         "from_age": 20,
         "to_age": 24,
-        "duration_seconds": 2.4,
-        "interpolated_frame_count": 72,
-        "source_hit_frame": 281,
-        "first_output_frame": 282,
-        "target_hit_frame": 353,
-        "elapsed_at_target_seconds": 11.8
+        "duration_seconds": 4.0,
+        "interpolated_frame_count": 120,
+        "source_hit_frame": 449,
+        "first_output_frame": 450,
+        "target_hit_frame": 569,
+        "elapsed_at_target_seconds": 19.0
       },
       {
         "from_age": 24,
         "to_age": 28,
-        "duration_seconds": 2.4,
-        "interpolated_frame_count": 72,
-        "source_hit_frame": 353,
-        "first_output_frame": 354,
-        "target_hit_frame": 425,
-        "elapsed_at_target_seconds": 14.2
+        "duration_seconds": 4.0,
+        "interpolated_frame_count": 120,
+        "source_hit_frame": 569,
+        "first_output_frame": 570,
+        "target_hit_frame": 689,
+        "elapsed_at_target_seconds": 23.0
       }
     ],
     "anchors": [
@@ -201,53 +201,53 @@
       },
       {
         "age": 9,
-        "hit_frame": 56,
-        "elapsed_seconds": 1.9
+        "hit_frame": 53,
+        "elapsed_seconds": 1.8
       },
       {
         "age": 10,
-        "hit_frame": 83,
-        "elapsed_seconds": 2.8
+        "hit_frame": 89,
+        "elapsed_seconds": 3.0
       },
       {
         "age": 11,
-        "hit_frame": 110,
-        "elapsed_seconds": 3.7
+        "hit_frame": 125,
+        "elapsed_seconds": 4.2
       },
       {
         "age": 12,
-        "hit_frame": 137,
-        "elapsed_seconds": 4.6
+        "hit_frame": 161,
+        "elapsed_seconds": 5.4
       },
       {
         "age": 15,
-        "hit_frame": 191,
-        "elapsed_seconds": 6.4
+        "hit_frame": 269,
+        "elapsed_seconds": 9.0
       },
       {
         "age": 17,
-        "hit_frame": 227,
-        "elapsed_seconds": 7.6
+        "hit_frame": 341,
+        "elapsed_seconds": 11.4
       },
       {
         "age": 20,
-        "hit_frame": 281,
-        "elapsed_seconds": 9.4
+        "hit_frame": 449,
+        "elapsed_seconds": 15.0
       },
       {
         "age": 24,
-        "hit_frame": 353,
-        "elapsed_seconds": 11.8
+        "hit_frame": 569,
+        "elapsed_seconds": 19.0
       },
       {
         "age": 28,
-        "hit_frame": 425,
-        "elapsed_seconds": 14.2
+        "hit_frame": 689,
+        "elapsed_seconds": 23.0
       }
     ],
-    "expected_frame_count": 444,
-    "expected_duration_seconds": 14.8,
-    "transition_end_frame": 425
+    "expected_frame_count": 726,
+    "expected_duration_seconds": 24.2,
+    "transition_end_frame": 689
   },
   "validation": {
     "passed": true,
@@ -284,26 +284,24 @@
       "yunet_score_min": 0.65
     },
     "statistics": {
-      "luma_mean_min": 119.0563,
-      "luma_mean_max": 124.141137,
-      "luma_std_min": 71.471139,
-      "pixel_diff_median": 0.216044,
-      "pixel_diff_mad": 0.106099,
-      "low_motion_frame_count": 4,
-      "longest_low_motion_run_frames": 3,
-      "face_center_jump_median": 0.00024588,
-      "face_center_jump_mad": 0.00015221,
-      "face_scale_jump_median": 0.00110605,
-      "face_scale_jump_mad": 0.00089055
+      "luma_mean_min": 119.035669,
+      "luma_mean_max": 124.127246,
+      "luma_std_min": 71.345243,
+      "pixel_diff_median": 0.149963,
+      "pixel_diff_mad": 0.073954,
+      "low_motion_frame_count": 2,
+      "longest_low_motion_run_frames": 1,
+      "face_center_jump_median": 0.00020463,
+      "face_center_jump_mad": 0.00011317,
+      "face_scale_jump_median": 0.00109958,
+      "face_scale_jump_mad": 0.0007742
     },
     "flagged_frames": {
       "black": [],
       "blank": [],
       "advisory_low_motion": [
-        355,
-        421,
-        422,
-        423
+        571,
+        661
       ],
       "unexpected_frozen": [],
       "pixel_jump": [],
@@ -312,21 +310,23 @@
       "multiple_faces": [],
       "low_face_confidence": [],
       "face_center_jump": [],
-      "face_scale_jump": [],
+      "face_scale_jump": [
+        140
+      ],
       "severe_face_jump": []
     },
     "endpoint_similarity": {
       "youngest_age": 8,
       "current_age": 28,
       "first_frame_to_youngest": {
-        "mse": 7.2618,
-        "psnr_db": 39.5204,
-        "ssim": 0.989715
+        "mse": 7.401084,
+        "psnr_db": 39.4379,
+        "ssim": 0.988655
       },
       "last_frame_to_current": {
-        "mse": 6.838247,
-        "psnr_db": 39.7814,
-        "ssim": 0.988835
+        "mse": 7.056878,
+        "psnr_db": 39.6447,
+        "ssim": 0.988251
       }
     },
     "face_detector": {
@@ -337,211 +337,211 @@
         480,
         640
       ],
-      "observed_frames": 444,
-      "minimum_score": 0.929675,
+      "observed_frames": 726,
+      "minimum_score": 0.929813,
       "anchor_observations": [
         {
           "frame": 0,
-          "score": 0.936862,
+          "score": 0.936545,
           "detections": 1,
           "box": [
-            240.7912,
-            270.9132,
-            291.7092,
-            366.3452
+            240.4615,
+            271.6797,
+            292.0689,
+            365.9736
           ],
           "center": [
-            386.6458,
-            454.0859
+            386.4959,
+            454.6665
           ],
           "eye_midpoint": [
-            390.8432,
-            411.7464
+            390.6909,
+            412.3609
           ],
-          "eye_span": 130.737
+          "eye_span": 130.5341
         },
         {
-          "frame": 56,
-          "score": 0.939159,
+          "frame": 53,
+          "score": 0.939861,
           "detections": 1,
           "box": [
-            246.4258,
-            274.9659,
-            282.0297,
-            354.5654
+            245.9161,
+            275.1021,
+            282.2247,
+            354.3386
           ],
           "center": [
-            387.4406,
-            452.2486
+            387.0285,
+            452.2714
           ],
           "eye_midpoint": [
-            393.4729,
-            410.3207
+            392.7022,
+            410.7464
           ],
-          "eye_span": 126.7286
+          "eye_span": 126.838
         },
         {
-          "frame": 83,
-          "score": 0.934047,
+          "frame": 89,
+          "score": 0.935041,
           "detections": 1,
           "box": [
-            246.7922,
-            273.5129,
-            277.6381,
-            353.3387
+            246.0237,
+            273.2222,
+            277.5315,
+            353.1947
           ],
           "center": [
-            385.6112,
-            450.1823
+            384.7895,
+            449.8195
           ],
           "eye_midpoint": [
-            388.9111,
-            411.0145
+            388.6584,
+            410.8945
           ],
-          "eye_span": 125.8766
+          "eye_span": 125.6856
         },
         {
-          "frame": 110,
-          "score": 0.933659,
+          "frame": 125,
+          "score": 0.935759,
           "detections": 1,
           "box": [
-            248.535,
-            285.0481,
-            269.174,
-            334.6027
+            248.3581,
+            284.1766,
+            267.4198,
+            336.1677
           ],
           "center": [
-            383.122,
-            452.3495
+            382.068,
+            452.2604
           ],
           "eye_midpoint": [
-            385.2194,
-            413.0481
+            385.3943,
+            413.3223
           ],
-          "eye_span": 123.4656
+          "eye_span": 123.059
         },
         {
-          "frame": 137,
-          "score": 0.934162,
+          "frame": 161,
+          "score": 0.934549,
           "detections": 1,
           "box": [
-            245.4753,
-            282.485,
-            274.069,
-            342.7194
+            257.596,
+            278.6913,
+            260.5471,
+            341.2635
           ],
           "center": [
-            382.5098,
-            453.8447
+            387.8696,
+            449.323
           ],
           "eye_midpoint": [
-            385.5084,
-            413.9245
+            386.442,
+            411.6411
           ],
-          "eye_span": 125.6537
+          "eye_span": 117.5108
         },
         {
-          "frame": 191,
-          "score": 0.934591,
+          "frame": 269,
+          "score": 0.933078,
           "detections": 1,
           "box": [
-            258.1588,
-            282.5699,
-            268.0387,
-            346.1875
+            257.1798,
+            280.5125,
+            268.353,
+            348.8717
           ],
           "center": [
-            392.1781,
-            455.6636
+            391.3563,
+            454.9484
           ],
           "eye_midpoint": [
-            391.763,
-            415.0331
+            390.6788,
+            415.2346
           ],
-          "eye_span": 117.0175
+          "eye_span": 117.6404
         },
         {
-          "frame": 227,
-          "score": 0.936659,
+          "frame": 341,
+          "score": 0.93527,
           "detections": 1,
           "box": [
-            245.4195,
-            263.7934,
-            280.6869,
-            376.9625
+            246.3702,
+            264.832,
+            278.1819,
+            375.5633
           ],
           "center": [
-            385.7629,
-            452.2746
+            385.4611,
+            452.6136
           ],
           "eye_midpoint": [
-            378.6824,
-            404.1778
+            378.1248,
+            405.1431
           ],
-          "eye_span": 130.5764
+          "eye_span": 129.4366
         },
         {
-          "frame": 281,
-          "score": 0.934255,
+          "frame": 449,
+          "score": 0.93441,
           "detections": 1,
           "box": [
-            253.4218,
-            275.0389,
-            270.125,
-            356.9128
+            253.2799,
+            275.4323,
+            270.8579,
+            357.5013
           ],
           "center": [
-            388.4843,
-            453.4953
+            388.7088,
+            454.183
           ],
           "eye_midpoint": [
-            391.104,
-            415.3773
+            391.7638,
+            414.9281
           ],
-          "eye_span": 117.7247
+          "eye_span": 117.2853
         },
         {
-          "frame": 353,
-          "score": 0.934265,
+          "frame": 569,
+          "score": 0.935181,
           "detections": 1,
           "box": [
-            257.0518,
-            278.9115,
-            263.0178,
-            360.0388
+            256.7008,
+            280.2594,
+            262.7143,
+            359.38
           ],
           "center": [
-            388.5607,
-            458.9309
+            388.0579,
+            459.9494
           ],
           "eye_midpoint": [
-            385.8202,
-            410.7075
+            385.4468,
+            410.6765
           ],
-          "eye_span": 122.6752
+          "eye_span": 122.6008
         },
         {
-          "frame": 425,
-          "score": 0.933296,
+          "frame": 689,
+          "score": 0.93204,
           "detections": 1,
           "box": [
-            247.2883,
-            270.5305,
-            277.1852,
-            364.6462
+            246.4083,
+            269.126,
+            275.2371,
+            366.4059
           ],
           "center": [
-            385.8809,
-            452.8536
+            384.0268,
+            452.329
           ],
           "eye_midpoint": [
-            391.349,
-            410.0147
+            390.6185,
+            410.226
           ],
-          "eye_span": 120.2516
+          "eye_span": 119.9375
         }
       ]
     },
-    "qc_contact_sheet": "data/faces/morph_qc.png"
+    "qc_contact_sheet": "artifacts/morph-review/morph-24_2s-active-qc.png"
   }
 }

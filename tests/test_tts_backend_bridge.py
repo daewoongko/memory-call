@@ -347,6 +347,11 @@ class TTSApiTests(unittest.TestCase):
                 "health",
                 side_effect=tts_proxy.TTSUnavailable("MuseTalk offline"),
             ),
+            patch.object(
+                api.elevenlabs_tts,
+                "resolve_voice_id_by_name",
+                return_value="voice-test",
+            ),
         ):
             response = self.client.get("/api/tts/health")
 

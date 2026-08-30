@@ -416,7 +416,7 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   }, [connected]);
 
   const handleTransportFailed = useCallback(() => {
-    // 어르신 쪽이 14.8초 재생 뒤 AI 인계를 확정한다. 그 전에는 보호자도 같은
+    // 어르신 쪽이 24.2초 재생 뒤 AI 인계를 확정한다. 그 전에는 보호자도 같은
     // 준비 화면을 유지해 두 기기의 진행 상태가 서로 달라 보이지 않게 한다.
     if (connected?.purpose === "handoff" || connected?.purpose === "risk") {
       api.endInvite(connected.invite_id).catch(() => {});

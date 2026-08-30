@@ -77,9 +77,10 @@ DEFAULT_STUN_URLS = [
 ]
 
 # The demo guardian profile always uses Daewoong's approved ElevenLabs voice.
-# Keep the provider id in code so stale deployment settings or duplicate voice
-# names can never select another voice for the scripted demo.
-DAEWOONG_ELEVENLABS_VOICE_ID = "lVNG5ZmHnq1FdaKxMW6k"
+# Provider ids change when a cloned voice is recreated, so resolve the exact,
+# account-scoped display name and cache the current id instead of pinning a
+# deleted provider id in code.
+DAEWOONG_ELEVENLABS_VOICE_NAME = "다소니 고대웅"
 
 app = FastAPI(title="기억이음 Call API", version="0.1.0")
 
@@ -822,7 +823,17 @@ def _ready_voice_id(persona_id: str | None) -> str:
     if not persona_id:
         raise HTTPException(409, "통화할 가족을 먼저 선택해 주세요.")
     if persona_id == DEFAULT_FACE_PERSONA_ID:
-        return DAEWOONG_ELEVENLABS_VOICE_ID
+        voice_name = (
+            os.getenv("ELEVENLABS_DAEWOONG_VOICE_NAME", "").strip()
+            or DAEWOONG_ELEVENLABS_VOICE_NAME
+        )
+        voice_id = elevenlabs_tts.resolve_voice_id_by_name(voice_name)
+        if not voice_id:
+            raise HTTPException(
+                409,
+                f"ElevenLabs에서 승인된 대웅 음성 '{voice_name}'을 찾을 수 없습니다.",
+            )
+        return voice_id
 
     voice_id = voice_mod.active_voice_id(persona_id)
     if not voice_id:

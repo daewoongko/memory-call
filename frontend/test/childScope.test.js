@@ -51,7 +51,10 @@ test("가족 화면의 날짜는 일별 조회와 통화 필터에 사용된다"
   assert.match(child, /weekday: "long"/);
   assert.match(child, /displayValue=\{shortDate\(selectedDate\)\} showValue/);
   assert.match(datePicker, /showPicker/);
+  assert.match(datePicker, /else picker\.click\(\)/);
+  assert.match(datePicker, /onKeyDown=\{openPickerWithKeyboard\}/);
   assert.match(datePicker, /눌러서 날짜 변경/);
+  assert.match(theme, /\.app-date-picker > input \{[\s\S]*pointer-events: none/);
   assert.match(theme, /child-family-header \.child-date-picker > \.app-date-value \{[\s\S]*position: static;[\s\S]*clip-path: none/);
   assert.match(theme, /child-family-header \.child-date-picker > svg \{ display: none; \}/);
   assert.match(styles, /\.app-device-family \.child-date-picker/);
@@ -108,6 +111,11 @@ test("가족 추억은 네 단계의 단일 보관 흐름과 사진 업로드를
   assert.match(clothesline, /함께 보는 추억/);
   assert.match(clothesline, /memory-rope/);
   assert.match(clothesline, /memory-tape/);
+  assert.match(clothesline, /memory-wall-open-button/);
+  assert.match(clothesline, /memory-wall-dialog/);
+  assert.match(clothesline, /MEMORY_WALL_ROW_SIZE = 5/);
+  assert.match(clothesline, /가족이 확인한 사진만 걸려 있어요/);
+  assert.match(styles, /\.memory-wall-row ul \{[^}]*grid-template-columns:repeat\(5/);
   assert.match(clothesline, /happened_year/);
   assert.match(clothesline, /uploadMemoryPhoto/);
   assert.match(clothesline, /아직 걸지 않은 이야기/);

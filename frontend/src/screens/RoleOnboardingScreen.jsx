@@ -8,21 +8,21 @@ import { SIZE_MAX, SIZE_MIN, SIZE_STEP, THEMES } from "../theme.js";
 
 const CONSENT_VERSION = "2026-08-24.v1";
 export const ONBOARDING_FLOW_VERSION = "2026-08-25.v2";
-const DAEWOONG_DEMO_ASSET_ROOT = "/age-candidates";
+const DAEWOONG_DEMO_ASSET_ROOT = "/persona-assets/persona_godaewoong/age_candidates";
 const DAEWOONG_DEMO_AGE_STAGES = [
-  { age: 24, recommended: "age24_selected.png", candidates: ["age24_selected.png"] },
-  { age: 20, recommended: "age20_selected.png", candidates: ["age20_selected.png"] },
-  { age: 17, recommended: "age17_selected.png", candidates: ["age17_selected.png"] },
-  { age: 15, recommended: "age15_selected.png", candidates: ["age15_selected.png"] },
+  { age: 24, recommended: "age24_selected.png", candidates: ["age24_selected.png", "age24_alt_a.png", "age24_alt_b.png", "age24_alt_c.png"] },
+  { age: 20, recommended: "age20_selected.png", candidates: ["age20_selected.png", "age20_alt_a.png", "age20_alt_b.png", "age20_alt_c.png"] },
+  { age: 17, recommended: "age17_selected.png", candidates: ["age17_selected.png", "age17_alt_a.png", "age17_alt_b.png", "age17_alt_c.png"] },
+  { age: 15, recommended: "age15_selected.png", candidates: ["age15_selected.png", "age15_alt_a.png", "age15_alt_b.png", "age15_alt_c.png"] },
   {
     age: 12,
     recommended: "age12_corrected_v3.png",
-    candidates: ["age12_corrected_v3.png"],
+    candidates: ["age12_corrected_v3.png", "age12_selected.png", "age12_corrected_v2.png", "age12_alt_a.png"],
   },
-  { age: 11, recommended: "age11_route_c.png", candidates: ["age11_route_c.png"] },
-  { age: 10, recommended: "age10_route_c.png", candidates: ["age10_route_c.png"] },
-  { age: 9, recommended: "age09_route_c.png", candidates: ["age09_route_c.png"] },
-  { age: 8, recommended: "age08_selected.png", candidates: ["age08_selected.png"] },
+  { age: 11, recommended: "age11_route_c.png", candidates: ["age11_route_c.png", "age11_alt_a.png", "age11_alt_b.png", "age11_alt_c.png"] },
+  { age: 10, recommended: "age10_route_c.png", candidates: ["age10_route_c.png", "age10_alt_a.png", "age10_alt_b.png", "age10_alt_c.png"] },
+  { age: 9, recommended: "age09_route_c.png", candidates: ["age09_route_c.png", "age09_alt_a.png", "age09_alt_b.png", "age09_alt_c.png"] },
+  { age: 8, recommended: "age08_selected.png", candidates: ["age08_selected.png", "age08_alt_a.png", "age08_alt_b.png", "age08_alt_c.png"] },
 ];
 
 const COMMON_CONSENTS = [
@@ -218,6 +218,16 @@ export default function RoleOnboardingScreen({
   const isDaewoongDemo = useMemo(
     () => /대웅/.test(`${data.display_name || ""} ${account.display_name || ""}`),
     [data.display_name, account.display_name]
+  );
+  const familyPhotoCandidates = data.photo_candidates || [];
+  const familyPhotoMinimum = Number(data.photo_minimum || 3);
+  const familyPhotoUsableCount = familyPhotoCandidates.filter((photo) => photo.quality?.usable !== false).length;
+  const familyPhotosReady = familyPhotoUsableCount >= familyPhotoMinimum;
+  const familyAvatarReady = Boolean(
+    familyPhotosReady
+    && data.selected_photo
+    && (!isDaewoongDemo || data.demo_age_complete)
+    && calculateCallStyle(data.call_style_answers || {})
   );
   const update = (patch) => setData((current) => ({ ...current, ...patch }));
 
@@ -541,15 +551,26 @@ export default function RoleOnboardingScreen({
     setPhotoPreview(URL.createObjectURL(list[0]));
     try {
       const result = await api.uploadIdentityPhotos(list, data.persona_id);
-      if (result.errors?.length) throw new Error(result.errors[0].error);
-      const candidates = result.identity_photos?.photos || [];
+      const identity = result.identity_photos || {};
+      const candidates = identity.photos || [];
+      const photoChoice = candidates.some((photo) => photo.name === data.photo_choice)
+        ? data.photo_choice
+        : identity.recommended || "";
       update({
-        photo_ready: true,
-        photo_count: result.identity_photos?.count || list.length,
+        photo_ready: Boolean(identity.ready),
+        photo_count: identity.count || candidates.length,
+        photo_usable_count: identity.usable_count || 0,
+        photo_minimum: identity.minimum || 3,
+        photo_maximum: identity.maximum || 6,
         photo_candidates: candidates,
+        photo_choice: photoChoice,
         selected_photo: "",
         face_job: candidates.length ? "waiting_selection" : "needs_review",
       });
+      setPhotoPreview("");
+      if (result.errors?.length) {
+        setError(`${candidates.length}장은 등록했고, 일부 사진은 제외했어요. ${result.errors[0].error}`);
+      }
     } catch (reason) {
       setError(reason.message);
       update({ photo_ready: false });
@@ -559,8 +580,14 @@ export default function RoleOnboardingScreen({
   }
 
   async function confirmFamilyAvatarPhoto(photo) {
+    if (photo.quality?.usable === false) return;
     setError("");
+    if (!familyPhotosReady) {
+      update({ photo_choice: photo.name });
+      return;
+    }
     update({
+      photo_choice: photo.name,
       selected_photo: photo.name,
       face_job: "requesting",
       demo_age_index: isDaewoongDemo ? 0 : undefined,
@@ -571,7 +598,7 @@ export default function RoleOnboardingScreen({
       await api.confirmAvatarPhoto(data.persona_id, photo.name, data.elder_id);
       update({ face_job: "processing" });
     } catch (reason) {
-      update({ face_job: "needs_review" });
+      update({ selected_photo: "", face_job: "needs_review" });
       setError(reason.message);
     }
   }
@@ -692,7 +719,7 @@ export default function RoleOnboardingScreen({
       </div>}
 
       {step === "family_setup" && <>
-        <section className={`journey-family-section${isDaewoongDemo && data.selected_photo && !data.demo_age_complete ? " journey-age-stage" : ""}`}>
+        <section className={`journey-family-section${isDaewoongDemo && data.selected_photo && familyPhotosReady && !data.demo_age_complete ? " journey-age-stage" : ""}`}>
           <div className="journey-section-heading"><div><b>관계와 호칭</b></div></div>
           <div className="journey-fields two"><label>내 이름<input value={data.display_name || account.display_name || ""} onChange={(event) => update({ display_name: event.target.value })} /></label><label>어르신과의 관계<input placeholder="예: 아들" value={data.relationship || ""} onChange={(event) => update({ relationship: event.target.value })} /></label><label>어르신이 나를 부르는 말<input placeholder="예: 대웅아" value={data.elder_calls_family || ""} onChange={(event) => update({ elder_calls_family: event.target.value })} /></label><label>내가 어르신을 부르는 말<input placeholder="예: 할아버지" value={data.family_calls_elder || ""} onChange={(event) => update({ family_calls_elder: event.target.value })} /></label></div>
         </section>
@@ -701,11 +728,15 @@ export default function RoleOnboardingScreen({
 
       {step === "family_avatar" && <>
         <section className="journey-family-section">
-          {!isDaewoongDemo || !data.selected_photo ? <>
-            <div className="journey-section-heading"><div><b>현재 28세 얼굴 사진</b><small>먼저 지금 모습을 가장 잘 보여주는 사진을 골라 주세요.</small></div></div>
-            <div className="journey-photo-upload compact" onClick={() => fileRef.current?.click()}>{photoPreview || selectedPersona?.face ? <img src={photoPreview || selectedPersona.face} alt="등록한 현재 얼굴 미리보기" /> : <span>＋<small>사진 선택</small></span>}<input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(event) => uploadPhotos(event.target.files)} /></div>
-            {(data.photo_candidates || []).length > 0 && <div className="journey-photo-candidates" aria-label="현재 얼굴 사진 후보">{data.photo_candidates.map((photo) => <button type="button" key={photo.name} className={data.selected_photo === photo.name ? "selected" : ""} onClick={() => confirmFamilyAvatarPhoto(photo)}><img src={photo.url} alt="현재 얼굴 사진 후보" /><span>{data.selected_photo === photo.name ? "선택됨" : "이 사진 선택"}</span></button>)}</div>}
-            {data.photo_ready && <div className={`journey-job ${data.face_job || "waiting_selection"}`}><i /><span><b>{data.face_job === "needs_review" ? "사진을 다시 확인해 주세요" : data.face_job === "waiting_selection" ? "28세 대표 사진을 골라 주세요" : "현재 얼굴을 확인했어요"}</b><small>선택하면 연령별 얼굴을 차례로 확인해요.</small></span></div>}
+          {!isDaewoongDemo || !data.selected_photo || !familyPhotosReady ? <>
+            <div className="journey-section-heading"><div><b>현재 28세 얼굴 사진</b><small>정면 사진 3~6장을 올리면 AI가 가장 적합한 사진을 추천해요.</small></div></div>
+            {familyPhotoCandidates.length === 0 ? <div className="journey-photo-upload compact" onClick={() => fileRef.current?.click()}>{photoPreview ? <img src={photoPreview} alt="업로드 중인 현재 얼굴 미리보기" /> : <span>＋<small>사진 3~6장 선택</small></span>}<input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(event) => uploadPhotos(event.target.files)} /></div> : <div className="journey-photo-upload-summary"><span><b>총 {data.photo_count || familyPhotoCandidates.length}장</b><small>사용 가능 {familyPhotoUsableCount}장 · 최소 {familyPhotoMinimum}장 필요</small></span><button type="button" disabled={busy || (data.photo_count || 0) >= (data.photo_maximum || 6)} onClick={() => fileRef.current?.click()}>{(data.photo_count || 0) >= (data.photo_maximum || 6) ? "최대 6장 등록됨" : "사진 더 추가"}</button><input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(event) => uploadPhotos(event.target.files)} /></div>}
+            {familyPhotoCandidates.length > 0 && <div className="journey-photo-candidates journey-current-photo-candidates" aria-label="현재 얼굴 사진 후보">{familyPhotoCandidates.map((photo) => {
+              const usable = photo.quality?.usable !== false;
+              const chosen = data.photo_choice === photo.name || data.selected_photo === photo.name;
+              return <button type="button" key={photo.name} className={`${chosen ? "selected " : ""}${photo.recommended ? "recommended " : ""}${usable ? "" : "unusable"}`.trim()} disabled={busy || !usable} onClick={() => confirmFamilyAvatarPhoto(photo)}><img src={photo.url} alt={`현재 얼굴 사진 후보${photo.recommended ? " · AI 추천" : ""}`} />{photo.recommended && <em>AI 추천</em>}{!usable && <em className="unusable">사용 어려움</em>}<span>{chosen ? "선택됨" : usable ? "이 사진 선택" : "다른 사진 필요"}</span></button>;
+            })}</div>}
+            {familyPhotoCandidates.length > 0 && <div className={`journey-job ${familyPhotosReady ? "ready" : "waiting_selection"}`}><i /><span><b>{familyPhotosReady ? "AI 추천 사진을 확인해 주세요" : `사용 가능한 사진을 ${Math.max(0, familyPhotoMinimum - familyPhotoUsableCount)}장 더 올려 주세요`}</b><small>{familyPhotosReady ? "추천 사진이나 원하는 사진을 누르면 연령별 얼굴 선택으로 이동해요." : "사진은 지금 골라둘 수 있어요. 한 장을 더 추가한 뒤 원하는 사진을 다시 눌러 주세요."}</small></span></div>}
           </> : data.demo_age_complete ? <div className="journey-age-complete">
             <div className="journey-age-complete-faces" aria-hidden="true">
               {[24, 17, 12, 8].map((age) => {
@@ -912,7 +943,7 @@ export default function RoleOnboardingScreen({
       </>}
 
       {error && <p className="error journey-error" role="alert">{error}</p>}
-      <footer className={`journey-actions${step === "care_review" ? " journey-care-review-actions" : ""}`}><button type="button" className="journey-secondary" onClick={back} disabled={busy}>{index === 0 ? "역할 다시 선택" : "이전"}</button><button type="button" className={`journey-primary${step === "care_review" ? " journey-care-complete" : ""}`} onClick={next} disabled={busy || (step === "family" && !data.family_confirmed) || (step === "practice" && !data.practice_confirmed)}>{busy ? "저장하는 중…" : step === "care_review" ? "메인으로" : step === "review" || step === "family_voice" || step === "elder_ready" ? `${meta.label} 메인으로` : "계속"}</button></footer>
+      <footer className={`journey-actions${step === "care_review" ? " journey-care-review-actions" : ""}`}><button type="button" className="journey-secondary" onClick={back} disabled={busy}>{index === 0 ? "역할 다시 선택" : "이전"}</button><button type="button" className={`journey-primary${step === "care_review" ? " journey-care-complete" : ""}`} onClick={next} disabled={busy || (step === "family" && !data.family_confirmed) || (step === "practice" && !data.practice_confirmed) || (step === "family_avatar" && !familyAvatarReady)}>{busy ? "저장하는 중…" : step === "care_review" ? "메인으로" : step === "review" || step === "family_voice" || step === "elder_ready" ? `${meta.label} 메인으로` : "계속"}</button></footer>
     </section>
   </main>;
 }

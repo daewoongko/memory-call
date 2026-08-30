@@ -4,14 +4,14 @@ import BrandMark from "../components/BrandMark.jsx";
 
 /**
  * 가족을 호출하는 구간. 대웅의 연령 변화 영상은 이 대기 시간을 대신한다.
- * 가족이 중간에 받아도 14.8초 준비 재생을 마친 뒤 사람 통화로 넘어간다.
+ * 가족이 중간에 받아도 24.2초 준비 재생을 마친 뒤 사람 통화로 넘어간다.
  * 받지 않은 경우에도 같은 시점에 AI가 이어받아 두 기기의 흐름이 어긋나지 않는다.
  */
 export default function CallingScreen({
   name,
   announcement,
   morphUrl = null,
-  introDurationSec = 14.8,
+  introDurationSec = 24.2,
   onWaitEnded,
 }) {
   const [elapsed, setElapsed] = useState(0);

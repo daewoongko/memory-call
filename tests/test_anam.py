@@ -193,7 +193,7 @@ class AnamApiTests(unittest.TestCase):
     def tearDown(self):
         api.SESSIONS.pop(self.call_id, None)
 
-    def test_daewoong_persona_is_pinned_to_approved_voice(self):
+    def test_daewoong_persona_resolves_the_current_approved_voice(self):
         with (
             patch.object(
                 api.voice_mod,
@@ -203,7 +203,7 @@ class AnamApiTests(unittest.TestCase):
             patch.object(
                 api.elevenlabs_tts,
                 "resolve_voice_id_by_name",
-                return_value="another-named-voice",
+                return_value="current-approved-voice",
             ) as resolve,
             patch.dict(
                 "os.environ",
@@ -215,10 +215,20 @@ class AnamApiTests(unittest.TestCase):
         ):
             self.assertEqual(
                 api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID),
-                api.DAEWOONG_ELEVENLABS_VOICE_ID,
+                "current-approved-voice",
             )
         active_voice.assert_not_called()
-        resolve.assert_not_called()
+        resolve.assert_called_once_with(api.DAEWOONG_ELEVENLABS_VOICE_NAME)
+
+    def test_daewoong_persona_reports_a_missing_approved_voice(self):
+        with patch.object(
+            api.elevenlabs_tts,
+            "resolve_voice_id_by_name",
+            return_value=None,
+        ):
+            with self.assertRaises(api.HTTPException) as raised:
+                api._ready_voice_id(api.DEFAULT_FACE_PERSONA_ID)
+        self.assertEqual(raised.exception.status_code, 409)
 
     def test_deployment_voice_does_not_leak_to_other_personas(self):
         with (

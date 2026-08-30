@@ -27,10 +27,10 @@ import { startWaitingMelody, stopWaitingMelody } from "./waitingMelody.js";
 const RING_POLL_MS = 1500;
 const RING_COOLDOWN_MS = 300000; // 통화가 끝난 뒤 중복 상태 전환을 막는 유예
 // 모바일 WebRTC의 ICE 연결은 같은 와이파이에서도 수 초 이상 걸릴 수 있다.
-// 14.8초 인트로가 끝난 뒤에만 이 유예 시간을 적용해 정상적인 받기를 인트로
+// 24.2초 인트로가 끝난 뒤에만 이 유예 시간을 적용해 정상적인 받기를 인트로
 // 도중에 실패로 닫지 않는다.
 const HUMAN_CONNECT_GRACE_MS = 20000;
-const CALLING_INTRO_SEC = 14.8;
+const CALLING_INTRO_SEC = 24.2;
 
 const KEY_ROLE = "dasoni.role";
 const KEY_LINKED = "dasoni.linked";
@@ -501,7 +501,7 @@ export default function App() {
     fallBackFromHuman, releaseHumanTransport,
   ]);
 
-  // 14.8초 인트로가 끝나 사람 화면을 연 뒤에도 미디어가 붙지 않을 때만
+  // 24.2초 인트로가 끝나 사람 화면을 연 뒤에도 미디어가 붙지 않을 때만
   // 조용히 AI로 넘긴다. 보호자가 받자마자 시작한 별도 타이머로 인트로 중
   // 연결을 끊으면 양쪽 화면이 서로 다른 상태가 된다.
   useEffect(() => {

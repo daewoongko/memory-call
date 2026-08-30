@@ -84,7 +84,17 @@ test("Daewoong onboarding confirms the current face and walks through the select
   assert.match(journey, /demo_age_selections/);
   assert.match(journey, /AI 추천/);
   assert.equal([...journey.matchAll(/candidates: \[[^\]]+\]/g)].length, 9);
-  assert.match(journey, /DAEWOONG_DEMO_ASSET_ROOT = "\/age-candidates"/);
+  assert.equal([...journey.matchAll(/candidates: \[[^\]]+\]/g)].every((match) => (match[0].match(/\.png/g) || []).length === 4), true);
+  assert.match(journey, /photo\.recommended/);
+  assert.match(journey, /사진 3~6장 선택/);
+  assert.match(journey, /photo_ready: Boolean\(identity\.ready\)/);
+  assert.match(journey, /if \(!familyPhotosReady\) \{[\s\S]{0,100}photo_choice: photo\.name/);
+  assert.match(journey, /disabled=\{busy \|\| !usable\}/);
+  assert.doesNotMatch(journey, /disabled=\{busy \|\| !familyPhotosReady \|\| !usable\}/);
+  assert.match(journey, /step === "family_avatar" && !familyAvatarReady/);
+  assert.match(journey, /length === 0 \? <div className="journey-photo-upload compact"[\s\S]{0,500}photoPreview \?/);
+  assert.match(journey, /journey-photo-upload-summary/);
+  assert.match(journey, /DAEWOONG_DEMO_ASSET_ROOT = "\/persona-assets\/persona_godaewoong\/age_candidates"/);
   assert.match(journey, /revisitDemoAgeStage/);
   assert.match(journey, /이전 연령 얼굴 보기/);
   assert.match(journey, /다음 연령 얼굴 보기/);
@@ -149,7 +159,7 @@ test("consent, invite linking, photo creation and real voice status gate the fam
 test("the elder waiting screen keeps the shared introduction honest", () => {
   const calling = readFileSync(new URL("../src/screens/CallingScreen.jsx", import.meta.url), "utf8");
   assert.doesNotMatch(calling, /전화벨이 울리고 있어요/);
-  assert.match(calling, /14\.8/);
+  assert.match(calling, /24\.2/);
   assert.match(calling, /잔잔한 음악을 들으며 잠시 기다려 주세요/);
   assert.doesNotMatch(calling, /다소니와 먼저 이야기하기/);
   assert.doesNotMatch(calling, /다른 가족 선택/);
