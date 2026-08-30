@@ -56,8 +56,8 @@ FFMPEG = resolve_ffmpeg()
 WIDTH = 768
 HEIGHT = 1024
 FPS = 30
-LEAD_HOLD_FRAMES = 18
-TAIL_HOLD_FRAMES = 36
+DEFAULT_LEAD_HOLD_SECONDS = 0.6
+DEFAULT_TAIL_HOLD_SECONDS = 1.2
 LEGACY_SEGMENTS: tuple[tuple[int, int, float], ...] = (
     (8, 9, 2.4),
     (9, 11, 2.6),
@@ -200,6 +200,8 @@ def build(
     seconds_per_year: float = 1.0,
     child_slowdown_until: int = 12,
     child_slowdown: float = 1.5,
+    lead_hold_seconds: float = DEFAULT_LEAD_HOLD_SECONDS,
+    tail_hold_seconds: float = DEFAULT_TAIL_HOLD_SECONDS,
     segment_limit: int | None = None,
 ) -> None:
     ages, anchors, paths = load_sequence(sequence_dir)
@@ -224,8 +226,12 @@ def build(
     if segment_limit is not None and not 1 <= segment_limit <= len(all_segments):
         raise ValueError(f"--segment-limit must be between 1 and {len(all_segments)}")
     segments = all_segments if segment_limit is None else all_segments[:segment_limit]
-    expected = LEAD_HOLD_FRAMES + sum(round(s * FPS) for _, _, s in segments)
-    tail_frames = TAIL_HOLD_FRAMES if segment_limit is None else 0
+    lead_frames = round(lead_hold_seconds * FPS)
+    requested_tail_frames = round(tail_hold_seconds * FPS)
+    if lead_frames < 1 or requested_tail_frames < 0:
+        raise ValueError("Hold durations must produce at least one lead frame and a non-negative tail frame count.")
+    expected = lead_frames + sum(round(s * FPS) for _, _, s in segments)
+    tail_frames = requested_tail_frames if segment_limit is None else 0
     expected += tail_frames
 
     written = 0
@@ -240,7 +246,7 @@ def build(
             written += 1
 
         try:
-            for _ in range(LEAD_HOLD_FRAMES):
+            for _ in range(lead_frames):
                 write(anchors[0])
 
             for segment_index, (start_age, end_age, seconds) in enumerate(segments):
@@ -295,6 +301,8 @@ def main() -> None:
     parser.add_argument("--seconds-per-year", type=float, default=1.0)
     parser.add_argument("--child-slowdown-until", type=int, default=12)
     parser.add_argument("--child-slowdown", type=float, default=1.5)
+    parser.add_argument("--lead-hold-seconds", type=float, default=DEFAULT_LEAD_HOLD_SECONDS)
+    parser.add_argument("--tail-hold-seconds", type=float, default=DEFAULT_TAIL_HOLD_SECONDS)
     parser.add_argument("--segment-limit", type=int)
     args = parser.parse_args()
     build(
@@ -305,6 +313,8 @@ def main() -> None:
         seconds_per_year=args.seconds_per_year,
         child_slowdown_until=args.child_slowdown_until,
         child_slowdown=args.child_slowdown,
+        lead_hold_seconds=args.lead_hold_seconds,
+        tail_hold_seconds=args.tail_hold_seconds,
         segment_limit=args.segment_limit,
     )
 

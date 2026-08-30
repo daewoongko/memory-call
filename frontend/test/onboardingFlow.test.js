@@ -149,7 +149,7 @@ test("consent, invite linking, photo creation and real voice status gate the fam
 test("the elder waiting screen keeps the shared introduction honest", () => {
   const calling = readFileSync(new URL("../src/screens/CallingScreen.jsx", import.meta.url), "utf8");
   assert.doesNotMatch(calling, /전화벨이 울리고 있어요/);
-  assert.match(calling, /24/);
+  assert.match(calling, /14\.8/);
   assert.match(calling, /잔잔한 음악을 들으며 잠시 기다려 주세요/);
   assert.doesNotMatch(calling, /다소니와 먼저 이야기하기/);
   assert.doesNotMatch(calling, /다른 가족 선택/);

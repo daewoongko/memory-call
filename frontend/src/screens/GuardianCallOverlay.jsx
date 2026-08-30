@@ -87,7 +87,7 @@ export default function GuardianCallOverlay({
     let alive = true;
     let transport = null;
     let timeout = null;
-    // 받기를 누른 시점부터 재면 24초 인트로가 끝나기 전에 정상 연결을
+    // 받기를 누른 시점부터 재면 14.8초 인트로가 끝나기 전에 정상 연결을
     // 실패로 닫을 수 있다. 서버가 알려 준 남은 인트로 뒤에 ICE 유예 시간을
     // 더해 두 기기가 같은 마감 시각을 사용하게 한다.
     const remainingIntroMs = Math.max(

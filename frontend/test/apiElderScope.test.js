@@ -54,11 +54,13 @@ test("가족 카드 통화는 호출을 만든 뒤 서버 상태에 따라 사�
   assert.doesNotMatch(app, /setSecondsLeft|secondsLeft=/);
 });
 
-test("가족이 받아도 24초 AI 영상·대기 음악 뒤에 사람 통화를 연다", () => {
-  assert.match(app, /startWaitingMelody\(24000\)/);
+test("가족이 받아도 14.8초 AI 영상·대기 음악 뒤에 사람 통화를 연다", () => {
+  assert.match(app, /CALLING_INTRO_SEC = 14\.8/);
+  assert.match(app, /startWaitingMelody\(CALLING_INTRO_SEC \* 1000\)/);
   assert.match(app, /current\.state === "answered"[\s\S]*?!current\.intro_complete[\s\S]*?setTimeout\(tick, RING_POLL_MS\)/);
-  assert.match(app, /introDurationSec=\{invite\?\.intro_duration_sec \?\? 24\}/);
-  assert.match(calling, /introDurationSec = 24/);
+  assert.match(app, /introDurationSec=\{invite\?\.intro_seconds_left \?\? CALLING_INTRO_SEC\}/);
+  assert.match(calling, /introDurationSec = 14\.8/);
+  assert.match(calling, /Math\.ceil\(introDurationSec - elapsed\)/);
   assert.match(calling, /onWaitEndedRef\.current\?\.\(\)/);
   assert.match(calling, /잔잔한 음악을 들으며 잠시 기다려 주세요/);
   assert.match(guardianCall, /나의 AI 영상을 재생 중/);
@@ -70,7 +72,7 @@ test("가족이 받아도 24초 AI 영상·대기 음악 뒤에 사람 통화를
   assert.match(melody, /export function startWaitingMelody/);
 });
 
-test("24초 안내 전에 도착한 실제 영상도 안내 종료 뒤 화면에 다시 붙인다", () => {
+test("14.8초 안내 전에 도착한 실제 영상도 안내 종료 뒤 화면에 다시 붙인다", () => {
   assert.match(remotePlayback, /const \[mediaNode, setMediaNode\] = useState\(null\)/);
   assert.match(remotePlayback, /const mediaRef = useCallback\(\(node\)/);
   assert.match(remotePlayback, /\[mediaNode, stream, playWithVideoFallback, refresh\]/);

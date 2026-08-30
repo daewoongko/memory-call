@@ -46,8 +46,8 @@ DEFAULT_RIFE_MODEL = PROJECT / "backend" / "models" / "rife" / "RIFE_fp32_timest
 EXPECTED_WIDTH = 768
 EXPECTED_HEIGHT = 1024
 EXPECTED_FPS = 30.0
-LEAD_HOLD_SECONDS = 0.6
-TAIL_HOLD_SECONDS = 1.2
+DEFAULT_LEAD_HOLD_SECONDS = 0.6
+DEFAULT_TAIL_HOLD_SECONDS = 1.2
 
 # Deliberately slower childhood passages and slightly quicker adult passages.
 LEGACY_SEGMENTS: tuple[tuple[int, int, float], ...] = (
@@ -230,9 +230,13 @@ def build_timing(
     seconds_per_year: float = 1.0,
     child_slowdown_until: int = 12,
     child_slowdown: float = 1.5,
+    lead_hold_seconds: float = DEFAULT_LEAD_HOLD_SECONDS,
+    tail_hold_seconds: float = DEFAULT_TAIL_HOLD_SECONDS,
 ) -> dict[str, Any]:
-    lead_frames = round(LEAD_HOLD_SECONDS * fps)
-    tail_frames = round(TAIL_HOLD_SECONDS * fps)
+    lead_frames = round(lead_hold_seconds * fps)
+    tail_frames = round(tail_hold_seconds * fps)
+    if lead_frames < 1 or tail_frames < 0:
+        raise ValueError("Hold durations must produce at least one lead frame and a non-negative tail frame count.")
     segments: list[dict[str, Any]] = []
     source_hit_frame = 0
     next_output_frame = lead_frames
@@ -271,9 +275,9 @@ def build_timing(
         "seconds_per_year": seconds_per_year,
         "child_slowdown_until": child_slowdown_until,
         "child_slowdown": child_slowdown,
-        "lead_hold_seconds": LEAD_HOLD_SECONDS,
+        "lead_hold_seconds": lead_hold_seconds,
         "lead_hold_frames": lead_frames,
-        "tail_hold_seconds": TAIL_HOLD_SECONDS,
+        "tail_hold_seconds": tail_hold_seconds,
         "tail_hold_frames": tail_frames,
         "segments": segments,
         "anchors": anchors,
@@ -378,6 +382,8 @@ def validate(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         seconds_per_year=args.seconds_per_year,
         child_slowdown_until=args.child_slowdown_until,
         child_slowdown=args.child_slowdown,
+        lead_hold_seconds=args.lead_hold_seconds,
+        tail_hold_seconds=args.tail_hold_seconds,
     )
     expected_count = timing["expected_frame_count"]
     anchor_frames = {item["hit_frame"]: item["age"] for item in timing["anchors"]}
@@ -695,6 +701,8 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--seconds-per-year", type=float, default=1.0)
     result.add_argument("--child-slowdown-until", type=int, default=12)
     result.add_argument("--child-slowdown", type=float, default=1.5)
+    result.add_argument("--lead-hold-seconds", type=float, default=DEFAULT_LEAD_HOLD_SECONDS)
+    result.add_argument("--tail-hold-seconds", type=float, default=DEFAULT_TAIL_HOLD_SECONDS)
     result.add_argument("--strict", action="store_true", help="Exit non-zero when any required validation check fails")
     return result
 

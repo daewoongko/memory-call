@@ -7,7 +7,7 @@ let active = null;
  * 외부 음원이나 저작권 있는 곡을 사용하지 않고 Web Audio로 잔잔한 음을 만든다.
  * 가족 카드 클릭 안에서 호출하므로 Android Chrome의 자동재생 제한도 피한다.
  */
-export function startWaitingMelody(durationMs = 24000) {
+export function startWaitingMelody(durationMs = 14800) {
   stopWaitingMelody();
   if (typeof window === "undefined") return false;
   const AudioContext = window.AudioContext || window.webkitAudioContext;

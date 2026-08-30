@@ -78,14 +78,16 @@ class CallInviteTest(unittest.TestCase):
     # -------------------------------------------------------------- 벨
 
     def test_no_guardian_still_keeps_the_full_intro(self):
-        """기기가 없어도 어르신의 음악·AI 영상은 같은 24초 동안 재생한다."""
+        """기기가 없어도 어르신의 음악·AI 영상은 같은 14.8초 동안 재생한다."""
         invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["state"], invites.RINGING)
         self.assertEqual(invite["ring_timeout_sec"], invites.DEFAULT_RING_SEC)
+        self.assertGreaterEqual(invite["intro_seconds_left"], 14.7)
+        self.assertLessEqual(invite["intro_seconds_left"], 14.8)
         self.assertEqual(invite["no_live_device"], 1)
 
     def test_full_ring_when_a_guardian_device_is_listening(self):
-        self.assertEqual(invites.DEFAULT_RING_SEC, 24)
+        self.assertEqual(invites.DEFAULT_RING_SEC, 14.8)
         self._guardian()
         invite = invites.create("elder_test", "persona_godaewoong")
         self.assertEqual(invite["ring_timeout_sec"], invites.DEFAULT_RING_SEC)
@@ -202,7 +204,7 @@ class CallInviteTest(unittest.TestCase):
         self.assertGreater(answered["intro_seconds_left"], 0)
 
     def test_answer_waits_for_the_shared_intro_before_connecting(self):
-        """받기는 예약되고 사람 통화 공개 시점은 24초 재생 뒤다."""
+        """받기는 예약되고 사람 통화 공개 시점은 14.8초 재생 뒤다."""
         self._guardian()
         invite = invites.create("elder_test", "persona_godaewoong")
         answered = invites.answer(invite["invite_id"], "dev_guardian")

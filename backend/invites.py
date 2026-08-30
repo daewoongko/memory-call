@@ -38,10 +38,11 @@ import db
 # 어르신에게 재생하는 가족 AI 영상·대기 음악의 고정 길이. 가족이 중간에
 # 받더라도 이 구간이 끝난 뒤 사람 통화로 전환하고, 받지 않았을 때도 이 시점에
 # AI가 이어받는다. 양쪽 기기가 같은 서버 값을 사용해야 타이머가 엇갈리지 않는다.
-INTRO_DURATION_SEC = 24
+# 대웅의 승인된 성장 영상(444프레임, 30fps)과 정확히 같은 길이다.
+INTRO_DURATION_SEC = 14.8
 DEFAULT_RING_SEC = INTRO_DURATION_SEC
 
-# 이전 코드와 기록 분석의 이름은 유지하되, 기기 유무와 상관없이 같은 24초를
+# 이전 코드와 기록 분석의 이름은 유지하되, 기기 유무와 상관없이 같은 14.8초를
 # 보장한다. no_live_device는 무응답 사유를 구분하는 데만 사용한다.
 NO_DEVICE_RING_SEC = INTRO_DURATION_SEC
 
@@ -63,7 +64,9 @@ TAKEOVER_SOURCES = {RINGING, DECLINED, TIMEOUT}
 
 
 def _now() -> str:
-    return datetime.now().isoformat(timespec="seconds")
+    # 14.8초 영상과 서버 마감을 맞추려면 초 단위 절삭으로 생기는 최대 1초의
+    # 조기 만료를 피해야 한다.
+    return datetime.now().isoformat(timespec="milliseconds")
 
 
 def _elapsed(created_at: str | None) -> float:
@@ -310,7 +313,7 @@ def _decorate(row: dict) -> dict:
     remaining = 0.0
     if row["state"] == RINGING:
         remaining = max(0.0, row["ring_timeout_sec"] - _elapsed(row["created_at"]))
-    # 위험 발화 역호출은 보호자가 즉시 받아야 하므로 가족 호출용 24초
+    # 위험 발화 역호출은 보호자가 즉시 받아야 하므로 가족 호출용 14.8초
     # 아바타 소개 구간을 적용하지 않는다.
     intro_duration = 0 if row.get("purpose") in {"risk", "handoff"} else INTRO_DURATION_SEC
     intro_remaining = max(

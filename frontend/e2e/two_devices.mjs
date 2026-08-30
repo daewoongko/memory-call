@@ -37,7 +37,7 @@ const PERSONA_NAME = "정훈";
 // 시간을 기다린다"는 불변식을 본다. 이 값이 갈리면 어르신 화면의 소개 영상이
 // 끝나기 전에 통화가 바뀌어 버린다.
 
-/** 어르신 대기 화면이 표시하는 남은 초. "24초 후 연결돼요" 를 읽는다. */
+/** 어르신 대기 화면이 표시하는 남은 초. "15초 후 연결돼요" 를 읽는다. */
 async function introSeconds(page) {
   const text = await page.locator(".calling-intro-count")
     .textContent({ timeout: 15000 })
