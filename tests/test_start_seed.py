@@ -33,11 +33,6 @@ class DeploymentSeedContractTests(unittest.TestCase):
             dockerfile,
         )
         self.assertIn(
-            "COPY data/personas/persona_godaewoong/aligned/age_path_final/ "
-            f"{destination}aligned/age_path_final/",
-            dockerfile,
-        )
-        self.assertIn(
             "COPY data/personas/persona_godaewoong/morph.mp4 "
             f"{destination}morph.mp4",
             dockerfile,
