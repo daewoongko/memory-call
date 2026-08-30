@@ -24,6 +24,25 @@ class DeploymentSeedContractTests(unittest.TestCase):
         self.assertNotIn("seed_comparison", source)
         self.assertNotIn("seed_high_volume", source)
 
+    def test_deployment_includes_the_daewoong_demo_media_bundle(self):
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        destination = "./storage/personas/persona_godaewoong/"
+        self.assertIn(
+            "COPY data/personas/persona_godaewoong/age_candidates/ "
+            f"{destination}age_candidates/",
+            dockerfile,
+        )
+        self.assertIn(
+            "COPY data/personas/persona_godaewoong/aligned/age_path_final/ "
+            f"{destination}aligned/age_path_final/",
+            dockerfile,
+        )
+        self.assertIn(
+            "COPY data/personas/persona_godaewoong/morph.mp4 "
+            f"{destination}morph.mp4",
+            dockerfile,
+        )
+
     def test_demo_version_check_closes_database_before_atomic_replacement(self):
         spec = importlib.util.spec_from_file_location(
             "start_for_demo_seed_test", ROOT / "tools" / "start.py"

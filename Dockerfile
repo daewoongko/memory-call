@@ -24,6 +24,12 @@ COPY tools/ ./tools/
 COPY data/seed.json ./data/seed.json
 COPY data/gildong_diaries_2026.json ./data/gildong_diaries_2026.json
 COPY data/faces/ ./storage/faces/
+COPY data/personas/persona_godaewoong/age_candidates/ ./storage/personas/persona_godaewoong/age_candidates/
+COPY data/personas/persona_godaewoong/aligned/age_path_final/ ./storage/personas/persona_godaewoong/aligned/age_path_final/
+COPY data/personas/persona_godaewoong/source/ ./storage/personas/persona_godaewoong/source/
+COPY data/personas/persona_godaewoong/age_plan.json ./storage/personas/persona_godaewoong/age_plan.json
+COPY data/personas/persona_godaewoong/morph.mp4 ./storage/personas/persona_godaewoong/morph.mp4
+COPY data/personas/persona_godaewoong/morph_age08_to_age28_v3.json ./storage/personas/persona_godaewoong/morph.json
 COPY data/voice/reference.wav ./data/voice/reference.wav
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
