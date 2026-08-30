@@ -120,8 +120,24 @@ def init_schema(conn: sqlite3.Connection) -> list[str]:
         "ON heart_artworks(diary_date) WHERE status = 'approved'"
     )
     _migrate_demo_personas(conn)
+    _migrate_demo_memory_verification(conn)
     conn.commit()
     return added
+
+
+def _migrate_demo_memory_verification(conn: sqlite3.Connection) -> None:
+    """초기 시연 DB에서 미확인 세부가 verified로 잘못 저장된 기억을 격리한다."""
+    demo_memories = (
+        ("mem_002", "자갈치시장"),
+        ("mem_007", "낚시"),
+        ("mem_012", "강아지 뽀삐"),
+    )
+    for memory_id, title in demo_memories:
+        conn.execute(
+            "UPDATE memories SET status = 'partial', conversation_allowed = 0 "
+            "WHERE elder_id = 'elder_001' AND memory_id = ? AND title = ?",
+            (memory_id, title),
+        )
 
 
 def _migrate_call_invite_reasons(conn: sqlite3.Connection) -> None:

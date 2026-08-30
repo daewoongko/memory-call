@@ -117,7 +117,9 @@ def _valid_context_sources(ctx: dict) -> dict[str, set[str]]:
         "memory": {
             str(row["memory_id"])
             for row in ctx.get("memories", [])
-            if row.get("memory_id") and row.get("status") == "verified"
+            if row.get("memory_id")
+            and row.get("status") == "verified"
+            and row.get("conversation_allowed")
         },
         # 환자가 이번 턴에 직접 말한 내용은 외부 사실로 확정하지 않는다.
         # 다만 어떤 말에 기대어 되물었는지를 추적할 수는 있다.

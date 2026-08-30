@@ -167,7 +167,8 @@ export default function ChildScreen({ elderId = "elder_001", myPersonaId = "", o
   const latest = (summary?.daily_reports || []).find((day) => day.date === selectedDate) || null;
   const heart = latest?.heart_report;
   const dailyDiary = latest?.diary || heart?.diary || null;
-  const verifiedMemories = useMemo(() => memories.filter((memory) => memory.status === "verified"), [memories]);
+  const verifiedMemories = useMemo(() => memories.filter((memory) =>
+    memory.status === "verified" && memory.conversation_allowed), [memories]);
   const artwork = useMemo(() => verifiedMemories.find((memory) => memory.artwork?.status === "approved" && memoryImage(memory))
     || verifiedMemories.find((memory) => memoryImage(memory)) || verifiedMemories[0], [verifiedMemories]);
   const readyPersonas = useMemo(() => personas.filter((item) => item.ready), [personas]);

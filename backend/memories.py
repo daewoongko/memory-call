@@ -106,6 +106,7 @@ def save_photo(elder_id: str, memory_id: str, filename: str, content: bytes) -> 
 
 
 def create(elder_id: str, data: dict) -> dict:
+    status = data.get("status") or "verified"
     memory = {
         "memory_id": data.get("memory_id") or _new_id(),
         "elder_id": elder_id,
@@ -114,10 +115,11 @@ def create(elder_id: str, data: dict) -> dict:
         "date_text": data.get("date_text") or "",
         "location": data.get("location") or "",
         "participants": data.get("participants") or [],
-        "status": data.get("status") or "verified",
-        # 금지 기억은 어떤 경우에도 대화에 쓰지 않는다
-        "conversation_allowed": 0 if data.get("status") == "prohibited"
-                                 else int(bool(data.get("conversation_allowed", True))),
+        "status": status,
+        # 보호자가 모두 확인한 기억만 다음 통화의 사실 근거로 쓴다.
+        "conversation_allowed": int(
+            status == "verified" and bool(data.get("conversation_allowed", True))
+        ),
         "note": data.get("note"),
         "source_call_id": data.get("source_call_id"),
         "photo_url": data.get("photo_url"),
@@ -134,21 +136,28 @@ def update(memory_id: str, fields: dict) -> dict:
                "status", "conversation_allowed", "note", "photo_url",
                "happened_year"}
     patch = {k: v for k, v in fields.items() if k in allowed and v is not None}
-    if patch.get("status") == "prohibited":
-        patch["conversation_allowed"] = 0
     if not patch:
         raise ValueError("바꿀 내용이 없습니다.")
 
-    sets = ", ".join(f"{k} = ?" for k in patch)
-    values = [db._dump(v) for v in patch.values()] + [memory_id]
     with db.connect() as conn:
+        current = conn.execute(
+            "SELECT status FROM memories WHERE memory_id = ?", (memory_id,)
+        ).fetchone()
+        if current is None:
+            raise ValueError(f"기억 {memory_id} 없음")
+        next_status = patch.get("status", current["status"])
+        if next_status != "verified":
+            patch["conversation_allowed"] = 0
+        elif patch.get("conversation_allowed") is not None:
+            patch["conversation_allowed"] = int(bool(patch["conversation_allowed"]))
+
+        sets = ", ".join(f"{k} = ?" for k in patch)
+        values = [db._dump(v) for v in patch.values()] + [memory_id]
         conn.execute(f"UPDATE memories SET {sets} WHERE memory_id = ?", values)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM memories WHERE memory_id = ?", (memory_id,)
         ).fetchone()
-    if row is None:
-        raise ValueError(f"기억 {memory_id} 없음")
     return db._row(row)
 
 

@@ -79,8 +79,8 @@
         "할아버지",
         "대웅"
       ],
-      "status": "verified",
-      "conversation_allowed": true
+      "status": "partial",
+      "conversation_allowed": false
     },
     {
       "memory_id": "mem_003",
@@ -148,8 +148,8 @@
         "할아버지",
         "대웅"
       ],
-      "status": "verified",
-      "conversation_allowed": true
+      "status": "partial",
+      "conversation_allowed": false
     },
     {
       "memory_id": "mem_008",
@@ -216,7 +216,7 @@
         "할아버지"
       ],
       "status": "partial",
-      "conversation_allowed": true
+      "conversation_allowed": false
     },
     {
       "memory_id": "mem_013",

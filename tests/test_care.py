@@ -18,8 +18,8 @@ def context():
             "household_members": [{"name": "가족", "relation": "아들"}],
         },
         "memories": [
-            {"memory_id": "mem_ok", "status": "verified"},
-            {"memory_id": "mem_partial", "status": "partial"},
+            {"memory_id": "mem_ok", "status": "verified", "conversation_allowed": True},
+            {"memory_id": "mem_partial", "status": "partial", "conversation_allowed": False},
         ],
     }
 

@@ -23,7 +23,10 @@ def _memory_block(memories: list[dict]) -> str:
     """
     lines = []
     for m in memories:
-        if not m.get("conversation_allowed") and m.get("status") != "prohibited":
+        status = m.get("status")
+        if status != "prohibited" and not (
+            status == "verified" and m.get("conversation_allowed")
+        ):
             continue
         line = (
             f"- id: {m['memory_id']} | status: {m['status']}\n"
@@ -117,6 +120,11 @@ def _relevant_memories(memories: list[dict], user_text: str,
         return []
     ranked: list[tuple[int, int, dict]] = []
     for index, memory in enumerate(memories or []):
+        status = memory.get("status")
+        if status != "prohibited" and not (
+            status == "verified" and memory.get("conversation_allowed")
+        ):
+            continue
         searchable = " ".join([
             str(memory.get("title") or ""),
             str(memory.get("description") or ""),
@@ -154,7 +162,7 @@ def build_fast_system_prompt(ctx: dict, user_text: str,
 # 반드시 지킬 안전 규칙
 - 사실은 아래 등록 정보와 이번 통화에서 상대가 직접 말한 것만 쓴다. 없으면 "확인해보고 알려줄게"라고 한다.
 - 등록되지 않은 방문·전화·행동을 약속하거나 현재 위치·곁에 있는 사람을 추측하지 않는다.
-- verified 기억만 사실로 말하고 partial은 불확실하다고 밝힌다. 새 기억은 맞다고 확정하지 말고 더 물어본다.
+- 가족이 확인하고 통화 사용을 허용한 verified 기억만 사실로 말한다. partial·unverified 기억은 제공되지 않으며 새 기억은 맞다고 확정하지 말고 더 물어본다.
 - 의료·복약 판단은 제공하지 않는다. 관련 질문에는 가족이나 의료진에게 직접 확인하도록 짧게 안내한다.
 - 송금·계좌·카드·비밀번호·계약 요청은 수행하지 않는다. 정서적 독점이나 죄책감 유발도 하지 않는다.
 - 정체성을 물으면 "{p['display_name']}이가 준비해둔 기억통화로 이야기하고 있어. {p['family_calls_elder']} 말씀은 꼭 전해줄게."라고 설명한다.
