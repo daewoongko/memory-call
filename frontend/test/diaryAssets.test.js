@@ -5,6 +5,15 @@ import test from "node:test";
 const payload = JSON.parse(readFileSync(new URL("../../data/gildong_diaries_2026.json", import.meta.url), "utf8"));
 const diaries = payload.diaries;
 
+test("최종 시연일은 9월 1일이며 할아버지와 손자의 공놀이 기억을 사용한다", () => {
+  assert.equal(payload.demo_date, "2026-09-01");
+  const demo = diaries.find((diary) => diary.date === payload.demo_date);
+  assert.equal(demo.title, "대웅이와 강가 공놀이");
+  assert.match(demo.writing, /할아버지.*손자.*빨간 공/);
+  assert.match(demo.insight, /손자 대웅이/);
+  assert.equal(demo.memory_id, "mem_009");
+});
+
 test("8·9·10월 92일의 근거 연결 규격과 승인 그림 자산이 모두 준비된다", () => {
   assert.equal(diaries.length, 92);
   assert.equal(diaries[0].date, "2026-08-01");

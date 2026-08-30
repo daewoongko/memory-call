@@ -20,7 +20,7 @@ SCHEMA = ROOT / "backend" / "schema.sql"
 SEED = ROOT / "data" / "seed.json"
 DIARIES = ROOT / "data" / "gildong_diaries_2026.json"
 DEFAULT_OUTPUT = ROOT / "data" / "memory_call.presentation.sqlite"
-DEMO_DAY = date(2026, 9, 4)
+DEMO_DAY = date(2026, 9, 1)
 
 PERSONA_IDS = (
     "persona_godaewoong", "persona_jeonghun", "persona_miyeong", "persona_yujin",
@@ -274,7 +274,7 @@ def observation_plan(day: date) -> list[tuple[str, str, str, str]]:
 
 
 def repeated_call_indexes(day: date) -> tuple[int, ...]:
-    # 9/4에는 후반으로 갈수록 같은 질문의 간격이 실제로 짧아지도록 둔다.
+    # 9/1에는 후반으로 갈수록 같은 질문의 간격이 실제로 짧아지도록 둔다.
     return (17, 23, 28, 33, 37, 39) if day == DEMO_DAY else (8, 17, 26, 35)
 
 
@@ -514,7 +514,7 @@ def validate(conn: sqlite3.Connection) -> dict:
     assert elder_ids == "elder_001"
     assert result["heart_artworks"] == 92 and dates[2] == 92
     assert result["demo_day"] == {
-        "date": "2026-09-04", "calls": 40, "minutes": 160,
+        "date": "2026-09-01", "calls": 40, "minutes": 160,
         "types": {"ai": 36, "ai_to_direct": 2, "direct": 2},
     }
     assert result["messages_per_call"]["min"] >= 8

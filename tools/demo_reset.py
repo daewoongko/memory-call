@@ -23,7 +23,7 @@ def main() -> None:
     subprocess.run(command, cwd=ROOT, check=True)
     os.replace(temporary, target)
     print(f"시연 준비 완료: {target}")
-    print("대표 시연일 2026-09-04 · 40통 · 160분 · 그림일기 92일")
+    print("대표 시연일 2026-09-01 · 40통 · 160분 · 그림일기 92일")
 
 
 if __name__ == "__main__":
