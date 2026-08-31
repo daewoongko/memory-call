@@ -76,7 +76,8 @@ test("가족이 받아도 24.2초 AI 영상·대기 음악 뒤에 사람 통화�
   assert.match(guardianCall, /remainingIntroMs \+ HUMAN_CONNECT_GRACE_MS/);
   assert.doesNotMatch(guardianCall, /setTimeout\(fail, 12000\)/);
   assert.match(app, /HUMAN_CONNECT_GRACE_MS = 20000/);
-  assert.match(melody, /const NOTES = \[/);
+  assert.match(melody, /waiting-nature-guide-24\.2s\.mp3/);
+  assert.match(melody, /new window\.Audio\(waitingAudioUrl\)/);
   assert.match(melody, /export function startWaitingMelody/);
 });
 
