@@ -257,6 +257,19 @@
       ],
       "status": "verified",
       "conversation_allowed": true
+    },
+    {
+      "memory_id": "mem_016",
+      "title": "대웅이와 강가 공놀이",
+      "description": "가족이 확인한 기억이다. 할아버지와 어린 손자 대웅이가 강가 잔디밭에서 작은 빨간 공을 주고받으며 놀았고, 대웅이가 공을 안고 할아버지에게 달려오며 함께 웃었다.",
+      "date_text": "대웅이가 어렸을 때(가족 확인)",
+      "location": "강가 잔디밭",
+      "participants": [
+        "할아버지",
+        "대웅"
+      ],
+      "status": "verified",
+      "conversation_allowed": true
     }
   ],
   "personas": [

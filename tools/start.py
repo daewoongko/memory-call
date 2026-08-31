@@ -14,6 +14,8 @@ import uvicorn  # noqa: E402
 
 DEMO_DATE = "2026-09-01"
 DEMO_DIARY_TITLE = "대웅이와 강가 공놀이"
+DEMO_MEMORY_ID = "mem_016"
+DEMO_MEMORY_TITLE = "대웅이와 강가 공놀이"
 
 
 def _demo_seed_is_current() -> bool:
@@ -32,11 +34,20 @@ def _demo_seed_is_current() -> bool:
             "WHERE diary_date = ? AND status = 'approved'",
             (DEMO_DATE,),
         ).fetchone()
+        memory = conn.execute(
+            "SELECT title, status, conversation_allowed FROM memories "
+            "WHERE memory_id = ? AND elder_id = ?",
+            (DEMO_MEMORY_ID, "elder_001"),
+        ).fetchone()
         return (
             calls[0] == 40
             and calls[1] == 160 * 60
             and diary is not None
             and diary[0] == DEMO_DIARY_TITLE
+            and memory is not None
+            and memory[0] == DEMO_MEMORY_TITLE
+            and memory[1] == "verified"
+            and memory[2] == 1
         )
     except Exception:
         return False

@@ -11,7 +11,7 @@ test("최종 시연일은 9월 1일이며 할아버지와 손자의 공놀이 �
   assert.equal(demo.title, "대웅이와 강가 공놀이");
   assert.match(demo.writing, /할아버지.*손자.*빨간 공/);
   assert.match(demo.insight, /손자 대웅이/);
-  assert.equal(demo.memory_id, "mem_009");
+  assert.equal(demo.memory_id, "mem_016");
 });
 
 test("8·9·10월 92일의 근거 연결 규격과 승인 그림 자산이 모두 준비된다", () => {

@@ -79,6 +79,20 @@ class MemoryVerificationPolicyTest(unittest.TestCase):
             self.assertEqual(by_id[memory_id]["status"], "partial")
             self.assertFalse(by_id[memory_id]["conversation_allowed"])
 
+    def test_demo_ball_memory_is_verified_and_available_to_live_chat(self):
+        seed = json.loads((ROOT / "data" / "seed.json").read_text(encoding="utf-8"))
+        by_id = {row["memory_id"]: row for row in seed["memories"]}
+        memory = by_id["mem_016"]
+        self.assertEqual(memory["title"], "대웅이와 강가 공놀이")
+        self.assertEqual(memory["status"], "verified")
+        self.assertTrue(memory["conversation_allowed"])
+        self.assertIn("작은 빨간 공", memory["description"])
+        selected = persona._relevant_memories(
+            seed["memories"],
+            "네가 어릴 때 나랑 공 가지고 놀던 거 기억나냐?",
+        )
+        self.assertIn("mem_016", {row["memory_id"] for row in selected})
+
 
 if __name__ == "__main__":
     unittest.main()

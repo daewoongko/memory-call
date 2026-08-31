@@ -16,6 +16,7 @@ class DeploymentSeedContractTests(unittest.TestCase):
         self.assertIn("seed_gildong_demo.py", source)
         self.assertIn('DEMO_DATE = "2026-09-01"', source)
         self.assertIn('DEMO_DIARY_TITLE = "대웅이와 강가 공놀이"', source)
+        self.assertIn('DEMO_MEMORY_ID = "mem_016"', source)
         self.assertIn("_demo_seed_is_current", source)
         self.assertIn("--preserve-from", source)
         self.assertIn("data/gildong_diaries_2026.json", dockerfile)
@@ -59,7 +60,9 @@ class DeploymentSeedContractTests(unittest.TestCase):
             def execute(self, sql, _params):
                 if "FROM calls" in sql:
                     return Cursor((40, 160 * 60))
-                return Cursor((module.DEMO_DIARY_TITLE,))
+                if "FROM heart_artworks" in sql:
+                    return Cursor((module.DEMO_DIARY_TITLE,))
+                return Cursor((module.DEMO_MEMORY_TITLE, "verified", 1))
 
             def close(self):
                 self.closed = True
