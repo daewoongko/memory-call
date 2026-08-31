@@ -41,21 +41,21 @@ class MorphTimingTests(unittest.TestCase):
             44.0,
         )
 
-    def test_custom_holds_produce_requested_14_8_second_timeline(self):
+    def test_approved_demo_timing_is_24_2_seconds(self):
         timing = build_timing(
             [8, 9, 10, 11, 12, 15, 17, 20, 24, 28],
-            timing_mode="age-weighted",
-            seconds_per_year=0.6,
+            timing_mode="age-linear",
+            seconds_per_year=1.2,
             child_slowdown_until=12,
             child_slowdown=1.5,
-            lead_hold_seconds=1.0,
-            tail_hold_seconds=0.6,
+            lead_hold_seconds=0.6,
+            tail_hold_seconds=1.2,
         )
 
-        self.assertEqual(timing["lead_hold_frames"], 30)
-        self.assertEqual(timing["tail_hold_frames"], 18)
-        self.assertEqual(timing["expected_frame_count"], 444)
-        self.assertEqual(timing["expected_duration_seconds"], 14.8)
+        self.assertEqual(timing["lead_hold_frames"], 18)
+        self.assertEqual(timing["tail_hold_frames"], 36)
+        self.assertEqual(timing["expected_frame_count"], 726)
+        self.assertEqual(timing["expected_duration_seconds"], 24.2)
 
 
 if __name__ == "__main__":

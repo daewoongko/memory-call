@@ -7,6 +7,11 @@ frontend/dist
 **/__pycache__
 **/*.pyc
 .pytest_cache
+artifacts
+backups
+output
+tmp
+work
 .env*
 *.sqlite
 *.sqlite3
@@ -19,3 +24,8 @@ data/faces/clips
 data/faces/lora_identity
 data/faces/lora_runs/*/checkpoint-*
 data/faces/lora_runs/*/logs
+data/experiments
+data/external
+data/memories
+data/personas
+data/private_voice

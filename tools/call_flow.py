@@ -110,7 +110,7 @@ def case_no_answer() -> bool:
 
 
 def case_decline() -> bool:
-    """보호자가 거절한다 → 15초를 기다리지 않고 곧바로 AI 로 간다."""
+    """보호자가 거절한다 → 남은 인트로 뒤 AI 기억통화로 간다."""
     register_guardian()
     poll_guardian()
     invite = ring()

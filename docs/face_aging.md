@@ -40,14 +40,14 @@
 FRAN 결과는 완성 사진이 아니다. FLUX 생성 방향을 보조하는 내부 구조 가이드이며,
 FRAN 단독 출력은 후보 화면에 절대 노출하지 않는다.
 
-완성 자산은 다음 위치에 있다. 저장소에 포함되는 것은 앞의 셋뿐이고, 검증
-결과와 QC 시트는 생성 시점에만 만들어지는 로컬 산출물이다.
+완성 자산은 다음 위치에 있다. 실행에 필요한 후보·키프레임·영상과 최종 검수
+메타데이터만 저장소에 포함하고, 재생성 과정의 중간 산출물은 로컬에 둔다.
 
 - 영상: `data/faces/morph.mp4` (저장소 포함, Git LFS)
 - 키프레임: `data/faces/aligned/age_path_final/` (저장소 포함)
 - 연령 계획: `data/faces/age_plan.json` (저장소 포함)
-- 검증 결과: `data/faces/morph.validation.json` (로컬 전용)
-- QC 시트: `data/faces/morph_qc.png` (로컬 전용)
+- 검증 메타데이터: `data/faces/morph.json` (저장소 포함)
+- 최종 QC 시트: `data/faces/morph_qc.png` (저장소 포함)
 
 ## 2. 이번 개선의 목표
 

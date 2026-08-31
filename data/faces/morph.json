@@ -28,66 +28,66 @@
     "direction": "youngest_to_current",
     "direct_timestep_inference": true
   },
-  "source_manifest": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/manifest.json",
+  "source_manifest": "data/faces/aligned/age_path_final/manifest.json",
   "source_sequence": [
     {
       "age": 8,
       "file": "01_age08.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/01_age08.png",
+      "path": "data/faces/aligned/age_path_final/01_age08.png",
       "sha256": "30bb7c95a42a656fd5cf34693ae196de22357b8bd7b6417c76baa80e730634bd"
     },
     {
       "age": 9,
       "file": "02_age09.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/02_age09.png",
+      "path": "data/faces/aligned/age_path_final/02_age09.png",
       "sha256": "512cba7b7bb18310972ab2035fbbc75cac3b265c01784cf91db1d5f54e432a29"
     },
     {
       "age": 10,
       "file": "03_age10.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/03_age10.png",
+      "path": "data/faces/aligned/age_path_final/03_age10.png",
       "sha256": "465ebd321ec146b1697a6e8304d3d4fee1f8387d8d61c66acca3ba06074598c4"
     },
     {
       "age": 11,
       "file": "04_age11.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/04_age11.png",
+      "path": "data/faces/aligned/age_path_final/04_age11.png",
       "sha256": "af172cfd9f34c5f0dc079f16435c4941310ae19d6ba2b8a73a8568b1f72dfd06"
     },
     {
       "age": 12,
       "file": "05_age12.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/05_age12.png",
+      "path": "data/faces/aligned/age_path_final/05_age12.png",
       "sha256": "93b958ad65299c6d351322ebb481828bcb2ae41168f65956100af78312004537"
     },
     {
       "age": 15,
       "file": "06_age15.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/06_age15.png",
+      "path": "data/faces/aligned/age_path_final/06_age15.png",
       "sha256": "7d4808a494b1c27a6e9bbb2524a07db4a39e0d42077957a33cbdee50015c1a7e"
     },
     {
       "age": 17,
       "file": "07_age17.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/07_age17.png",
+      "path": "data/faces/aligned/age_path_final/07_age17.png",
       "sha256": "151158fc587938149fc18e200f8f7c1a8e10fde61b21068ff69a33d9dc1dfd7f"
     },
     {
       "age": 20,
       "file": "08_age20.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/08_age20.png",
+      "path": "data/faces/aligned/age_path_final/08_age20.png",
       "sha256": "1c6aef842e9394dc2444d9d0325214ad7051b9f92e5e1c9a2cb431c5e5234f9e"
     },
     {
       "age": 24,
       "file": "09_age24.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/09_age24.png",
+      "path": "data/faces/aligned/age_path_final/09_age24.png",
       "sha256": "e3b7b54b5a700a90f2f7c4d4b569768ec49b6701f5fa295b08de9d2218ebb3b2"
     },
     {
       "age": 28,
       "file": "10_age28.png",
-      "path": "data/personas/persona_godaewoong/aligned/age_path_v3_skin_normalized/10_age28.png",
+      "path": "data/faces/aligned/age_path_final/10_age28.png",
       "sha256": "7f64bbade818fb533d930aad1ad03c34c5cfac27b90bf152bb08cbc271c5c4b1"
     }
   ],

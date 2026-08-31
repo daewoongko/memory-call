@@ -11,17 +11,27 @@ import argparse
 import json
 import random
 import sqlite3
+import sys
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from tools.demo_config import (  # noqa: E402
+    DEMO_CALL_COUNT,
+    DEMO_DATE,
+    DEMO_DAY,
+    DEMO_DIARY_COUNT,
+    DEMO_DURATION_MINUTES,
+)
+
+
 SCHEMA = ROOT / "backend" / "schema.sql"
 SEED = ROOT / "data" / "seed.json"
 DIARIES = ROOT / "data" / "gildong_diaries_2026.json"
 DEFAULT_OUTPUT = ROOT / "data" / "memory_call.presentation.sqlite"
-DEMO_DAY = date(2026, 8, 31)
-
 PERSONA_IDS = (
     "persona_godaewoong", "persona_jeonghun", "persona_miyeong", "persona_yujin",
 )
@@ -231,7 +241,7 @@ def preserve_persona_media(conn: sqlite3.Connection, source_path: Path) -> None:
 
 def call_count(day: date) -> int:
     if day == DEMO_DAY:
-        return 40
+        return DEMO_CALL_COUNT
     return 36 + ((day.toordinal() * 7 + day.day * 3) % 9)
 
 
@@ -252,7 +262,7 @@ def call_type_for(day: date, index: int) -> str:
 def durations_for(day: date, count: int, rng: random.Random) -> list[int]:
     values = [rng.randint(150, 330) for _ in range(count)]
     if day == DEMO_DAY:
-        target = 160 * 60
+        target = DEMO_DURATION_MINUTES * 60
         values[-1] += target - sum(values)
     return values
 
@@ -512,9 +522,11 @@ def validate(conn: sqlite3.Connection) -> dict:
         "messages_per_call": {"min": transcript_depth[0], "max": transcript_depth[1], "average": transcript_depth[2]},
     }
     assert elder_ids == "elder_001"
-    assert result["heart_artworks"] == 92 and dates[2] == 92
+    assert result["heart_artworks"] == DEMO_DIARY_COUNT and dates[2] == DEMO_DIARY_COUNT
     assert result["demo_day"] == {
-        "date": "2026-08-31", "calls": 40, "minutes": 160,
+        "date": DEMO_DATE,
+        "calls": DEMO_CALL_COUNT,
+        "minutes": DEMO_DURATION_MINUTES,
         "types": {"ai": 36, "ai_to_direct": 2, "direct": 2},
     }
     assert result["messages_per_call"]["min"] >= 8
@@ -534,7 +546,7 @@ def main() -> None:
     seed = json.loads(SEED.read_text(encoding="utf-8"))
     diary_payload = json.loads(DIARIES.read_text(encoding="utf-8"))
     diaries = diary_payload["diaries"]
-    assert len(diaries) == 92
+    assert len(diaries) == DEMO_DIARY_COUNT
 
     conn = sqlite3.connect(output)
     try:

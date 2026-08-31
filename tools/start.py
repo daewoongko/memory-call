@@ -6,16 +6,20 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "backend"))
 
 import db  # noqa: E402
 import uvicorn  # noqa: E402
-
-
-DEMO_DATE = "2026-08-31"
-DEMO_DIARY_TITLE = "대웅이와 강가 공놀이"
-DEMO_MEMORY_ID = "mem_016"
-DEMO_MEMORY_TITLE = "대웅이와 강가 공놀이"
+from tools.demo_config import (  # noqa: E402
+    DEMO_CALL_COUNT,
+    DEMO_DATE,
+    DEMO_DIARY_TITLE,
+    DEMO_DURATION_MINUTES,
+    DEMO_ELDER_ID,
+    DEMO_MEMORY_ID,
+    DEMO_MEMORY_TITLE,
+)
 
 
 def _demo_seed_is_current() -> bool:
@@ -37,11 +41,11 @@ def _demo_seed_is_current() -> bool:
         memory = conn.execute(
             "SELECT title, status, conversation_allowed FROM memories "
             "WHERE memory_id = ? AND elder_id = ?",
-            (DEMO_MEMORY_ID, "elder_001"),
+            (DEMO_MEMORY_ID, DEMO_ELDER_ID),
         ).fetchone()
         return (
-            calls[0] == 40
-            and calls[1] == 160 * 60
+            calls[0] == DEMO_CALL_COUNT
+            and calls[1] == DEMO_DURATION_MINUTES * 60
             and diary is not None
             and diary[0] == DEMO_DIARY_TITLE
             and memory is not None

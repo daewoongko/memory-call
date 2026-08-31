@@ -30,6 +30,9 @@ db.sqlite
 *.sqlite3
 *.db
 .logs/
+artifacts/
+backups/
+work/
 
 # Licensed face datasets and derived experiment artefacts are local-only.
 data/external/
@@ -45,6 +48,9 @@ data/experiments/age_generator_three_way_compare/
 data/experiments/manual_provider_compare_*/
 data/experiments/godaewoong_morph_*/
 data/personas/*/lipsync_trials/
+data/personas/persona_[0-9a-f]*/
+data/personas/persona_godaewoong/morph_*candidate*
+data/personas/persona_godaewoong/morph_14_8s_live*
 output/
 tmp/
 *.ffmpeg.log

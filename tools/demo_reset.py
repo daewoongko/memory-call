@@ -6,9 +6,16 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "backend"))
 
 import db  # noqa: E402
+from tools.demo_config import (  # noqa: E402
+    DEMO_CALL_COUNT,
+    DEMO_DATE,
+    DEMO_DIARY_COUNT,
+    DEMO_DURATION_MINUTES,
+)
 
 
 def main() -> None:
@@ -23,7 +30,10 @@ def main() -> None:
     subprocess.run(command, cwd=ROOT, check=True)
     os.replace(temporary, target)
     print(f"시연 준비 완료: {target}")
-    print("대표 시연일 2026-09-01 · 40통 · 160분 · 그림일기 92일")
+    print(
+        f"대표 시연일 {DEMO_DATE} · {DEMO_CALL_COUNT}통 · "
+        f"{DEMO_DURATION_MINUTES}분 · 그림일기 {DEMO_DIARY_COUNT}일"
+    )
 
 
 if __name__ == "__main__":

@@ -14,12 +14,13 @@ class DeploymentSeedContractTests(unittest.TestCase):
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         render = (ROOT / "render.yaml").read_text(encoding="utf-8")
         self.assertIn("seed_gildong_demo.py", source)
-        self.assertIn('DEMO_DATE = "2026-08-31"', source)
-        self.assertIn('DEMO_DIARY_TITLE = "대웅이와 강가 공놀이"', source)
-        self.assertIn('DEMO_MEMORY_ID = "mem_016"', source)
+        self.assertIn("from tools.demo_config import", source)
         self.assertIn("_demo_seed_is_current", source)
         self.assertIn("--preserve-from", source)
         self.assertIn("data/gildong_diaries_2026.json", dockerfile)
+        self.assertNotIn("COPY tools/ ./tools/", dockerfile)
+        self.assertIn("COPY tools/start.py ./tools/start.py", dockerfile)
+        self.assertIn("COPY tools/demo_config.py ./tools/demo_config.py", dockerfile)
         self.assertIn("value: gildong", render)
         self.assertNotIn("elder_002", source)
         self.assertNotIn("seed_comparison", source)
@@ -27,17 +28,8 @@ class DeploymentSeedContractTests(unittest.TestCase):
 
     def test_deployment_includes_the_daewoong_demo_media_bundle(self):
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-        destination = "./storage/personas/persona_godaewoong/"
-        self.assertIn(
-            "COPY data/personas/persona_godaewoong/age_candidates/ "
-            f"{destination}age_candidates/",
-            dockerfile,
-        )
-        self.assertIn(
-            "COPY data/personas/persona_godaewoong/morph.mp4 "
-            f"{destination}morph.mp4",
-            dockerfile,
-        )
+        self.assertIn("COPY data/faces/ ./storage/faces/", dockerfile)
+        self.assertNotIn("data/personas/persona_godaewoong", dockerfile)
 
     def test_demo_version_check_closes_database_before_atomic_replacement(self):
         spec = importlib.util.spec_from_file_location(

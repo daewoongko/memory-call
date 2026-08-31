@@ -94,7 +94,7 @@ test("Daewoong onboarding confirms the current face and walks through the select
   assert.match(journey, /step === "family_avatar" && !familyAvatarReady/);
   assert.match(journey, /length === 0 \? <div className="journey-photo-upload compact"[\s\S]{0,500}photoPreview \?/);
   assert.match(journey, /journey-photo-upload-summary/);
-  assert.match(journey, /DAEWOONG_DEMO_ASSET_ROOT = "\/persona-assets\/persona_godaewoong\/age_candidates"/);
+  assert.match(journey, /DAEWOONG_DEMO_ASSET_ROOT = "\/age-candidates"/);
   assert.match(journey, /revisitDemoAgeStage/);
   assert.match(journey, /이전 연령 얼굴 보기/);
   assert.match(journey, /다음 연령 얼굴 보기/);

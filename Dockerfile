@@ -20,12 +20,12 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./backend/
-COPY tools/ ./tools/
+COPY tools/demo_config.py ./tools/demo_config.py
+COPY tools/seed_gildong_demo.py ./tools/seed_gildong_demo.py
+COPY tools/start.py ./tools/start.py
 COPY data/seed.json ./data/seed.json
 COPY data/gildong_diaries_2026.json ./data/gildong_diaries_2026.json
 COPY data/faces/ ./storage/faces/
-COPY data/personas/persona_godaewoong/age_candidates/ ./storage/personas/persona_godaewoong/age_candidates/
-COPY data/personas/persona_godaewoong/morph.mp4 ./storage/personas/persona_godaewoong/morph.mp4
 COPY data/voice/reference.wav ./data/voice/reference.wav
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 

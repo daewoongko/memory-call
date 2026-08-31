@@ -8,7 +8,7 @@ import { SIZE_MAX, SIZE_MIN, SIZE_STEP, THEMES } from "../theme.js";
 
 const CONSENT_VERSION = "2026-08-24.v1";
 export const ONBOARDING_FLOW_VERSION = "2026-08-25.v2";
-const DAEWOONG_DEMO_ASSET_ROOT = "/persona-assets/persona_godaewoong/age_candidates";
+const DAEWOONG_DEMO_ASSET_ROOT = "/age-candidates";
 const DAEWOONG_DEMO_AGE_STAGES = [
   { age: 24, recommended: "age24_selected.png", candidates: ["age24_selected.png", "age24_alt_a.png", "age24_alt_b.png", "age24_alt_c.png"] },
   { age: 20, recommended: "age20_selected.png", candidates: ["age20_selected.png", "age20_alt_a.png", "age20_alt_b.png", "age20_alt_c.png"] },
