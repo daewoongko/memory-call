@@ -12,7 +12,7 @@ import db  # noqa: E402
 import uvicorn  # noqa: E402
 
 
-DEMO_DATE = "2026-09-01"
+DEMO_DATE = "2026-08-31"
 DEMO_DIARY_TITLE = "대웅이와 강가 공놀이"
 DEMO_MEMORY_ID = "mem_016"
 DEMO_MEMORY_TITLE = "대웅이와 강가 공놀이"

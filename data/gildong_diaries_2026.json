@@ -5,7 +5,7 @@
     "end": "2026-10-31",
     "days": 92
   },
-  "demo_date": "2026-09-01",
+  "demo_date": "2026-08-31",
   "generation_policy": {
     "source": "해당 날짜 대표 통화의 실제 어르신 발화",
     "grounding": "가족이 확인한 memory_id와 source_utterance_id가 모두 존재해야 승인",
@@ -471,21 +471,6 @@
     },
     {
       "date": "2026-08-31",
-      "image": "/diary/daily/08/2026-08-31.webp",
-      "title": "별을 세던 마루",
-      "writing": "손녀와 마루에 누워 별을 세다가 어린 시절 별자리 이야기를 들려주었다. 그날을 떠올리는 동안 목소리가 한층 밝고 편안해졌다.",
-      "insight": "손녀가 귀 기울이자 오래된 밤하늘도 다시 가까워졌어요.",
-      "mood": "고요함",
-      "memory_id": "mem_011",
-      "storyline": "집에서 함께한 명절과 놀이",
-      "representative_quote": "손녀와 마루에 누워 별을 세다가 어린 시절 별자리 이야기를 들려주었다",
-      "risk": null,
-      "chapter": 1,
-      "previous_diary_date": null,
-      "continuity_note": "집에서 함께한 명절과 놀이의 첫 번째 기록"
-    },
-    {
-      "date": "2026-09-01",
       "image": "/diary/daily/09/2026-09-01.webp",
       "title": "대웅이와 강가 공놀이",
       "writing": "할아버지가 어린 손자와 강가 잔디밭에서 작은 빨간 공을 주고받으며 한참 웃었다. 대웅이가 공을 안고 달려오던 환한 얼굴을 떠올리며 참 즐거운 시간이었다고 말씀하셨다.",
@@ -498,6 +483,21 @@
       "chapter": 3,
       "previous_diary_date": "2026-08-30",
       "continuity_note": "2026-08-30의 이야기에서 이어진 함께 걷고 배운 시간의 3번째 기록"
+    },
+    {
+      "date": "2026-09-01",
+      "image": "/diary/daily/08/2026-08-31.webp",
+      "title": "별을 세던 마루",
+      "writing": "손녀와 마루에 누워 별을 세다가 어린 시절 별자리 이야기를 들려주었다. 그날을 떠올리는 동안 목소리가 한층 밝고 편안해졌다.",
+      "insight": "손녀가 귀 기울이자 오래된 밤하늘도 다시 가까워졌어요.",
+      "mood": "고요함",
+      "memory_id": "mem_011",
+      "storyline": "집에서 함께한 명절과 놀이",
+      "representative_quote": "손녀와 마루에 누워 별을 세다가 어린 시절 별자리 이야기를 들려주었다",
+      "risk": null,
+      "chapter": 1,
+      "previous_diary_date": null,
+      "continuity_note": "집에서 함께한 명절과 놀이의 첫 번째 기록"
     },
     {
       "date": "2026-09-02",
@@ -526,8 +526,8 @@
       "representative_quote": "딸과 분홍 코스모스 길을 걸으며 사진을 한 장 남겼다",
       "risk": null,
       "chapter": 4,
-      "previous_diary_date": "2026-09-01",
-      "continuity_note": "2026-09-01의 이야기에서 이어진 함께 걷고 배운 시간의 4번째 기록"
+      "previous_diary_date": "2026-08-31",
+      "continuity_note": "2026-08-31의 이야기에서 이어진 함께 걷고 배운 시간의 4번째 기록"
     },
     {
       "date": "2026-09-04",
@@ -1161,8 +1161,8 @@
       "representative_quote": "가족과 둘러앉아 주사위를 굴리고 말판을 옮기며 한바탕 웃었다.",
       "risk": null,
       "chapter": 2,
-      "previous_diary_date": "2026-08-31",
-      "continuity_note": "2026-08-31의 이야기에서 이어진 집에서 함께한 명절과 놀이의 2번째 기록"
+      "previous_diary_date": "2026-09-01",
+      "continuity_note": "2026-09-01의 이야기에서 이어진 집에서 함께한 명절과 놀이의 2번째 기록"
     },
     {
       "date": "2026-10-16",

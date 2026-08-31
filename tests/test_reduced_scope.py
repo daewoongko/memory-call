@@ -38,7 +38,7 @@ def test_guardian_analysis_routes_remain_available():
 
 
 def test_demo_day_analytics_have_visible_variation_and_life_stage_evidence():
-    demo_day = date(2026, 9, 1)
+    demo_day = date(2026, 8, 31)
     domain_counts = Counter(row[0] for row in seed_gildong_demo.observation_plan(demo_day))
     assert domain_counts == seed_gildong_demo.DEMO_DOMAIN_COUNTS
 
@@ -63,7 +63,7 @@ def test_demo_day_analytics_have_visible_variation_and_life_stage_evidence():
 
 
 def test_seeded_transcript_depth_tracks_call_duration():
-    demo_day = date(2026, 9, 1)
+    demo_day = date(2026, 8, 31)
     short = seed_gildong_demo.conversation_exchanges(demo_day, 0, 155, "대웅")
     medium = seed_gildong_demo.conversation_exchanges(demo_day, 1, 240, "정훈")
     long = seed_gildong_demo.conversation_exchanges(demo_day, 2, 352, "미영")

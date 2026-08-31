@@ -5,8 +5,8 @@ import test from "node:test";
 const payload = JSON.parse(readFileSync(new URL("../../data/gildong_diaries_2026.json", import.meta.url), "utf8"));
 const diaries = payload.diaries;
 
-test("최종 시연일은 9월 1일이며 할아버지와 손자의 공놀이 기억을 사용한다", () => {
-  assert.equal(payload.demo_date, "2026-09-01");
+test("최종 시연일은 8월 31일이며 할아버지와 손자의 공놀이 기억을 사용한다", () => {
+  assert.equal(payload.demo_date, "2026-08-31");
   const demo = diaries.find((diary) => diary.date === payload.demo_date);
   assert.equal(demo.title, "대웅이와 강가 공놀이");
   assert.match(demo.writing, /할아버지.*손자.*빨간 공/);
