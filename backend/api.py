@@ -237,7 +237,7 @@ class TakeOverRequest(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=500)
-    rate: float = Field(default=0.736, ge=0.7, le=1.15)
+    rate: float = Field(default=0.93, ge=0.7, le=1.15)
     persona_id: str | None = Field(default=None, pattern=r"^persona_[a-z0-9_]+$")
 
 
@@ -257,7 +257,7 @@ class VoiceConsentRequest(BaseModel):
 class VoicePreviewRequest(BaseModel):
     elder_id: str = "elder_001"
     text: str = Field(min_length=1, max_length=180)
-    rate: float = Field(default=0.736, ge=0.7, le=1.15)
+    rate: float = Field(default=0.93, ge=0.7, le=1.15)
 
 
 class VoiceApproveRequest(BaseModel):

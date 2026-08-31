@@ -58,6 +58,15 @@ def _speech_result(body: bytes = b"RIFF-wave") -> elevenlabs_tts.SpeechResult:
     )
 
 
+class TTSRateDefaultsTests(unittest.TestCase):
+    def test_public_tts_requests_default_to_natural_slowdown(self):
+        self.assertEqual(api.TTSRequest(text="안녕하세요").rate, 0.93)
+        self.assertEqual(
+            api.VoicePreviewRequest(text="안녕하세요").rate,
+            0.93,
+        )
+
+
 class TTSProxyBridgeTests(unittest.TestCase):
     def setUp(self):
         self.config = (
@@ -530,7 +539,7 @@ class TTSApiTests(unittest.TestCase):
         self.assertEqual(response.headers["x-generation-seconds"], "1.500")
         self.assertNotIn("authorization", response.headers)
         synthesize.assert_called_once_with(
-            "timed", 0.736, request_id=request_id, voice_id="voice-test"
+            "timed", 0.93, request_id=request_id, voice_id="voice-test"
         )
 
     def test_public_tts_uses_approved_persona_voice_when_present(self):
@@ -553,7 +562,7 @@ class TTSApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         active.assert_called_once_with("persona_jeonghun")
         synthesize.assert_called_once_with(
-            "가족 목소리", 0.736, request_id=request_id, voice_id="voice-family",
+            "가족 목소리", 0.93, request_id=request_id, voice_id="voice-family",
         )
 
     def test_global_rate_limit_cannot_be_bypassed_by_changing_client_ip(self):
