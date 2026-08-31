@@ -88,6 +88,9 @@ test("어르신 통화 화면은 상태별 안내와 두 개의 원형 조작만
   assert.match(humanCall, /label=\{muted \? "소리 켜기" : "소리 끄기"\}/);
   assert.match(humanCall, /label="전화 끊기"/);
   assert.match(humanCall, /!confirmingEnd && <div className="controls human-call-controls">/);
+  assert.doesNotMatch(call, /SelfView/);
+  assert.doesNotMatch(humanCall, /SelfView/);
+  assert.match(guardianCall, /<SelfView stream=\{localStream\} \/>/);
   assert.match(guardianCall, /label=\{muted \? "마이크 꺼짐" : "마이크"\}/);
   assert.match(guardianCall, /className="guardian-call-actions guardian-human-controls"/);
   assert.match(guardianCall, /className="guardian-call-actions guardian-intro-actions"/);

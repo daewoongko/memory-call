@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import FaceStage from "../components/FaceStage.jsx";
 import LipSyncStage from "../components/LipSyncStage.jsx";
-import SelfView from "../components/SelfView.jsx";
 import { CallControlButton, CallEndConfirm } from "../components/CallControls.jsx";
 import { useSpeech } from "../useSpeech.js";
 import { emitSpeechTiming, speechNow } from "../speechPipeline.js";
@@ -242,7 +241,6 @@ export default function CallScreen({
             <b>{name}</b> · {elapsedText(elapsed)}
           </div>
         </div>
-        <SelfView />
       </div>
 
       <div className="bottom">

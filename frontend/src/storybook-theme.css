@@ -2915,15 +2915,6 @@ h3,
 .guardian-call-meta strong { font-size: clamp(16px,4.4vw,20px); line-height: 1.15; }
 .human-call-meta span,
 .guardian-call-meta span { font-size: clamp(12px,3.2vw,14px); font-variant-numeric: tabular-nums; }
-.human-call > .selfview {
-  position: absolute;
-  z-index: 5;
-  top: calc(16px + env(safe-area-inset-top));
-  right: 16px;
-  width: clamp(82px,24vw,104px);
-  height: clamp(112px,32vw,140px);
-  box-shadow: 0 8px 24px rgba(0,0,0,.3);
-}
 .human-call > .controls {
   position: absolute;
   z-index: 5;

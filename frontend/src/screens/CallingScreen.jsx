@@ -12,23 +12,44 @@ export default function CallingScreen({
   announcement,
   morphUrl = null,
   introDurationSec = 24.2,
+  introStartedAt = null,
   onWaitEnded,
 }) {
   const [elapsed, setElapsed] = useState(0);
+  const [remaining, setRemaining] = useState(() => Math.max(0, Math.ceil(introDurationSec)));
+  const fallbackStartedAtRef = useRef(Date.now());
   const onWaitEndedRef = useRef(onWaitEnded);
   useEffect(() => { onWaitEndedRef.current = onWaitEnded; }, [onWaitEnded]);
   useEffect(() => {
-    const started = Date.now();
-    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
-    const done = window.setTimeout(
-      () => onWaitEndedRef.current?.(), Math.max(1, introDurationSec) * 1000,
-    );
+    const rawStartedAt = String(introStartedAt || "");
+    const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawStartedAt);
+    const parsedStartedAt = new Date(
+      rawStartedAt && !hasTimezone ? `${rawStartedAt}Z` : rawStartedAt,
+    ).getTime();
+    const startedAt = Number.isNaN(parsedStartedAt)
+      ? fallbackStartedAtRef.current
+      : parsedStartedAt;
+    const durationMs = Math.max(1, Number(introDurationSec) || 0) * 1000;
+    const deadline = startedAt + durationMs;
+    let completed = false;
+    const tick = () => {
+      const now = Date.now();
+      const leftMs = Math.max(0, deadline - now);
+      setElapsed(Math.max(0, Math.floor((now - startedAt) / 1000)));
+      setRemaining(Math.max(0, Math.ceil(leftMs / 1000)));
+      if (leftMs > 0 || completed) return;
+      completed = true;
+      onWaitEndedRef.current?.();
+    };
+    tick();
+    const timer = window.setInterval(tick, 250);
     return () => {
       window.clearInterval(timer);
-      window.clearTimeout(done);
     };
-  }, [introDurationSec]);
-  const remaining = Math.max(0, Math.ceil(introDurationSec - elapsed));
+  }, [introDurationSec, introStartedAt]);
+  const connectionCountdown = remaining > 0
+    ? `${remaining}초 후 연결돼요`
+    : "곧 연결돼요";
   const status = elapsed < 5
     ? `${name}에게 연결을 요청하고 있어요.`
     : "잔잔한 음악을 들으며 잠시 기다려 주세요.";
@@ -50,7 +71,7 @@ export default function CallingScreen({
             {`${name}과 연결하는 중`}
           </div>
           <p>{status}</p>
-          <small className="calling-intro-count">{remaining}초 후 연결돼요</small>
+          <small className="calling-intro-count">{connectionCountdown}</small>
         </div>
       </div>
     );
@@ -69,7 +90,7 @@ export default function CallingScreen({
         {`${name}과 연결하는 중`}
       </div>
       <p className="hint">{elapsed < 5 ? announcement : status}</p>
-      <small className="calling-intro-count">{remaining}초 후 연결돼요</small>
+      <small className="calling-intro-count">{connectionCountdown}</small>
     </div>
   );
 }

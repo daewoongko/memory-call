@@ -25,6 +25,7 @@ import { startWaitingMelody, stopWaitingMelody } from "./waitingMelody.js";
 // The server owns the ringing deadline. Polling only mirrors that state so a
 // guardian answer, decline, or timeout is never inferred from a local timer.
 const RING_POLL_MS = 1500;
+const INTRO_COMPLETE_POLL_MS = 250;
 const RING_COOLDOWN_MS = 300000; // 통화가 끝난 뒤 중복 상태 전환을 막는 유예
 // 모바일 WebRTC의 ICE 연결은 같은 와이파이에서도 수 초 이상 걸릴 수 있다.
 // 24.2초 인트로가 끝난 뒤에만 이 유예 시간을 적용해 정상적인 받기를 인트로
@@ -416,14 +417,19 @@ export default function App() {
 
     const tick = async () => {
       if (!alive) return;
+      let nextPollMs = RING_POLL_MS;
       try {
         const current = await api.getInvite(inviteId);
         if (!alive) return;
+        const introSecondsLeft = Number(current.intro_seconds_left);
+        if (Number.isFinite(introSecondsLeft) && introSecondsLeft <= 2.5) {
+          nextPollMs = INTRO_COMPLETE_POLL_MS;
+        }
 
         if (current.state === "answered") {
           setInvite(current);
           if (!current.intro_complete) {
-            timer = setTimeout(tick, RING_POLL_MS);
+            timer = setTimeout(tick, INTRO_COMPLETE_POLL_MS);
             return;
           }
           stopWaitingMelody();
@@ -488,7 +494,7 @@ export default function App() {
         return;
       }
 
-      if (alive) timer = setTimeout(tick, RING_POLL_MS);
+      if (alive) timer = setTimeout(tick, nextPollMs);
     };
 
     tick();
@@ -867,7 +873,8 @@ export default function App() {
           name={profile?.persona?.display_name ?? "가족"}
           announcement={call?.announcement ?? "연결하고 있어요"}
           morphUrl={profile?.morph_url ?? null}
-          introDurationSec={invite?.intro_seconds_left ?? CALLING_INTRO_SEC}
+          introDurationSec={invite?.intro_duration_sec ?? CALLING_INTRO_SEC}
+          introStartedAt={invite?.created_at ?? null}
           onWaitEnded={finishCallingIntro}
         />}
       </div>,

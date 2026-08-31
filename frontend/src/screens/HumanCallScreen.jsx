@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import SelfView from "../components/SelfView.jsx";
 import { CallControlButton, CallEndConfirm } from "../components/CallControls.jsx";
 import { useRemotePlayback } from "../useRemotePlayback.js";
 
@@ -82,8 +81,6 @@ export default function HumanCallScreen({
         <strong>{name}</strong>
         <span>통화 중 · {clock(seconds)}</span>
       </div>
-
-      <SelfView stream={localStream} />
 
       {!confirmingEnd && <div className="controls human-call-controls">
         <CallControlButton
